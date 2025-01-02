@@ -26,6 +26,7 @@ type Index = {
 type BrowseParams = {
   id: string;
   view?: string;
+  data?: Record<string, string>;
 };
 
 type WindowHistory = {
@@ -160,6 +161,13 @@ const initState: State = {
     notFound: {
       file__name: "not found",
       file__description: "Card not found",
+    },
+    // a self-rendering component
+    omnibox: {
+      db__schema: "omnibox",
+      file__name: "Omnibox",
+      view__component: "OmniboxView",
+      view__schema: "omnibox",
     },
   },
   index: {},
@@ -320,7 +328,51 @@ function TextView({ currentCard, dispatch }: ViewParams) {
   );
 }
 
-const viewByName: Record<string, React.FC<ViewParams>> = { TextView, DataView };
+function OmniboxView({ state, dispatch }: ViewParams) {
+  const omnibox = state.window.current.data?.omnibox ?? "";
+
+  const re = RegExp(omnibox, "i");
+
+  const results = Object.entries(state.db).filter(
+    ([key, value]) =>
+      re.test(key) ||
+      re.test(value.file__name ?? "") ||
+      re.test(value.file__description ?? "")
+  );
+
+  return (
+    <div>
+      <input
+        value={omnibox}
+        onChange={(e) =>
+          dispatch({
+            tag: "replace",
+            value: {
+              ...state.window.current,
+              data: { omnibox: e.target.value },
+            },
+          })
+        }
+      />
+      <ul>
+        {results.map(([key, value]) => (
+          <li key={key}>
+            <Link dispatch={dispatch} params={{ id: key }}>
+              {value.file__name ?? key}
+            </Link>
+            <span>{value.file__description}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const viewByName: Record<string, React.FC<ViewParams>> = {
+  TextView,
+  DataView,
+  OmniboxView,
+};
 
 function App() {
   const [state, dispatch] = useReducer(reducer, initState);
@@ -362,8 +414,8 @@ function App() {
         <Link dispatch={dispatch} params={{ id: "home" }}>
           Home
         </Link>
-        <Link dispatch={dispatch} params={{ id: "other" }}>
-          Other
+        <Link dispatch={dispatch} params={{ id: "omnibox" }}>
+          Omnibox
         </Link>
         <Link dispatch={dispatch} params={{ id: "sfwhrioqwrth" }}>
           404
