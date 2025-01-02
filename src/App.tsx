@@ -12,14 +12,15 @@ type Rec = {
   file__name?: string;
   file__description?: string;
   text__content?: TextNode[];
-  db__type?: string;
+  db__schema?: string;
+  field__refType?: string;
   index__field?: string;
   view__component?: string;
-  view__types?: string[];
+  view__schema?: string;
 };
 
 type Index = {
-  view__types?: string[];
+  view__schema?: string[];
 };
 
 type BrowseParams = {
@@ -41,55 +42,109 @@ type State = {
 
 const initState: State = {
   db: {
-    type__schema: {
-      db__type: "type__schema",
+    // schemas
+    schema__schema: {
+      db__schema: "schema__schema",
       file__name: "Schema",
       file__description:
         "Schema defines the fields in a record & is used to select the viewer",
     },
-    type__index: {
-      db__type: "type__index",
+    schema__field: {
+      db__schema: "schema__schema",
+      file__name: "Field",
+    },
+    schema__index: {
+      db__schema: "schema__schema",
       file__name: "Index",
       file__description: "Index allows lookup of records by their content",
     },
-    type__anyType: {
-      db__type: "type__schema",
+    schema__anyType: {
+      db__schema: "schema__schema",
       file__name: "AnyType",
       file__description: "fallback schema for any type of record",
     },
-    type__text: {
-      db__type: "type__schema",
+    schema__text: {
+      db__schema: "schema__schema",
       file__name: "Text",
       file__description: "schema for Text",
     },
-    type__view: {
-      db__type: "type__schema",
+    schema__view: {
+      db__schema: "schema__schema",
       file__name: "View",
       file__description: "schema for View",
     },
-    index__view__types: {
-      db__type: "type__index",
-      file__name: "view__types index",
+    // fields
+    db__schema: {
+      db__schema: "schema__field",
+      file__name: "DB Schema",
+      file__description: "schema used to validate & render this record",
+      field__refType: "schema__schema",
+    },
+    field__refType: {
+      db__schema: "schema__field",
+      file__name: "Field refType",
+      file__description:
+        "if this is set, the value of this field is a ref to a record with this schema",
+      field__refType: "schema__schema",
+    },
+    index__field: {
+      db__schema: "schema__field",
+      file__name: "Index field",
+      file__description: "the field this is indexing",
+      field__refType: "schema__field",
+    },
+    view__component: {
+      db__schema: "schema__field",
+      file__name: "View component",
+      file__description: "name of the primitive component used for rendering",
+    },
+    view__schema: {
+      db__schema: "schema__field",
+      file__name: "View schema",
+      file__description: "the schema that this view is supposed to render",
+      field__refType: "schema__schema",
+    },
+    file__name: {
+      db__schema: "schema__field",
+      file__name: "File name",
+      file__description: "field used for name in tab header & file explorer",
+    },
+    file__description: {
+      db__schema: "schema__field",
+      file__name: "File description",
+      file__description: "describes the content of the record",
+    },
+    text__content: {
+      db__schema: "schema__field",
+      file__name: "Text content",
+      file__description: "a list of text nodes used in text schema",
+    },
+    // Indexes
+    index__view__schema: {
+      db__schema: "schema__index",
+      file__name: "view__schema index",
       file__description:
         "used for looking up the viewers that can render records with a given schema",
-      index__field: "view__types",
+      index__field: "view__schema",
     },
+    // Views
     view__anyType: {
-      db__type: "type__view",
+      db__schema: "schema__view",
       file__name: "DataView",
       file__description: "default viewer for all data types",
       view__component: "DataView",
-      view__types: ["type__anyType"],
+      view__schema: "schema__anyType",
     },
     view__text: {
-      db__type: "type__view",
+      db__schema: "schema__view",
       file__name: "TextView",
       file__description: "viewer for text cards",
       view__component: "TextView",
-      view__types: ["type__text"],
+      view__schema: "schema__text",
     },
+    // Cards
     home: {
-      db__type: "type__text",
+      db__schema: "schema__text",
       file__name: "home",
       file__description: "this is the home card",
       text__content: [
@@ -117,7 +172,7 @@ const initState: State = {
 
 function populateIndex(state: State) {
   const indexes = Object.values(state.db).filter(
-    (rec) => rec.db__type === "type__index"
+    (rec) => rec.db__schema === "schema__index"
   );
 
   for (const [id, rec] of Object.entries(state.db)) {
@@ -219,8 +274,31 @@ type ViewParams = {
   dispatch: React.Dispatch<Action>;
 };
 
-function DataView({ currentCard }: ViewParams) {
-  return <pre>{JSON.stringify(currentCard, null, 2)}</pre>;
+function DataView({ currentCard, state, dispatch }: ViewParams) {
+  return (
+    <table>
+      <tbody>
+        {Object.entries(currentCard).map(([key, value]) => (
+          <tr key={key}>
+            <td>
+              <Link dispatch={dispatch} params={{ id: key }}>
+                {state.db[key].file__name ?? key}
+              </Link>
+            </td>
+            <td>
+              {state.db[key].field__refType && typeof value === "string" ? (
+                <Link dispatch={dispatch} params={{ id: value }}>
+                  {state.db[value].file__name ?? value}
+                </Link>
+              ) : (
+                <pre>{JSON.stringify(value, null, 2)}</pre>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
 }
 
 function TextView({ currentCard, dispatch }: ViewParams) {
@@ -252,8 +330,8 @@ function App() {
   const canBack = state.window.back.length > 0;
 
   const viewersForType =
-    state.index[currentCard.db__type ?? ""]?.view__types ?? [];
-  const viewersForAnyType = state.index.type__anyType?.view__types ?? [];
+    state.index[currentCard.db__schema ?? ""]?.view__schema ?? [];
+  const viewersForAnyType = state.index.schema__anyType?.view__schema ?? [];
 
   const view =
     state.db[state.window.current.view ?? ""] ??
