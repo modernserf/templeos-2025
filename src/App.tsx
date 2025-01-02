@@ -122,12 +122,27 @@ const initState: State = {
       file__description: "a list of text nodes used in text schema",
     },
     // Indexes
+    index__db__schema: {
+      db__schema: "schema__index",
+      file__name: "db__schema index",
+      index__field: "db__schema",
+    },
     index__view__schema: {
       db__schema: "schema__index",
       file__name: "view__schema index",
       file__description:
         "used for looking up the viewers that can render records with a given schema",
       index__field: "view__schema",
+    },
+    index__index__field: {
+      db__schema: "schema__index",
+      file__name: "index__field index",
+      index__field: "index__field",
+    },
+    index__field__refType: {
+      db__schema: "schema__index",
+      file__name: "field__refType index",
+      index__field: "field__refType",
     },
     // Views
     view__anyType: {
@@ -293,28 +308,64 @@ type ViewParams = {
   dispatch: React.Dispatch<Action>;
 };
 
-function DataView({ currentCard, state, dispatch }: ViewParams) {
+function FileLink({
+  dispatch,
+  id,
+  state,
+}: {
+  dispatch: React.Dispatch<Action>;
+  id: string;
+  state: State;
+}) {
+  return (
+    <Link dispatch={dispatch} params={{ id }}>
+      {state.db[id].file__name ?? id}
+    </Link>
+  );
+}
+
+function DataView({ window, currentCard, state, dispatch }: ViewParams) {
+  const indexFields = Object.entries(state.index[window.id] ?? {});
+
   return (
     <table>
       <tbody>
+        <tr>
+          <th colSpan={2}>Fields</th>
+        </tr>
         {Object.entries(currentCard).map(([key, value]) => (
           <tr key={key}>
             <td>
-              <Link dispatch={dispatch} params={{ id: key }}>
-                {state.db[key].file__name ?? key}
-              </Link>
+              <FileLink dispatch={dispatch} state={state} id={key} />
             </td>
             <td>
               {state.db[key].field__refType && typeof value === "string" ? (
-                <Link dispatch={dispatch} params={{ id: value }}>
-                  {state.db[value].file__name ?? value}
-                </Link>
+                <FileLink dispatch={dispatch} state={state} id={value} />
               ) : (
                 <pre>{JSON.stringify(value, null, 2)}</pre>
               )}
             </td>
           </tr>
         ))}
+        {indexFields.length > 0 ? (
+          <tr>
+            <th colSpan={2}>Referenced by</th>
+          </tr>
+        ) : null}
+        {indexFields.flatMap(([key, values]) => {
+          return values.map((value, i) => (
+            <tr key={`${key} ${value}`}>
+              <td>
+                {i === 0 ? (
+                  <FileLink dispatch={dispatch} state={state} id={key} />
+                ) : null}
+              </td>
+              <td>
+                <FileLink dispatch={dispatch} state={state} id={value} />
+              </td>
+            </tr>
+          ));
+        })}
       </tbody>
     </table>
   );
@@ -467,7 +518,7 @@ function App() {
           onChange={(e) =>
             dispatch({
               tag: "replace",
-              value: { view: e.target.value },
+              value: { view: e.target.value, data: {} },
             })
           }
         >
