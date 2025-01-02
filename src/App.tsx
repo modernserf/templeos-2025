@@ -1,4 +1,5 @@
 import { useReducer } from "react";
+import { produce } from "immer";
 import "./App.css";
 
 type TextNode =
@@ -29,16 +30,16 @@ type BrowseParams = {
   data?: Record<string, string>;
 };
 
-type WindowHistory = {
-  current: BrowseParams;
-  back: BrowseParams[];
-  forward: BrowseParams[];
+type WindowHistory = BrowseParams & {
+  back?: WindowHistory;
+  forward?: WindowHistory;
 };
 
 type State = {
   db: Record<string, Rec>;
   index: Record<string, Index>;
-  window: WindowHistory;
+  windows: WindowHistory[];
+  currentWindow: number;
 };
 
 const initState: State = {
@@ -171,11 +172,8 @@ const initState: State = {
     },
   },
   index: {},
-  window: {
-    current: { id: "home" },
-    back: [],
-    forward: [],
-  },
+  windows: [{ id: "home" }],
+  currentWindow: 0,
 };
 
 function populateIndex(state: State) {
@@ -198,64 +196,70 @@ function populateIndex(state: State) {
 
 populateIndex(initState);
 
+function currentWindow(state: State): WindowHistory {
+  return state.windows[state.currentWindow];
+}
+
 type Action =
   | { tag: "back" }
   | { tag: "forward" }
   | { tag: "push"; value: BrowseParams }
-  | { tag: "replace"; value: BrowseParams };
+  | { tag: "replace"; value: Partial<BrowseParams> }
+  | { tag: "newWindow"; value: BrowseParams }
+  | { tag: "selectWindow"; value: number }
+  | { tag: "closeWindow" };
 
-function reducer(state: State, action: Action): State {
+const reducer = produce((state: State, action: Action) => {
   switch (action.tag) {
-    case "back":
-      if (state.window.back.length > 0) {
-        const nextBack = state.window.back.slice();
-        return {
-          ...state,
-          window: {
-            current: nextBack.pop()!,
-            back: nextBack,
-            forward: [...state.window.forward, state.window.current],
-          },
-        };
-      } else {
-        return state;
+    case "back": {
+      const current = currentWindow(state);
+      if (current.back) {
+        state.windows[state.currentWindow] = current.back;
+        current.back = undefined;
+        state.windows[state.currentWindow].forward = current;
       }
-    case "forward": {
-      if (state.window.forward.length > 0) {
-        const nextForward = state.window.forward.slice();
-        return {
-          ...state,
-          window: {
-            current: nextForward.pop()!,
-            back: [...state.window.back, state.window.current],
-            forward: nextForward,
-          },
-        };
-      } else {
-        return state;
-      }
+      return;
     }
-    case "push":
-      return {
-        ...state,
-        window: {
-          current: action.value,
-          back: [...state.window.back, state.window.current],
-          forward: [],
-        },
+    case "forward": {
+      const current = currentWindow(state);
+      if (current.forward) {
+        state.windows[state.currentWindow] = current.forward;
+        current.forward = undefined;
+        state.windows[state.currentWindow].back = current;
+      }
+      return;
+    }
+    case "replace": {
+      Object.assign(state.windows[state.currentWindow], action.value);
+      return;
+    }
+    case "push": {
+      const current = currentWindow(state);
+      current.forward = undefined;
+      state.windows[state.currentWindow] = {
+        ...action.value,
+        back: current,
       };
-    case "replace":
-      return {
-        ...state,
-        window: {
-          ...state.window,
-          current: action.value,
-        },
-      };
-    default:
-      return state;
+      return;
+    }
+    case "newWindow": {
+      state.windows.push(action.value);
+      state.currentWindow = state.windows.length - 1;
+      return;
+    }
+    case "selectWindow": {
+      state.currentWindow = action.value;
+      return;
+    }
+    case "closeWindow": {
+      if (state.windows.length > 0) {
+        state.windows.splice(state.currentWindow, 1);
+        state.currentWindow %= state.windows.length;
+      }
+      return;
+    }
   }
-}
+});
 
 function Link({
   dispatch,
@@ -269,7 +273,13 @@ function Link({
   return (
     <button
       type="button"
-      onClick={() => dispatch({ tag: "push", value: params })}
+      onClick={(e) => {
+        if (e.altKey) {
+          dispatch({ tag: "newWindow", value: params });
+        } else {
+          dispatch({ tag: "push", value: params });
+        }
+      }}
     >
       {children}
     </button>
@@ -279,6 +289,7 @@ function Link({
 type ViewParams = {
   currentCard: Rec;
   state: State;
+  window: BrowseParams;
   dispatch: React.Dispatch<Action>;
 };
 
@@ -328,8 +339,8 @@ function TextView({ currentCard, dispatch }: ViewParams) {
   );
 }
 
-function OmniboxView({ state, dispatch }: ViewParams) {
-  const omnibox = state.window.current.data?.omnibox ?? "";
+function OmniboxView({ state, window, dispatch }: ViewParams) {
+  const omnibox = window.data?.omnibox ?? "";
 
   const re = RegExp(omnibox, "i");
 
@@ -348,7 +359,6 @@ function OmniboxView({ state, dispatch }: ViewParams) {
           dispatch({
             tag: "replace",
             value: {
-              ...state.window.current,
               data: { omnibox: e.target.value },
             },
           })
@@ -376,38 +386,70 @@ const viewByName: Record<string, React.FC<ViewParams>> = {
 
 function App() {
   const [state, dispatch] = useReducer(reducer, initState);
+  console.log(state);
 
-  const currentCard = state.db[state.window.current.id] ?? state.db.notFound;
-  const canForward = state.window.forward.length > 0;
-  const canBack = state.window.back.length > 0;
+  const windows = state.windows.map((window, id) => {
+    const isCurrent = state.currentWindow === id;
+    const card = state.db[window.id] ?? state.db.notFound;
+    const viewersForType =
+      state.index[card.db__schema ?? ""]?.view__schema ?? [];
 
-  const viewersForType =
-    state.index[currentCard.db__schema ?? ""]?.view__schema ?? [];
+    const view =
+      state.db[window.view ?? ""] ??
+      state.db[viewersForType[0] ?? ""] ??
+      state.db.view__anyType;
+
+    const View = viewByName[view.view__component!];
+
+    return { window, isCurrent, card, viewersForType, View };
+  });
+
+  const viewersForType = windows[state.currentWindow].viewersForType;
   const viewersForAnyType = state.index.schema__anyType?.view__schema ?? [];
-
-  const view =
-    state.db[state.window.current.view ?? ""] ??
-    state.db[viewersForType[0] ?? ""] ??
-    state.db.view__anyType;
-
-  const View = viewByName[view.view__component!];
 
   return (
     <>
-      <h1>{currentCard.file__name}</h1>
-      <View state={state} dispatch={dispatch} currentCard={currentCard} />
+      {windows.map(({ View, window, isCurrent, card }, id) => {
+        return (
+          <div
+            key={id}
+            style={{
+              opacity: isCurrent ? 1 : "0.5",
+            }}
+            onMouseDownCapture={() => {
+              dispatch({ tag: "selectWindow", value: id });
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                dispatch({ tag: "closeWindow" });
+              }}
+            >
+              &times;
+            </button>
+            <h1>{card.file__name}</h1>
+            <View
+              state={state}
+              dispatch={dispatch}
+              currentCard={card}
+              window={window}
+            />
+          </div>
+        );
+      })}
       <nav>
         <button
           type="button"
           onClick={() => dispatch({ tag: "back" })}
-          disabled={!canBack}
+          disabled={!currentWindow(state).back}
         >
           Back
         </button>
         <button
           type="button"
           onClick={() => dispatch({ tag: "forward" })}
-          disabled={!canForward}
+          disabled={!currentWindow(state).forward}
         >
           Forward
         </button>
@@ -421,11 +463,11 @@ function App() {
           404
         </Link>
         <select
-          value={state.window.current.view ?? ""}
+          value={currentWindow(state).view ?? ""}
           onChange={(e) =>
             dispatch({
               tag: "replace",
-              value: { ...state.window.current, view: e.target.value },
+              value: { view: e.target.value },
             })
           }
         >
@@ -436,7 +478,6 @@ function App() {
           ))}
         </select>
       </nav>
-      <pre>{JSON.stringify(state.window, undefined, 2)}</pre>
     </>
   );
 }
