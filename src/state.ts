@@ -31,7 +31,7 @@ export type BrowseParams = {
   data?: Record<string, string>;
 };
 
-type WindowHistory = BrowseParams & {
+export type WindowHistory = BrowseParams & {
   back?: WindowHistory;
   forward?: WindowHistory;
 };
@@ -244,15 +244,20 @@ export const db = createSlice({
   name: "db",
   initialState: initDB,
   reducers: {},
+  selectors: {
+    get: (db, id) => db[id],
+  },
 });
 
 export const index = createSlice({
   name: "index",
   initialState: createIndex(initDB),
   reducers: {},
+  selectors: {
+    get: (db, id) => db[id],
+  },
 });
 
-// TODO: always provide window id (thru context?) instead of falling back on currentWindow
 const windowsState = {
   windows: [{ id: "home" }] as WindowHistory[],
   currentWindow: 0,
@@ -316,3 +321,5 @@ export const windows = createSlice({
 export const store = configureStore({
   reducer: { windows: windows.reducer, db: db.reducer, index: index.reducer },
 });
+
+export type IRootState = ReturnType<typeof store.getState>;

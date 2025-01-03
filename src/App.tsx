@@ -1,7 +1,7 @@
 import { useEffect, useRef, useContext, createContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { windows, db, index, BrowseParams, Rec, WindowHistory } from "./state";
 import "./App.css";
-import { windows, db, index, BrowseParams, Rec } from "./state";
 
 const tabContext = createContext(0);
 const TabProvider = tabContext.Provider;
@@ -35,8 +35,15 @@ function Link({
   );
 }
 
+function useSelectorParams<State, Params, Out>(
+  fn: (s: State, p: Params) => Out,
+  p: Params
+) {
+  return useSelector<State, Out>((state) => fn(state, p));
+}
+
 function FileLink({ id, target }: { id: string; target?: Target }) {
-  const rec = useSelector(db.selectSlice)[id];
+  const rec = useSelectorParams(db.selectors.get, id);
   return (
     <Link params={{ id }} target={target}>
       {rec.file__name ?? id}
@@ -74,11 +81,19 @@ function FolderIconView({ currentCard }: ViewParams) {
   );
 }
 
+function DataViewField({ id, value }: { id: string; value: unknown }) {
+  const field = useSelectorParams(db.selectors.get, id);
+  return field.field__refType && typeof value === "string" ? (
+    <FileLink id={value} />
+  ) : (
+    <pre>{JSON.stringify(value, null, 2)}</pre>
+  );
+}
+
 function DataView({ window, currentCard }: ViewParams) {
   const indexFields = Object.entries(
-    useSelector(index.selectSlice)[window.id] ?? {}
+    useSelectorParams(index.selectors.get, window.id) ?? {}
   );
-  const _db = useSelector(db.selectSlice);
 
   return (
     <table>
@@ -92,11 +107,7 @@ function DataView({ window, currentCard }: ViewParams) {
               <FileLink id={key} />
             </td>
             <td>
-              {_db[key].field__refType && typeof value === "string" ? (
-                <FileLink id={value} />
-              ) : (
-                <pre>{JSON.stringify(value, null, 2)}</pre>
-              )}
+              <DataViewField id={key} value={value} />
             </td>
           </tr>
         ))}
@@ -193,95 +204,118 @@ const viewByName: Record<string, React.FC<ViewParams>> = {
   FolderIconView,
 };
 
-function App() {
+function AppWindow({
+  id,
+  window,
+  isCurrent,
+}: {
+  id: number;
+  window: WindowHistory;
+  isCurrent: boolean;
+}) {
   const dispatch = useDispatch();
-  const { windows: ws, currentWindow } = useSelector(windows.selectSlice);
   const _db = useSelector(db.selectSlice);
   const _index = useSelector(index.selectSlice);
-  const _windows = ws.map((window, id) => {
-    const isCurrent = currentWindow === id;
-    const card = _db[window.id] ?? _db.notFound;
-    const viewersForType = _index[card.db__schema ?? ""]?.view__schema ?? [];
 
-    const view =
-      _db[window.view ?? ""] ??
-      _db[viewersForType[0] ?? ""] ??
-      _db.view__anyType;
+  const card = _db[window.id] ?? _db.notFound;
+  const viewersForType = _index[card.db__schema ?? ""]?.view__schema ?? [];
+  const view =
+    _db[window.view ?? ""] ?? _db[viewersForType[0] ?? ""] ?? _db.view__anyType;
 
-    const View = viewByName[view.view__component!];
+  const View = viewByName[view.view__component!];
 
-    return { window, isCurrent, card, viewersForType, View };
-  });
+  return (
+    <TabProvider value={id}>
+      <div
+        style={{
+          opacity: isCurrent ? 1 : "0.5",
+        }}
+        onMouseDownCapture={() => {
+          dispatch(windows.actions.selectWindow({ id }));
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            dispatch(windows.actions.closeWindow({ id }));
+          }}
+        >
+          &times;
+        </button>
+        <h1>{card.file__name}</h1>
+        <View currentCard={card} window={window} />
+      </div>
+    </TabProvider>
+  );
+}
 
-  const viewersForType = _windows[currentWindow]?.viewersForType ?? [];
+function AppMenu() {
+  const dispatch = useDispatch();
+  const { windows: ws, currentWindow } = useSelector(windows.selectSlice);
+  const window = ws[currentWindow];
+  const _index = useSelector(index.selectSlice);
+  const _db = useSelector(db.selectSlice);
+  const card = _db[window.id] ?? _db.notFound;
+  const viewersForType = _index[card.db__schema ?? ""]?.view__schema ?? [];
   const viewersForAnyType = _index.schema__anyType?.view__schema ?? [];
 
   return (
+    <nav>
+      <button
+        type="button"
+        onClick={() => {
+          dispatch(windows.actions.back({ id: currentWindow }));
+        }}
+        disabled={!window?.back}
+      >
+        Back
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          dispatch(windows.actions.forward({ id: currentWindow }));
+        }}
+        disabled={!window?.forward}
+      >
+        Forward
+      </button>
+      <FileLink id="home" target="new" />
+      <FileLink id="omnibox" target="new" />
+      <select
+        value={window?.view ?? ""}
+        onChange={(e) => {
+          dispatch(
+            windows.actions.replace({
+              id: currentWindow,
+              params: { view: e.target.value },
+            })
+          );
+        }}
+      >
+        {viewersForType.concat(viewersForAnyType).map((viewId) => (
+          <option key={viewId} value={viewId}>
+            {_db[viewId].file__name ?? viewId}
+          </option>
+        ))}
+      </select>
+    </nav>
+  );
+}
+
+function App() {
+  const { windows: ws, currentWindow } = useSelector(windows.selectSlice);
+
+  return (
     <>
-      {_windows.map(({ View, window, isCurrent, card }, id) => {
-        return (
-          <TabProvider key={id} value={id}>
-            <div
-              style={{
-                opacity: isCurrent ? 1 : "0.5",
-              }}
-              onMouseDownCapture={() => {
-                dispatch(windows.actions.selectWindow({ id }));
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  dispatch(windows.actions.closeWindow({ id }));
-                }}
-              >
-                &times;
-              </button>
-              <h1>{card.file__name}</h1>
-              <View currentCard={card} window={window} />
-            </div>
-          </TabProvider>
-        );
-      })}
-      <nav>
-        <button
-          type="button"
-          onClick={() => {
-            dispatch(windows.actions.back({ id: currentWindow }));
-          }}
-          disabled={!_windows[currentWindow].window?.back}
-        >
-          Back
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            dispatch(windows.actions.forward({ id: currentWindow }));
-          }}
-          disabled={!_windows[currentWindow].window?.forward}
-        >
-          Forward
-        </button>
-        <FileLink id="home" target="new" />
-        <FileLink id="omnibox" target="new" />
-        <select
-          value={_windows[currentWindow].window?.view ?? ""}
-          onChange={(e) => {
-            dispatch(
-              windows.actions.replace({
-                id: currentWindow,
-                params: { view: e.target.value },
-              })
-            );
-          }}
-        >
-          {viewersForType.concat(viewersForAnyType).map((viewId) => (
-            <option key={viewId} value={viewId}>
-              {_db[viewId].file__name ?? viewId}
-            </option>
-          ))}
-        </select>
-      </nav>
+      {ws.map((window, id) => (
+        <AppWindow
+          key={id}
+          id={id}
+          window={window}
+          isCurrent={currentWindow === id}
+        />
+      ))}
+      <AppMenu />
     </>
   );
 }
