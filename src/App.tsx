@@ -1,4 +1,4 @@
-import { useReducer } from "react";
+import { useReducer, useEffect, useRef } from "react";
 import { produce } from "immer";
 import "./App.css";
 
@@ -256,10 +256,10 @@ function currentWindow(state: State): WindowHistory {
 type Action =
   | { tag: "back" }
   | { tag: "forward" }
-  | { tag: "push"; value: BrowseParams }
-  | { tag: "replace"; value: Partial<BrowseParams> }
-  | { tag: "newWindow"; value: BrowseParams }
-  | { tag: "selectWindow"; value: number }
+  | { tag: "push"; params: BrowseParams }
+  | { tag: "replace"; params: Partial<BrowseParams> }
+  | { tag: "newWindow"; params: BrowseParams }
+  | { tag: "selectWindow"; id: number }
   | { tag: "closeWindow" };
 
 const reducer = produce((state: State, action: Action) => {
@@ -283,25 +283,25 @@ const reducer = produce((state: State, action: Action) => {
       return;
     }
     case "replace": {
-      Object.assign(state.windows[state.currentWindow], action.value);
+      Object.assign(state.windows[state.currentWindow], action.params);
       return;
     }
     case "push": {
       const current = currentWindow(state);
       current.forward = undefined;
       state.windows[state.currentWindow] = {
-        ...action.value,
+        ...action.params,
         back: current,
       };
       return;
     }
     case "newWindow": {
-      state.windows.push(action.value);
+      state.windows.push(action.params);
       state.currentWindow = state.windows.length - 1;
       return;
     }
     case "selectWindow": {
-      state.currentWindow = action.value;
+      state.currentWindow = action.id;
       return;
     }
     case "closeWindow": {
@@ -332,9 +332,9 @@ function Link({
       type="button"
       onClick={(e) => {
         if (e.altKey || target === "new") {
-          dispatch({ tag: "newWindow", value: params });
+          dispatch({ tag: "newWindow", params });
         } else {
-          dispatch({ tag: "push", value: params });
+          dispatch({ tag: "push", params });
         }
       }}
     >
@@ -460,6 +460,11 @@ function TextView({ currentCard, dispatch }: ViewParams) {
 }
 
 function OmniboxView({ state, window, dispatch }: ViewParams) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    ref.current?.focus();
+  }, []);
+
   const omnibox = window.data?.omnibox ?? "";
 
   const re = RegExp(omnibox, "i");
@@ -475,10 +480,11 @@ function OmniboxView({ state, window, dispatch }: ViewParams) {
     <div>
       <input
         value={omnibox}
+        ref={ref}
         onChange={(e) =>
           dispatch({
             tag: "replace",
-            value: {
+            params: {
               data: { omnibox: e.target.value },
             },
           })
@@ -539,7 +545,7 @@ function App() {
               opacity: isCurrent ? 1 : "0.5",
             }}
             onMouseDownCapture={() => {
-              dispatch({ tag: "selectWindow", value: id });
+              dispatch({ tag: "selectWindow", id });
             }}
           >
             <button
@@ -582,7 +588,7 @@ function App() {
           onChange={(e) =>
             dispatch({
               tag: "replace",
-              value: { view: e.target.value, data: {} },
+              params: { view: e.target.value, data: {} },
             })
           }
         >
