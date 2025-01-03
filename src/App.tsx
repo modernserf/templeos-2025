@@ -12,6 +12,7 @@ type TextNode =
 type Rec = {
   file__name?: string;
   file__description?: string;
+  file__folderItems?: string[];
   text__content?: TextNode[];
   db__schema?: string;
   field__refType?: string;
@@ -75,6 +76,11 @@ const initState: State = {
       file__name: "View",
       file__description: "schema for View",
     },
+    schema__folder: {
+      db__schema: "schema__schema",
+      file__name: "Folder",
+      file__description: "schema for Folder",
+    },
     // fields
     db__schema: {
       db__schema: "schema__field",
@@ -116,6 +122,11 @@ const initState: State = {
       file__name: "File description",
       file__description: "describes the content of the record",
     },
+    file__folderItems: {
+      db__schema: "schema__field",
+      file__name: "File folder items",
+      file__description: "ids of files in folder",
+    },
     text__content: {
       db__schema: "schema__field",
       file__name: "Text content",
@@ -144,6 +155,11 @@ const initState: State = {
       file__name: "field__refType index",
       index__field: "field__refType",
     },
+    index__file__folderItems: {
+      db__schema: "schema__index",
+      file__name: "file__folderItems index",
+      index__field: "file__folderItems",
+    },
     // Views
     view__anyType: {
       db__schema: "schema__view",
@@ -159,6 +175,20 @@ const initState: State = {
       view__component: "TextView",
       view__schema: "schema__text",
     },
+    view__folderList: {
+      db__schema: "schema__view",
+      file__name: "FolderListView",
+      file__description: "viewer for folders as list",
+      view__component: "FolderListView",
+      view__schema: "schema__folder",
+    },
+    view__folderIcon: {
+      db__schema: "schema__view",
+      file__name: "FolderIconView",
+      file__description: "viewer for folders as icon grid",
+      view__component: "FolderIconView",
+      view__schema: "schema__folder",
+    },
     // Cards
     home: {
       db__schema: "schema__text",
@@ -173,6 +203,12 @@ const initState: State = {
     other: {
       file__name: "other",
       file__description: "this is the other card",
+    },
+    example__folder: {
+      db__schema: "schema__folder",
+      file__name: "Example Folder",
+      file__description: "A folder with some items",
+      file__folderItems: ["home", "schema__text", "view__text"],
     },
     notFound: {
       file__name: "not found",
@@ -200,10 +236,12 @@ function populateIndex(state: State) {
     for (const index of indexes) {
       const field = index.index__field!;
       if (field in rec) {
-        const value = rec[field];
-        state.index[value] ??= {};
-        state.index[value][field] ??= [];
-        state.index[value][field].push(id);
+        const items = Array.isArray(rec[field]) ? rec[field] : [rec[field]];
+        for (const value of items) {
+          state.index[value] ??= {};
+          state.index[value][field] ??= [];
+          state.index[value][field].push(id);
+        }
       }
     }
   }
@@ -276,20 +314,24 @@ const reducer = produce((state: State, action: Action) => {
   }
 });
 
+type Target = "current" | "new";
+
 function Link({
   dispatch,
   params,
   children,
+  target = "current",
 }: {
   dispatch: React.Dispatch<Action>;
   params: BrowseParams;
   children: React.ReactNode;
+  target?: Target;
 }) {
   return (
     <button
       type="button"
       onClick={(e) => {
-        if (e.altKey) {
+        if (e.altKey || target === "new") {
           dispatch({ tag: "newWindow", value: params });
         } else {
           dispatch({ tag: "push", value: params });
@@ -301,6 +343,24 @@ function Link({
   );
 }
 
+function FileLink({
+  dispatch,
+  id,
+  state,
+  target,
+}: {
+  dispatch: React.Dispatch<Action>;
+  id: string;
+  state: State;
+  target?: Target;
+}) {
+  return (
+    <Link dispatch={dispatch} params={{ id }} target={target}>
+      {state.db[id].file__name ?? id}
+    </Link>
+  );
+}
+
 type ViewParams = {
   currentCard: Rec;
   state: State;
@@ -308,19 +368,28 @@ type ViewParams = {
   dispatch: React.Dispatch<Action>;
 };
 
-function FileLink({
-  dispatch,
-  id,
-  state,
-}: {
-  dispatch: React.Dispatch<Action>;
-  id: string;
-  state: State;
-}) {
+function FolderListView({ currentCard, dispatch, state }: ViewParams) {
   return (
-    <Link dispatch={dispatch} params={{ id }}>
-      {state.db[id].file__name ?? id}
-    </Link>
+    <ul>
+      {(currentCard.file__folderItems ?? []).map((id) => (
+        <li key={id}>
+          <FileLink dispatch={dispatch} state={state} id={id} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function FolderIconView({ currentCard, dispatch, state }: ViewParams) {
+  return (
+    <ul style={{ display: "flex" }}>
+      {(currentCard.file__folderItems ?? []).map((id) => (
+        <li key={id}>
+          <div style={{ textAlign: "center", fontSize: 32 }}>📄</div>
+          <FileLink dispatch={dispatch} state={state} id={id} />
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -433,6 +502,8 @@ const viewByName: Record<string, React.FC<ViewParams>> = {
   TextView,
   DataView,
   OmniboxView,
+  FolderListView,
+  FolderIconView,
 };
 
 function App() {
@@ -455,7 +526,7 @@ function App() {
     return { window, isCurrent, card, viewersForType, View };
   });
 
-  const viewersForType = windows[state.currentWindow].viewersForType;
+  const viewersForType = windows[state.currentWindow]?.viewersForType ?? [];
   const viewersForAnyType = state.index.schema__anyType?.view__schema ?? [];
 
   return (
@@ -493,28 +564,21 @@ function App() {
         <button
           type="button"
           onClick={() => dispatch({ tag: "back" })}
-          disabled={!currentWindow(state).back}
+          disabled={!currentWindow(state)?.back}
         >
           Back
         </button>
         <button
           type="button"
           onClick={() => dispatch({ tag: "forward" })}
-          disabled={!currentWindow(state).forward}
+          disabled={!currentWindow(state)?.forward}
         >
           Forward
         </button>
-        <Link dispatch={dispatch} params={{ id: "home" }}>
-          Home
-        </Link>
-        <Link dispatch={dispatch} params={{ id: "omnibox" }}>
-          Omnibox
-        </Link>
-        <Link dispatch={dispatch} params={{ id: "sfwhrioqwrth" }}>
-          404
-        </Link>
+        <FileLink dispatch={dispatch} state={state} id="home" target="new" />
+        <FileLink dispatch={dispatch} state={state} id="omnibox" target="new" />
         <select
-          value={currentWindow(state).view ?? ""}
+          value={currentWindow(state)?.view ?? ""}
           onChange={(e) =>
             dispatch({
               tag: "replace",
