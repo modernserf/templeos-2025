@@ -1,9 +1,9 @@
 import { useEffect, useRef, useContext, createContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { actions, selectors, BrowseParams, Rec, WindowHistory } from "./state";
+import { actions, selectors, BrowseParams, Rec } from "./state";
 import "./App.css";
 
-const tabContext = createContext(0);
+const tabContext = createContext("rootWindow");
 const TabProvider = tabContext.Provider;
 
 type Target = "current" | "new";
@@ -20,7 +20,7 @@ function Link({
   className?: string;
 }) {
   const dispatch = useDispatch();
-  const id = useContext(tabContext);
+  const windowId = useContext(tabContext);
   return (
     <button
       type="button"
@@ -29,7 +29,7 @@ function Link({
         if (e.metaKey || target === "new") {
           dispatch(actions.newWindow({ params }));
         } else {
-          dispatch(actions.push({ params, id }));
+          dispatch(actions.push({ params, windowId }));
         }
       }}
     >
@@ -56,7 +56,7 @@ function FileLink({ id, target }: { id: string; target?: Target }) {
 
 type ViewParams = {
   currentCard: Rec;
-  window: BrowseParams;
+  history: Rec;
 };
 
 function FolderListView({ currentCard }: ViewParams) {
@@ -93,9 +93,9 @@ function DataViewField({ id, value }: { id: string; value: unknown }) {
   );
 }
 
-function DataView({ window, currentCard }: ViewParams) {
+function DataView({ history, currentCard }: ViewParams) {
   const indexFields = Object.entries(
-    useSelectorParams(selectors.indexGet, window.id) ?? {}
+    useSelectorParams(selectors.indexGet, history.history__location!) ?? {}
   );
 
   return (
@@ -153,16 +153,16 @@ function TextView({ currentCard }: ViewParams) {
   );
 }
 
-function OmniboxView({ window }: ViewParams) {
+function OmniboxView({ history }: ViewParams) {
   const dispatch = useDispatch();
-  const id = useContext(tabContext);
+  const windowId = useContext(tabContext);
   const db = useSelector(selectors.db);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     ref.current?.focus();
   }, []);
 
-  const omnibox = window.data?.omnibox ?? "";
+  const omnibox = history.history__data?.omnibox ?? "";
 
   const re = RegExp(omnibox, "i");
 
@@ -179,14 +179,14 @@ function OmniboxView({ window }: ViewParams) {
         className="OmniboxView__input"
         value={omnibox}
         ref={ref}
-        onChange={(e) =>
+        onChange={(e) => {
           dispatch(
             actions.replace({
-              id,
+              windowId,
               params: { data: { omnibox: e.target.value } },
             })
-          )
-        }
+          );
+        }}
       />
       <ul className="OmniboxView__list">
         {results.map(([key, value]) => (
@@ -208,44 +208,45 @@ const viewByName: Record<string, React.FC<ViewParams>> = {
 };
 
 function AppWindow({
-  id,
-  window,
+  windowId,
   isCurrent,
 }: {
-  id: number;
-  window: WindowHistory;
+  windowId: string;
   isCurrent: boolean;
 }) {
   const dispatch = useDispatch();
   const db = useSelector(selectors.db);
-  const index = useSelector(selectors.index);
+  const history = db[db[windowId].window__currentHistory!]!;
 
-  const card = db[window.id] ?? db.notFound;
-  const viewersForType = index[card.db__schema ?? ""]?.view__schema ?? [];
+  const card = db[history.history__location!] ?? db.notFound;
+  const viewersForType = useSelectorParams(
+    selectors.viewersForType,
+    card.db__schema!
+  );
   const view =
-    db[window.view ?? ""] ?? db[viewersForType[0] ?? ""] ?? db.view__anyType;
+    db[history.history__view!] ?? db[viewersForType[0]!] ?? db.view__anyType;
 
   const View = viewByName[view.view__component!];
-  const viewersForAnyType = index.schema__anyType?.view__schema ?? [];
+  const viewersForAnyType = useSelector(selectors.viewersForAnyType);
 
   return (
-    <TabProvider value={id}>
+    <TabProvider value={windowId}>
       <div
         tabIndex={0}
         className={["AppWindow", isCurrent && "AppWindow--current"]
           .filter(Boolean)
           .join(" ")}
         onMouseDownCapture={() => {
-          dispatch(actions.selectWindow({ id }));
+          dispatch(actions.selectWindow({ windowId }));
         }}
         onKeyDownCapture={(e) => {
           if (e.key == "[" && e.metaKey) {
             e.preventDefault();
-            dispatch(actions.back({ id }));
+            dispatch(actions.back({ windowId }));
           }
           if (e.key == "]" && e.metaKey) {
             e.preventDefault();
-            dispatch(actions.forward({ id }));
+            dispatch(actions.forward({ windowId }));
           }
         }}
       >
@@ -254,17 +255,17 @@ function AppWindow({
             className="AppWindow__closeButton"
             type="button"
             onClick={() => {
-              dispatch(actions.closeWindow({ id }));
+              dispatch(actions.closeWindow({ windowId }));
             }}
           ></button>
           <h1 className="AppWindow__title">{card.file__name}</h1>
           <select
             className="AppWindow__viewMenu"
-            value={window?.view ?? ""}
+            value={history.history__view!}
             onChange={(e) => {
               dispatch(
                 actions.replace({
-                  id,
+                  windowId,
                   params: { view: e.target.value },
                 })
               );
@@ -277,7 +278,7 @@ function AppWindow({
             ))}
           </select>
         </header>
-        <View currentCard={card} window={window} />
+        <View currentCard={card} history={history} />
       </div>
     </TabProvider>
   );
@@ -285,26 +286,27 @@ function AppWindow({
 
 function AppMenu() {
   const dispatch = useDispatch();
-  const { windows: ws, currentWindow } = useSelector(selectors.windows);
-  const window = ws[currentWindow];
+  const currentWindow = useSelector(selectors.db).browser
+    .browser__currentWindow!;
+  // const window = ws[currentWindow];
 
   return (
     <nav>
       <button
         type="button"
         onClick={() => {
-          dispatch(actions.back({ id: currentWindow }));
+          dispatch(actions.back({ windowId: currentWindow }));
         }}
-        disabled={!window?.back}
+        // disabled={!window?.back}
       >
         Back
       </button>
       <button
         type="button"
         onClick={() => {
-          dispatch(actions.forward({ id: currentWindow }));
+          dispatch(actions.forward({ windowId: currentWindow }));
         }}
-        disabled={!window?.forward}
+        // disabled={!window?.forward}
       >
         Forward
       </button>
@@ -315,17 +317,16 @@ function AppMenu() {
 }
 
 function App() {
-  const { windows: ws, currentWindow } = useSelector(selectors.windows);
+  const db = useSelector(selectors.db);
+  const currentWindow = db.browser.browser__currentWindow!;
+  const windowIDs = Object.entries(db)
+    .filter(([, value]) => value.db__schema === "schema__window")
+    .map((x) => x[0]);
   return (
     <>
       <AppMenu />
-      {ws.map((window, id) => (
-        <AppWindow
-          key={id}
-          id={id}
-          window={window}
-          isCurrent={currentWindow === id}
-        />
+      {windowIDs.map((id) => (
+        <AppWindow key={id} windowId={id} isCurrent={currentWindow === id} />
       ))}
     </>
   );

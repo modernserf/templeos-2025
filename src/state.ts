@@ -19,9 +19,18 @@ export type Rec = {
   index__field?: string;
   view__component?: string;
   view__schema?: string;
+  history__window?: string;
+  history__location?: string;
+  history__view?: string;
+  history__data?: Record<string, string>;
+  history__back?: string;
+  history__forward?: string;
+  window__currentHistory?: string;
+  browser__currentWindow?: string;
 };
 
 type Index = {
+  db__schema?: string[];
   view__schema?: string[];
 };
 
@@ -74,6 +83,18 @@ const initDB: DB = {
     file__name: "Folder",
     file__description: "schema for Folder",
   },
+  schema__history: {
+    db__schema: "schema__schema",
+    file__name: "History",
+  },
+  schema__window: {
+    db__schema: "schema__schema",
+    file__name: "Window",
+  },
+  schema__browser: {
+    db__schema: "schema__schema",
+    file__name: "Browser",
+  },
   // fields
   db__schema: {
     db__schema: "schema__field",
@@ -119,6 +140,41 @@ const initDB: DB = {
     db__schema: "schema__field",
     file__name: "File folder items",
     file__description: "ids of files in folder",
+  },
+  // Browser
+  history__location: {
+    db__schema: "schema__field",
+    file__name: "History location ref",
+    field__refType: "schema__anyType",
+  },
+  history__view: {
+    db__schema: "schema__field",
+    file__name: "History view ref",
+    field__refType: "schema__view",
+  },
+  history__data: {
+    db__schema: "schema__field",
+    file__name: "History data",
+  },
+  history__back: {
+    db__schema: "schema__field",
+    file__name: "History back ref",
+    field__refType: "schema__history",
+  },
+  history__forward: {
+    db__schema: "schema__field",
+    file__name: "History forward ref",
+    field__refType: "schema__history",
+  },
+  history__window: {
+    db__schema: "schema__field",
+    file__name: "History window ref",
+    field__refType: "schema__window",
+  },
+  window__currentHistory: {
+    db__schema: "schema__field",
+    file__name: "Window current history ref",
+    field__refType: "schema__history",
   },
   text__content: {
     db__schema: "schema__field",
@@ -207,6 +263,20 @@ const initDB: DB = {
     file__name: "not found",
     file__description: "Card not found",
   },
+  rootHistory: {
+    db__schema: "schema__history",
+    history__window: "rootWindow",
+    history__location: "home",
+  },
+  rootWindow: {
+    db__schema: "schema__window",
+    window__currentHistory: "rootHistory",
+  },
+  browser: {
+    db__schema: "schema__browser",
+    file__name: "Browser state",
+    browser__currentWindow: "rootWindow",
+  },
   // a self-rendering component
   omnibox: {
     db__schema: "omnibox",
@@ -243,95 +313,129 @@ function createIndex(db: DB): DBIndex {
 const db = createSlice({
   name: "db",
   initialState: initDB,
-  reducers: {},
+  reducers: {
+    push(
+      db,
+      {
+        payload: { windowId, params, historyId },
+      }: P<{ windowId: string; params: BrowseParams; historyId: string }>
+    ) {
+      const window = db[windowId];
+      db[window.window__currentHistory!].history__forward = historyId;
+      db[historyId] = {
+        db__schema: "schema__history",
+        history__window: windowId,
+        history__location: params.id,
+        history__view: params.view,
+        history__data: params.data,
+        history__back: window.window__currentHistory,
+      };
+      window.window__currentHistory = historyId;
+    },
+    replace(
+      db,
+      {
+        payload: { windowId, params },
+      }: P<{ windowId: string; params: Partial<BrowseParams> }>
+    ) {
+      const window = db[windowId];
+      const history = db[window.window__currentHistory!];
+      if ("id" in params) {
+        history.history__location = params.id;
+      }
+      if ("view" in params) {
+        history.history__view = params.view;
+      }
+      if ("data" in params) {
+        history.history__data = params.data;
+      }
+    },
+    back(db, { payload: { windowId } }: P<{ windowId: string }>) {
+      const window = db[windowId];
+      const currentId = window.window__currentHistory!;
+      const backId = db[currentId].history__back;
+      if (backId) {
+        window.window__currentHistory = backId;
+        delete db[currentId].history__back;
+        db[backId].history__forward = currentId;
+      }
+    },
+    forward(db, { payload: { windowId } }: P<{ windowId: string }>) {
+      const window = db[windowId];
+      const currentId = window.window__currentHistory!;
+      const forwardId = db[currentId].history__forward;
+      if (forwardId) {
+        window.window__currentHistory = forwardId;
+        delete db[currentId].history__forward;
+        db[forwardId].history__back = currentId;
+      }
+    },
+    newWindow(
+      db,
+      {
+        payload: { windowId, params, historyId },
+      }: P<{ windowId: string; params: BrowseParams; historyId: string }>
+    ) {
+      db[windowId] = {
+        db__schema: "schema__window",
+        window__currentHistory: historyId,
+      };
+      db[historyId] = {
+        db__schema: "schema__history",
+        history__window: windowId,
+        history__location: params.id,
+        history__view: params.view,
+        history__data: params.data,
+      };
+      db.browser.browser__currentWindow = windowId;
+    },
+    selectWindow(db, { payload: { windowId } }: P<{ windowId: string }>) {
+      db.browser.browser__currentWindow = windowId;
+    },
+    closeWindow(db, { payload: { windowId } }: P<{ windowId: string }>) {
+      delete db[windowId];
+    },
+  },
   selectors: {
-    get: (db, id) => db[id],
+    dbGet: (db, id) => db[id],
   },
 });
 
+// TODO: index needs to be kept up-to-date
 const index = createSlice({
   name: "index",
   initialState: createIndex(initDB),
   reducers: {},
   selectors: {
-    get: (db, id) => db[id],
-  },
-});
-
-const windowsState = {
-  windows: [{ id: "home" }] as WindowHistory[],
-  currentWindow: 0,
-};
-
-const windows = createSlice({
-  name: "windows",
-  initialState: windowsState,
-  reducers: {
-    back(state, { payload: { id } }: P<{ id: number }>) {
-      const current = state.windows[id];
-      if (current.back) {
-        state.windows[id] = current.back;
-        current.back = undefined;
-        state.windows[id].forward = current;
-      }
+    indexGet: (idx, id) => idx[id],
+    viewersForType: (idx, type) => {
+      return idx[type]?.view__schema ?? [];
     },
-    forward(state, { payload: { id } }: P<{ id: number }>) {
-      const current = state.windows[id];
-      if (current.forward) {
-        state.windows[id] = current.forward;
-        current.forward = undefined;
-        state.windows[id].back = current;
-      }
-    },
-    replace(
-      state,
-      {
-        payload: { id, params },
-      }: P<{ id: number; params: Partial<BrowseParams> }>
-    ) {
-      Object.assign(state.windows[id], params);
-    },
-    push(
-      state,
-      { payload: { id, params } }: P<{ id: number; params: BrowseParams }>
-    ) {
-      const current = state.windows[id];
-      current.forward = undefined;
-      state.windows[id] = {
-        ...params,
-        back: current,
-      };
-    },
-    newWindow(state, { payload: { params } }: P<{ params: BrowseParams }>) {
-      state.windows.push(params);
-      state.currentWindow = state.windows.length - 1;
-    },
-    selectWindow(state, { payload: { id } }: P<{ id: number }>) {
-      state.currentWindow = id;
-    },
-    closeWindow(state, { payload: { id } }: P<{ id: number }>) {
-      state.windows.splice(id, 1);
-      if (state.windows.length > 0) {
-        state.currentWindow %= state.windows.length;
-      }
-    },
+    viewersForAnyType: (idx) => idx.schema__anyType?.view__schema ?? [],
   },
 });
 
 export const actions = {
-  ...windows.actions,
+  ...db.actions,
+  push({ windowId, params }: { windowId: string; params: BrowseParams }) {
+    const historyId = crypto.randomUUID();
+    return db.actions.push({ historyId, windowId, params });
+  },
+  newWindow({ params }: { params: BrowseParams }) {
+    const windowId = crypto.randomUUID();
+    const historyId = crypto.randomUUID();
+    return db.actions.newWindow({ historyId, windowId, params });
+  },
 };
 
 export const selectors = {
-  windows: windows.selectSlice,
   db: db.selectSlice,
-  dbGet: db.selectors.get,
-  index: index.selectSlice,
-  indexGet: index.selectors.get,
+  ...db.selectors,
+  ...index.selectors,
 };
 
 export const store = configureStore({
-  reducer: { windows: windows.reducer, db: db.reducer, index: index.reducer },
+  reducer: { db: db.reducer, index: index.reducer },
 });
 
 export type IRootState = ReturnType<typeof store.getState>;
