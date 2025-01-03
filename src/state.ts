@@ -240,7 +240,7 @@ function createIndex(db: DB): DBIndex {
   return out;
 }
 
-export const db = createSlice({
+const db = createSlice({
   name: "db",
   initialState: initDB,
   reducers: {},
@@ -249,7 +249,7 @@ export const db = createSlice({
   },
 });
 
-export const index = createSlice({
+const index = createSlice({
   name: "index",
   initialState: createIndex(initDB),
   reducers: {},
@@ -263,7 +263,7 @@ const windowsState = {
   currentWindow: 0,
 };
 
-export const windows = createSlice({
+const windows = createSlice({
   name: "windows",
   initialState: windowsState,
   reducers: {
@@ -317,6 +317,18 @@ export const windows = createSlice({
     },
   },
 });
+
+export const actions = {
+  ...windows.actions,
+};
+
+export const selectors = {
+  windows: windows.selectSlice,
+  db: db.selectSlice,
+  dbGet: db.selectors.get,
+  index: index.selectSlice,
+  indexGet: index.selectors.get,
+};
 
 export const store = configureStore({
   reducer: { windows: windows.reducer, db: db.reducer, index: index.reducer },

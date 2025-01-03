@@ -1,6 +1,6 @@
 import { useEffect, useRef, useContext, createContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { windows, db, index, BrowseParams, Rec, WindowHistory } from "./state";
+import { actions, selectors, BrowseParams, Rec, WindowHistory } from "./state";
 import "./App.css";
 
 const tabContext = createContext(0);
@@ -27,9 +27,9 @@ function Link({
       className={className}
       onClick={(e) => {
         if (e.metaKey || target === "new") {
-          dispatch(windows.actions.newWindow({ params }));
+          dispatch(actions.newWindow({ params }));
         } else {
-          dispatch(windows.actions.push({ params, id }));
+          dispatch(actions.push({ params, id }));
         }
       }}
     >
@@ -46,7 +46,7 @@ function useSelectorParams<State, Params, Out>(
 }
 
 function FileLink({ id, target }: { id: string; target?: Target }) {
-  const rec = useSelectorParams(db.selectors.get, id);
+  const rec = useSelectorParams(selectors.dbGet, id);
   return (
     <Link params={{ id }} target={target} className="FileLink">
       {rec.file__name ?? id}
@@ -85,7 +85,7 @@ function FolderIconView({ currentCard }: ViewParams) {
 }
 
 function DataViewField({ id, value }: { id: string; value: unknown }) {
-  const field = useSelectorParams(db.selectors.get, id);
+  const field = useSelectorParams(selectors.dbGet, id);
   return field.field__refType && typeof value === "string" ? (
     <FileLink id={value} />
   ) : (
@@ -95,7 +95,7 @@ function DataViewField({ id, value }: { id: string; value: unknown }) {
 
 function DataView({ window, currentCard }: ViewParams) {
   const indexFields = Object.entries(
-    useSelectorParams(index.selectors.get, window.id) ?? {}
+    useSelectorParams(selectors.indexGet, window.id) ?? {}
   );
 
   return (
@@ -156,7 +156,7 @@ function TextView({ currentCard }: ViewParams) {
 function OmniboxView({ window }: ViewParams) {
   const dispatch = useDispatch();
   const id = useContext(tabContext);
-  const _db = useSelector(db.selectSlice);
+  const db = useSelector(selectors.db);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     ref.current?.focus();
@@ -166,7 +166,7 @@ function OmniboxView({ window }: ViewParams) {
 
   const re = RegExp(omnibox, "i");
 
-  const results = Object.entries(_db).filter(
+  const results = Object.entries(db).filter(
     ([key, value]) =>
       re.test(key) ||
       re.test(value.file__name ?? "") ||
@@ -181,7 +181,7 @@ function OmniboxView({ window }: ViewParams) {
         ref={ref}
         onChange={(e) =>
           dispatch(
-            windows.actions.replace({
+            actions.replace({
               id,
               params: { data: { omnibox: e.target.value } },
             })
@@ -217,16 +217,16 @@ function AppWindow({
   isCurrent: boolean;
 }) {
   const dispatch = useDispatch();
-  const _db = useSelector(db.selectSlice);
-  const _index = useSelector(index.selectSlice);
+  const db = useSelector(selectors.db);
+  const index = useSelector(selectors.index);
 
-  const card = _db[window.id] ?? _db.notFound;
-  const viewersForType = _index[card.db__schema ?? ""]?.view__schema ?? [];
+  const card = db[window.id] ?? db.notFound;
+  const viewersForType = index[card.db__schema ?? ""]?.view__schema ?? [];
   const view =
-    _db[window.view ?? ""] ?? _db[viewersForType[0] ?? ""] ?? _db.view__anyType;
+    db[window.view ?? ""] ?? db[viewersForType[0] ?? ""] ?? db.view__anyType;
 
   const View = viewByName[view.view__component!];
-  const viewersForAnyType = _index.schema__anyType?.view__schema ?? [];
+  const viewersForAnyType = index.schema__anyType?.view__schema ?? [];
 
   return (
     <TabProvider value={id}>
@@ -236,16 +236,16 @@ function AppWindow({
           .filter(Boolean)
           .join(" ")}
         onMouseDownCapture={() => {
-          dispatch(windows.actions.selectWindow({ id }));
+          dispatch(actions.selectWindow({ id }));
         }}
         onKeyDownCapture={(e) => {
           if (e.key == "[" && e.metaKey) {
             e.preventDefault();
-            dispatch(windows.actions.back({ id }));
+            dispatch(actions.back({ id }));
           }
           if (e.key == "]" && e.metaKey) {
             e.preventDefault();
-            dispatch(windows.actions.forward({ id }));
+            dispatch(actions.forward({ id }));
           }
         }}
       >
@@ -254,7 +254,7 @@ function AppWindow({
             className="AppWindow__closeButton"
             type="button"
             onClick={() => {
-              dispatch(windows.actions.closeWindow({ id }));
+              dispatch(actions.closeWindow({ id }));
             }}
           ></button>
           <h1 className="AppWindow__title">{card.file__name}</h1>
@@ -263,7 +263,7 @@ function AppWindow({
             value={window?.view ?? ""}
             onChange={(e) => {
               dispatch(
-                windows.actions.replace({
+                actions.replace({
                   id,
                   params: { view: e.target.value },
                 })
@@ -272,7 +272,7 @@ function AppWindow({
           >
             {viewersForType.concat(viewersForAnyType).map((viewId) => (
               <option key={viewId} value={viewId}>
-                {_db[viewId].file__name ?? viewId}
+                {db[viewId].file__name ?? viewId}
               </option>
             ))}
           </select>
@@ -285,7 +285,7 @@ function AppWindow({
 
 function AppMenu() {
   const dispatch = useDispatch();
-  const { windows: ws, currentWindow } = useSelector(windows.selectSlice);
+  const { windows: ws, currentWindow } = useSelector(selectors.windows);
   const window = ws[currentWindow];
 
   return (
@@ -293,7 +293,7 @@ function AppMenu() {
       <button
         type="button"
         onClick={() => {
-          dispatch(windows.actions.back({ id: currentWindow }));
+          dispatch(actions.back({ id: currentWindow }));
         }}
         disabled={!window?.back}
       >
@@ -302,7 +302,7 @@ function AppMenu() {
       <button
         type="button"
         onClick={() => {
-          dispatch(windows.actions.forward({ id: currentWindow }));
+          dispatch(actions.forward({ id: currentWindow }));
         }}
         disabled={!window?.forward}
       >
@@ -315,7 +315,7 @@ function AppMenu() {
 }
 
 function App() {
-  const { windows: ws, currentWindow } = useSelector(windows.selectSlice);
+  const { windows: ws, currentWindow } = useSelector(selectors.windows);
   return (
     <>
       <AppMenu />

@@ -65,12 +65,8 @@
   width: 100%;
 }
 
-.OmniboxView__list {
-  padding: 0;
-}
 
 .OmniboxView__listItem {
-  list-style: none;
   padding: 0.25rem;
   border-top: 1px solid #ccc;
 }

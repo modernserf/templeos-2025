@@ -46,3 +46,11 @@ body {
 th {
   text-align: left;
 }
+
+ul {
+  padding: 0;
+}
+
+li {
+  list-style: none;
+}
