@@ -12,18 +12,21 @@ function Link({
   params,
   children,
   target = "current",
+  className,
 }: {
   params: BrowseParams;
   children: React.ReactNode;
   target?: Target;
+  className?: string;
 }) {
   const dispatch = useDispatch();
   const id = useContext(tabContext);
   return (
     <button
       type="button"
+      className={className}
       onClick={(e) => {
-        if (e.altKey || target === "new") {
+        if (e.metaKey || target === "new") {
           dispatch(windows.actions.newWindow({ params }));
         } else {
           dispatch(windows.actions.push({ params, id }));
@@ -45,7 +48,7 @@ function useSelectorParams<State, Params, Out>(
 function FileLink({ id, target }: { id: string; target?: Target }) {
   const rec = useSelectorParams(db.selectors.get, id);
   return (
-    <Link params={{ id }} target={target}>
+    <Link params={{ id }} target={target} className="FileLink">
       {rec.file__name ?? id}
     </Link>
   );
@@ -140,7 +143,7 @@ function TextView({ currentCard }: ViewParams) {
             return <span key={i}>{node.text}</span>;
           case "link":
             return (
-              <Link key={i} params={node.params}>
+              <Link key={i} params={node.params} className="TextView__link">
                 {node.text}
               </Link>
             );
@@ -171,8 +174,9 @@ function OmniboxView({ window }: ViewParams) {
   );
 
   return (
-    <div>
+    <div className="OmniboxView">
       <input
+        className="OmniboxView__input"
         value={omnibox}
         ref={ref}
         onChange={(e) =>
@@ -184,11 +188,10 @@ function OmniboxView({ window }: ViewParams) {
           )
         }
       />
-      <ul>
+      <ul className="OmniboxView__list">
         {results.map(([key, value]) => (
-          <li key={key}>
-            <Link params={{ id: key }}>{value.file__name ?? key}</Link>
-            <span>{value.file__description}</span>
+          <li key={key} className="OmniboxView__listItem">
+            <FileLink id={key} /> <span>{value.file__description}</span>
           </li>
         ))}
       </ul>
@@ -223,26 +226,57 @@ function AppWindow({
     _db[window.view ?? ""] ?? _db[viewersForType[0] ?? ""] ?? _db.view__anyType;
 
   const View = viewByName[view.view__component!];
+  const viewersForAnyType = _index.schema__anyType?.view__schema ?? [];
 
   return (
     <TabProvider value={id}>
       <div
-        style={{
-          opacity: isCurrent ? 1 : "0.5",
-        }}
+        tabIndex={0}
+        className={["AppWindow", isCurrent && "AppWindow--current"]
+          .filter(Boolean)
+          .join(" ")}
         onMouseDownCapture={() => {
           dispatch(windows.actions.selectWindow({ id }));
         }}
+        onKeyDownCapture={(e) => {
+          if (e.key == "[" && e.metaKey) {
+            e.preventDefault();
+            dispatch(windows.actions.back({ id }));
+          }
+          if (e.key == "]" && e.metaKey) {
+            e.preventDefault();
+            dispatch(windows.actions.forward({ id }));
+          }
+        }}
       >
-        <button
-          type="button"
-          onClick={() => {
-            dispatch(windows.actions.closeWindow({ id }));
-          }}
-        >
-          &times;
-        </button>
-        <h1>{card.file__name}</h1>
+        <header className="AppWindow__header">
+          <button
+            className="AppWindow__closeButton"
+            type="button"
+            onClick={() => {
+              dispatch(windows.actions.closeWindow({ id }));
+            }}
+          ></button>
+          <h1 className="AppWindow__title">{card.file__name}</h1>
+          <select
+            className="AppWindow__viewMenu"
+            value={window?.view ?? ""}
+            onChange={(e) => {
+              dispatch(
+                windows.actions.replace({
+                  id,
+                  params: { view: e.target.value },
+                })
+              );
+            }}
+          >
+            {viewersForType.concat(viewersForAnyType).map((viewId) => (
+              <option key={viewId} value={viewId}>
+                {_db[viewId].file__name ?? viewId}
+              </option>
+            ))}
+          </select>
+        </header>
         <View currentCard={card} window={window} />
       </div>
     </TabProvider>
@@ -253,11 +287,6 @@ function AppMenu() {
   const dispatch = useDispatch();
   const { windows: ws, currentWindow } = useSelector(windows.selectSlice);
   const window = ws[currentWindow];
-  const _index = useSelector(index.selectSlice);
-  const _db = useSelector(db.selectSlice);
-  const card = _db[window.id] ?? _db.notFound;
-  const viewersForType = _index[card.db__schema ?? ""]?.view__schema ?? [];
-  const viewersForAnyType = _index.schema__anyType?.view__schema ?? [];
 
   return (
     <nav>
@@ -281,32 +310,15 @@ function AppMenu() {
       </button>
       <FileLink id="home" target="new" />
       <FileLink id="omnibox" target="new" />
-      <select
-        value={window?.view ?? ""}
-        onChange={(e) => {
-          dispatch(
-            windows.actions.replace({
-              id: currentWindow,
-              params: { view: e.target.value },
-            })
-          );
-        }}
-      >
-        {viewersForType.concat(viewersForAnyType).map((viewId) => (
-          <option key={viewId} value={viewId}>
-            {_db[viewId].file__name ?? viewId}
-          </option>
-        ))}
-      </select>
     </nav>
   );
 }
 
 function App() {
   const { windows: ws, currentWindow } = useSelector(windows.selectSlice);
-
   return (
     <>
+      <AppMenu />
       {ws.map((window, id) => (
         <AppWindow
           key={id}
@@ -315,7 +327,6 @@ function App() {
           isCurrent={currentWindow === id}
         />
       ))}
-      <AppMenu />
     </>
   );
 }
