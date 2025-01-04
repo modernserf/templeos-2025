@@ -1,6 +1,5 @@
 import { useEffect, useRef, useContext, createContext } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { actions, selectors, BrowseParams, Rec } from "./state";
+import { BrowseParams, Rec, useDB, actions, selectors } from "./state";
 import "./App.css";
 
 const tabContext = createContext("rootWindow");
@@ -19,7 +18,7 @@ function Link({
   target?: Target;
   className?: string;
 }) {
-  const dispatch = useDispatch();
+  const db = useDB();
   const windowId = useContext(tabContext);
   return (
     <button
@@ -27,9 +26,9 @@ function Link({
       className={className}
       onClick={(e) => {
         if (e.metaKey || target === "new") {
-          dispatch(actions.newWindow({ params }));
+          actions.newWindow(db, { params });
         } else {
-          dispatch(actions.push({ params, windowId }));
+          actions.push(db, { params, windowId });
         }
       }}
     >
@@ -38,15 +37,9 @@ function Link({
   );
 }
 
-function useSelectorParams<State, Params, Out>(
-  fn: (s: State, p: Params) => Out,
-  p: Params
-) {
-  return useSelector<State, Out>((state) => fn(state, p));
-}
-
 function FileLink({ id, target }: { id: string; target?: Target }) {
-  const rec = useSelectorParams(selectors.dbGet, id);
+  const db = useDB();
+  const rec = db.data[id];
   return (
     <Link params={{ id }} target={target} className="FileLink">
       {rec.file__name ?? id}
@@ -85,7 +78,7 @@ function FolderIconView({ currentCard }: ViewParams) {
 }
 
 function DataViewField({ id, value }: { id: string; value: unknown }) {
-  const field = useSelectorParams(selectors.dbGet, id);
+  const field = useDB().data[id];
   return field.field__refType && typeof value === "string" ? (
     <FileLink id={value} />
   ) : (
@@ -95,7 +88,7 @@ function DataViewField({ id, value }: { id: string; value: unknown }) {
 
 function DataView({ history, currentCard }: ViewParams) {
   const indexFields = Object.entries(
-    useSelectorParams(selectors.indexGet, history.history__location!) ?? {}
+    useDB().index[history.history__location!] ?? {}
   );
 
   return (
@@ -158,9 +151,8 @@ function TextView({ currentCard }: ViewParams) {
 }
 
 function OmniboxView({ history }: ViewParams) {
-  const dispatch = useDispatch();
+  const db = useDB();
   const windowId = useContext(tabContext);
-  const db = useSelector(selectors.db);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     ref.current?.focus();
@@ -170,7 +162,7 @@ function OmniboxView({ history }: ViewParams) {
 
   const re = RegExp(omnibox, "i");
 
-  const results = Object.entries(db).filter(
+  const results = Object.entries(db.data).filter(
     ([key, value]) =>
       re.test(key) ||
       re.test(value.file__name ?? "") ||
@@ -184,12 +176,10 @@ function OmniboxView({ history }: ViewParams) {
         value={omnibox}
         ref={ref}
         onChange={(e) => {
-          dispatch(
-            actions.replace({
-              windowId,
-              params: { data: { omnibox: e.target.value } },
-            })
-          );
+          actions.replace(db, {
+            windowId,
+            params: { data: { omnibox: e.target.value } },
+          });
         }}
       />
       <ul className="OmniboxView__list">
@@ -218,20 +208,18 @@ function AppWindow({
   windowId: string;
   isCurrent: boolean;
 }) {
-  const dispatch = useDispatch();
-  const db = useSelector(selectors.db);
-  const history = db[db[windowId].window__currentHistory!]!;
+  const db = useDB();
+  const history = db.data[db.data[windowId].window__currentHistory!]!;
 
-  const card = db[history.history__location!] ?? db.notFound;
-  const viewersForType = useSelectorParams(
-    selectors.viewersForType,
-    card.db__schema!
-  );
+  const card = db.data[history.history__location!] ?? db.data.notFound;
+  const viewersForType = selectors.viewersForType(db, card.db__schema!);
   const view =
-    db[history.history__view!] ?? db[viewersForType[0]!] ?? db.view__anyType;
+    db.data[history.history__view!] ??
+    db.data[viewersForType[0]!] ??
+    db.data.view__anyType;
 
   const View = viewByName[view.view__component!];
-  const viewersForAnyType = useSelector(selectors.viewersForAnyType);
+  const viewersForAnyType = selectors.viewersForAnyType(db);
 
   return (
     <TabProvider value={windowId}>
@@ -241,16 +229,16 @@ function AppWindow({
           .filter(Boolean)
           .join(" ")}
         onMouseDownCapture={() => {
-          dispatch(actions.selectWindow({ windowId }));
+          actions.selectWindow(db, { windowId });
         }}
         onKeyDownCapture={(e) => {
           if (e.key == "[" && e.metaKey) {
             e.preventDefault();
-            dispatch(actions.back({ windowId }));
+            actions.back(db, { windowId });
           }
           if (e.key == "]" && e.metaKey) {
             e.preventDefault();
-            dispatch(actions.forward({ windowId }));
+            actions.forward(db, { windowId });
           }
         }}
       >
@@ -259,7 +247,7 @@ function AppWindow({
             className="AppWindow__closeButton"
             type="button"
             onClick={() => {
-              dispatch(actions.closeWindow({ windowId }));
+              actions.closeWindow(db, { windowId });
             }}
           ></button>
           <h1 className="AppWindow__title">{card.file__name}</h1>
@@ -267,17 +255,15 @@ function AppWindow({
             className="AppWindow__viewMenu"
             value={history.history__view!}
             onChange={(e) => {
-              dispatch(
-                actions.replace({
-                  windowId,
-                  params: { view: e.target.value },
-                })
-              );
+              actions.replace(db, {
+                windowId,
+                params: { view: e.target.value },
+              });
             }}
           >
             {viewersForType.concat(viewersForAnyType).map((viewId) => (
               <option key={viewId} value={viewId}>
-                {db[viewId].file__name ?? viewId}
+                {db.data[viewId].file__name ?? viewId}
               </option>
             ))}
           </select>
@@ -289,9 +275,8 @@ function AppWindow({
 }
 
 function AppMenu() {
-  const dispatch = useDispatch();
-  const currentWindow = useSelector(selectors.db).browser
-    .browser__currentWindow!;
+  const db = useDB();
+  const currentWindow = db.data.browser.browser__currentWindow!;
   // const window = ws[currentWindow];
 
   return (
@@ -299,7 +284,7 @@ function AppMenu() {
       <button
         type="button"
         onClick={() => {
-          dispatch(actions.back({ windowId: currentWindow }));
+          actions.back(db, { windowId: currentWindow });
         }}
         // disabled={!window?.back}
       >
@@ -308,7 +293,7 @@ function AppMenu() {
       <button
         type="button"
         onClick={() => {
-          dispatch(actions.forward({ windowId: currentWindow }));
+          actions.forward(db, { windowId: currentWindow });
         }}
         // disabled={!window?.forward}
       >
@@ -321,9 +306,10 @@ function AppMenu() {
 }
 
 function App() {
-  const db = useSelector(selectors.db);
-  const currentWindow = db.browser.browser__currentWindow!;
-  const windowIDs = Object.entries(db)
+  const db = useDB();
+  const currentWindow = db.data.browser.browser__currentWindow!;
+  // TODO use index
+  const windowIDs = Object.entries(db.data)
     .filter(([, value]) => value.db__schema === "schema__window")
     .map((x) => x[0]);
   return (

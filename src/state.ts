@@ -1,5 +1,4 @@
-import { configureStore, createSlice } from "@reduxjs/toolkit";
-import type { PayloadAction as P } from "@reduxjs/toolkit";
+import { useContext, createContext, useState, useEffect } from "react";
 import "./App.css";
 
 type TextNode =
@@ -32,6 +31,7 @@ export type Rec = {
 type Index = {
   db__schema?: string[];
   view__schema?: string[];
+  index__field?: string[];
 };
 
 export type BrowseParams = {
@@ -286,156 +286,197 @@ const initDB: DB = {
   },
 };
 
-type DBIndex = Record<string, Index>;
-
-function createIndex(db: DB): DBIndex {
-  const out: DBIndex = {};
-  const indexes = Object.values(db).filter(
-    (rec) => rec.db__schema === "schema__index"
-  );
-
-  for (const [id, rec] of Object.entries(db)) {
-    for (const index of indexes) {
-      const field = index.index__field!;
+export class Database {
+  data: Record<string, Rec> = {};
+  index: Record<string, Index> = {};
+  private eventListeners: Array<() => void> = [];
+  insert(data: Record<string, Rec>) {
+    for (const [key, val] of Object.entries(data)) {
+      this.insert1(key, val);
+    }
+    this.notifyEventListeners();
+  }
+  delete(id: string) {
+    const old = this.data[id];
+    delete this.data[id];
+    this.deleteFromIndex(id, old);
+    this.notifyEventListeners();
+  }
+  addEventListener(fn: () => void) {
+    this.eventListeners.push(fn);
+    return () => {
+      this.eventListeners = this.eventListeners.filter((f) => f !== fn);
+    };
+  }
+  private notifyEventListeners() {
+    for (const l of this.eventListeners) {
+      l();
+    }
+  }
+  private insert1(id: string, rec: Rec) {
+    this.data[id] = rec;
+    this.updateIndex(id);
+    if (rec.db__schema === "schema__index") {
+      this.addIndex(rec.index__field!);
+    }
+  }
+  private addIndex(field: string) {
+    for (const id of Object.keys(this.data)) {
+      this.index1(id, field);
+    }
+  }
+  private updateIndex(id: string) {
+    for (const indexId of this.index.schema__index?.db__schema ?? []) {
+      const field = this.data[indexId].index__field!;
+      this.index1(id, field);
+    }
+  }
+  private index1(id: string, field: string) {
+    const rec = this.data[id];
+    if (field in rec) {
+      const items = Array.isArray(rec[field]) ? rec[field] : [rec[field]];
+      for (const value of items) {
+        this.index[value] ??= {};
+        this.index[value][field] ??= [];
+        this.index[value][field].push(id);
+      }
+    }
+  }
+  private deleteFromIndex(deletedId: string, rec: Rec) {
+    for (const indexId of this.index.schema__index?.db__schema ?? []) {
+      const field = this.data[indexId].index__field!;
       if (field in rec) {
         const items = Array.isArray(rec[field]) ? rec[field] : [rec[field]];
         for (const value of items) {
-          out[value] ??= {};
-          out[value][field] ??= [];
-          out[value][field].push(id);
+          this.index[value][field] = this.index[value][field].filter(
+            (id) => id !== deletedId
+          );
         }
       }
     }
   }
-  return out;
 }
 
-const db = createSlice({
-  name: "db",
-  initialState: initDB,
-  reducers: {
-    push(
-      db,
-      {
-        payload: { windowId, params, historyId },
-      }: P<{ windowId: string; params: BrowseParams; historyId: string }>
-    ) {
-      const window = db[windowId];
-      db[window.window__currentHistory!].history__forward = historyId;
-      db[historyId] = {
+export const database = new Database();
+database.insert(initDB);
+
+const dbContext = createContext(new Database());
+export const DBProvider = dbContext.Provider;
+
+// TODO: separate query / command handlers
+export function useDB() {
+  const db = useContext(dbContext);
+  const [data, setData] = useState({ db });
+  useEffect(() => {
+    return db.addEventListener(() => {
+      setData({ db });
+    });
+  }, [db]);
+  return data.db;
+}
+
+export const actions = {
+  push(
+    db: Database,
+    { windowId, params }: { windowId: string; params: BrowseParams }
+  ) {
+    const historyId = crypto.randomUUID();
+    const window = db.data[windowId];
+    const currentId = window.window__currentHistory!;
+    const current = db.data[currentId];
+
+    db.insert({
+      [historyId]: {
         db__schema: "schema__history",
         history__window: windowId,
         history__location: params.id,
         history__view: params.view,
         history__data: params.data,
         history__back: window.window__currentHistory,
-      };
-      window.window__currentHistory = historyId;
-    },
-    replace(
-      db,
-      {
-        payload: { windowId, params },
-      }: P<{ windowId: string; params: Partial<BrowseParams> }>
-    ) {
-      const window = db[windowId];
-      const history = db[window.window__currentHistory!];
-      if ("id" in params) {
-        history.history__location = params.id;
-      }
-      if ("view" in params) {
-        history.history__view = params.view;
-      }
-      if ("data" in params) {
-        history.history__data = params.data;
-      }
-    },
-    back(db, { payload: { windowId } }: P<{ windowId: string }>) {
-      const window = db[windowId];
-      const currentId = window.window__currentHistory!;
-      const backId = db[currentId].history__back;
-      if (backId) {
-        window.window__currentHistory = backId;
-        delete db[currentId].history__back;
-        db[backId].history__forward = currentId;
-      }
-    },
-    forward(db, { payload: { windowId } }: P<{ windowId: string }>) {
-      const window = db[windowId];
-      const currentId = window.window__currentHistory!;
-      const forwardId = db[currentId].history__forward;
-      if (forwardId) {
-        window.window__currentHistory = forwardId;
-        delete db[currentId].history__forward;
-        db[forwardId].history__back = currentId;
-      }
-    },
-    newWindow(
-      db,
-      {
-        payload: { windowId, params, historyId },
-      }: P<{ windowId: string; params: BrowseParams; historyId: string }>
-    ) {
-      db[windowId] = {
+      },
+      [windowId]: { ...window, window__currentHistory: historyId },
+      [currentId]: { ...current, history__forward: historyId },
+    });
+  },
+  replace(
+    db: Database,
+    { windowId, params }: { windowId: string; params: Partial<BrowseParams> }
+  ) {
+    const window = db.data[windowId];
+    const currentId = window.window__currentHistory!;
+    const current = { ...db.data[currentId] };
+    if ("id" in params) {
+      current.history__location = params.id;
+    }
+    if ("view" in params) {
+      current.history__view = params.view;
+    }
+    if ("data" in params) {
+      current.history__data = params.data;
+    }
+    db.insert({ [currentId]: current });
+  },
+  back(db: Database, { windowId }: { windowId: string }) {
+    const window = db.data[windowId];
+    const currentId = window.window__currentHistory!;
+    const current = db.data[currentId];
+    const backId = current.history__back;
+    if (backId) {
+      const back = db.data[backId];
+      db.insert({
+        [windowId]: { ...window, window__currentHistory: backId },
+        [currentId]: { ...current, history__back: undefined },
+        [backId]: { ...back, history__forward: currentId },
+      });
+    }
+  },
+  forward(db: Database, { windowId }: { windowId: string }) {
+    const window = db.data[windowId];
+    const currentId = window.window__currentHistory!;
+    const current = db.data[currentId];
+    const forwardId = current.history__forward;
+    if (forwardId) {
+      const forward = db.data[forwardId];
+      db.insert({
+        [windowId]: { ...window, window__currentHistory: forwardId },
+        [currentId]: { ...current, history__forward: undefined },
+        [forwardId]: { ...forward, history__back: currentId },
+      });
+    }
+  },
+  newWindow(db: Database, { params }: { params: BrowseParams }) {
+    const windowId = crypto.randomUUID();
+    const historyId = crypto.randomUUID();
+    db.insert({
+      [windowId]: {
         db__schema: "schema__window",
         window__currentHistory: historyId,
-      };
-      db[historyId] = {
+      },
+      [historyId]: {
         db__schema: "schema__history",
         history__window: windowId,
         history__location: params.id,
         history__view: params.view,
         history__data: params.data,
-      };
-      db.browser.browser__currentWindow = windowId;
-    },
-    selectWindow(db, { payload: { windowId } }: P<{ windowId: string }>) {
-      db.browser.browser__currentWindow = windowId;
-    },
-    closeWindow(db, { payload: { windowId } }: P<{ windowId: string }>) {
-      delete db[windowId];
-    },
+      },
+      browser: { ...db.data.browser, browser__currentWindow: windowId },
+    });
   },
-  selectors: {
-    dbGet: (db, id) => db[id],
+  selectWindow(db: Database, { windowId }: { windowId: string }) {
+    db.insert({
+      browser: { ...db.data.browser, browser__currentWindow: windowId },
+    });
   },
-});
-
-// TODO: index needs to be kept up-to-date
-const index = createSlice({
-  name: "index",
-  initialState: createIndex(initDB),
-  reducers: {},
-  selectors: {
-    indexGet: (idx, id) => idx[id],
-    viewersForType: (idx, type) => {
-      return idx[type]?.view__schema ?? [];
-    },
-    viewersForAnyType: (idx) => idx.schema__anyType?.view__schema ?? [],
-  },
-});
-
-export const actions = {
-  ...db.actions,
-  push({ windowId, params }: { windowId: string; params: BrowseParams }) {
-    const historyId = crypto.randomUUID();
-    return db.actions.push({ historyId, windowId, params });
-  },
-  newWindow({ params }: { params: BrowseParams }) {
-    const windowId = crypto.randomUUID();
-    const historyId = crypto.randomUUID();
-    return db.actions.newWindow({ historyId, windowId, params });
+  closeWindow(db: Database, { windowId }: { windowId: string }) {
+    db.delete(windowId);
   },
 };
 
 export const selectors = {
-  db: db.selectSlice,
-  ...db.selectors,
-  ...index.selectors,
+  viewersForType(db: Database, type: string) {
+    return db.index[type]?.view__schema ?? [];
+  },
+  viewersForAnyType(db: Database) {
+    return db.index.schema__anyType?.view__schema ?? [];
+  },
 };
-
-export const store = configureStore({
-  reducer: { db: db.reducer, index: index.reducer },
-});
-
-export type IRootState = ReturnType<typeof store.getState>;
