@@ -286,31 +286,48 @@ const initDB: DB = {
   },
 };
 
-type Param = symbol | string;
 type Query =
-  | { id: Param; field: keyof Rec; value: Param }
-  | { id: Param; value: Param };
+  | { tag: "getRecord"; id: string; value: string }
+  | { tag: "getField"; id: string; field: keyof Rec; value: string }
+  | { tag: "getIndexedIds"; id: string; field: keyof Rec; value: string }
+  | { tag: "checkField"; id: string; field: keyof Rec; value: string };
 
-class QueryBuilder {
-  vars: Record<string, symbol> = {};
-  out: Record<symbol, unknown> = {};
-  qs: Query[] = [];
-  v(name: string) {
-    this.vars[name] ??= Symbol(name);
-    return this.vars[name];
+export class QueryBuilder {
+  private boundVars: Set<string>;
+  private query: Query[] = [];
+  constructor(params: string[]) {
+    this.boundVars = new Set(params);
   }
-  q(id: Param, field: keyof Rec, value: Param) {
-    this.qs.push({ id, field, value });
+  q(id: string, field: keyof Rec, value: string): this;
+  q(id: string, value: string): this;
+  q(id: string, x: string, y?: string) {
+    if (y === undefined) {
+      if (!this.boundVars.has(id)) throw new Error();
+      this.query.push({ tag: "getRecord", id, value: x });
+      return this;
+    }
+    const field = x as keyof Rec;
+    const value = y;
+
+    if (this.boundVars.has(id)) {
+      if (this.boundVars.has(value)) {
+        this.query.push({ tag: "checkField", id, field, value });
+      } else {
+        this.query.push({ tag: "getField", id, field, value });
+        this.boundVars.add(value);
+      }
+    } else {
+      if (this.boundVars.has(value)) {
+        this.query.push({ tag: "getIndexedIds", id, field, value });
+        this.boundVars.add(id);
+      } else {
+        throw new Error();
+      }
+    }
+    return this;
   }
-  get(id: Param, value: Param) {
-    this.qs.push({ id, value });
-  }
-  resolve() {
-    return Object.fromEntries(
-      Object.entries(this.vars).map(([name, symbol]) => {
-        return [name, this.out[symbol]];
-      })
-    );
+  build() {
+    return { query: this.query };
   }
 }
 
@@ -318,46 +335,35 @@ export class Database {
   data: Record<string, Rec> = {};
   index: Record<string, Index> = {};
   private eventListeners: Array<() => void> = [];
-  query(fn: (builder: QueryBuilder) => void) {
-    const builder = new QueryBuilder();
-    fn(builder);
-    const qs = builder.qs;
-
-    for (const q of qs) {
-      if (typeof q.value === "symbol" && !builder.out[q.value]) {
-        if (typeof q.id === "symbol" && !builder.out[q.id]) {
-          throw new Error("either id or value must be bound");
+  query(builder: QueryBuilder, args: Record<string, unknown>) {
+    const { query } = builder.build();
+    const out = { ...args };
+    for (const q of query) {
+      switch (q.tag) {
+        case "checkField": {
+          const actual = this.data[out[q.id] as string][q.field];
+          const expected = out[q.value];
+          if (actual !== expected) return null;
+          break;
         }
-        const id = (builder.out[q.id as symbol] ?? q.id) as string;
-        if ("field" in q) {
-          builder.out[q.value] = this.data[id][q.field];
-        } else {
-          builder.out[q.value] = this.data[id];
+        case "getField": {
+          const id = out[q.id] as string;
+          out[q.value] = this.data[id][q.field];
+          break;
         }
-      } else if (typeof q.id === "symbol" && !builder.out[q.id]) {
-        if (!("field" in q)) {
-          throw new Error("id must be bound without field");
+        case "getRecord": {
+          const id = out[q.id] as string;
+          out[q.value] = this.data[id];
+          break;
         }
-        const value = builder.out[q.value as symbol] ?? q.value;
-        if (typeof value === "string") {
-          builder.out[q.id] = this.index[value][q.field];
-        } else {
-          throw new Error("todo");
-        }
-      } else {
-        const id = (builder.out[q.id as symbol] ?? q.id) as string;
-        const value = builder.out[q.value as symbol] ?? q.value;
-        if ("field" in q) {
-          if (this.data[id][q.field] !== value) {
-            return null;
-          }
-        } else {
-          throw new Error("todo");
+        case "getIndexedIds": {
+          const value = out[q.value] as string;
+          out[q.id] = this.index[value][q.field];
+          break;
         }
       }
     }
-
-    return builder.resolve();
+    return out;
   }
   insert(data: Record<string, Rec>) {
     for (const [key, val] of Object.entries(data)) {
@@ -426,6 +432,7 @@ export class Database {
 
 export const database = new Database();
 database.insert(initDB);
+window.database = database;
 
 const dbContext = createContext(new Database());
 export const DBProvider = dbContext.Provider;
@@ -442,9 +449,9 @@ export function useDB() {
   return data.db;
 }
 
-export function useQuery(query: (b: QueryBuilder) => void) {
+export function useQuery(b: QueryBuilder, args: Record<string, unknown>) {
   const db = useDB();
-  return db.query(query);
+  return db.query(b, args);
 }
 
 export function useDispatch() {

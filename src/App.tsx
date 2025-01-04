@@ -7,6 +7,7 @@ import {
   selectors,
   useDispatch,
   useQuery,
+  QueryBuilder,
 } from "./state";
 import "./App.css";
 
@@ -45,10 +46,11 @@ function Link({
   );
 }
 
+const qFileLink = new QueryBuilder(["id"]) //
+  .q("id", "file__name", "fileName");
+
 function FileLink({ id, target }: { id: string; target?: Target }) {
-  const { fileName } = useQuery((b) => {
-    b.q(id, "file__name", b.v("fileName"));
-  })!;
+  const { fileName } = useQuery(qFileLink, { id })!;
   return (
     <Link params={{ id }} target={target} className="FileLink">
       {(fileName as string) ?? id}
@@ -86,10 +88,11 @@ function FolderIconView({ currentCard }: ViewParams) {
   );
 }
 
+const qDataViewField = new QueryBuilder(["id"]) //
+  .q("id", "field__refType", "refType");
+
 function DataViewField({ id, value }: { id: string; value: unknown }) {
-  const { refType } = useQuery((b) => {
-    b.q(id, "field__refType", b.v("refType"));
-  })!;
+  const { refType } = useQuery(qDataViewField, { id })!;
 
   return refType && typeof value === "string" ? (
     <FileLink id={value} />
@@ -213,6 +216,12 @@ const viewByName: Record<string, React.FC<ViewParams>> = {
   FolderIconView,
 };
 
+const qAppWindow = new QueryBuilder(["windowId"])
+  .q("windowId", "window__currentHistory", "historyId")
+  .q("historyId", "history")
+  .q("historyId", "history__location", "id")
+  .q("historyId", "history__view", "viewId");
+
 function AppWindow({
   windowId,
   isCurrent,
@@ -221,17 +230,12 @@ function AppWindow({
   isCurrent: boolean;
 }) {
   const db = useDB();
-  const { history, historyView, historyLocation } = useQuery((b) => {
-    b.q(windowId, "window__currentHistory", b.v("historyId"));
-    b.q(b.v("historyId"), "history__view", b.v("historyView"));
-    b.q(b.v("historyId"), "history__location", b.v("historyLocation"));
-    b.get(b.v("historyId"), b.v("history"));
-  })!;
+  const { history, id, viewId } = useQuery(qAppWindow, { windowId })!;
 
-  const card = db.data[historyLocation as string] ?? db.data.notFound;
+  const card = db.data[id as string] ?? db.data.notFound;
   const viewersForType = selectors.viewersForType(db, card.db__schema!);
   const view =
-    db.data[historyView as string] ??
+    db.data[viewId as string] ??
     db.data[viewersForType[0]!] ??
     db.data.view__anyType;
 
@@ -270,7 +274,7 @@ function AppWindow({
           <h1 className="AppWindow__title">{card.file__name}</h1>
           <select
             className="AppWindow__viewMenu"
-            value={historyView as string}
+            value={viewId as string}
             onChange={(e) => {
               actions.replace(db, {
                 windowId,
@@ -291,13 +295,16 @@ function AppWindow({
   );
 }
 
+const qAppMenu = new QueryBuilder(["browser"])
+  .q("browser", "browser__currentWindow", "currentWindow")
+  .q("currentWindow", "window__currentHistory", "currentHistory")
+  .q("currentHistory", "history__back", "back")
+  .q("currentHistory", "history__forward", "forward");
+
 function AppMenu() {
   const dispatch = useDispatch();
-  const { currentWindow, back, forward } = useQuery((b) => {
-    b.q("browser", "browser__currentWindow", b.v("currentWindow"));
-    b.q(b.v("currentWindow"), "window__currentHistory", b.v("currentHistory"));
-    b.q(b.v("currentHistory"), "history__back", b.v("back"));
-    b.q(b.v("currentHistory"), "history__forward", b.v("forward"));
+  const { currentWindow, back, forward } = useQuery(qAppMenu, {
+    browser: "browser",
   })!;
 
   return (
@@ -326,10 +333,14 @@ function AppMenu() {
   );
 }
 
+const qApp = new QueryBuilder(["browser", "windowSchema"])
+  .q("browser", "browser__currentWindow", "currentWindow")
+  .q("windows", "db__schema", "windowSchema");
+
 function App() {
-  const { currentWindow, windows } = useQuery((b) => {
-    b.q("browser", "browser__currentWindow", b.v("currentWindow"));
-    b.q(b.v("windows"), "db__schema", "schema__window");
+  const { currentWindow, windows } = useQuery(qApp, {
+    browser: "browser",
+    windowSchema: "schema__window",
   })!;
   const windowIDs = [...((windows as Set<string>) || [])];
   return (
