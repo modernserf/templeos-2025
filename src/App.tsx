@@ -102,6 +102,10 @@ function DataView({ history, currentCard }: ViewParams) {
     <table>
       <tbody>
         <tr>
+          <td>id</td>
+          <td>{history.history__location}</td>
+        </tr>
+        <tr>
           <th colSpan={2}>Fields</th>
         </tr>
         {Object.entries(currentCard).map(([key, value]) => (
