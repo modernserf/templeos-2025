@@ -286,14 +286,21 @@ const initDB: DB = {
   },
 };
 
+// TODO: constants in query
 type Query =
   | { tag: "getRecord"; id: string; value: string }
   | { tag: "getField"; id: string; field: keyof Rec; value: string }
   | { tag: "getIndexedIds"; id: string; field: keyof Rec; value: string }
   | { tag: "checkField"; id: string; field: keyof Rec; value: string };
 
+type Update =
+  | { tag: "setRecord"; id: string; value: string }
+  | { tag: "deleteRecord"; id: string }
+  | { tag: "setField"; id: string; field: keyof Rec; value: string }
+  | { tag: "deleteField"; id: string; field: keyof Rec };
+
 export class QueryBuilder {
-  private boundVars: Set<string>;
+  protected boundVars: Set<string>;
   private query: Query[] = [];
   constructor(params: string[]) {
     this.boundVars = new Set(params);
@@ -326,8 +333,39 @@ export class QueryBuilder {
     }
     return this;
   }
+
   build() {
     return { query: this.query };
+  }
+}
+
+export class UpdateBuilder extends QueryBuilder {
+  private updates: Update[] = [];
+  u(id: string, field: keyof Rec, value: string | null): this;
+  u(id: string, value: string | null): this;
+  u(id: string, x: string | null, y?: string | null) {
+    if (!this.boundVars.has(id)) throw new Error();
+    if (y === undefined) {
+      const value = x;
+      if (value === null) {
+        this.updates.push({ tag: "deleteRecord", id });
+      } else {
+        this.updates.push({ tag: "setRecord", id, value });
+      }
+      return this;
+    }
+    const field = x as keyof Rec;
+    const value = y;
+    if (value === null) {
+      this.updates.push({ tag: "deleteField", id, field });
+    } else {
+      if (!this.boundVars.has(value)) throw new Error();
+      this.updates.push({ tag: "setField", id, field, value });
+    }
+    return this;
+  }
+  build() {
+    return { ...super.build(), updates: this.updates };
   }
 }
 
@@ -365,16 +403,32 @@ export class Database {
     }
     return out;
   }
-  insert(data: Record<string, Rec>) {
-    for (const [key, val] of Object.entries(data)) {
-      this.insert1(key, val);
+  update(builder: UpdateBuilder, args: Record<string, unknown>) {
+    const out = this.query(builder, args);
+    if (!out) throw new Error();
+    const { updates } = builder.build();
+    for (const u of updates) {
+      const id = out[u.id] as string;
+      switch (u.tag) {
+        case "setRecord":
+          this.insertRec(id, out[u.value] as Rec);
+          break;
+        case "deleteRecord":
+          this.deleteRec(id);
+          break;
+        case "setField":
+          this.insertField(id, u.field, out[u.value]);
+          break;
+        case "deleteField":
+          this.deleteField(id, u.field);
+      }
     }
     this.notifyEventListeners();
   }
-  delete(id: string) {
-    const old = this.data[id];
-    delete this.data[id];
-    this.deleteFromIndex(id, old);
+  batchInsert(data: Record<string, Rec>) {
+    for (const [key, val] of Object.entries(data)) {
+      this.insertRec(key, val);
+    }
     this.notifyEventListeners();
   }
   addEventListener(fn: () => void) {
@@ -388,12 +442,27 @@ export class Database {
       l();
     }
   }
-  private insert1(id: string, rec: Rec) {
+  private insertField(id: string, field: keyof Rec, value: unknown) {
+    const rec = this.data[id] ?? {};
+    this.insertRec(id, { ...rec, [field]: value });
+  }
+  private insertRec(id: string, rec: Rec) {
     this.data[id] = rec;
     this.updateIndex(id);
     if (rec.db__schema === "schema__index") {
       this.addIndex(rec.index__field!);
     }
+  }
+  private deleteRec(id: string) {
+    const old = this.data[id];
+    delete this.data[id];
+    this.deleteFromIndex(id, old);
+  }
+  private deleteField(id: string, field: keyof Rec) {
+    // TODO: handle if this causes a value to be un-indexed
+    const rec = { ...this.data[id] };
+    delete rec[field];
+    this.insertRec(id, rec);
   }
   private addIndex(field: string) {
     for (const id of Object.keys(this.data)) {
@@ -431,7 +500,7 @@ export class Database {
 }
 
 export const database = new Database();
-database.insert(initDB);
+database.batchInsert(initDB);
 window.database = database;
 
 const dbContext = createContext(new Database());
@@ -467,95 +536,108 @@ export const actions = {
     { windowId, params }: { windowId: string; params: BrowseParams }
   ) {
     const historyId = crypto.randomUUID();
-    const window = db.data[windowId];
-    const currentId = window.window__currentHistory!;
-    const current = db.data[currentId];
 
-    db.insert({
-      [historyId]: {
+    const b = new UpdateBuilder(["windowId", "historyId", "history"])
+      .q("windowId", "window__currentHistory", "currentId")
+      .u("historyId", "history")
+      .u("historyId", "history__back", "currentId")
+      .u("windowId", "window__currentHistory", "historyId")
+      .u("currentId", "history__forward", "historyId");
+
+    db.update(b, {
+      windowId,
+      historyId,
+      history: {
         db__schema: "schema__history",
         history__window: windowId,
         history__location: params.id,
         history__view: params.view,
         history__data: params.data,
-        history__back: window.window__currentHistory,
       },
-      [windowId]: { ...window, window__currentHistory: historyId },
-      [currentId]: { ...current, history__forward: historyId },
     });
   },
   replace(
     db: Database,
     { windowId, params }: { windowId: string; params: Partial<BrowseParams> }
   ) {
-    const window = db.data[windowId];
-    const currentId = window.window__currentHistory!;
-    const current = { ...db.data[currentId] };
+    // TODO: optional params?
+    const b = new UpdateBuilder(["windowId", "id", "view", "data"]) //
+      .q("windowId", "window__currentHistory", "currentId");
+
     if ("id" in params) {
-      current.history__location = params.id;
+      b.u("currentId", "history__location", "id");
     }
     if ("view" in params) {
-      current.history__view = params.view;
+      b.u("currentId", "history__view", "view");
     }
     if ("data" in params) {
-      current.history__data = params.data;
+      b.u("currentId", "history__data", "data");
     }
-    db.insert({ [currentId]: current });
+
+    db.update(b, { windowId, ...params });
   },
   back(db: Database, { windowId }: { windowId: string }) {
-    const window = db.data[windowId];
-    const currentId = window.window__currentHistory!;
-    const current = db.data[currentId];
-    const backId = current.history__back;
-    if (backId) {
-      const back = db.data[backId];
-      db.insert({
-        [windowId]: { ...window, window__currentHistory: backId },
-        [currentId]: { ...current, history__back: undefined },
-        [backId]: { ...back, history__forward: currentId },
-      });
-    }
+    const b = new UpdateBuilder(["windowId"])
+      .q("windowId", "window__currentHistory", "currentId")
+      .q("currentId", "history__back", "backId")
+      .u("windowId", "window__currentHistory", "backId")
+      .u("currentId", "history__back", null)
+      .u("backId", "history__forward", "currentId");
+
+    db.update(b, { windowId });
   },
   forward(db: Database, { windowId }: { windowId: string }) {
-    const window = db.data[windowId];
-    const currentId = window.window__currentHistory!;
-    const current = db.data[currentId];
-    const forwardId = current.history__forward;
-    if (forwardId) {
-      const forward = db.data[forwardId];
-      db.insert({
-        [windowId]: { ...window, window__currentHistory: forwardId },
-        [currentId]: { ...current, history__forward: undefined },
-        [forwardId]: { ...forward, history__back: currentId },
-      });
-    }
+    const b = new UpdateBuilder(["windowId"])
+      .q("windowId", "window__currentHistory", "currentId")
+      .q("currentId", "history__forward", "forwardId")
+      .u("windowId", "window__currentHistory", "forwardId")
+      .u("currentId", "history__forward", null)
+      .u("forwardId", "history__back", "currentId");
+
+    db.update(b, { windowId });
   },
   newWindow(db: Database, { params }: { params: BrowseParams }) {
+    // TODO: DB can generate its own IDs?
     const windowId = crypto.randomUUID();
     const historyId = crypto.randomUUID();
-    db.insert({
-      [windowId]: {
+    const b = new UpdateBuilder([
+      "browser",
+      "windowId",
+      "window",
+      "history",
+      "historyId",
+    ])
+      .u("windowId", "window")
+      .u("historyId", "history")
+      .u("browser", "browser__currentWindow", "windowId");
+
+    db.update(b, {
+      browser: "browser",
+      windowId,
+      historyId,
+      window: {
         db__schema: "schema__window",
         window__currentHistory: historyId,
       },
-      [historyId]: {
+      history: {
         db__schema: "schema__history",
         history__window: windowId,
         history__location: params.id,
         history__view: params.view,
         history__data: params.data,
       },
-      browser: { ...db.data.browser, browser__currentWindow: windowId },
     });
   },
   selectWindow(db: Database, { windowId }: { windowId: string }) {
-    db.insert({
-      browser: { ...db.data.browser, browser__currentWindow: windowId },
-    });
+    const b = new UpdateBuilder(["browser", "windowId"]) //
+      .u("browser", "browser__currentWindow", "windowId");
+    db.update(b, { browser: "browser", windowId });
   },
   closeWindow(db: Database, { windowId }: { windowId: string }) {
-    db.delete(windowId);
     // TODO: must update current window
+    const b = new UpdateBuilder(["windowId"]) //
+      .u("windowId", null);
+    db.update(b, { windowId });
   },
 };
 
