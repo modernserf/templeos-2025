@@ -28,10 +28,10 @@ export type Rec = {
   browser__currentWindow?: string;
 };
 
-type Index = {
-  db__schema?: string[];
-  view__schema?: string[];
-  index__field?: string[];
+type Index = Record<string, Set<string>> & {
+  db__schema?: Set<string>;
+  view__schema?: Set<string>;
+  index__field?: Set<string>;
 };
 
 export type BrowseParams = {
@@ -286,10 +286,79 @@ const initDB: DB = {
   },
 };
 
+type Param = symbol | string;
+type Query =
+  | { id: Param; field: keyof Rec; value: Param }
+  | { id: Param; value: Param };
+
+class QueryBuilder {
+  vars: Record<string, symbol> = {};
+  out: Record<symbol, unknown> = {};
+  qs: Query[] = [];
+  v(name: string) {
+    this.vars[name] ??= Symbol(name);
+    return this.vars[name];
+  }
+  q(id: Param, field: keyof Rec, value: Param) {
+    this.qs.push({ id, field, value });
+  }
+  get(id: Param, value: Param) {
+    this.qs.push({ id, value });
+  }
+  resolve() {
+    return Object.fromEntries(
+      Object.entries(this.vars).map(([name, symbol]) => {
+        return [name, this.out[symbol]];
+      })
+    );
+  }
+}
+
 export class Database {
   data: Record<string, Rec> = {};
   index: Record<string, Index> = {};
   private eventListeners: Array<() => void> = [];
+  query(fn: (builder: QueryBuilder) => void) {
+    const builder = new QueryBuilder();
+    fn(builder);
+    const qs = builder.qs;
+
+    for (const q of qs) {
+      if (typeof q.value === "symbol" && !builder.out[q.value]) {
+        if (typeof q.id === "symbol" && !builder.out[q.id]) {
+          throw new Error("either id or value must be bound");
+        }
+        const id = (builder.out[q.id as symbol] ?? q.id) as string;
+        if ("field" in q) {
+          builder.out[q.value] = this.data[id][q.field];
+        } else {
+          builder.out[q.value] = this.data[id];
+        }
+      } else if (typeof q.id === "symbol" && !builder.out[q.id]) {
+        if (!("field" in q)) {
+          throw new Error("id must be bound without field");
+        }
+        const value = builder.out[q.value as symbol] ?? q.value;
+        if (typeof value === "string") {
+          builder.out[q.id] = this.index[value][q.field];
+        } else {
+          throw new Error("todo");
+        }
+      } else {
+        const id = (builder.out[q.id as symbol] ?? q.id) as string;
+        const value = builder.out[q.value as symbol] ?? q.value;
+        if ("field" in q) {
+          if (this.data[id][q.field] !== value) {
+            return null;
+          }
+        } else {
+          throw new Error("todo");
+        }
+      }
+    }
+
+    return builder.resolve();
+  }
   insert(data: Record<string, Rec>) {
     for (const [key, val] of Object.entries(data)) {
       this.insert1(key, val);
@@ -337,20 +406,18 @@ export class Database {
       const items = Array.isArray(rec[field]) ? rec[field] : [rec[field]];
       for (const value of items) {
         this.index[value] ??= {};
-        this.index[value][field] ??= [];
-        this.index[value][field].push(id);
+        this.index[value][field] ??= new Set();
+        this.index[value][field].add(id);
       }
     }
   }
-  private deleteFromIndex(deletedId: string, rec: Rec) {
+  private deleteFromIndex(id: string, rec: Rec) {
     for (const indexId of this.index.schema__index?.db__schema ?? []) {
       const field = this.data[indexId].index__field!;
       if (field in rec) {
         const items = Array.isArray(rec[field]) ? rec[field] : [rec[field]];
         for (const value of items) {
-          this.index[value][field] = this.index[value][field].filter(
-            (id) => id !== deletedId
-          );
+          this.index[value][field].delete(id);
         }
       }
     }
@@ -373,6 +440,18 @@ export function useDB() {
     });
   }, [db]);
   return data.db;
+}
+
+export function useQuery(query: (b: QueryBuilder) => void) {
+  const db = useDB();
+  return db.query(query);
+}
+
+export function useDispatch() {
+  const db = useContext(dbContext);
+  return function <T>(fn: (db: Database, payload: T) => void, payload: T) {
+    fn(db, payload);
+  };
 }
 
 export const actions = {
@@ -469,14 +548,15 @@ export const actions = {
   },
   closeWindow(db: Database, { windowId }: { windowId: string }) {
     db.delete(windowId);
+    // TODO: must update current window
   },
 };
 
 export const selectors = {
   viewersForType(db: Database, type: string) {
-    return db.index[type]?.view__schema ?? [];
+    return [...(db.index[type]?.view__schema ?? [])];
   },
   viewersForAnyType(db: Database) {
-    return db.index.schema__anyType?.view__schema ?? [];
+    return [...(db.index.schema__anyType?.view__schema ?? [])];
   },
 };

@@ -1,5 +1,13 @@
 import { useEffect, useRef, useContext, createContext } from "react";
-import { BrowseParams, Rec, useDB, actions, selectors } from "./state";
+import {
+  BrowseParams,
+  Rec,
+  useDB,
+  actions,
+  selectors,
+  useDispatch,
+  useQuery,
+} from "./state";
 import "./App.css";
 
 const tabContext = createContext("rootWindow");
@@ -18,7 +26,7 @@ function Link({
   target?: Target;
   className?: string;
 }) {
-  const db = useDB();
+  const dispatch = useDispatch();
   const windowId = useContext(tabContext);
   return (
     <button
@@ -26,9 +34,9 @@ function Link({
       className={className}
       onClick={(e) => {
         if (e.metaKey || target === "new") {
-          actions.newWindow(db, { params });
+          dispatch(actions.newWindow, { params });
         } else {
-          actions.push(db, { params, windowId });
+          dispatch(actions.push, { params, windowId });
         }
       }}
     >
@@ -38,11 +46,12 @@ function Link({
 }
 
 function FileLink({ id, target }: { id: string; target?: Target }) {
-  const db = useDB();
-  const rec = db.data[id];
+  const { fileName } = useQuery((b) => {
+    b.q(id, "file__name", b.v("fileName"));
+  })!;
   return (
     <Link params={{ id }} target={target} className="FileLink">
-      {rec.file__name ?? id}
+      {(fileName as string) ?? id}
     </Link>
   );
 }
@@ -78,8 +87,11 @@ function FolderIconView({ currentCard }: ViewParams) {
 }
 
 function DataViewField({ id, value }: { id: string; value: unknown }) {
-  const field = useDB().data[id];
-  return field.field__refType && typeof value === "string" ? (
+  const { refType } = useQuery((b) => {
+    b.q(id, "field__refType", b.v("refType"));
+  })!;
+
+  return refType && typeof value === "string" ? (
     <FileLink id={value} />
   ) : (
     <pre>{JSON.stringify(value, null, 2)}</pre>
@@ -117,7 +129,7 @@ function DataView({ history, currentCard }: ViewParams) {
           </tr>
         ) : null}
         {indexFields.flatMap(([key, values]) => {
-          return values.map((value, i) => (
+          return [...values].map((value, i) => (
             <tr key={`${key} ${value}`}>
               <td>{i === 0 ? <FileLink id={key} /> : null}</td>
               <td>
@@ -209,12 +221,17 @@ function AppWindow({
   isCurrent: boolean;
 }) {
   const db = useDB();
-  const history = db.data[db.data[windowId].window__currentHistory!]!;
+  const { history, historyView, historyLocation } = useQuery((b) => {
+    b.q(windowId, "window__currentHistory", b.v("historyId"));
+    b.q(b.v("historyId"), "history__view", b.v("historyView"));
+    b.q(b.v("historyId"), "history__location", b.v("historyLocation"));
+    b.get(b.v("historyId"), b.v("history"));
+  })!;
 
-  const card = db.data[history.history__location!] ?? db.data.notFound;
+  const card = db.data[historyLocation as string] ?? db.data.notFound;
   const viewersForType = selectors.viewersForType(db, card.db__schema!);
   const view =
-    db.data[history.history__view!] ??
+    db.data[historyView as string] ??
     db.data[viewersForType[0]!] ??
     db.data.view__anyType;
 
@@ -253,7 +270,7 @@ function AppWindow({
           <h1 className="AppWindow__title">{card.file__name}</h1>
           <select
             className="AppWindow__viewMenu"
-            value={history.history__view!}
+            value={historyView as string}
             onChange={(e) => {
               actions.replace(db, {
                 windowId,
@@ -268,34 +285,38 @@ function AppWindow({
             ))}
           </select>
         </header>
-        <View currentCard={card} history={history} />
+        <View currentCard={card} history={history as Rec} />
       </div>
     </TabProvider>
   );
 }
 
 function AppMenu() {
-  const db = useDB();
-  const currentWindow = db.data.browser.browser__currentWindow!;
-  // const window = ws[currentWindow];
+  const dispatch = useDispatch();
+  const { currentWindow, back, forward } = useQuery((b) => {
+    b.q("browser", "browser__currentWindow", b.v("currentWindow"));
+    b.q(b.v("currentWindow"), "window__currentHistory", b.v("currentHistory"));
+    b.q(b.v("currentHistory"), "history__back", b.v("back"));
+    b.q(b.v("currentHistory"), "history__forward", b.v("forward"));
+  })!;
 
   return (
     <nav>
       <button
         type="button"
         onClick={() => {
-          actions.back(db, { windowId: currentWindow });
+          dispatch(actions.back, { windowId: currentWindow as string });
         }}
-        // disabled={!window?.back}
+        disabled={!back}
       >
         Back
       </button>
       <button
         type="button"
         onClick={() => {
-          actions.forward(db, { windowId: currentWindow });
+          dispatch(actions.forward, { windowId: currentWindow as string });
         }}
-        // disabled={!window?.forward}
+        disabled={!forward}
       >
         Forward
       </button>
@@ -306,12 +327,11 @@ function AppMenu() {
 }
 
 function App() {
-  const db = useDB();
-  const currentWindow = db.data.browser.browser__currentWindow!;
-  // TODO use index
-  const windowIDs = Object.entries(db.data)
-    .filter(([, value]) => value.db__schema === "schema__window")
-    .map((x) => x[0]);
+  const { currentWindow, windows } = useQuery((b) => {
+    b.q("browser", "browser__currentWindow", b.v("currentWindow"));
+    b.q(b.v("windows"), "db__schema", "schema__window");
+  })!;
+  const windowIDs = [...((windows as Set<string>) || [])];
   return (
     <>
       <AppMenu />
