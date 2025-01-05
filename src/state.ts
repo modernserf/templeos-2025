@@ -8,6 +8,16 @@ type TextNode =
     }
   | { tag: "link"; text: string; params: BrowseParams };
 
+export type Expr =
+  | { tag: "string"; value: string }
+  | { tag: "ident"; value: string }
+  | { tag: "field"; expr: Expr; field: string };
+
+// TODO: card els all in { id, params } format
+export type CardEl =
+  | { tag: "text"; expr: Expr } //
+  | { tag: "button"; label: Expr };
+
 export type Rec = {
   file__name?: string;
   file__description?: string;
@@ -17,6 +27,7 @@ export type Rec = {
   field__refType?: string;
   index__field?: string;
   view__component?: string;
+  view__cardElements?: CardEl[];
   view__schema?: string;
   history__window?: string;
   history__location?: string;
@@ -126,6 +137,11 @@ const initDB: DB = {
     file__description: "the schema that this view is supposed to render",
     field__refType: "schema__schema",
   },
+  view__cardElements: {
+    db__schema: "schema__field",
+    file__name: "View card elements",
+    file__description: "list of elements with params for Card UI",
+  },
   file__name: {
     db__schema: "schema__field",
     file__name: "File name",
@@ -219,24 +235,42 @@ const initDB: DB = {
   },
   view__text: {
     db__schema: "schema__view",
-    file__name: "TextView",
+    file__name: "Text",
     file__description: "viewer for text cards",
     view__component: "TextView",
     view__schema: "schema__text",
   },
   view__folderList: {
     db__schema: "schema__view",
-    file__name: "FolderListView",
+    file__name: "Folder - List",
     file__description: "viewer for folders as list",
     view__component: "FolderListView",
     view__schema: "schema__folder",
   },
   view__folderIcon: {
     db__schema: "schema__view",
-    file__name: "FolderIconView",
+    file__name: "Folder - Icon",
     file__description: "viewer for folders as icon grid",
     view__component: "FolderIconView",
     view__schema: "schema__folder",
+  },
+  view__schemaDefinition: {
+    db__schema: "schema__view",
+    file__name: "Schema",
+    view__component: "CardView",
+    view__schema: "schema__schema",
+    view__cardElements: [
+      { tag: "text", expr: { tag: "string", value: "Schema!" } },
+      {
+        tag: "text",
+        expr: {
+          tag: "field",
+          field: "file__name",
+          expr: { tag: "ident", value: "currentCard" },
+        },
+      },
+      { tag: "button", label: { tag: "string", value: "click me" } },
+    ],
   },
   // Cards
   home: {

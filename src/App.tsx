@@ -8,6 +8,7 @@ import {
   useDispatch,
   useQuery,
   QueryBuilder,
+  Expr,
 } from "./state";
 import "./App.css";
 
@@ -59,6 +60,7 @@ function FileLink({ id, target }: { id: string; target?: Target }) {
 }
 
 type ViewParams = {
+  view: Rec;
   currentCard: Rec;
   history: Rec;
 };
@@ -165,6 +167,37 @@ function TextView({ currentCard }: ViewParams) {
   );
 }
 
+function evalExpr(expr: Expr, scope: Record<string, unknown>): any {
+  switch (expr.tag) {
+    case "string":
+      return expr.value;
+    case "ident":
+      return scope[expr.value];
+    case "field":
+      return evalExpr(expr.expr, scope)[expr.field];
+  }
+}
+
+function CardView({ currentCard, history, view }: ViewParams) {
+  const scope = { currentCard, history, view };
+  return (
+    <div>
+      {(view.view__cardElements ?? []).map((el, i) => {
+        switch (el.tag) {
+          case "text":
+            return <div key={i}>{evalExpr(el.expr, scope)}</div>;
+          case "button":
+            return (
+              <Link key={i} params={{ id: "home" }}>
+                {evalExpr(el.label, scope)}
+              </Link>
+            );
+        }
+      })}
+    </div>
+  );
+}
+
 function OmniboxView({ history }: ViewParams) {
   const db = useDB();
   const windowId = useContext(tabContext);
@@ -211,6 +244,7 @@ function OmniboxView({ history }: ViewParams) {
 const viewByName: Record<string, React.FC<ViewParams>> = {
   TextView,
   DataView,
+  CardView,
   OmniboxView,
   FolderListView,
   FolderIconView,
@@ -289,7 +323,7 @@ function AppWindow({
             ))}
           </select>
         </header>
-        <View currentCard={card} history={history as Rec} />
+        <View currentCard={card} history={history as Rec} view={view} />
       </div>
     </TabProvider>
   );
