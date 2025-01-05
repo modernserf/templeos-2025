@@ -294,6 +294,7 @@ type Query =
   | { tag: "checkField"; id: string; field: keyof Rec; value: string };
 
 type Update =
+  | { tag: "createRecord"; id: string; value: string }
   | { tag: "setRecord"; id: string; value: string }
   | { tag: "deleteRecord"; id: string }
   | { tag: "setField"; id: string; field: keyof Rec; value: string }
@@ -302,6 +303,7 @@ type Update =
 export class QueryBuilder {
   protected boundVars: Set<string>;
   private query: Query[] = [];
+  private updates: Update[] = [];
   constructor(params: string[]) {
     this.boundVars = new Set(params);
   }
@@ -333,23 +335,24 @@ export class QueryBuilder {
     }
     return this;
   }
-
-  build() {
-    return { query: this.query };
-  }
-}
-
-export class UpdateBuilder extends QueryBuilder {
-  private updates: Update[] = [];
   u(id: string, field: keyof Rec, value: string | null): this;
   u(id: string, value: string | null): this;
   u(id: string, x: string | null, y?: string | null) {
-    if (!this.boundVars.has(id)) throw new Error();
+    if (!this.boundVars.has(id)) {
+      if (x && y === undefined && this.boundVars.has(x)) {
+        this.updates.push({ tag: "createRecord", id, value: x });
+        this.boundVars.add(id);
+        return this;
+      }
+      console.log({ id, x, y }, this.boundVars);
+      throw new Error();
+    }
     if (y === undefined) {
       const value = x;
       if (value === null) {
         this.updates.push({ tag: "deleteRecord", id });
       } else {
+        if (!this.boundVars.has(value)) throw new Error();
         this.updates.push({ tag: "setRecord", id, value });
       }
       return this;
@@ -365,7 +368,7 @@ export class UpdateBuilder extends QueryBuilder {
     return this;
   }
   build() {
-    return { ...super.build(), updates: this.updates };
+    return { query: this.query, updates: this.updates };
   }
 }
 
@@ -403,24 +406,30 @@ export class Database {
     }
     return out;
   }
-  update(builder: UpdateBuilder, args: Record<string, unknown>) {
+  update(builder: QueryBuilder, args: Record<string, unknown>) {
     const out = this.query(builder, args);
     if (!out) throw new Error();
     const { updates } = builder.build();
     for (const u of updates) {
-      const id = out[u.id] as string;
-      switch (u.tag) {
-        case "setRecord":
-          this.insertRec(id, out[u.value] as Rec);
-          break;
-        case "deleteRecord":
-          this.deleteRec(id);
-          break;
-        case "setField":
-          this.insertField(id, u.field, out[u.value]);
-          break;
-        case "deleteField":
-          this.deleteField(id, u.field);
+      if (u.tag === "createRecord") {
+        const id = crypto.randomUUID();
+        out[u.id] = id;
+        this.insertRec(id, out[u.value] as Rec);
+      } else {
+        const id = out[u.id] as string;
+        switch (u.tag) {
+          case "setRecord":
+            this.insertRec(id, out[u.value] as Rec);
+            break;
+          case "deleteRecord":
+            this.deleteRec(id);
+            break;
+          case "setField":
+            this.insertField(id, u.field, out[u.value]);
+            break;
+          case "deleteField":
+            this.deleteField(id, u.field);
+        }
       }
     }
     this.notifyEventListeners();
@@ -535,9 +544,7 @@ export const actions = {
     db: Database,
     { windowId, params }: { windowId: string; params: BrowseParams }
   ) {
-    const historyId = crypto.randomUUID();
-
-    const b = new UpdateBuilder(["windowId", "historyId", "history"])
+    const b = new QueryBuilder(["windowId", "history"])
       .q("windowId", "window__currentHistory", "currentId")
       .u("historyId", "history")
       .u("historyId", "history__back", "currentId")
@@ -546,7 +553,6 @@ export const actions = {
 
     db.update(b, {
       windowId,
-      historyId,
       history: {
         db__schema: "schema__history",
         history__window: windowId,
@@ -561,7 +567,7 @@ export const actions = {
     { windowId, params }: { windowId: string; params: Partial<BrowseParams> }
   ) {
     // TODO: optional params?
-    const b = new UpdateBuilder(["windowId", "id", "view", "data"]) //
+    const b = new QueryBuilder(["windowId", "id", "view", "data"]) //
       .q("windowId", "window__currentHistory", "currentId");
 
     if ("id" in params) {
@@ -577,7 +583,7 @@ export const actions = {
     db.update(b, { windowId, ...params });
   },
   back(db: Database, { windowId }: { windowId: string }) {
-    const b = new UpdateBuilder(["windowId"])
+    const b = new QueryBuilder(["windowId"])
       .q("windowId", "window__currentHistory", "currentId")
       .q("currentId", "history__back", "backId")
       .u("windowId", "window__currentHistory", "backId")
@@ -587,7 +593,7 @@ export const actions = {
     db.update(b, { windowId });
   },
   forward(db: Database, { windowId }: { windowId: string }) {
-    const b = new UpdateBuilder(["windowId"])
+    const b = new QueryBuilder(["windowId"])
       .q("windowId", "window__currentHistory", "currentId")
       .q("currentId", "history__forward", "forwardId")
       .u("windowId", "window__currentHistory", "forwardId")
@@ -597,31 +603,20 @@ export const actions = {
     db.update(b, { windowId });
   },
   newWindow(db: Database, { params }: { params: BrowseParams }) {
-    // TODO: DB can generate its own IDs?
-    const windowId = crypto.randomUUID();
-    const historyId = crypto.randomUUID();
-    const b = new UpdateBuilder([
-      "browser",
-      "windowId",
-      "window",
-      "history",
-      "historyId",
-    ])
+    const b = new QueryBuilder(["browser", "window", "history"])
       .u("windowId", "window")
       .u("historyId", "history")
-      .u("browser", "browser__currentWindow", "windowId");
+      .u("browser", "browser__currentWindow", "windowId")
+      .u("windowId", "window__currentHistory", "historyId")
+      .u("historyId", "history__window", "windowId");
 
     db.update(b, {
       browser: "browser",
-      windowId,
-      historyId,
       window: {
         db__schema: "schema__window",
-        window__currentHistory: historyId,
       },
       history: {
         db__schema: "schema__history",
-        history__window: windowId,
         history__location: params.id,
         history__view: params.view,
         history__data: params.data,
@@ -629,13 +624,13 @@ export const actions = {
     });
   },
   selectWindow(db: Database, { windowId }: { windowId: string }) {
-    const b = new UpdateBuilder(["browser", "windowId"]) //
+    const b = new QueryBuilder(["browser", "windowId"]) //
       .u("browser", "browser__currentWindow", "windowId");
     db.update(b, { browser: "browser", windowId });
   },
   closeWindow(db: Database, { windowId }: { windowId: string }) {
     // TODO: must update current window
-    const b = new UpdateBuilder(["windowId"]) //
+    const b = new QueryBuilder(["windowId"]) //
       .u("windowId", null);
     db.update(b, { windowId });
   },
