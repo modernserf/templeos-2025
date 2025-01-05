@@ -9,6 +9,8 @@ import {
   useQuery,
   QueryBuilder,
   Expr,
+  TextNode,
+  CardEl,
 } from "./state";
 import "./App.css";
 
@@ -59,16 +61,12 @@ function FileLink({ id, target }: { id: string; target?: Target }) {
   );
 }
 
-type ViewParams = {
-  view: Rec;
-  currentCard: Rec;
-  history: Rec;
-};
-
-function FolderListView({ currentCard }: ViewParams) {
+const qFolder = new QueryBuilder(["id"]).q("id", "file__folderItems", "items");
+function FolderListView({ id }: BrowseParams) {
+  const { items } = useQuery(qFolder, { id })!;
   return (
     <ul>
-      {(currentCard.file__folderItems ?? []).map((id) => (
+      {((items as string[]) ?? []).map((id) => (
         <li key={id}>
           <FileLink id={id} />
         </li>
@@ -77,10 +75,11 @@ function FolderListView({ currentCard }: ViewParams) {
   );
 }
 
-function FolderIconView({ currentCard }: ViewParams) {
+function FolderIconView({ id }: BrowseParams) {
+  const { items } = useQuery(qFolder, { id })!;
   return (
     <ul style={{ display: "flex" }}>
-      {(currentCard.file__folderItems ?? []).map((id) => (
+      {((items as string[]) ?? []).map((id) => (
         <li key={id}>
           <div style={{ textAlign: "center", fontSize: 32 }}>📄</div>
           <FileLink id={id} />
@@ -103,22 +102,23 @@ function DataViewField({ id, value }: { id: string; value: unknown }) {
   );
 }
 
-function DataView({ history, currentCard }: ViewParams) {
-  const indexFields = Object.entries(
-    useDB().index[history.history__location!] ?? {}
-  );
+const qDataViewRecord = new QueryBuilder(["id"]) //
+  .q("id", "rec");
+function DataView({ id }: BrowseParams) {
+  const indexFields = Object.entries(useDB().index[id!] ?? {});
+  const { rec } = useQuery(qDataViewRecord, { id })!;
 
   return (
     <table>
       <tbody>
         <tr>
           <td>id</td>
-          <td>{history.history__location}</td>
+          <td>{id}</td>
         </tr>
         <tr>
           <th colSpan={2}>Fields</th>
         </tr>
-        {Object.entries(currentCard).map(([key, value]) => (
+        {Object.entries(rec as Rec).map(([key, value]) => (
           <tr key={key}>
             <td>
               <FileLink id={key} />
@@ -148,10 +148,13 @@ function DataView({ history, currentCard }: ViewParams) {
   );
 }
 
-function TextView({ currentCard }: ViewParams) {
+const qTextContent = new QueryBuilder(["id"]) //
+  .q("id", "text__content", "content");
+function TextView({ id }: BrowseParams) {
+  const { content } = useQuery(qTextContent, { id })!;
   return (
     <div>
-      {(currentCard.text__content ?? []).map((node, i) => {
+      {((content as TextNode[]) ?? []).map((node, i) => {
         switch (node.tag) {
           case "text":
             return <span key={i}>{node.text}</span>;
@@ -178,11 +181,14 @@ function evalExpr(expr: Expr, scope: Record<string, unknown>): any {
   }
 }
 
-function CardView({ currentCard, history, view }: ViewParams) {
-  const scope = { currentCard, history, view };
+const qCardView = new QueryBuilder(["view"]) //
+  .q("view", "view__cardElements", "els");
+function CardView({ id, view, data }: BrowseParams) {
+  const scope = { id, view, data };
+  const { els } = useQuery(qCardView, { view })!;
   return (
     <div>
-      {(view.view__cardElements ?? []).map((el, i) => {
+      {((els as CardEl[]) ?? []).map((el, i) => {
         switch (el.tag) {
           case "text":
             return <div key={i}>{evalExpr(el.expr, scope)}</div>;
@@ -198,7 +204,7 @@ function CardView({ currentCard, history, view }: ViewParams) {
   );
 }
 
-function OmniboxView({ history }: ViewParams) {
+function OmniboxView({ data }: BrowseParams) {
   const db = useDB();
   const windowId = useContext(tabContext);
   const ref = useRef<HTMLInputElement>(null);
@@ -206,7 +212,7 @@ function OmniboxView({ history }: ViewParams) {
     ref.current?.focus();
   }, []);
 
-  const omnibox = history.history__data?.omnibox ?? "";
+  const omnibox = data!.omnibox ?? "";
 
   const re = RegExp(omnibox, "i");
 
@@ -241,7 +247,7 @@ function OmniboxView({ history }: ViewParams) {
   );
 }
 
-const viewByName: Record<string, React.FC<ViewParams>> = {
+const viewByName: Record<string, React.FC<BrowseParams>> = {
   TextView,
   DataView,
   CardView,
@@ -252,7 +258,7 @@ const viewByName: Record<string, React.FC<ViewParams>> = {
 
 const qAppWindow = new QueryBuilder(["windowId"])
   .q("windowId", "window__currentHistory", "historyId")
-  .q("historyId", "history")
+  .q("historyId", "history__data", "data")
   .q("historyId", "history__location", "id")
   .q("historyId", "history__view", "viewId");
 
@@ -264,14 +270,14 @@ function AppWindow({
   isCurrent: boolean;
 }) {
   const db = useDB();
-  const { history, id, viewId } = useQuery(qAppWindow, { windowId })!;
+  const { data, id, viewId } = useQuery(qAppWindow, { windowId })!;
 
   const card = db.data[id as string] ?? db.data.notFound;
   const viewersForType = selectors.viewersForType(db, card.db__schema!);
-  const view =
-    db.data[viewId as string] ??
-    db.data[viewersForType[0]!] ??
-    db.data.view__anyType;
+
+  const activeView = (viewId as string) || viewersForType[0] || "view__anyType";
+
+  const view = db.data[activeView];
 
   const View = viewByName[view.view__component!];
   const viewersForAnyType = selectors.viewersForAnyType(db);
@@ -308,7 +314,7 @@ function AppWindow({
           <h1 className="AppWindow__title">{card.file__name}</h1>
           <select
             className="AppWindow__viewMenu"
-            value={viewId as string}
+            value={activeView}
             onChange={(e) => {
               actions.replace(db, {
                 windowId,
@@ -323,7 +329,11 @@ function AppWindow({
             ))}
           </select>
         </header>
-        <View currentCard={card} history={history as Rec} view={view} />
+        <View
+          id={id as string}
+          view={activeView}
+          data={(data as Record<string, string>) ?? {}}
+        />
       </div>
     </TabProvider>
   );

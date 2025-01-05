@@ -1,7 +1,7 @@
 import { useContext, createContext, useState, useEffect } from "react";
 import "./App.css";
 
-type TextNode =
+export type TextNode =
   | {
       tag: "text";
       text: string;
@@ -263,11 +263,7 @@ const initDB: DB = {
       { tag: "text", expr: { tag: "string", value: "Schema!" } },
       {
         tag: "text",
-        expr: {
-          tag: "field",
-          field: "file__name",
-          expr: { tag: "ident", value: "currentCard" },
-        },
+        expr: { tag: "ident", value: "id" },
       },
       { tag: "button", label: { tag: "string", value: "click me" } },
     ],
