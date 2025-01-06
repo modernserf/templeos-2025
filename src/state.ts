@@ -1,6 +1,6 @@
 import { useContext, createContext, useState, useEffect } from "react";
 import "./App.css";
-import { DB, q, Query } from "./db";
+import { DB, k, or, q, Query } from "./db";
 
 export type TextNode =
   | {
@@ -368,21 +368,21 @@ export const actions = {
     db: DB,
     { windowId, params }: { windowId: string; params: Partial<BrowseParams> }
   ) {
-    // TODO: optional params?
-    const b = q("windowId", "id", "view", "data") //
-      .get("windowId", "window__currentHistory", "currentId");
-
-    if ("id" in params) {
-      b.update("currentId", "history__location", "id");
-    }
-    if ("view" in params) {
-      b.update("currentId", "history__view", "view");
-    }
-    if ("data" in params) {
-      b.update("currentId", "history__data", "data");
-    }
-
-    db.update(b, { windowId, ...params });
+    const b = q("windowId", "id", "view", "data")
+      .get("windowId", "window__currentHistory", "currentId")
+      .get("currentId", "history__location", "_id")
+      .update("currentId", "history__location", or("id", "_id"))
+      .get("currentId", "history__view", "_view")
+      .update("currentId", "history__view", or("view", "_view"))
+      .get("currentId", "history__data", "_data")
+      .update("currentId", "history__data", or("data", "_data"));
+    db.update(b, {
+      windowId,
+      id: params.id,
+      view: params.view,
+      data: params.data,
+    });
+    console.log(db);
   },
   back(db: DB, { windowId }: { windowId: string }) {
     const b = q("windowId")
@@ -435,7 +435,8 @@ export const actions = {
   closeWindow(db: DB, { windowId }: { windowId: string }) {
     // TODO: must update current window
     const b = q("windowId") //
-      .deleteRecord("windowId");
+      .deleteRecord("windowId")
+      .deleteField(k("browser"), "browser__currentWindow");
     db.update(b, { windowId });
   },
 };

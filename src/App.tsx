@@ -286,7 +286,6 @@ const qAppWindow = q("windowId")
   .get("historyId", "history__view", "viewId")
   .get("id", "file__name", "fileName");
 
-// FIXME: this needs to handle case where db_schema not found
 const qViewsForType = q("id")
   .get("id", "db__schema", "schema")
   .index("view", "view__schema", "schema")
@@ -378,32 +377,32 @@ function AppWindow({
 }
 
 const qAppMenu = q()
-  .get(k("browser"), "browser__currentWindow", "currentWindow")
-  .get("currentWindow", "window__currentHistory", "currentHistory")
+  .get(k("browser"), "browser__currentWindow", "id")
+  .get("id", "window__currentHistory", "currentHistory")
   .get("currentHistory", "history__back", "back")
   .get("currentHistory", "history__forward", "forward");
 
 function AppMenu() {
   const dispatch = useDispatch();
-  const { currentWindow, back, forward } = useQuery(qAppMenu)!;
+  const win = useQuery(qAppMenu);
 
   return (
     <nav>
       <button
         type="button"
         onClick={() => {
-          dispatch(actions.back, { windowId: currentWindow as string });
+          dispatch(actions.back, { windowId: win?.id as string });
         }}
-        disabled={!back}
+        disabled={!win?.back}
       >
         Back
       </button>
       <button
         type="button"
         onClick={() => {
-          dispatch(actions.forward, { windowId: currentWindow as string });
+          dispatch(actions.forward, { windowId: win?.id as string });
         }}
-        disabled={!forward}
+        disabled={!win?.forward}
       >
         Forward
       </button>

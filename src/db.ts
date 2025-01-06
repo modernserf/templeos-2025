@@ -5,7 +5,10 @@ type Rec = Record<Field, unknown>;
 type Idx = Record<Field, Set<Id>>;
 
 type Ident = string;
-type Expr = { tag: "ident"; ident: Ident } | { tag: "const"; value: unknown };
+type Expr =
+  | { tag: "ident"; ident: Ident }
+  | { tag: "const"; value: unknown }
+  | { tag: "or"; expr: Expr; default: Expr };
 export type Query = {
   params: Ident[];
   items: QueryItem[];
@@ -29,78 +32,86 @@ class QueryBuilder implements Query {
   items: QueryItem[] = [];
   constructor(public params: Ident[]) {}
   id(id: Arg) {
-    this.items.push({ tag: "id", id: this.toExpr(id) });
+    this.items.push({ tag: "id", id: toExpr(id) });
     return this;
   }
   all(id: Arg) {
-    this.items.push({ tag: "all", id: this.toExpr(id) });
+    this.items.push({ tag: "all", id: toExpr(id) });
     return this;
   }
   get(id: Arg, field: Field, value: Arg) {
     this.items.push({
       tag: "get",
-      id: this.toExpr(id),
+      id: toExpr(id),
       field,
-      value: this.toExpr(value),
+      value: toExpr(value),
     });
     return this;
   }
   index(id: Arg, field: Field, value: Arg) {
     this.items.push({
       tag: "index",
-      id: this.toExpr(id),
+      id: toExpr(id),
       field,
-      value: this.toExpr(value),
+      value: toExpr(value),
     });
     return this;
   }
   insert(id: Arg, record: Arg) {
     this.items.push({
       tag: "insert",
-      id: this.toExpr(id),
-      record: this.toExpr(record),
+      id: toExpr(id),
+      record: toExpr(record),
     });
     return this;
   }
   update(id: Arg, field: Field, value: Arg) {
     this.items.push({
       tag: "update",
-      id: this.toExpr(id),
+      id: toExpr(id),
       field,
-      value: this.toExpr(value),
+      value: toExpr(value),
     });
     return this;
   }
   deleteField(id: Arg, field: Field) {
-    this.items.push({ tag: "deleteField", id: this.toExpr(id), field });
+    this.items.push({ tag: "deleteField", id: toExpr(id), field });
     return this;
   }
   deleteRecord(id: Arg) {
-    this.items.push({ tag: "deleteRecord", id: this.toExpr(id) });
+    this.items.push({ tag: "deleteRecord", id: toExpr(id) });
     return this;
-  }
-  private toExpr(arg: Arg): Expr {
-    if (typeof arg === "string") {
-      return { tag: "ident", ident: arg };
-    } else {
-      return arg;
-    }
   }
 }
 
+const toExpr = (arg: Arg): Expr => {
+  if (typeof arg === "string") {
+    return { tag: "ident", ident: arg };
+  } else {
+    return arg;
+  }
+};
+
 export const q = (...params: Ident[]) => new QueryBuilder(params);
 export const k = (value: unknown): Expr => ({ tag: "const", value });
+export const or = (left: Arg, right: Arg): Expr => ({
+  tag: "or",
+  expr: toExpr(left),
+  default: toExpr(right),
+});
 
 function getVar<T>(scope: QueryArgs, expr: Expr): T {
   switch (expr.tag) {
     case "ident": {
-      const value = scope[expr.ident];
-      if (!value) throw new Error();
-      return value as T;
+      if (!(expr.ident in scope)) throw new Error();
+      return scope[expr.ident] as T;
     }
     case "const": {
       const value = expr.value;
       return value as T;
+    }
+    case "or": {
+      return getVar<T>(scope, expr.expr) ?? getVar<T>(scope, expr.default);
     }
   }
 }
@@ -211,7 +222,7 @@ export class DB {
       case "get": {
         const id = getVar<Id>(args, q.id);
         const record = this.data.get(id);
-        if (!record) throw new Error();
+        if (!record) return;
         setVar(args, q.value, record[q.field]);
         yield* this.runQuery(query, args, index + 1);
         return;
@@ -219,9 +230,9 @@ export class DB {
       case "index": {
         const value = getVar<Id>(args, q.value);
         const idx = this.index.get(value);
-        if (!idx) throw new Error();
+        if (!idx) return;
         const ids = idx[q.field];
-        if (!ids) throw new Error();
+        if (!ids) return;
         for (const id of ids) {
           const nextArgs = { ...args };
           setVar(nextArgs, q.id, id);
@@ -268,8 +279,18 @@ export class DB {
         yield* this.runQuery(query, args, index + 1);
         return;
       }
-      default:
-        throw new Error("unimplemented");
+      case "deleteField": {
+        const id = getVar<Id>(args, q.id);
+        const record = this.data.get(id);
+        if (record) {
+          if (this.indexedFields.has(q.field)) {
+            this.removeFromIndex(id, q.field, record[q.field] as Id);
+          }
+          record[id] = undefined;
+        }
+        yield* this.runQuery(query, args, index + 1);
+        return;
+      }
     }
   }
   private addToIndex(id: Id, field: Field, value: Id) {
