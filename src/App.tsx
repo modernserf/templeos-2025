@@ -11,7 +11,7 @@ import {
   useQueryAll,
 } from "./state";
 import "./App.css";
-import { q } from "./db";
+import { k, q } from "./db";
 
 const tabContext = createContext("rootWindow");
 const TabProvider = tabContext.Provider;
@@ -223,7 +223,7 @@ function* take<T>(count: number, iter: Iterable<T>) {
 }
 
 function OmniboxView({ data }: BrowseParams) {
-  const results = useQueryAll(allQuery, {});
+  const results = useQueryAll(allQuery);
   const dispatch = useDispatch();
   const windowId = useContext(tabContext);
   const ref = useRef<HTMLInputElement>(null);
@@ -292,8 +292,8 @@ const qViewsForType = q("id")
   .index("view", "view__schema", "schema")
   .get("view", "file__name", "viewName");
 
-const qViewsForAnyType = q("schema")
-  .index("view", "view__schema", "schema")
+const qViewsForAnyType = q()
+  .index("view", "view__schema", k("schema__anyType"))
   .get("view", "file__name", "viewName");
 
 // FIXME: default value
@@ -310,13 +310,12 @@ function AppWindow({
   const dispatch = useDispatch();
   const { data, id, viewId, fileName } = useQuery(qAppWindow, { windowId })!;
 
-  const viewersForType = [...useQueryAll(qViewsForType, { id })];
-  const viewersForAnyType = [
-    ...useQueryAll(qViewsForAnyType, { schema: "schema__anyType" }),
+  const viewers = [
+    ...useQueryAll(qViewsForType, { id }),
+    ...useQueryAll(qViewsForAnyType),
   ];
 
-  const activeView =
-    (viewId as string) || (viewersForType[0].view as string) || "view__anyType";
+  const activeView = (viewId as string) || viewers[0].view;
   const { componentName } = useQuery(qView, { activeView })!;
 
   const View = viewByName[componentName as string];
@@ -353,7 +352,7 @@ function AppWindow({
           <h1 className="AppWindow__title">{fileName as string}</h1>
           <select
             className="AppWindow__viewMenu"
-            value={activeView}
+            value={activeView as string}
             onChange={(e) => {
               dispatch(actions.replace, {
                 windowId,
@@ -361,7 +360,7 @@ function AppWindow({
               });
             }}
           >
-            {viewersForType.concat(viewersForAnyType).map((v) => (
+            {viewers.map((v) => (
               <option key={v.view as string} value={v.view as string}>
                 {(v.viewName as string) ?? viewId}
               </option>
@@ -370,7 +369,7 @@ function AppWindow({
         </header>
         <View
           id={id as string}
-          view={activeView}
+          view={activeView as string}
           data={(data as Record<string, string>) ?? {}}
         />
       </div>
@@ -378,17 +377,15 @@ function AppWindow({
   );
 }
 
-const qAppMenu = q("browser")
-  .get("browser", "browser__currentWindow", "currentWindow")
+const qAppMenu = q()
+  .get(k("browser"), "browser__currentWindow", "currentWindow")
   .get("currentWindow", "window__currentHistory", "currentHistory")
   .get("currentHistory", "history__back", "back")
   .get("currentHistory", "history__forward", "forward");
 
 function AppMenu() {
   const dispatch = useDispatch();
-  const { currentWindow, back, forward } = useQuery(qAppMenu, {
-    browser: "browser",
-  })!;
+  const { currentWindow, back, forward } = useQuery(qAppMenu)!;
 
   return (
     <nav>
@@ -416,15 +413,12 @@ function AppMenu() {
   );
 }
 
-const qApp = q("browser", "windowSchema")
-  .get("browser", "browser__currentWindow", "currentWindow")
-  .index("id", "db__schema", "windowSchema");
+const qApp = q()
+  .get(k("browser"), "browser__currentWindow", "currentWindow")
+  .index("id", "db__schema", k("schema__window"));
 
 function App() {
-  const windows = useQueryAll(qApp, {
-    browser: "browser",
-    windowSchema: "schema__window",
-  })!;
+  const windows = useQueryAll(qApp)!;
   return (
     <>
       <AppMenu />

@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { DB, q } from "./db";
+import { DB, k, q } from "./db";
 
 test("basic queries", () => {
   const db = new DB();
@@ -7,13 +7,11 @@ test("basic queries", () => {
     foo: { value: 123 },
     bar: { baz: 456, quux: 789 },
   });
-  const query = q("foo", "bar")
-    .get("foo", "value", "value")
-    .get("bar", "baz", "baz")
-    .get("bar", "quux", "quux");
-  expect(db.query1(query, { foo: "foo", bar: "bar" })).toEqual({
-    foo: "foo",
-    bar: "bar",
+  const query = q()
+    .get(k("foo"), "value", "value")
+    .get(k("bar"), "baz", "baz")
+    .get(k("bar"), "quux", "quux");
+  expect(db.query1(query)).toEqual({
     value: 123,
     baz: 456,
     quux: 789,
@@ -55,9 +53,9 @@ test("update", () => {
 
   expect(didChange).toBe(false);
 
-  const update = q("id", "key") //
-    .update("id", "idx", "key");
-  db.update(update, { id: "foo", key: "goodbye" });
+  const update = q("key") //
+    .update(k("foo"), "idx", "key");
+  db.update(update, { key: "goodbye" });
 
   expect(didChange).toBe(true);
 
@@ -81,13 +79,13 @@ test("delete", () => {
   });
   db.createIndex("idx");
 
-  const update = q("bar", "key")
-    .deleteRecord("bar")
+  const update = q("key")
+    .deleteRecord(k("bar"))
     .index("id", "idx", "key")
     .get("id", "value", "value");
 
-  expect([...db.queryAll(update, { bar: "bar", key: "hello" })]).toEqual([
-    { bar: "bar", id: "foo", value: 123, key: "hello" },
+  expect([...db.queryAll(update, { key: "hello" })]).toEqual([
+    { id: "foo", value: 123, key: "hello" },
   ]);
 });
 
@@ -95,9 +93,13 @@ test("insert", () => {
   const db = new DB();
   db.createIndex("idx");
 
-  const update = q("rec").id("id").insert("id", "rec");
+  const update = q("rec") //
+    .id("id")
+    .insert("id", "rec");
   db.update(update, { rec: { value: 123, idx: "hello" } });
 
-  const query = q("key").index("id", "idx", "key").get("id", "value", "value");
+  const query = q("key") //
+    .index("id", "idx", "key")
+    .get("id", "value", "value");
   expect(db.query1(query, { key: "hello" })).toMatchObject({ value: 123 });
 });

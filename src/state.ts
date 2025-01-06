@@ -323,12 +323,12 @@ export function useDB() {
   return data.db;
 }
 
-export function useQuery(b: Query, args: Record<string, unknown>) {
+export function useQuery(b: Query, args?: Record<string, unknown>) {
   const db = useDB();
   return db.query1(b, args);
 }
 
-export function useQueryAll(b: Query, args: Record<string, unknown>) {
+export function useQueryAll(b: Query, args?: Record<string, unknown>) {
   const db = useDB();
   return db.queryAll(b, args);
 }
