@@ -1,18 +1,17 @@
 import { useEffect, useRef, useContext, createContext } from "react";
 import {
   BrowseParams,
-  Rec,
-  useDB,
   actions,
-  selectors,
   useDispatch,
   useQuery,
-  QueryBuilder,
   Expr,
   TextNode,
   CardEl,
+  useDB,
+  useQueryAll,
 } from "./state";
 import "./App.css";
+import { q } from "./db";
 
 const tabContext = createContext("rootWindow");
 const TabProvider = tabContext.Provider;
@@ -49,9 +48,8 @@ function Link({
   );
 }
 
-const qFileLink = new QueryBuilder(["id"]) //
-  .q("id", "file__name", "fileName");
-
+const qFileLink = q("id") //
+  .get("id", "file__name", "fileName");
 function FileLink({ id, target }: { id: string; target?: Target }) {
   const { fileName } = useQuery(qFileLink, { id })!;
   return (
@@ -61,7 +59,8 @@ function FileLink({ id, target }: { id: string; target?: Target }) {
   );
 }
 
-const qFolder = new QueryBuilder(["id"]).q("id", "file__folderItems", "items");
+const qFolder = q("id") //
+  .get("id", "file__folderItems", "items");
 function FolderListView({ id }: BrowseParams) {
   const { items } = useQuery(qFolder, { id })!;
   return (
@@ -89,9 +88,8 @@ function FolderIconView({ id }: BrowseParams) {
   );
 }
 
-const qDataViewField = new QueryBuilder(["id"]) //
-  .q("id", "field__refType", "refType");
-
+const qDataViewField = q("id") //
+  .get("id", "field__refType", "refType");
 function DataViewField({ id, value }: { id: string; value: unknown }) {
   const { refType } = useQuery(qDataViewField, { id })!;
 
@@ -102,12 +100,9 @@ function DataViewField({ id, value }: { id: string; value: unknown }) {
   );
 }
 
-const qDataViewRecord = new QueryBuilder(["id"]) //
-  .q("id", "rec");
 function DataView({ id }: BrowseParams) {
-  const indexFields = Object.entries(useDB().index[id!] ?? {});
-  const { rec } = useQuery(qDataViewRecord, { id })!;
-
+  const { data, index } = useDB().getDataView(id);
+  const indexFields = Object.entries(index ?? {});
   return (
     <table>
       <tbody>
@@ -118,7 +113,7 @@ function DataView({ id }: BrowseParams) {
         <tr>
           <th colSpan={2}>Fields</th>
         </tr>
-        {Object.entries(rec as Rec).map(([key, value]) => (
+        {Object.entries(data ?? {}).map(([key, value]) => (
           <tr key={key}>
             <td>
               <FileLink id={key} />
@@ -148,8 +143,8 @@ function DataView({ id }: BrowseParams) {
   );
 }
 
-const qTextContent = new QueryBuilder(["id"]) //
-  .q("id", "text__content", "content");
+const qTextContent = q("id") //
+  .get("id", "text__content", "content");
 function TextView({ id }: BrowseParams) {
   const { content } = useQuery(qTextContent, { id })!;
   return (
@@ -181,8 +176,8 @@ function evalExpr(expr: Expr, scope: Record<string, unknown>): any {
   }
 }
 
-const qCardView = new QueryBuilder(["view"]) //
-  .q("view", "view__cardElements", "els");
+const qCardView = q("view") //
+  .get("view", "view__cardElements", "els");
 function CardView({ id, view, data }: BrowseParams) {
   const scope = { id, view, data };
   const { els } = useQuery(qCardView, { view })!;
@@ -204,8 +199,32 @@ function CardView({ id, view, data }: BrowseParams) {
   );
 }
 
+const allQuery = q() //
+  .all("id")
+  .get("id", "file__name", "name")
+  .get("id", "file__description", "description");
+
+function* filter<T>(f: (t: T) => boolean, iter: Iterable<T>) {
+  for (const item of iter) {
+    if (f(item)) {
+      yield item;
+    }
+  }
+}
+
+function* take<T>(count: number, iter: Iterable<T>) {
+  let i = 0;
+  for (const item of iter) {
+    if (i < count) {
+      i++;
+      yield item;
+    }
+  }
+}
+
 function OmniboxView({ data }: BrowseParams) {
-  const db = useDB();
+  const results = useQueryAll(allQuery, {});
+  const dispatch = useDispatch();
   const windowId = useContext(tabContext);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -216,11 +235,15 @@ function OmniboxView({ data }: BrowseParams) {
 
   const re = RegExp(omnibox, "i");
 
-  const results = Object.entries(db.data).filter(
-    ([key, value]) =>
-      re.test(key) ||
-      re.test(value.file__name ?? "") ||
-      re.test(value.file__description ?? "")
+  const filtered = take(
+    10,
+    filter(
+      ({ id, name, description }) =>
+        re.test(id as string) ||
+        re.test((name as string) ?? "") ||
+        re.test((description as string) ?? ""),
+      results
+    )
   );
 
   return (
@@ -230,16 +253,16 @@ function OmniboxView({ data }: BrowseParams) {
         value={omnibox}
         ref={ref}
         onChange={(e) => {
-          actions.replace(db, {
+          dispatch(actions.replace, {
             windowId,
             params: { data: { omnibox: e.target.value } },
           });
         }}
       />
       <ul className="OmniboxView__list">
-        {results.map(([key, value]) => (
-          <li key={key} className="OmniboxView__listItem">
-            <FileLink id={key} /> <span>{value.file__description}</span>
+        {[...filtered].map(({ id, description }) => (
+          <li key={id as string} className="OmniboxView__listItem">
+            <FileLink id={id as string} /> <span>{description as string}</span>
           </li>
         ))}
       </ul>
@@ -256,11 +279,26 @@ const viewByName: Record<string, React.FC<BrowseParams>> = {
   FolderIconView,
 };
 
-const qAppWindow = new QueryBuilder(["windowId"])
-  .q("windowId", "window__currentHistory", "historyId")
-  .q("historyId", "history__data", "data")
-  .q("historyId", "history__location", "id")
-  .q("historyId", "history__view", "viewId");
+const qAppWindow = q("windowId")
+  .get("windowId", "window__currentHistory", "historyId")
+  .get("historyId", "history__data", "data")
+  .get("historyId", "history__location", "id")
+  .get("historyId", "history__view", "viewId")
+  .get("id", "file__name", "fileName");
+
+// FIXME: this needs to handle case where db_schema not found
+const qViewsForType = q("id")
+  .get("id", "db__schema", "schema")
+  .index("view", "view__schema", "schema")
+  .get("view", "file__name", "viewName");
+
+const qViewsForAnyType = q("schema")
+  .index("view", "view__schema", "schema")
+  .get("view", "file__name", "viewName");
+
+// FIXME: default value
+const qView = q("activeView") //
+  .get("activeView", "view__component", "componentName");
 
 function AppWindow({
   windowId,
@@ -269,18 +307,19 @@ function AppWindow({
   windowId: string;
   isCurrent: boolean;
 }) {
-  const db = useDB();
-  const { data, id, viewId } = useQuery(qAppWindow, { windowId })!;
+  const dispatch = useDispatch();
+  const { data, id, viewId, fileName } = useQuery(qAppWindow, { windowId })!;
 
-  const card = db.data[id as string] ?? db.data.notFound;
-  const viewersForType = selectors.viewersForType(db, card.db__schema!);
+  const viewersForType = [...useQueryAll(qViewsForType, { id })];
+  const viewersForAnyType = [
+    ...useQueryAll(qViewsForAnyType, { schema: "schema__anyType" }),
+  ];
 
-  const activeView = (viewId as string) || viewersForType[0] || "view__anyType";
+  const activeView =
+    (viewId as string) || (viewersForType[0].view as string) || "view__anyType";
+  const { componentName } = useQuery(qView, { activeView })!;
 
-  const view = db.data[activeView];
-
-  const View = viewByName[view.view__component!];
-  const viewersForAnyType = selectors.viewersForAnyType(db);
+  const View = viewByName[componentName as string];
 
   return (
     <TabProvider value={windowId}>
@@ -290,16 +329,16 @@ function AppWindow({
           .filter(Boolean)
           .join(" ")}
         onMouseDownCapture={() => {
-          actions.selectWindow(db, { windowId });
+          dispatch(actions.selectWindow, { windowId });
         }}
         onKeyDownCapture={(e) => {
           if (e.key == "[" && e.metaKey) {
             e.preventDefault();
-            actions.back(db, { windowId });
+            dispatch(actions.back, { windowId });
           }
           if (e.key == "]" && e.metaKey) {
             e.preventDefault();
-            actions.forward(db, { windowId });
+            dispatch(actions.forward, { windowId });
           }
         }}
       >
@@ -308,23 +347,23 @@ function AppWindow({
             className="AppWindow__closeButton"
             type="button"
             onClick={() => {
-              actions.closeWindow(db, { windowId });
+              dispatch(actions.closeWindow, { windowId });
             }}
           ></button>
-          <h1 className="AppWindow__title">{card.file__name}</h1>
+          <h1 className="AppWindow__title">{fileName as string}</h1>
           <select
             className="AppWindow__viewMenu"
             value={activeView}
             onChange={(e) => {
-              actions.replace(db, {
+              dispatch(actions.replace, {
                 windowId,
                 params: { view: e.target.value },
               });
             }}
           >
-            {viewersForType.concat(viewersForAnyType).map((viewId) => (
-              <option key={viewId} value={viewId}>
-                {db.data[viewId].file__name ?? viewId}
+            {viewersForType.concat(viewersForAnyType).map((v) => (
+              <option key={v.view as string} value={v.view as string}>
+                {(v.viewName as string) ?? viewId}
               </option>
             ))}
           </select>
@@ -339,11 +378,11 @@ function AppWindow({
   );
 }
 
-const qAppMenu = new QueryBuilder(["browser"])
-  .q("browser", "browser__currentWindow", "currentWindow")
-  .q("currentWindow", "window__currentHistory", "currentHistory")
-  .q("currentHistory", "history__back", "back")
-  .q("currentHistory", "history__forward", "forward");
+const qAppMenu = q("browser")
+  .get("browser", "browser__currentWindow", "currentWindow")
+  .get("currentWindow", "window__currentHistory", "currentHistory")
+  .get("currentHistory", "history__back", "back")
+  .get("currentHistory", "history__forward", "forward");
 
 function AppMenu() {
   const dispatch = useDispatch();
@@ -377,21 +416,24 @@ function AppMenu() {
   );
 }
 
-const qApp = new QueryBuilder(["browser", "windowSchema"])
-  .q("browser", "browser__currentWindow", "currentWindow")
-  .q("windows", "db__schema", "windowSchema");
+const qApp = q("browser", "windowSchema")
+  .get("browser", "browser__currentWindow", "currentWindow")
+  .index("id", "db__schema", "windowSchema");
 
 function App() {
-  const { currentWindow, windows } = useQuery(qApp, {
+  const windows = useQueryAll(qApp, {
     browser: "browser",
     windowSchema: "schema__window",
   })!;
-  const windowIDs = [...((windows as Set<string>) || [])];
   return (
     <>
       <AppMenu />
-      {windowIDs.map((id) => (
-        <AppWindow key={id} windowId={id} isCurrent={currentWindow === id} />
+      {[...windows].map(({ id, currentWindow }) => (
+        <AppWindow
+          key={id as string}
+          windowId={id as string}
+          isCurrent={currentWindow === id}
+        />
       ))}
     </>
   );

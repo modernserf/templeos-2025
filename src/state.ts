@@ -1,5 +1,6 @@
 import { useContext, createContext, useState, useEffect } from "react";
 import "./App.css";
+import { DB, q, Query } from "./db";
 
 export type TextNode =
   | {
@@ -39,25 +40,13 @@ export type Rec = {
   browser__currentWindow?: string;
 };
 
-type Index = Record<string, Set<string>> & {
-  db__schema?: Set<string>;
-  view__schema?: Set<string>;
-  index__field?: Set<string>;
-};
-
 export type BrowseParams = {
   id: string;
   view?: string;
   data?: Record<string, string>;
 };
 
-export type WindowHistory = BrowseParams & {
-  back?: WindowHistory;
-  forward?: WindowHistory;
-};
-
-type DB = Record<string, Rec>;
-const initDB: DB = {
+const initDB: Record<string, Rec> = {
   // schemas
   schema__schema: {
     db__schema: "schema__schema",
@@ -316,233 +305,10 @@ const initDB: DB = {
   },
 };
 
-// TODO: constants in query
-type Query =
-  | { tag: "getRecord"; id: string; value: string }
-  | { tag: "getField"; id: string; field: keyof Rec; value: string }
-  | { tag: "getIndexedIds"; id: string; field: keyof Rec; value: string }
-  | { tag: "checkField"; id: string; field: keyof Rec; value: string };
+export const database = new DB();
+database.bulkInsert(initDB);
 
-type Update =
-  | { tag: "createRecord"; id: string; value: string }
-  | { tag: "setRecord"; id: string; value: string }
-  | { tag: "deleteRecord"; id: string }
-  | { tag: "setField"; id: string; field: keyof Rec; value: string }
-  | { tag: "deleteField"; id: string; field: keyof Rec };
-
-export class QueryBuilder {
-  protected boundVars: Set<string>;
-  private query: Query[] = [];
-  private updates: Update[] = [];
-  constructor(params: string[]) {
-    this.boundVars = new Set(params);
-  }
-  q(id: string, field: keyof Rec, value: string): this;
-  q(id: string, value: string): this;
-  q(id: string, x: string, y?: string) {
-    if (y === undefined) {
-      if (!this.boundVars.has(id)) throw new Error();
-      this.query.push({ tag: "getRecord", id, value: x });
-      return this;
-    }
-    const field = x as keyof Rec;
-    const value = y;
-
-    if (this.boundVars.has(id)) {
-      if (this.boundVars.has(value)) {
-        this.query.push({ tag: "checkField", id, field, value });
-      } else {
-        this.query.push({ tag: "getField", id, field, value });
-        this.boundVars.add(value);
-      }
-    } else {
-      if (this.boundVars.has(value)) {
-        this.query.push({ tag: "getIndexedIds", id, field, value });
-        this.boundVars.add(id);
-      } else {
-        throw new Error();
-      }
-    }
-    return this;
-  }
-  u(id: string, field: keyof Rec, value: string | null): this;
-  u(id: string, value: string | null): this;
-  u(id: string, x: string | null, y?: string | null) {
-    if (!this.boundVars.has(id)) {
-      if (x && y === undefined && this.boundVars.has(x)) {
-        this.updates.push({ tag: "createRecord", id, value: x });
-        this.boundVars.add(id);
-        return this;
-      }
-      console.log({ id, x, y }, this.boundVars);
-      throw new Error();
-    }
-    if (y === undefined) {
-      const value = x;
-      if (value === null) {
-        this.updates.push({ tag: "deleteRecord", id });
-      } else {
-        if (!this.boundVars.has(value)) throw new Error();
-        this.updates.push({ tag: "setRecord", id, value });
-      }
-      return this;
-    }
-    const field = x as keyof Rec;
-    const value = y;
-    if (value === null) {
-      this.updates.push({ tag: "deleteField", id, field });
-    } else {
-      if (!this.boundVars.has(value)) throw new Error();
-      this.updates.push({ tag: "setField", id, field, value });
-    }
-    return this;
-  }
-  build() {
-    return { query: this.query, updates: this.updates };
-  }
-}
-
-export class Database {
-  data: Record<string, Rec> = {};
-  index: Record<string, Index> = {};
-  private eventListeners: Array<() => void> = [];
-  query(builder: QueryBuilder, args: Record<string, unknown>) {
-    const { query } = builder.build();
-    const out = { ...args };
-    for (const q of query) {
-      switch (q.tag) {
-        case "checkField": {
-          const actual = this.data[out[q.id] as string][q.field];
-          const expected = out[q.value];
-          if (actual !== expected) return null;
-          break;
-        }
-        case "getField": {
-          const id = out[q.id] as string;
-          out[q.value] = this.data[id][q.field];
-          break;
-        }
-        case "getRecord": {
-          const id = out[q.id] as string;
-          out[q.value] = this.data[id];
-          break;
-        }
-        case "getIndexedIds": {
-          const value = out[q.value] as string;
-          out[q.id] = this.index[value][q.field];
-          break;
-        }
-      }
-    }
-    return out;
-  }
-  update(builder: QueryBuilder, args: Record<string, unknown>) {
-    const out = this.query(builder, args);
-    if (!out) throw new Error();
-    const { updates } = builder.build();
-    for (const u of updates) {
-      if (u.tag === "createRecord") {
-        const id = crypto.randomUUID();
-        out[u.id] = id;
-        this.insertRec(id, out[u.value] as Rec);
-      } else {
-        const id = out[u.id] as string;
-        switch (u.tag) {
-          case "setRecord":
-            this.insertRec(id, out[u.value] as Rec);
-            break;
-          case "deleteRecord":
-            this.deleteRec(id);
-            break;
-          case "setField":
-            this.insertField(id, u.field, out[u.value]);
-            break;
-          case "deleteField":
-            this.deleteField(id, u.field);
-        }
-      }
-    }
-    this.notifyEventListeners();
-  }
-  batchInsert(data: Record<string, Rec>) {
-    for (const [key, val] of Object.entries(data)) {
-      this.insertRec(key, val);
-    }
-    this.notifyEventListeners();
-  }
-  addEventListener(fn: () => void) {
-    this.eventListeners.push(fn);
-    return () => {
-      this.eventListeners = this.eventListeners.filter((f) => f !== fn);
-    };
-  }
-  private notifyEventListeners() {
-    for (const l of this.eventListeners) {
-      l();
-    }
-  }
-  private insertField(id: string, field: keyof Rec, value: unknown) {
-    const rec = this.data[id] ?? {};
-    this.insertRec(id, { ...rec, [field]: value });
-  }
-  private insertRec(id: string, rec: Rec) {
-    this.data[id] = rec;
-    this.updateIndex(id);
-    if (rec.db__schema === "schema__index") {
-      this.addIndex(rec.index__field!);
-    }
-  }
-  private deleteRec(id: string) {
-    const old = this.data[id];
-    delete this.data[id];
-    this.deleteFromIndex(id, old);
-  }
-  private deleteField(id: string, field: keyof Rec) {
-    // TODO: handle if this causes a value to be un-indexed
-    const rec = { ...this.data[id] };
-    delete rec[field];
-    this.insertRec(id, rec);
-  }
-  private addIndex(field: string) {
-    for (const id of Object.keys(this.data)) {
-      this.index1(id, field);
-    }
-  }
-  private updateIndex(id: string) {
-    for (const indexId of this.index.schema__index?.db__schema ?? []) {
-      const field = this.data[indexId].index__field!;
-      this.index1(id, field);
-    }
-  }
-  private index1(id: string, field: string) {
-    const rec = this.data[id];
-    if (field in rec) {
-      const items = Array.isArray(rec[field]) ? rec[field] : [rec[field]];
-      for (const value of items) {
-        this.index[value] ??= {};
-        this.index[value][field] ??= new Set();
-        this.index[value][field].add(id);
-      }
-    }
-  }
-  private deleteFromIndex(id: string, rec: Rec) {
-    for (const indexId of this.index.schema__index?.db__schema ?? []) {
-      const field = this.data[indexId].index__field!;
-      if (field in rec) {
-        const items = Array.isArray(rec[field]) ? rec[field] : [rec[field]];
-        for (const value of items) {
-          this.index[value][field].delete(id);
-        }
-      }
-    }
-  }
-}
-
-export const database = new Database();
-database.batchInsert(initDB);
-window.database = database;
-
-const dbContext = createContext(new Database());
+const dbContext = createContext(new DB());
 export const DBProvider = dbContext.Provider;
 
 // TODO: separate query / command handlers
@@ -557,29 +323,35 @@ export function useDB() {
   return data.db;
 }
 
-export function useQuery(b: QueryBuilder, args: Record<string, unknown>) {
+export function useQuery(b: Query, args: Record<string, unknown>) {
   const db = useDB();
-  return db.query(b, args);
+  return db.query1(b, args);
+}
+
+export function useQueryAll(b: Query, args: Record<string, unknown>) {
+  const db = useDB();
+  return db.queryAll(b, args);
 }
 
 export function useDispatch() {
   const db = useContext(dbContext);
-  return function <T>(fn: (db: Database, payload: T) => void, payload: T) {
+  return function <T>(fn: (db: DB, payload: T) => void, payload: T) {
     fn(db, payload);
   };
 }
 
 export const actions = {
   push(
-    db: Database,
+    db: DB,
     { windowId, params }: { windowId: string; params: BrowseParams }
   ) {
-    const b = new QueryBuilder(["windowId", "history"])
-      .q("windowId", "window__currentHistory", "currentId")
-      .u("historyId", "history")
-      .u("historyId", "history__back", "currentId")
-      .u("windowId", "window__currentHistory", "historyId")
-      .u("currentId", "history__forward", "historyId");
+    const b = q("windowId", "history")
+      .get("windowId", "window__currentHistory", "currentId")
+      .id("historyId")
+      .insert("historyId", "history")
+      .update("historyId", "history__back", "currentId")
+      .update("windowId", "window__currentHistory", "historyId")
+      .update("currentId", "history__forward", "historyId");
 
     db.update(b, {
       windowId,
@@ -593,52 +365,54 @@ export const actions = {
     });
   },
   replace(
-    db: Database,
+    db: DB,
     { windowId, params }: { windowId: string; params: Partial<BrowseParams> }
   ) {
     // TODO: optional params?
-    const b = new QueryBuilder(["windowId", "id", "view", "data"]) //
-      .q("windowId", "window__currentHistory", "currentId");
+    const b = q("windowId", "id", "view", "data") //
+      .get("windowId", "window__currentHistory", "currentId");
 
     if ("id" in params) {
-      b.u("currentId", "history__location", "id");
+      b.update("currentId", "history__location", "id");
     }
     if ("view" in params) {
-      b.u("currentId", "history__view", "view");
+      b.update("currentId", "history__view", "view");
     }
     if ("data" in params) {
-      b.u("currentId", "history__data", "data");
+      b.update("currentId", "history__data", "data");
     }
 
     db.update(b, { windowId, ...params });
   },
-  back(db: Database, { windowId }: { windowId: string }) {
-    const b = new QueryBuilder(["windowId"])
-      .q("windowId", "window__currentHistory", "currentId")
-      .q("currentId", "history__back", "backId")
-      .u("windowId", "window__currentHistory", "backId")
-      .u("currentId", "history__back", null)
-      .u("backId", "history__forward", "currentId");
+  back(db: DB, { windowId }: { windowId: string }) {
+    const b = q("windowId")
+      .get("windowId", "window__currentHistory", "currentId")
+      .get("currentId", "history__back", "backId")
+      .update("windowId", "window__currentHistory", "backId")
+      .deleteField("currentId", "history__back")
+      .update("backId", "history__forward", "currentId");
 
     db.update(b, { windowId });
   },
-  forward(db: Database, { windowId }: { windowId: string }) {
-    const b = new QueryBuilder(["windowId"])
-      .q("windowId", "window__currentHistory", "currentId")
-      .q("currentId", "history__forward", "forwardId")
-      .u("windowId", "window__currentHistory", "forwardId")
-      .u("currentId", "history__forward", null)
-      .u("forwardId", "history__back", "currentId");
+  forward(db: DB, { windowId }: { windowId: string }) {
+    const b = q("windowId")
+      .get("windowId", "window__currentHistory", "currentId")
+      .get("currentId", "history__forward", "forwardId")
+      .update("windowId", "window__currentHistory", "forwardId")
+      .deleteField("currentId", "history__forward")
+      .update("forwardId", "history__back", "currentId");
 
     db.update(b, { windowId });
   },
-  newWindow(db: Database, { params }: { params: BrowseParams }) {
-    const b = new QueryBuilder(["browser", "window", "history"])
-      .u("windowId", "window")
-      .u("historyId", "history")
-      .u("browser", "browser__currentWindow", "windowId")
-      .u("windowId", "window__currentHistory", "historyId")
-      .u("historyId", "history__window", "windowId");
+  newWindow(db: DB, { params }: { params: BrowseParams }) {
+    const b = q("browser", "window", "history")
+      .id("windowId")
+      .insert("windowId", "window")
+      .id("historyId")
+      .insert("historyId", "history")
+      .update("browser", "browser__currentWindow", "windowId")
+      .update("windowId", "window__currentHistory", "historyId")
+      .update("historyId", "history__window", "windowId");
 
     db.update(b, {
       browser: "browser",
@@ -653,24 +427,15 @@ export const actions = {
       },
     });
   },
-  selectWindow(db: Database, { windowId }: { windowId: string }) {
-    const b = new QueryBuilder(["browser", "windowId"]) //
-      .u("browser", "browser__currentWindow", "windowId");
+  selectWindow(db: DB, { windowId }: { windowId: string }) {
+    const b = q("browser", "windowId") //
+      .update("browser", "browser__currentWindow", "windowId");
     db.update(b, { browser: "browser", windowId });
   },
-  closeWindow(db: Database, { windowId }: { windowId: string }) {
+  closeWindow(db: DB, { windowId }: { windowId: string }) {
     // TODO: must update current window
-    const b = new QueryBuilder(["windowId"]) //
-      .u("windowId", null);
+    const b = q("windowId") //
+      .deleteRecord("windowId");
     db.update(b, { windowId });
-  },
-};
-
-export const selectors = {
-  viewersForType(db: Database, type: string) {
-    return [...(db.index[type]?.view__schema ?? [])];
-  },
-  viewersForAnyType(db: Database) {
-    return [...(db.index.schema__anyType?.view__schema ?? [])];
   },
 };

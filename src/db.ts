@@ -12,6 +12,7 @@ export type Query = {
 
 type QueryItem =
   | { tag: "id"; id: Ident }
+  | { tag: "all"; id: Ident }
   | { tag: "get"; id: Ident; field: Field; value: Ident }
   | { tag: "index"; id: Ident; field: Field; value: Ident }
   | { tag: "insert"; id: Ident; record: Ident }
@@ -26,6 +27,10 @@ class QueryBuilder implements Query {
   constructor(public params: Ident[]) {}
   id(id: Ident) {
     this.items.push({ tag: "id", id });
+    return this;
+  }
+  all(id: Ident) {
+    this.items.push({ tag: "all", id });
     return this;
   }
   get(id: Ident, field: Field, value: Ident) {
@@ -63,7 +68,7 @@ function expectVar<T>(args: QueryArgs, ident: Ident): T {
 }
 
 function checkVar<T>(args: QueryArgs, ident: Ident, value: T) {
-  if (!value) throw new Error();
+  // if (!value) throw new Error();
   if (ident in args) {
     if (args[ident] !== value) throw new Error();
   } else {
@@ -77,6 +82,13 @@ export class DB {
   private index = new Map<Id, Idx>();
   private indexedFields = new Set<Field>();
   private eventListeners: Array<() => void> = [];
+  // FIXME
+  getDataView(id: Id) {
+    return {
+      data: this.data.get(id),
+      index: this.index.get(id),
+    };
+  }
   bulkInsert(items: Record<Id, Rec>) {
     for (const [id, rec] of Object.entries(items)) {
       this.insertRec(id, rec);
@@ -141,6 +153,14 @@ export class DB {
         const id = crypto.randomUUID();
         checkVar(args, q.id, id);
         yield* this.runQuery(query, args, index + 1);
+        return;
+      }
+      case "all": {
+        for (const id of this.data.keys()) {
+          const nextArgs = { ...args };
+          checkVar(nextArgs, q.id, id);
+          yield* this.runQuery(query, nextArgs, index + 1);
+        }
         return;
       }
       case "get": {
