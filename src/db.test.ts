@@ -71,3 +71,33 @@ test("update", () => {
     ])
   );
 });
+
+test("delete", () => {
+  const db = new DB();
+  db.bulkInsert({
+    foo: { value: 123, idx: "hello" },
+    bar: { value: 456, idx: "hello" },
+    baz: { value: 789, idx: "goodbye" },
+  });
+  db.createIndex("idx");
+
+  const update = q("bar", "key")
+    .deleteRecord("bar")
+    .index("id", "idx", "key")
+    .get("id", "value", "value");
+
+  expect([...db.queryAll(update, { bar: "bar", key: "hello" })]).toEqual([
+    { bar: "bar", id: "foo", value: 123, key: "hello" },
+  ]);
+});
+
+test("insert", () => {
+  const db = new DB();
+  db.createIndex("idx");
+
+  const update = q("rec").id("id").insert("id", "rec");
+  db.update(update, { rec: { value: 123, idx: "hello" } });
+
+  const query = q("key").index("id", "idx", "key").get("id", "value", "value");
+  expect(db.query1(query, { key: "hello" })).toMatchObject({ value: 123 });
+});

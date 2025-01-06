@@ -11,8 +11,10 @@ export type Query = {
 };
 
 type QueryItem =
+  | { tag: "id"; id: Ident }
   | { tag: "get"; id: Ident; field: Field; value: Ident }
   | { tag: "index"; id: Ident; field: Field; value: Ident }
+  | { tag: "insert"; id: Ident; record: Ident }
   | { tag: "update"; id: Ident; field: Field; value: Ident }
   | { tag: "deleteField"; id: Ident; field: Field }
   | { tag: "deleteRecord"; id: Ident };
@@ -22,6 +24,10 @@ export type QueryArgs = Record<Ident, unknown>;
 class QueryBuilder implements Query {
   items: QueryItem[] = [];
   constructor(public params: Ident[]) {}
+  id(id: Ident) {
+    this.items.push({ tag: "id", id });
+    return this;
+  }
   get(id: Ident, field: Field, value: Ident) {
     this.items.push({ tag: "get", id, field, value });
     return this;
@@ -30,8 +36,20 @@ class QueryBuilder implements Query {
     this.items.push({ tag: "index", id, field, value });
     return this;
   }
+  insert(id: Ident, record: Ident) {
+    this.items.push({ tag: "insert", id, record });
+    return this;
+  }
   update(id: Ident, field: Field, value: Ident) {
     this.items.push({ tag: "update", id, field, value });
+    return this;
+  }
+  deleteField(id: Ident, field: Field) {
+    this.items.push({ tag: "deleteField", id, field });
+    return this;
+  }
+  deleteRecord(id: Ident) {
+    this.items.push({ tag: "deleteRecord", id });
     return this;
   }
 }
@@ -119,6 +137,12 @@ export class DB {
     }
     const q = query.items[index];
     switch (q.tag) {
+      case "id": {
+        const id = crypto.randomUUID();
+        checkVar(args, q.id, id);
+        yield* this.runQuery(query, args, index + 1);
+        return;
+      }
       case "get": {
         const id = expectVar<Id>(args, q.id);
         const record = this.data.get(id);
@@ -140,6 +164,13 @@ export class DB {
         }
         return;
       }
+      case "insert": {
+        const id = expectVar<Id>(args, q.id);
+        const rec = expectVar<Rec>(args, q.record);
+        this.insertRec(id, rec);
+        yield* this.runQuery(query, args, index + 1);
+        return;
+      }
       case "update": {
         const id = expectVar<Id>(args, q.id);
         const value = expectVar(args, q.value);
@@ -156,7 +187,24 @@ export class DB {
         }
 
         yield* this.runQuery(query, args, index + 1);
+        return;
       }
+      case "deleteRecord": {
+        const id = expectVar<Id>(args, q.id);
+        const record = this.data.get(id);
+        if (record) {
+          for (const [field, value] of Object.entries(record)) {
+            if (this.indexedFields.has(field)) {
+              this.removeFromIndex(id, field, value as Id);
+            }
+          }
+        }
+        this.data.delete(id);
+        yield* this.runQuery(query, args, index + 1);
+        return;
+      }
+      default:
+        throw new Error("unimplemented");
     }
   }
   private addToIndex(id: Id, field: Field, value: Id) {
