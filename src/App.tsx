@@ -37,9 +37,9 @@ function Link({
       className={className}
       onClick={(e) => {
         if (e.metaKey || target === "new") {
-          dispatch(actions.newWindow, { params });
+          dispatch(actions.newWindow, params);
         } else {
-          dispatch(actions.push, { params, windowId });
+          dispatch(actions.push, { windowId, ...params });
         }
       }}
     >
@@ -255,7 +255,7 @@ function OmniboxView({ data }: BrowseParams) {
         onChange={(e) => {
           dispatch(actions.replace, {
             windowId,
-            params: { data: { omnibox: e.target.value } },
+            data: { omnibox: e.target.value },
           });
         }}
       />
@@ -355,7 +355,7 @@ function AppWindow({
             onChange={(e) => {
               dispatch(actions.replace, {
                 windowId,
-                params: { view: e.target.value },
+                view: e.target.value,
               });
             }}
           >

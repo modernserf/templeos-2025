@@ -103,7 +103,10 @@ export const or = (left: Arg, right: Arg): Expr => ({
 function getVar<T>(scope: QueryArgs, expr: Expr): T {
   switch (expr.tag) {
     case "ident": {
-      if (!(expr.ident in scope)) throw new Error();
+      if (!(expr.ident in scope)) {
+        console.log(scope);
+        throw new Error(`Unknown identifier ${expr.ident}`);
+      }
       return scope[expr.ident] as T;
     }
     case "const": {
@@ -151,15 +154,23 @@ export class DB {
     }
     this.notifyEventListeners();
   }
+  // TODO: typechecking, default values
+  private initArgs(query: Query, args: QueryArgs) {
+    const out: QueryArgs = {};
+    for (const key of query.params) {
+      out[key] = args[key];
+    }
+    return out;
+  }
   query1(query: Query, args: QueryArgs = {}) {
-    const iter = this.runQuery(query, { ...args });
+    const iter = this.runQuery(query, this.initArgs(query, args));
     return iter.next().value;
   }
   queryAll(query: Query, args: QueryArgs = {}) {
-    return this.runQuery(query, { ...args });
+    return this.runQuery(query, this.initArgs(query, args));
   }
   update(query: Query, args: QueryArgs = {}) {
-    for (const _ of this.runQuery(query, { ...args })) {
+    for (const _ of this.runQuery(query, this.initArgs(query, args))) {
       // empty
     }
     this.notifyEventListeners();

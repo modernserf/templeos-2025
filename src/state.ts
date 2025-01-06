@@ -1,6 +1,6 @@
 import { useContext, createContext, useState, useEffect } from "react";
 import "./App.css";
-import { DB, k, or, q, Query } from "./db";
+import { DB, k, or, q, Query, QueryArgs } from "./db";
 
 export type TextNode =
   | {
@@ -335,108 +335,57 @@ export function useQueryAll(b: Query, args?: Record<string, unknown>) {
 
 export function useDispatch() {
   const db = useContext(dbContext);
-  return function <T>(fn: (db: DB, payload: T) => void, payload: T) {
-    fn(db, payload);
+  return function (query: Query, args: QueryArgs) {
+    db.update(query, args);
   };
 }
 
 export const actions = {
-  push(
-    db: DB,
-    { windowId, params }: { windowId: string; params: BrowseParams }
-  ) {
-    const b = q("windowId", "history")
-      .get("windowId", "window__currentHistory", "currentId")
-      .id("historyId")
-      .insert("historyId", "history")
-      .update("historyId", "history__back", "currentId")
-      .update("windowId", "window__currentHistory", "historyId")
-      .update("currentId", "history__forward", "historyId");
-
-    db.update(b, {
-      windowId,
-      history: {
-        db__schema: "schema__history",
-        history__window: windowId,
-        history__location: params.id,
-        history__view: params.view,
-        history__data: params.data,
-      },
-    });
-  },
-  replace(
-    db: DB,
-    { windowId, params }: { windowId: string; params: Partial<BrowseParams> }
-  ) {
-    const b = q("windowId", "id", "view", "data")
-      .get("windowId", "window__currentHistory", "currentId")
-      .get("currentId", "history__location", "_id")
-      .update("currentId", "history__location", or("id", "_id"))
-      .get("currentId", "history__view", "_view")
-      .update("currentId", "history__view", or("view", "_view"))
-      .get("currentId", "history__data", "_data")
-      .update("currentId", "history__data", or("data", "_data"));
-    db.update(b, {
-      windowId,
-      id: params.id,
-      view: params.view,
-      data: params.data,
-    });
-    console.log(db);
-  },
-  back(db: DB, { windowId }: { windowId: string }) {
-    const b = q("windowId")
-      .get("windowId", "window__currentHistory", "currentId")
-      .get("currentId", "history__back", "backId")
-      .update("windowId", "window__currentHistory", "backId")
-      .deleteField("currentId", "history__back")
-      .update("backId", "history__forward", "currentId");
-
-    db.update(b, { windowId });
-  },
-  forward(db: DB, { windowId }: { windowId: string }) {
-    const b = q("windowId")
-      .get("windowId", "window__currentHistory", "currentId")
-      .get("currentId", "history__forward", "forwardId")
-      .update("windowId", "window__currentHistory", "forwardId")
-      .deleteField("currentId", "history__forward")
-      .update("forwardId", "history__back", "currentId");
-
-    db.update(b, { windowId });
-  },
-  newWindow(db: DB, { params }: { params: BrowseParams }) {
-    const b = q("browser", "window", "history")
-      .id("windowId")
-      .insert("windowId", "window")
-      .id("historyId")
-      .insert("historyId", "history")
-      .update("browser", "browser__currentWindow", "windowId")
-      .update("windowId", "window__currentHistory", "historyId")
-      .update("historyId", "history__window", "windowId");
-
-    db.update(b, {
-      browser: "browser",
-      window: {
-        db__schema: "schema__window",
-      },
-      history: {
-        db__schema: "schema__history",
-        history__location: params.id,
-        history__view: params.view,
-        history__data: params.data,
-      },
-    });
-  },
-  selectWindow(db: DB, { windowId }: { windowId: string }) {
-    const b = q("browser", "windowId") //
-      .update("browser", "browser__currentWindow", "windowId");
-    db.update(b, { browser: "browser", windowId });
-  },
-  closeWindow(db: DB, { windowId }: { windowId: string }) {
-    // TODO: must update current window
-    const b = q("windowId") //
-      .deleteRecord("windowId")
-      .deleteField(k("browser"), "browser__currentWindow");
-    db.update(b, { windowId });
-  },
+  push: q("windowId", "id", "view", "data")
+    .get("windowId", "window__currentHistory", "currentId")
+    .id("h")
+    .update("h", "db__schema", k("schema__history"))
+    .update("h", "history__window", "windowId")
+    .update("h", "history__location", "id")
+    .update("h", "history__view", "view")
+    .update("h", "history__data", "data")
+    .update("h", "history__back", "currentId")
+    .update("windowId", "window__currentHistory", "h")
+    .update("currentId", "history__forward", "h"),
+  replace: q("windowId", "id", "view", "data")
+    .get("windowId", "window__currentHistory", "currentId")
+    .get("currentId", "history__location", "_id")
+    .update("currentId", "history__location", or("id", "_id"))
+    .get("currentId", "history__view", "_view")
+    .update("currentId", "history__view", or("view", "_view"))
+    .get("currentId", "history__data", "_data")
+    .update("currentId", "history__data", or("data", "_data")),
+  back: q("windowId")
+    .get("windowId", "window__currentHistory", "currentId")
+    .get("currentId", "history__back", "backId")
+    .update("windowId", "window__currentHistory", "backId")
+    .deleteField("currentId", "history__back")
+    .update("backId", "history__forward", "currentId"),
+  forward: q("windowId")
+    .get("windowId", "window__currentHistory", "currentId")
+    .get("currentId", "history__forward", "forwardId")
+    .update("windowId", "window__currentHistory", "forwardId")
+    .deleteField("currentId", "history__forward")
+    .update("forwardId", "history__back", "currentId"),
+  newWindow: q("id", "view", "data")
+    .id("w")
+    .id("h")
+    .update(k("browser"), "browser__currentWindow", "w")
+    .update("w", "db__schema", k("schema__window"))
+    .update("w", "window__currentHistory", "h")
+    .update("h", "db__schema", k("schema__history"))
+    .update("h", "history__window", "w")
+    .update("h", "history__location", "id")
+    .update("h", "history__view", "view")
+    .update("h", "history__data", "data"),
+  selectWindow: q("windowId") //
+    .update(k("browser"), "browser__currentWindow", "windowId"),
+  closeWindow: q("windowId") //
+    .deleteRecord("windowId")
+    .deleteField(k("browser"), "browser__currentWindow"),
 };
