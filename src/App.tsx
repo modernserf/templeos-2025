@@ -10,7 +10,7 @@ import {
   useQueryAll,
 } from "./state";
 import "./App.css";
-import { k, q } from "./db";
+import { k, q, Query } from "./db";
 
 const tabContext = createContext("rootWindow");
 const TabProvider = tabContext.Provider;
@@ -176,10 +176,11 @@ function evalExpr(expr: Expr, scope: Record<string, unknown>): any {
 }
 
 const qCardView = q("view") //
+  .get("view", "view__query", "query")
   .get("view", "view__cardElements", "els");
 function CardView({ id, view, data }: BrowseParams) {
-  const scope = { id, view, data };
-  const { els } = useQuery(qCardView, { view })!;
+  const { els, query } = useQuery(qCardView, { view })!;
+  const scope = useQuery((query as Query) ?? q(), { id, view, data })!;
   return (
     <div>
       {((els as CardEl[]) ?? []).map((el, i) => {

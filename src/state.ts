@@ -32,6 +32,7 @@ export type Rec = {
   view__component?: string;
   view__cardElements?: CardEl[];
   view__schema?: string;
+  view__query?: Query;
   history__window?: string;
   history__location?: string;
   history__view?: string;
@@ -136,6 +137,11 @@ const initDB: Record<string, Rec> = {
     db__schema: "schema__field",
     file__name: "View card elements",
     file__description: "list of elements with params for Card UI",
+  },
+  view_query: {
+    db__schema: "schema__field",
+    file__name: "View query",
+    file__description: "query populates data for view",
   },
   file__name: {
     db__schema: "schema__field",
@@ -339,11 +345,13 @@ const initDB: Record<string, Rec> = {
     file__name: "Schema",
     view__component: "CardView",
     view__schema: "schema__schema",
+    view__query: q("id") //
+      .get("id", "file__name", "name"),
     view__cardElements: [
       { tag: "text", expr: { tag: "string", value: "Schema!" } },
       {
         tag: "text",
-        expr: { tag: "ident", value: "id" },
+        expr: { tag: "ident", value: "name" },
       },
       { tag: "button", label: { tag: "string", value: "click me" } },
     ],
