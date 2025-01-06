@@ -59,28 +59,16 @@ function FileLink({ id, target }: { id: string; target?: Target }) {
 }
 
 const qFolder = q("id") //
-  .get("id", "file__folderItems", "items");
-function FolderListView({ id }: BrowseParams) {
-  const { items } = useQuery(qFolder, { id })!;
-  return (
-    <ul>
-      {((items as string[]) ?? []).map((id) => (
-        <li key={id}>
-          <FileLink id={id} />
-        </li>
-      ))}
-    </ul>
-  );
-}
-
+  .get("id", "file__folderItems", "items")
+  .members("item", "items");
 function FolderIconView({ id }: BrowseParams) {
-  const { items } = useQuery(qFolder, { id })!;
+  const res = [...useQueryAll(qFolder, { id })];
   return (
     <ul style={{ display: "flex" }}>
-      {((items as string[]) ?? []).map((id) => (
-        <li key={id}>
+      {res.map(({ item }) => (
+        <li key={item as string}>
           <div style={{ textAlign: "center", fontSize: 32 }}>📄</div>
-          <FileLink id={id} />
+          <FileLink id={item as string} />
         </li>
       ))}
     </ul>
@@ -180,22 +168,26 @@ const qCardView = q("view") //
   .get("view", "view__cardElements", "els");
 function CardView({ id, view, data }: BrowseParams) {
   const { els, query } = useQuery(qCardView, { view })!;
-  const scope = useQuery((query as Query) ?? q(), { id, view, data })!;
+  const result = useQueryAll((query as Query) ?? q(), { id, view, data })!;
   return (
-    <div>
-      {((els as CardEl[]) ?? []).map((el, i) => {
-        switch (el.tag) {
-          case "text":
-            return <div key={i}>{evalExpr(el.expr, scope)}</div>;
-          case "button":
-            return (
-              <Link key={i} params={{ id: "home" }}>
-                {evalExpr(el.label, scope)}
-              </Link>
-            );
-        }
-      })}
-    </div>
+    <>
+      {[...result].map((scope, i) => (
+        <div key={i}>
+          {((els as CardEl[]) ?? []).map((el, i) => {
+            switch (el.tag) {
+              case "text":
+                return <div key={i}>{evalExpr(el.expr, scope)}</div>;
+              case "link":
+                return (
+                  <Link key={i} params={{ id: "home" }}>
+                    {evalExpr(el.label, scope)}
+                  </Link>
+                );
+            }
+          })}
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -275,7 +267,6 @@ const viewByName: Record<string, React.FC<BrowseParams>> = {
   DataView,
   CardView,
   OmniboxView,
-  FolderListView,
   FolderIconView,
 };
 

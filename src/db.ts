@@ -17,6 +17,7 @@ export type Query = {
 
 type QueryItem =
   | { tag: "id"; id: Expr }
+  | { tag: "members"; item: Expr; collection: Expr }
   | { tag: "all"; id: Expr }
   | { tag: "get"; id: Expr; field: Field; value: Expr }
   | { tag: "index"; id: Expr; field: Field; value: Expr }
@@ -35,6 +36,14 @@ class QueryBuilder implements Query {
   constructor(public params: Ident[]) {}
   id(id: Arg) {
     this.items.push({ tag: "id", id: toExpr(id) });
+    return this;
+  }
+  members(item: Arg, collection: Arg) {
+    this.items.push({
+      tag: "members",
+      item: toExpr(item),
+      collection: toExpr(collection),
+    });
     return this;
   }
   all(id: Arg) {
@@ -245,6 +254,14 @@ export class DB<Rec extends BaseRec> {
         for (const id of this.data.keys()) {
           const nextArgs = { ...args };
           setVar(nextArgs, q.id, id);
+          yield* this.runQuery(query, nextArgs, index + 1);
+        }
+        return;
+      }
+      case "members": {
+        for (const item of getVar<unknown[]>(args, q.collection)) {
+          const nextArgs = { ...args };
+          setVar(nextArgs, q.item, item);
           yield* this.runQuery(query, nextArgs, index + 1);
         }
         return;

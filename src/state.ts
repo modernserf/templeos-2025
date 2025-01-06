@@ -17,7 +17,7 @@ export type Expr =
 // TODO: card els all in { id, params } format
 export type CardEl =
   | { tag: "text"; expr: Expr } //
-  | { tag: "button"; label: Expr };
+  | { tag: "link"; label: Expr; id: Expr };
 
 export type Rec = {
   file__name?: string;
@@ -330,8 +330,21 @@ const initDB: Record<string, Rec> = {
     db__schema: "schema__view",
     file__name: "Folder - List",
     file__description: "viewer for folders as list",
-    view__component: "FolderListView",
+    view__component: "CardView",
     view__schema: "schema__folder",
+    view__query: q("id") //
+      .get("id", "file__folderItems", "items")
+      .members("item", "items")
+      .get("item", "file__name", "name")
+      .get("item", "file__description", "description"),
+    view__cardElements: [
+      {
+        tag: "link",
+        id: { tag: "ident", value: "item" },
+        label: { tag: "ident", value: "name" },
+      },
+      { tag: "text", expr: { tag: "ident", value: "description" } },
+    ],
   },
   view__folderIcon: {
     db__schema: "schema__view",
@@ -353,7 +366,11 @@ const initDB: Record<string, Rec> = {
         tag: "text",
         expr: { tag: "ident", value: "name" },
       },
-      { tag: "button", label: { tag: "string", value: "click me" } },
+      {
+        tag: "link",
+        id: { tag: "string", value: "home" },
+        label: { tag: "string", value: "click me" },
+      },
     ],
   },
   // Cards
