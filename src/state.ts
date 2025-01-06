@@ -1,6 +1,6 @@
 import { useContext, createContext, useState, useEffect } from "react";
 import "./App.css";
-import { DB, k, or, q, Query, QueryArgs } from "./db";
+import { DB, k, or, q, Query } from "./db";
 
 export type TextNode =
   | {
@@ -27,6 +27,8 @@ export type Rec = {
   db__schema?: string;
   field__refType?: string;
   index__field?: string;
+  rule__id?: string;
+  rule__query?: Query;
   view__component?: string;
   view__cardElements?: CardEl[];
   view__schema?: string;
@@ -95,6 +97,10 @@ const initDB: Record<string, Rec> = {
     db__schema: "schema__schema",
     file__name: "Browser",
   },
+  schema__rule: {
+    db__schema: "schema__schema",
+    file__name: "Rule",
+  },
   // fields
   db__schema: {
     db__schema: "schema__field",
@@ -145,6 +151,15 @@ const initDB: Record<string, Rec> = {
     db__schema: "schema__field",
     file__name: "File folder items",
     file__description: "ids of files in folder",
+  },
+  // TODO: unique index
+  rule__id: {
+    db__schema: "schema__field",
+    file__name: "Rule id",
+  },
+  rule__query: {
+    db__schema: "schema__field",
+    file__name: "Rule query",
   },
   // Browser
   history__location: {
@@ -213,6 +228,82 @@ const initDB: Record<string, Rec> = {
     db__schema: "schema__index",
     file__name: "file__folderItems index",
     index__field: "file__folderItems",
+  },
+  // Rules
+  rule__push: {
+    db__schema: "schema__rule",
+    rule__id: "push",
+    rule__query: q("windowId", "id", "view", "data")
+      .get("windowId", "window__currentHistory", "currentId")
+      .id("h")
+      .update("h", "db__schema", k("schema__history"))
+      .update("h", "history__window", "windowId")
+      .update("h", "history__location", "id")
+      .update("h", "history__view", "view")
+      .update("h", "history__data", "data")
+      .update("h", "history__back", "currentId")
+      .update("windowId", "window__currentHistory", "h")
+      .update("currentId", "history__forward", "h"),
+  },
+  rule__replace: {
+    db__schema: "schema__rule",
+    rule__id: "replace",
+    rule__query: q("windowId", "id", "view", "data")
+      .get("windowId", "window__currentHistory", "currentId")
+      .get("currentId", "history__location", "_id")
+      .update("currentId", "history__location", or("id", "_id"))
+      .get("currentId", "history__view", "_view")
+      .update("currentId", "history__view", or("view", "_view"))
+      .get("currentId", "history__data", "_data")
+      .update("currentId", "history__data", or("data", "_data")),
+  },
+  rule__back: {
+    db__schema: "schema__rule",
+    rule__id: "back",
+    rule__query: q("windowId")
+      .get("windowId", "window__currentHistory", "currentId")
+      .get("currentId", "history__back", "backId")
+      .update("windowId", "window__currentHistory", "backId")
+      .deleteField("currentId", "history__back")
+      .update("backId", "history__forward", "currentId"),
+  },
+  rule__forward: {
+    db__schema: "schema__rule",
+    rule__id: "forward",
+    rule__query: q("windowId")
+      .get("windowId", "window__currentHistory", "currentId")
+      .get("currentId", "history__forward", "forwardId")
+      .update("windowId", "window__currentHistory", "forwardId")
+      .deleteField("currentId", "history__forward")
+      .update("forwardId", "history__back", "currentId"),
+  },
+  rule__newWindow: {
+    db__schema: "schema__rule",
+    rule__id: "newWindow",
+    rule__query: q("id", "view", "data")
+      .id("w")
+      .id("h")
+      .update(k("browser"), "browser__currentWindow", "w")
+      .update("w", "db__schema", k("schema__window"))
+      .update("w", "window__currentHistory", "h")
+      .update("h", "db__schema", k("schema__history"))
+      .update("h", "history__window", "w")
+      .update("h", "history__location", "id")
+      .update("h", "history__view", "view")
+      .update("h", "history__data", "data"),
+  },
+  rule__selectWindow: {
+    db__schema: "schema__rule",
+    rule__id: "selectWindow",
+    rule__query: q("windowId") //
+      .update(k("browser"), "browser__currentWindow", "windowId"),
+  },
+  rule__closeWindow: {
+    db__schema: "schema__rule",
+    rule__id: "closeWindow",
+    rule__query: q("windowId") //
+      .deleteRecord("windowId")
+      .deleteField(k("browser"), "browser__currentWindow"),
   },
   // Views
   view__anyType: {
@@ -305,10 +396,10 @@ const initDB: Record<string, Rec> = {
   },
 };
 
-export const database = new DB();
+export const database = new DB<Rec>();
 database.bulkInsert(initDB);
 
-const dbContext = createContext(new DB());
+const dbContext = createContext(new DB<Rec>());
 export const DBProvider = dbContext.Provider;
 
 // TODO: separate query / command handlers
@@ -335,57 +426,10 @@ export function useQueryAll(b: Query, args?: Record<string, unknown>) {
 
 export function useDispatch() {
   const db = useContext(dbContext);
-  return function (query: Query, args: QueryArgs) {
+  return function (rule: string, args: Record<string, unknown> = {}) {
+    const keys = Object.keys(args);
+    const pairs = Object.fromEntries(keys.map((k) => [k, k]));
+    const query = q(...Object.keys(args)).rule(rule, pairs);
     db.update(query, args);
   };
 }
-
-export const actions = {
-  push: q("windowId", "id", "view", "data")
-    .get("windowId", "window__currentHistory", "currentId")
-    .id("h")
-    .update("h", "db__schema", k("schema__history"))
-    .update("h", "history__window", "windowId")
-    .update("h", "history__location", "id")
-    .update("h", "history__view", "view")
-    .update("h", "history__data", "data")
-    .update("h", "history__back", "currentId")
-    .update("windowId", "window__currentHistory", "h")
-    .update("currentId", "history__forward", "h"),
-  replace: q("windowId", "id", "view", "data")
-    .get("windowId", "window__currentHistory", "currentId")
-    .get("currentId", "history__location", "_id")
-    .update("currentId", "history__location", or("id", "_id"))
-    .get("currentId", "history__view", "_view")
-    .update("currentId", "history__view", or("view", "_view"))
-    .get("currentId", "history__data", "_data")
-    .update("currentId", "history__data", or("data", "_data")),
-  back: q("windowId")
-    .get("windowId", "window__currentHistory", "currentId")
-    .get("currentId", "history__back", "backId")
-    .update("windowId", "window__currentHistory", "backId")
-    .deleteField("currentId", "history__back")
-    .update("backId", "history__forward", "currentId"),
-  forward: q("windowId")
-    .get("windowId", "window__currentHistory", "currentId")
-    .get("currentId", "history__forward", "forwardId")
-    .update("windowId", "window__currentHistory", "forwardId")
-    .deleteField("currentId", "history__forward")
-    .update("forwardId", "history__back", "currentId"),
-  newWindow: q("id", "view", "data")
-    .id("w")
-    .id("h")
-    .update(k("browser"), "browser__currentWindow", "w")
-    .update("w", "db__schema", k("schema__window"))
-    .update("w", "window__currentHistory", "h")
-    .update("h", "db__schema", k("schema__history"))
-    .update("h", "history__window", "w")
-    .update("h", "history__location", "id")
-    .update("h", "history__view", "view")
-    .update("h", "history__data", "data"),
-  selectWindow: q("windowId") //
-    .update(k("browser"), "browser__currentWindow", "windowId"),
-  closeWindow: q("windowId") //
-    .deleteRecord("windowId")
-    .deleteField(k("browser"), "browser__currentWindow"),
-};

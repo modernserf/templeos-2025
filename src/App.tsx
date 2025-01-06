@@ -1,7 +1,6 @@
 import { useEffect, useRef, useContext, createContext } from "react";
 import {
   BrowseParams,
-  actions,
   useDispatch,
   useQuery,
   Expr,
@@ -37,9 +36,9 @@ function Link({
       className={className}
       onClick={(e) => {
         if (e.metaKey || target === "new") {
-          dispatch(actions.newWindow, params);
+          dispatch("newWindow", params);
         } else {
-          dispatch(actions.push, { windowId, ...params });
+          dispatch("push", { windowId, ...params });
         }
       }}
     >
@@ -253,7 +252,7 @@ function OmniboxView({ data }: BrowseParams) {
         value={omnibox}
         ref={ref}
         onChange={(e) => {
-          dispatch(actions.replace, {
+          dispatch("replace", {
             windowId,
             data: { omnibox: e.target.value },
           });
@@ -327,16 +326,16 @@ function AppWindow({
           .filter(Boolean)
           .join(" ")}
         onMouseDownCapture={() => {
-          dispatch(actions.selectWindow, { windowId });
+          dispatch("selectWindow", { windowId });
         }}
         onKeyDownCapture={(e) => {
           if (e.key == "[" && e.metaKey) {
             e.preventDefault();
-            dispatch(actions.back, { windowId });
+            dispatch("back", { windowId });
           }
           if (e.key == "]" && e.metaKey) {
             e.preventDefault();
-            dispatch(actions.forward, { windowId });
+            dispatch("forward", { windowId });
           }
         }}
       >
@@ -345,7 +344,7 @@ function AppWindow({
             className="AppWindow__closeButton"
             type="button"
             onClick={() => {
-              dispatch(actions.closeWindow, { windowId });
+              dispatch("closeWindow", { windowId });
             }}
           ></button>
           <h1 className="AppWindow__title">{fileName as string}</h1>
@@ -353,7 +352,7 @@ function AppWindow({
             className="AppWindow__viewMenu"
             value={activeView as string}
             onChange={(e) => {
-              dispatch(actions.replace, {
+              dispatch("replace", {
                 windowId,
                 view: e.target.value,
               });
@@ -391,7 +390,7 @@ function AppMenu() {
       <button
         type="button"
         onClick={() => {
-          dispatch(actions.back, { windowId: win?.id as string });
+          dispatch("back", { windowId: win?.id as string });
         }}
         disabled={!win?.back}
       >
@@ -400,7 +399,7 @@ function AppMenu() {
       <button
         type="button"
         onClick={() => {
-          dispatch(actions.forward, { windowId: win?.id as string });
+          dispatch("forward", { windowId: win?.id as string });
         }}
         disabled={!win?.forward}
       >

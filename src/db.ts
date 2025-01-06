@@ -1,7 +1,8 @@
 type Id = string;
 type Field = string;
+type Rule = string;
 
-type Rec = Record<Field, unknown>;
+type BaseRec = Record<Field, unknown>;
 type Idx = Record<Field, Set<Id>>;
 
 type Ident = string;
@@ -22,7 +23,8 @@ type QueryItem =
   | { tag: "insert"; id: Expr; record: Expr }
   | { tag: "update"; id: Expr; field: Field; value: Expr }
   | { tag: "deleteField"; id: Expr; field: Field }
-  | { tag: "deleteRecord"; id: Expr };
+  | { tag: "deleteRecord"; id: Expr }
+  | { tag: "rule"; rule: Rule; args: Record<string, Expr> };
 
 export type QueryArgs = Record<Ident, unknown>;
 
@@ -82,6 +84,16 @@ class QueryBuilder implements Query {
     this.items.push({ tag: "deleteRecord", id: toExpr(id) });
     return this;
   }
+  rule(rule: Rule, args: Record<string, Arg>) {
+    this.items.push({
+      tag: "rule",
+      rule,
+      args: Object.fromEntries(
+        Object.entries(args).map(([k, v]) => [k, toExpr(v)])
+      ),
+    });
+    return this;
+  }
 }
 
 const toExpr = (arg: Arg): Expr => {
@@ -136,11 +148,12 @@ function setVar<T>(scope: QueryArgs, binding: Expr, value: T) {
   }
 }
 
-export class DB {
+export class DB<Rec extends BaseRec> {
   private data = new Map<Id, Rec>();
   private index = new Map<Id, Idx>();
   private indexedFields = new Set<Field>();
   private eventListeners: Array<() => void> = [];
+  private rules = new Map<string, { query: Query }>();
   // FIXME
   getDataView(id: Id) {
     return {
@@ -189,6 +202,9 @@ export class DB {
       this.eventListeners = this.eventListeners.filter((f) => f !== fn);
     };
   }
+  createRule(name: string, query: Query) {
+    this.rules.set(name, { query });
+  }
   private notifyEventListeners() {
     for (const l of this.eventListeners) {
       l();
@@ -203,6 +219,9 @@ export class DB {
     }
     if (rec.db__schema === "schema__index" && rec.index__field) {
       this.createIndex(rec.index__field as Field);
+    }
+    if (rec.db__schema === "schema__rule" && rec.rule__id && rec.rule__query) {
+      this.createRule(rec.rule__id as string, rec.rule__query as Query);
     }
   }
   private *runQuery(
@@ -263,11 +282,11 @@ export class DB {
         const value = getVar(args, q.value);
         let record = this.data.get(id);
         if (!record) {
-          record = {};
+          record = {} as Rec;
           this.data.set(id, record);
         }
         const prevValue = record[q.field];
-        record[q.field] = value;
+        (record as BaseRec)[q.field] = value;
         if (this.indexedFields.has(q.field)) {
           if (prevValue) this.removeFromIndex(id, q.field, prevValue as Id);
           this.addToIndex(id, q.field, value as Id);
@@ -297,8 +316,29 @@ export class DB {
           if (this.indexedFields.has(q.field)) {
             this.removeFromIndex(id, q.field, record[q.field] as Id);
           }
-          record[id] = undefined;
+          (record as BaseRec)[id] = undefined;
         }
+        yield* this.runQuery(query, args, index + 1);
+        return;
+      }
+      case "rule": {
+        const rule = this.rules.get(q.rule);
+        if (!rule) throw new Error();
+        const ruleArgs: QueryArgs = {};
+        for (const key of rule.query.params) {
+          const expr = q.args[key];
+          if (expr) {
+            ruleArgs[key] = getVar(args, expr);
+          } else {
+            ruleArgs[key] = undefined;
+          }
+        }
+        yield* this.runQuery(rule.query, ruleArgs);
+        // TODO
+        // for (const key of Object.keys(q.args)) {
+        //   setVar(args, { tag: "ident", ident: key }, ruleArgs[key]);
+        // }
+
         yield* this.runQuery(query, args, index + 1);
         return;
       }
