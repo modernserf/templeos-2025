@@ -8,7 +8,7 @@ import {
 } from "./state";
 import "./App.css";
 import { q, Query } from "./db";
-import { getVar, k } from "./expr";
+import { getVar, k, Scope } from "./expr";
 import { FormatTextNode, ViewElement } from "./view";
 
 const tabContext = createContext("rootWindow");
@@ -57,21 +57,8 @@ function FileLink({ id, target }: { id: string; target?: Target }) {
   );
 }
 
-const qFolder = q("id") //
-  .get("id", "file__folderItems", "items")
-  .members("item", "items");
-function FolderIconView({ id }: BrowseParams) {
-  const res = [...useQueryAll(qFolder, { id })];
-  return (
-    <ul style={{ display: "flex" }}>
-      {res.map(({ item }) => (
-        <li key={item as string}>
-          <div style={{ textAlign: "center", fontSize: 32 }}>📄</div>
-          <FileLink id={item as string} />
-        </li>
-      ))}
-    </ul>
-  );
+function IconView() {
+  return <div style={{ textAlign: "center", fontSize: 32 }}>📄</div>;
 }
 
 const qDataViewField = q("id") //
@@ -151,39 +138,12 @@ function TextView({ id }: BrowseParams) {
   );
 }
 
-const qCardView = q("view") //
-  .get("view", "view__query", "query")
-  .get("view", "view__elements", "els");
-function CardView({ id, view, data }: BrowseParams) {
-  const { els, query } = useQuery(qCardView, { view })!;
-  const result = useQueryAll((query as Query) ?? q(), { id, view, data })!;
-  return (
-    <>
-      {[...result].map((scope, i) => (
-        <div key={i}>
-          {((els as ViewElement[]) ?? []).map((el, i) => {
-            switch (el.tag) {
-              case "string":
-                return <div key={i}>{getVar(scope, el.value)}</div>;
-              case "link":
-                return (
-                  <Link key={i} params={{ id: "home" }}>
-                    {getVar(scope, el.label)}
-                  </Link>
-                );
-            }
-          })}
-        </div>
-      ))}
-    </>
-  );
-}
-
 const allQuery = q() //
   .all("id")
   .get("id", "file__name", "name")
   .get("id", "file__description", "description");
 
+// TODO: put these into DB ("where" and "limit" respectively)
 function* filter<T>(f: (t: T) => boolean, iter: Iterable<T>) {
   for (const item of iter) {
     if (f(item)) {
@@ -202,7 +162,8 @@ function* take<T>(count: number, iter: Iterable<T>) {
   }
 }
 
-function OmniboxView({ data }: BrowseParams) {
+function OmniboxView(props: BrowseParams) {
+  const { data } = props;
   const results = useQueryAll(allQuery);
   const dispatch = useDispatch();
   const windowId = useContext(tabContext);
@@ -250,13 +211,58 @@ function OmniboxView({ data }: BrowseParams) {
   );
 }
 
-const viewByName: Record<string, React.FC<BrowseParams>> = {
+function PrimitiveString({ value }: { value: string }) {
+  return <div>{value}</div>;
+}
+
+function PrimitiveLink({
+  label,
+  id,
+  view,
+  data,
+}: { label: string } & BrowseParams) {
+  return <Link params={{ id, view, data }}>{label}</Link>;
+}
+
+const primitiveViews: Record<string, React.FC<any>> = {
+  PrimitiveLink,
+  PrimitiveString,
+  IconView,
   TextView,
   DataView,
-  CardView,
   OmniboxView,
-  FolderIconView,
 };
+
+const qView = q("view") //
+  .get("view", "view__query", "query")
+  .get("view", "view__elements", "els")
+  .get("view", "view__primitive", "primitive");
+function SubView({ view, args }: { view: string; args: Scope }) {
+  const { els, query, primitive } = useQuery(qView, { view })!;
+  const result = useQueryAll((query as Query) ?? q(), args);
+
+  if (primitive) {
+    const View = primitiveViews[primitive as string];
+    return <View {...args} />;
+  }
+  return (
+    <>
+      {[...result].map((scope, i) => (
+        <div key={i}>
+          {((els as ViewElement[]) ?? []).map((el, i) => (
+            <SubView
+              key={i}
+              view={getVar(scope, el.view)}
+              args={Object.fromEntries(
+                Object.entries(el.args).map(([k, v]) => [k, getVar(scope, v)])
+              )}
+            />
+          ))}
+        </div>
+      ))}
+    </>
+  );
+}
 
 const qAppWindow = q("windowId")
   .get("windowId", "window__currentHistory", "historyId")
@@ -274,10 +280,6 @@ const qViewsForAnyType = q()
   .index("view", "view__schema", k("schema__anyType"))
   .get("view", "file__name", "viewName");
 
-// FIXME: default value
-const qView = q("activeView") //
-  .get("activeView", "view__primitive", "componentName");
-
 function AppWindow({
   windowId,
   isCurrent,
@@ -294,9 +296,6 @@ function AppWindow({
   ];
 
   const activeView = (viewId as string) || viewers[0].view;
-  const { componentName } = useQuery(qView, { activeView })!;
-
-  const View = viewByName[componentName as string];
 
   return (
     <TabProvider value={windowId}>
@@ -345,10 +344,9 @@ function AppWindow({
             ))}
           </select>
         </header>
-        <View
-          id={id as string}
+        <SubView
           view={activeView as string}
-          data={(data as Record<string, string>) ?? {}}
+          args={{ id, view: activeView, data: data ?? {} }}
         />
       </div>
     </TabProvider>

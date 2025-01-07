@@ -28,7 +28,6 @@ export function getVar<T>(scope: Scope, expr: Expr): T {
   switch (expr.tag) {
     case "ident": {
       if (!(expr.ident in scope)) {
-        console.log(scope);
         throw new Error(`Unknown identifier ${expr.ident}`);
       }
       return scope[expr.ident] as T;

@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
-import { DB, k, q } from "./db";
+import { DB, q } from "./db";
+import { k } from "./expr";
 
 test("basic queries", () => {
   const db = new DB();

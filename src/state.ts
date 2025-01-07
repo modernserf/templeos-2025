@@ -320,7 +320,6 @@ const initDB: Record<string, Rec> = {
     db__schema: "schema__view",
     file__name: "Folder - List",
     file__description: "viewer for folders as list",
-    view__primitive: "CardView",
     view__schema: "schema__folder",
     view__query: q("id") //
       .get("id", "file__folderItems", "items")
@@ -336,13 +335,19 @@ const initDB: Record<string, Rec> = {
     db__schema: "schema__view",
     file__name: "Folder - Icon",
     file__description: "viewer for folders as icon grid",
-    view__primitive: "FolderIconView",
     view__schema: "schema__folder",
+    view__query: q("id") //
+      .get("id", "file__folderItems", "items")
+      .members("item", "items")
+      .get("item", "file__name", "name"),
+    view__elements: new ViewBuilder()
+      .view(k("view__icon"), k({}))
+      .link("name", "item")
+      .build(),
   },
   view__schemaDefinition: {
     db__schema: "schema__view",
     file__name: "Schema",
-    view__primitive: "CardView",
     view__schema: "schema__schema",
     view__query: q("id") //
       .get("id", "file__name", "name"),
@@ -351,6 +356,21 @@ const initDB: Record<string, Rec> = {
       .string("name")
       .link(k("click me"), k("home"))
       .build(),
+  },
+  view__string: {
+    db__schema: "schema__view",
+    file__name: "String",
+    view__primitive: "PrimitiveString",
+  },
+  view__link: {
+    db__schema: "schema__view",
+    file__name: "Link",
+    view__primitive: "PrimitiveLink",
+  },
+  view__icon: {
+    db__schema: "schema__view",
+    file__name: "Icon",
+    view__primitive: "IconView",
   },
   // Cards
   home: {
