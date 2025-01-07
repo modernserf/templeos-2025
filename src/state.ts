@@ -1,36 +1,26 @@
 import { useContext, createContext, useState, useEffect } from "react";
 import "./App.css";
-import { DB, k, or, q, Query } from "./db";
-
-export type TextNode =
-  | {
-      tag: "text";
-      text: string;
-    }
-  | { tag: "link"; text: string; params: BrowseParams };
-
-export type Expr =
-  | { tag: "string"; value: string }
-  | { tag: "ident"; value: string }
-  | { tag: "field"; expr: Expr; field: string };
-
-// TODO: card els all in { id, params } format
-export type CardEl =
-  | { tag: "text"; expr: Expr } //
-  | { tag: "link"; label: Expr; id: Expr };
+import { DB, q, Query } from "./db";
+import { k, or } from "./expr";
+import {
+  FormatTextBuilder,
+  FormatTextNode,
+  ViewBuilder,
+  ViewElement,
+} from "./view";
 
 export type Rec = {
   file__name?: string;
   file__description?: string;
   file__folderItems?: string[];
-  text__content?: TextNode[];
+  text__content?: FormatTextNode[];
   db__schema?: string;
   field__refType?: string;
   index__field?: string;
   rule__id?: string;
   rule__query?: Query;
-  view__component?: string;
-  view__cardElements?: CardEl[];
+  view__primitive?: string;
+  view__elements?: ViewElement[];
   view__schema?: string;
   view__query?: Query;
   history__window?: string;
@@ -122,7 +112,7 @@ const initDB: Record<string, Rec> = {
     file__description: "the field this is indexing",
     field__refType: "schema__field",
   },
-  view__component: {
+  view__primitive: {
     db__schema: "schema__field",
     file__name: "View component",
     file__description: "name of the primitive component used for rendering",
@@ -133,10 +123,10 @@ const initDB: Record<string, Rec> = {
     file__description: "the schema that this view is supposed to render",
     field__refType: "schema__schema",
   },
-  view__cardElements: {
+  view__elements: {
     db__schema: "schema__field",
-    file__name: "View card elements",
-    file__description: "list of elements with params for Card UI",
+    file__name: "View elements",
+    file__description: "list of elements with params for UI",
   },
   view_query: {
     db__schema: "schema__field",
@@ -316,73 +306,62 @@ const initDB: Record<string, Rec> = {
     db__schema: "schema__view",
     file__name: "DataView",
     file__description: "default viewer for all data types",
-    view__component: "DataView",
+    view__primitive: "DataView",
     view__schema: "schema__anyType",
   },
   view__text: {
     db__schema: "schema__view",
     file__name: "Text",
     file__description: "viewer for text cards",
-    view__component: "TextView",
+    view__primitive: "TextView",
     view__schema: "schema__text",
   },
   view__folderList: {
     db__schema: "schema__view",
     file__name: "Folder - List",
     file__description: "viewer for folders as list",
-    view__component: "CardView",
+    view__primitive: "CardView",
     view__schema: "schema__folder",
     view__query: q("id") //
       .get("id", "file__folderItems", "items")
       .members("item", "items")
       .get("item", "file__name", "name")
       .get("item", "file__description", "description"),
-    view__cardElements: [
-      {
-        tag: "link",
-        id: { tag: "ident", value: "item" },
-        label: { tag: "ident", value: "name" },
-      },
-      { tag: "text", expr: { tag: "ident", value: "description" } },
-    ],
+    view__elements: new ViewBuilder()
+      .link("name", "item")
+      .string("description")
+      .build(),
   },
   view__folderIcon: {
     db__schema: "schema__view",
     file__name: "Folder - Icon",
     file__description: "viewer for folders as icon grid",
-    view__component: "FolderIconView",
+    view__primitive: "FolderIconView",
     view__schema: "schema__folder",
   },
   view__schemaDefinition: {
     db__schema: "schema__view",
     file__name: "Schema",
-    view__component: "CardView",
+    view__primitive: "CardView",
     view__schema: "schema__schema",
     view__query: q("id") //
       .get("id", "file__name", "name"),
-    view__cardElements: [
-      { tag: "text", expr: { tag: "string", value: "Schema!" } },
-      {
-        tag: "text",
-        expr: { tag: "ident", value: "name" },
-      },
-      {
-        tag: "link",
-        id: { tag: "string", value: "home" },
-        label: { tag: "string", value: "click me" },
-      },
-    ],
+    view__elements: new ViewBuilder()
+      .string(k("Schema!"))
+      .string("name")
+      .link(k("click me"), k("home"))
+      .build(),
   },
   // Cards
   home: {
     db__schema: "schema__text",
     file__name: "home",
     file__description: "this is the home card",
-    text__content: [
-      { tag: "text", text: "content that " },
-      { tag: "link", text: "links", params: { id: "other" } },
-      { tag: "text", text: " to another card." },
-    ],
+    text__content: new FormatTextBuilder()
+      .text("content that ")
+      .link({ id: "other" }, "links")
+      .text(" to another card.")
+      .build(),
   },
   other: {
     file__name: "other",
@@ -416,7 +395,7 @@ const initDB: Record<string, Rec> = {
   omnibox: {
     db__schema: "omnibox",
     file__name: "Omnibox",
-    view__component: "OmniboxView",
+    view__primitive: "OmniboxView",
     view__schema: "omnibox",
   },
 };

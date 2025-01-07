@@ -1,3 +1,6 @@
+import { Arg, getVar, Ident, setVar, toExpr } from "./expr";
+import { Expr } from "./expr";
+
 type Id = string;
 type Field = string;
 type Rule = string;
@@ -5,11 +8,6 @@ type Rule = string;
 type BaseRec = Record<Field, unknown>;
 type Idx = Record<Field, Set<Id>>;
 
-type Ident = string;
-type Expr =
-  | { tag: "ident"; ident: Ident }
-  | { tag: "const"; value: unknown }
-  | { tag: "or"; expr: Expr; default: Expr };
 export type Query = {
   params: Ident[];
   items: QueryItem[];
@@ -28,8 +26,6 @@ type QueryItem =
   | { tag: "rule"; rule: Rule; args: Record<string, Expr> };
 
 export type QueryArgs = Record<Ident, unknown>;
-
-type Arg = string | Expr;
 
 class QueryBuilder implements Query {
   items: QueryItem[] = [];
@@ -105,57 +101,7 @@ class QueryBuilder implements Query {
   }
 }
 
-const toExpr = (arg: Arg): Expr => {
-  if (typeof arg === "string") {
-    return { tag: "ident", ident: arg };
-  } else {
-    return arg;
-  }
-};
-
 export const q = (...params: Ident[]) => new QueryBuilder(params);
-export const k = (value: unknown): Expr => ({ tag: "const", value });
-export const or = (left: Arg, right: Arg): Expr => ({
-  tag: "or",
-  expr: toExpr(left),
-  default: toExpr(right),
-});
-
-function getVar<T>(scope: QueryArgs, expr: Expr): T {
-  switch (expr.tag) {
-    case "ident": {
-      if (!(expr.ident in scope)) {
-        console.log(scope);
-        throw new Error(`Unknown identifier ${expr.ident}`);
-      }
-      return scope[expr.ident] as T;
-    }
-    case "const": {
-      const value = expr.value;
-      return value as T;
-    }
-    case "or": {
-      return getVar<T>(scope, expr.expr) ?? getVar<T>(scope, expr.default);
-    }
-  }
-}
-
-function setVar<T>(scope: QueryArgs, binding: Expr, value: T) {
-  switch (binding.tag) {
-    case "ident": {
-      const { ident } = binding;
-      if (ident in scope) {
-        if (scope[ident] !== value) throw new Error();
-      } else {
-        scope[ident] = value;
-      }
-      return;
-    }
-    case "const": {
-      throw new Error("assigning to constant");
-    }
-  }
-}
 
 export class DB<Rec extends BaseRec> {
   private data = new Map<Id, Rec>();

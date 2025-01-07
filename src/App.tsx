@@ -3,14 +3,13 @@ import {
   BrowseParams,
   useDispatch,
   useQuery,
-  Expr,
-  TextNode,
-  CardEl,
   useDB,
   useQueryAll,
 } from "./state";
 import "./App.css";
-import { k, q, Query } from "./db";
+import { q, Query } from "./db";
+import { getVar, k } from "./expr";
+import { FormatTextNode, ViewElement } from "./view";
 
 const tabContext = createContext("rootWindow");
 const TabProvider = tabContext.Provider;
@@ -136,7 +135,7 @@ function TextView({ id }: BrowseParams) {
   const { content } = useQuery(qTextContent, { id })!;
   return (
     <div>
-      {((content as TextNode[]) ?? []).map((node, i) => {
+      {((content as FormatTextNode[]) ?? []).map((node, i) => {
         switch (node.tag) {
           case "text":
             return <span key={i}>{node.text}</span>;
@@ -152,20 +151,9 @@ function TextView({ id }: BrowseParams) {
   );
 }
 
-function evalExpr(expr: Expr, scope: Record<string, unknown>): any {
-  switch (expr.tag) {
-    case "string":
-      return expr.value;
-    case "ident":
-      return scope[expr.value];
-    case "field":
-      return evalExpr(expr.expr, scope)[expr.field];
-  }
-}
-
 const qCardView = q("view") //
   .get("view", "view__query", "query")
-  .get("view", "view__cardElements", "els");
+  .get("view", "view__elements", "els");
 function CardView({ id, view, data }: BrowseParams) {
   const { els, query } = useQuery(qCardView, { view })!;
   const result = useQueryAll((query as Query) ?? q(), { id, view, data })!;
@@ -173,14 +161,14 @@ function CardView({ id, view, data }: BrowseParams) {
     <>
       {[...result].map((scope, i) => (
         <div key={i}>
-          {((els as CardEl[]) ?? []).map((el, i) => {
+          {((els as ViewElement[]) ?? []).map((el, i) => {
             switch (el.tag) {
-              case "text":
-                return <div key={i}>{evalExpr(el.expr, scope)}</div>;
+              case "string":
+                return <div key={i}>{getVar(scope, el.value)}</div>;
               case "link":
                 return (
                   <Link key={i} params={{ id: "home" }}>
-                    {evalExpr(el.label, scope)}
+                    {getVar(scope, el.label)}
                   </Link>
                 );
             }
@@ -288,7 +276,7 @@ const qViewsForAnyType = q()
 
 // FIXME: default value
 const qView = q("activeView") //
-  .get("activeView", "view__component", "componentName");
+  .get("activeView", "view__primitive", "componentName");
 
 function AppWindow({
   windowId,
