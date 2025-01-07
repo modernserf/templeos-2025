@@ -260,7 +260,7 @@ const initDB: Record<string, Rec> = {
       .get("windowId", "window__currentHistory", "currentId")
       .get("currentId", "history__back", "backId")
       .update("windowId", "window__currentHistory", "backId")
-      .deleteField("currentId", "history__back")
+      .update("currentId", "history__back", k(null))
       .update("backId", "history__forward", "currentId"),
   },
   rule__forward: {
@@ -270,7 +270,7 @@ const initDB: Record<string, Rec> = {
       .get("windowId", "window__currentHistory", "currentId")
       .get("currentId", "history__forward", "forwardId")
       .update("windowId", "window__currentHistory", "forwardId")
-      .deleteField("currentId", "history__forward")
+      .update("currentId", "history__forward", k(null))
       .update("forwardId", "history__back", "currentId"),
   },
   rule__newWindow: {
@@ -298,8 +298,8 @@ const initDB: Record<string, Rec> = {
     db__schema: "schema__rule",
     rule__id: "closeWindow",
     rule__query: q("windowId") //
-      .deleteRecord("windowId")
-      .deleteField(k("browser"), "browser__currentWindow"),
+      .insert("windowId", k(null))
+      .update(k("browser"), "browser__currentWindow", k(null)),
   },
   // Views
   view__anyType: {
