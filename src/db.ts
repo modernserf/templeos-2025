@@ -21,8 +21,6 @@ type QueryItem =
   | { tag: "index"; id: Expr; field: Field; value: Expr }
   | { tag: "insert"; id: Expr; record: Expr }
   | { tag: "update"; id: Expr; field: Field; value: Expr }
-  | { tag: "deleteField"; id: Expr; field: Field }
-  | { tag: "deleteRecord"; id: Expr }
   | { tag: "rule"; rule: Rule; args: Record<string, Expr> };
 
 export type QueryArgs = Record<Ident, unknown>;
@@ -79,14 +77,6 @@ class QueryBuilder implements Query {
       field,
       value: toExpr(value),
     });
-    return this;
-  }
-  deleteField(id: Arg, field: Field) {
-    this.items.push({ tag: "deleteField", id: toExpr(id), field });
-    return this;
-  }
-  deleteRecord(id: Arg) {
-    this.items.push({ tag: "deleteRecord", id: toExpr(id) });
     return this;
   }
   rule(rule: Rule, args: Record<string, Arg>) {
@@ -165,20 +155,6 @@ export class DB<Rec extends BaseRec> {
       l();
     }
   }
-  private insertRec(id: Id, rec: Rec) {
-    this.data.set(id, rec);
-    for (const [field, value] of Object.entries(rec)) {
-      if (this.indexedFields.has(field)) {
-        this.addToIndex(id, field, value as Id);
-      }
-    }
-    if (rec.db__schema === "schema__index" && rec.index__field) {
-      this.createIndex(rec.index__field as Field);
-    }
-    if (rec.db__schema === "schema__rule" && rec.rule__id && rec.rule__query) {
-      this.createRule(rec.rule__id as string, rec.rule__query as Query);
-    }
-  }
   private *runQuery(
     query: Query,
     args: QueryArgs,
@@ -235,7 +211,7 @@ export class DB<Rec extends BaseRec> {
       }
       case "insert": {
         const id = getVar<Id>(args, q.id);
-        const rec = getVar<Rec>(args, q.record);
+        const rec = getVar<Rec>(args, q.record) ?? {};
         this.insertRec(id, rec);
         yield* this.runQuery(query, args, index + 1);
         return;
@@ -252,35 +228,9 @@ export class DB<Rec extends BaseRec> {
         (record as BaseRec)[q.field] = value;
         if (this.indexedFields.has(q.field)) {
           if (prevValue) this.removeFromIndex(id, q.field, prevValue as Id);
-          this.addToIndex(id, q.field, value as Id);
+          if (value) this.addToIndex(id, q.field, value as Id);
         }
 
-        yield* this.runQuery(query, args, index + 1);
-        return;
-      }
-      case "deleteRecord": {
-        const id = getVar<Id>(args, q.id);
-        const record = this.data.get(id);
-        if (record) {
-          for (const [field, value] of Object.entries(record)) {
-            if (this.indexedFields.has(field)) {
-              this.removeFromIndex(id, field, value as Id);
-            }
-          }
-        }
-        this.data.delete(id);
-        yield* this.runQuery(query, args, index + 1);
-        return;
-      }
-      case "deleteField": {
-        const id = getVar<Id>(args, q.id);
-        const record = this.data.get(id);
-        if (record) {
-          if (this.indexedFields.has(q.field)) {
-            this.removeFromIndex(id, q.field, record[q.field] as Id);
-          }
-          (record as BaseRec)[id] = undefined;
-        }
         yield* this.runQuery(query, args, index + 1);
         return;
       }
@@ -305,6 +255,28 @@ export class DB<Rec extends BaseRec> {
         yield* this.runQuery(query, args, index + 1);
         return;
       }
+    }
+  }
+  private insertRec(id: Id, rec: Rec) {
+    const prev = this.data.get(id);
+    if (prev) {
+      for (const [field, value] of Object.entries(prev)) {
+        if (this.indexedFields.has(field)) {
+          this.removeFromIndex(id, field, value as Id);
+        }
+      }
+    }
+    this.data.set(id, rec);
+    for (const [field, value] of Object.entries(rec)) {
+      if (this.indexedFields.has(field)) {
+        this.addToIndex(id, field, value as Id);
+      }
+    }
+    if (rec.db__schema === "schema__index" && rec.index__field) {
+      this.createIndex(rec.index__field as Field);
+    }
+    if (rec.db__schema === "schema__rule" && rec.rule__id && rec.rule__query) {
+      this.createRule(rec.rule__id as string, rec.rule__query as Query);
     }
   }
   private addToIndex(id: Id, field: Field, value: Id) {

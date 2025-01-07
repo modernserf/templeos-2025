@@ -81,7 +81,7 @@ test("delete", () => {
   db.createIndex("idx");
 
   const update = q("key")
-    .deleteRecord(k("bar"))
+    .insert(k("bar"), k(null))
     .index("id", "idx", "key")
     .get("id", "value", "value");
 

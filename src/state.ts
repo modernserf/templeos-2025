@@ -313,8 +313,12 @@ const initDB: Record<string, Rec> = {
     db__schema: "schema__view",
     file__name: "Text",
     file__description: "viewer for text cards",
-    view__primitive: "TextView",
     view__schema: "schema__text",
+    view__query: q("id") //
+      .get("id", "text__content", "content"),
+    view__elements: new ViewBuilder() //
+      .view(k("view__textContent"), { text: "content" })
+      .build(),
   },
   view__folderList: {
     db__schema: "schema__view",
@@ -341,7 +345,7 @@ const initDB: Record<string, Rec> = {
       .members("item", "items")
       .get("item", "file__name", "name"),
     view__elements: new ViewBuilder()
-      .view(k("view__icon"), k({}))
+      .view(k("view__icon"), {})
       .link("name", "item")
       .build(),
   },
@@ -371,6 +375,11 @@ const initDB: Record<string, Rec> = {
     db__schema: "schema__view",
     file__name: "Icon",
     view__primitive: "IconView",
+  },
+  view__textContent: {
+    db__schema: "schema__view",
+    file__name: "Text Content",
+    view__primitive: "TextView",
   },
   // Cards
   home: {

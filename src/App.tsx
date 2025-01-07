@@ -116,13 +116,10 @@ function DataView({ id }: BrowseParams) {
   );
 }
 
-const qTextContent = q("id") //
-  .get("id", "text__content", "content");
-function TextView({ id }: BrowseParams) {
-  const { content } = useQuery(qTextContent, { id })!;
+function TextView({ text }: { text: FormatTextNode[] }) {
   return (
-    <div>
-      {((content as FormatTextNode[]) ?? []).map((node, i) => {
+    <>
+      {text.map((node, i) => {
         switch (node.tag) {
           case "text":
             return <span key={i}>{node.text}</span>;
@@ -134,7 +131,7 @@ function TextView({ id }: BrowseParams) {
             );
         }
       })}
-    </div>
+    </>
   );
 }
 
