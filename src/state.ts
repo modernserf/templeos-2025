@@ -16,7 +16,7 @@ export type Rec = {
   text__content?: FormatTextNode[];
   db__schema?: string;
   field__refType?: string;
-  index__field?: string;
+  field__index?: "ref"; // "multiRef" | "unique" | "sorted"
   rule__id?: string;
   rule__query?: Query;
   view__primitive?: string;
@@ -50,11 +50,6 @@ const initDB: Record<string, Rec> = {
   schema__field: {
     db__schema: "schema__schema",
     file__name: "Field",
-  },
-  schema__index: {
-    db__schema: "schema__schema",
-    file__name: "Index",
-    file__description: "Index allows lookup of records by their content",
   },
   schema__anyType: {
     db__schema: "schema__schema",
@@ -98,6 +93,7 @@ const initDB: Record<string, Rec> = {
     file__name: "DB Schema",
     file__description: "schema used to validate & render this record",
     field__refType: "schema__schema",
+    field__index: "ref",
   },
   field__refType: {
     db__schema: "schema__field",
@@ -105,12 +101,7 @@ const initDB: Record<string, Rec> = {
     file__description:
       "if this is set, the value of this field is a ref to a record with this schema",
     field__refType: "schema__schema",
-  },
-  index__field: {
-    db__schema: "schema__field",
-    file__name: "Index field",
-    file__description: "the field this is indexing",
-    field__refType: "schema__field",
+    field__index: "ref",
   },
   view__primitive: {
     db__schema: "schema__field",
@@ -122,6 +113,7 @@ const initDB: Record<string, Rec> = {
     file__name: "View schema",
     file__description: "the schema that this view is supposed to render",
     field__refType: "schema__schema",
+    field__index: "ref",
   },
   view__elements: {
     db__schema: "schema__field",
@@ -147,6 +139,7 @@ const initDB: Record<string, Rec> = {
     db__schema: "schema__field",
     file__name: "File folder items",
     file__description: "ids of files in folder",
+    field__index: "ref",
   },
   // TODO: unique index
   rule__id: {
@@ -196,34 +189,6 @@ const initDB: Record<string, Rec> = {
     db__schema: "schema__field",
     file__name: "Text content",
     file__description: "a list of text nodes used in text schema",
-  },
-  // Indexes
-  index__db__schema: {
-    db__schema: "schema__index",
-    file__name: "db__schema index",
-    index__field: "db__schema",
-  },
-  index__view__schema: {
-    db__schema: "schema__index",
-    file__name: "view__schema index",
-    file__description:
-      "used for looking up the viewers that can render records with a given schema",
-    index__field: "view__schema",
-  },
-  index__index__field: {
-    db__schema: "schema__index",
-    file__name: "index__field index",
-    index__field: "index__field",
-  },
-  index__field__refType: {
-    db__schema: "schema__index",
-    file__name: "field__refType index",
-    index__field: "field__refType",
-  },
-  index__file__folderItems: {
-    db__schema: "schema__index",
-    file__name: "file__folderItems index",
-    index__field: "file__folderItems",
   },
   // Rules
   rule__push: {

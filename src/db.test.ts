@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { DB, q } from "./db";
-import { k } from "./expr";
+import { k, v } from "./expr";
 
 test("basic queries", () => {
   const db = new DB();
@@ -103,4 +103,20 @@ test("insert", () => {
     .index("id", "idx", "key")
     .get("id", "value", "value");
   expect(db.query1(query, { key: "hello" })).toMatchObject({ value: 123 });
+});
+
+test("fields", () => {
+  const db = new DB();
+  db.bulkInsert({
+    foo: { value: 123, idx: "hello", deleted: null },
+  });
+
+  const query = q("id").fields("id", "field").get("id", v("field"), "value");
+
+  expect(new Set(db.queryAll(query, { id: "foo" }))).toEqual(
+    new Set([
+      { id: "foo", field: "value", value: 123 },
+      { id: "foo", field: "idx", value: "hello" },
+    ])
+  );
 });

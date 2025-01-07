@@ -1,4 +1,4 @@
-import { Arg, getVar, Ident, setVar, toExpr } from "./expr";
+import { Arg, getVar, Ident, KArg, kToExpr, setVar, toExpr } from "./expr";
 import { Expr } from "./expr";
 
 type Id = string;
@@ -17,10 +17,11 @@ type QueryItem =
   | { tag: "id"; id: Expr }
   | { tag: "members"; item: Expr; collection: Expr }
   | { tag: "all"; id: Expr }
-  | { tag: "get"; id: Expr; field: Field; value: Expr }
-  | { tag: "index"; id: Expr; field: Field; value: Expr }
+  | { tag: "fields"; id: Expr; field: Expr }
+  | { tag: "get"; id: Expr; field: Expr; value: Expr }
+  | { tag: "index"; id: Expr; field: Expr; value: Expr }
   | { tag: "insert"; id: Expr; record: Expr }
-  | { tag: "update"; id: Expr; field: Field; value: Expr }
+  | { tag: "update"; id: Expr; field: Expr; value: Expr }
   | { tag: "rule"; rule: Rule; args: Record<string, Expr> };
 
 export type QueryArgs = Record<Ident, unknown>;
@@ -44,20 +45,24 @@ class QueryBuilder implements Query {
     this.items.push({ tag: "all", id: toExpr(id) });
     return this;
   }
-  get(id: Arg, field: Field, value: Arg) {
+  fields(id: Arg, field: Arg) {
+    this.items.push({ tag: "fields", id: toExpr(id), field: toExpr(field) });
+    return this;
+  }
+  get(id: Arg, field: KArg, value: Arg) {
     this.items.push({
       tag: "get",
       id: toExpr(id),
-      field,
+      field: kToExpr(field),
       value: toExpr(value),
     });
     return this;
   }
-  index(id: Arg, field: Field, value: Arg) {
+  index(id: Arg, field: KArg, value: Arg) {
     this.items.push({
       tag: "index",
       id: toExpr(id),
-      field,
+      field: kToExpr(field),
       value: toExpr(value),
     });
     return this;
@@ -70,11 +75,11 @@ class QueryBuilder implements Query {
     });
     return this;
   }
-  update(id: Arg, field: Field, value: Arg) {
+  update(id: Arg, field: KArg, value: Arg) {
     this.items.push({
       tag: "update",
       id: toExpr(id),
-      field,
+      field: kToExpr(field),
       value: toExpr(value),
     });
     return this;
@@ -188,19 +193,33 @@ export class DB<Rec extends BaseRec> {
         }
         return;
       }
+      case "fields": {
+        const id = getVar<Id>(args, q.id);
+        const record = this.data.get(id) ?? {};
+        for (const [f, value] of Object.entries(record)) {
+          if (value != null) {
+            const nextArgs = { ...args };
+            setVar(nextArgs, q.field, f);
+            yield* this.runQuery(query, nextArgs, index + 1);
+          }
+        }
+        return;
+      }
       case "get": {
         const id = getVar<Id>(args, q.id);
+        const field = getVar<Field>(args, q.field);
         const record = this.data.get(id);
         if (!record) return;
-        setVar(args, q.value, record[q.field]);
+        setVar(args, q.value, record[field]);
         yield* this.runQuery(query, args, index + 1);
         return;
       }
       case "index": {
         const value = getVar<Id>(args, q.value);
+        const field = getVar<Field>(args, q.field);
         const idx = this.index.get(value);
         if (!idx) return;
-        const ids = idx[q.field];
+        const ids = idx[field];
         if (!ids) return;
         for (const id of ids) {
           const nextArgs = { ...args };
@@ -218,17 +237,18 @@ export class DB<Rec extends BaseRec> {
       }
       case "update": {
         const id = getVar<Id>(args, q.id);
+        const field = getVar<Field>(args, q.field);
         const value = getVar(args, q.value);
         let record = this.data.get(id);
         if (!record) {
           record = {} as Rec;
           this.data.set(id, record);
         }
-        const prevValue = record[q.field];
-        (record as BaseRec)[q.field] = value;
-        if (this.indexedFields.has(q.field)) {
-          if (prevValue) this.removeFromIndex(id, q.field, prevValue as Id);
-          if (value) this.addToIndex(id, q.field, value as Id);
+        const prevValue = record[field];
+        (record as BaseRec)[field] = value;
+        if (this.indexedFields.has(field)) {
+          if (prevValue) this.removeFromIndex(id, field, prevValue as Id);
+          if (value) this.addToIndex(id, field, value as Id);
         }
 
         yield* this.runQuery(query, args, index + 1);
@@ -272,8 +292,8 @@ export class DB<Rec extends BaseRec> {
         this.addToIndex(id, field, value as Id);
       }
     }
-    if (rec.db__schema === "schema__index" && rec.index__field) {
-      this.createIndex(rec.index__field as Field);
+    if (rec.db__schema === "schema__field" && rec.field__index) {
+      this.createIndex(id as Field);
     }
     if (rec.db__schema === "schema__rule" && rec.rule__id && rec.rule__query) {
       this.createRule(rec.rule__id as string, rec.rule__query as Query);

@@ -6,7 +6,9 @@ export type Expr =
   | { tag: "field"; expr: Expr; field: string };
 
 export type Arg = string | Expr;
+export type KArg = string | Expr;
 
+export const v = (ident: Ident): Expr => ({ tag: "ident", ident });
 export const k = (value: unknown): Expr => ({ tag: "const", value });
 export const or = (left: Arg, right: Arg): Expr => ({
   tag: "or",
@@ -16,7 +18,15 @@ export const or = (left: Arg, right: Arg): Expr => ({
 
 export const toExpr = (arg: Arg): Expr => {
   if (typeof arg === "string") {
-    return { tag: "ident", ident: arg };
+    return v(arg);
+  } else {
+    return arg;
+  }
+};
+
+export const kToExpr = (arg: KArg): Expr => {
+  if (typeof arg === "string") {
+    return k(arg);
   } else {
     return arg;
   }
