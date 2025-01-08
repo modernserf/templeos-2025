@@ -96,6 +96,45 @@ class QueryBuilder implements Query {
   }
 }
 
+class QueryState {
+  constructor(
+    private query: Query,
+    private args: QueryArgs,
+    private index: number
+  ) {}
+  // TODO: typechecking, default values
+  static init(query: Query, args: QueryArgs) {
+    const out: QueryArgs = {};
+    for (const key of query.params) {
+      out[key] = args[key];
+    }
+    return new QueryState(query, out, 0);
+  }
+  get<T>(expr: Expr) {
+    return getVar<T>(this.args, expr);
+  }
+  set(binding: Expr, value: unknown) {
+    setVar(this.args, binding, value);
+  }
+  next() {
+    this.index += 1;
+    return this;
+  }
+  current() {
+    return this.query.items[this.index];
+  }
+  done() {
+    if (this.index >= this.query.items.length) {
+      return this.args;
+    } else {
+      throw new Error("not done");
+    }
+  }
+  fork() {
+    return new QueryState(this.query, { ...this.args }, this.index);
+  }
+}
+
 export const q = (...params: Ident[]) => new QueryBuilder(params);
 
 export class DB<Rec extends BaseRec> {
@@ -117,23 +156,15 @@ export class DB<Rec extends BaseRec> {
     }
     this.notifyEventListeners();
   }
-  // TODO: typechecking, default values
-  private initArgs(query: Query, args: QueryArgs) {
-    const out: QueryArgs = {};
-    for (const key of query.params) {
-      out[key] = args[key];
-    }
-    return out;
-  }
   query1(query: Query, args: QueryArgs = {}) {
-    const iter = this.runQuery(query, this.initArgs(query, args));
+    const iter = this.runQuery(QueryState.init(query, args));
     return iter.next().value;
   }
   queryAll(query: Query, args: QueryArgs = {}) {
-    return this.runQuery(query, this.initArgs(query, args));
+    return this.runQuery(QueryState.init(query, args));
   }
   update(query: Query, args: QueryArgs = {}) {
-    for (const _ of this.runQuery(query, this.initArgs(query, args))) {
+    for (const _ of this.runQuery(QueryState.init(query, args))) {
       // empty
     }
     this.notifyEventListeners();
@@ -161,84 +192,82 @@ export class DB<Rec extends BaseRec> {
     }
   }
   private *runQuery(
-    query: Query,
-    args: QueryArgs,
-    index = 0
+    state: QueryState
   ): Generator<QueryArgs, undefined, undefined> {
-    if (index >= query.items.length) {
-      yield args;
+    const q = state.current();
+    if (!q) {
+      yield state.done();
       return;
     }
-    const q = query.items[index];
     switch (q.tag) {
       case "id": {
         const id = crypto.randomUUID();
-        setVar(args, q.id, id);
-        yield* this.runQuery(query, args, index + 1);
+        state.set(q.id, id);
+        yield* this.runQuery(state.next());
         return;
       }
       case "all": {
         for (const id of this.data.keys()) {
-          const nextArgs = { ...args };
-          setVar(nextArgs, q.id, id);
-          yield* this.runQuery(query, nextArgs, index + 1);
+          const nextState = state.fork();
+          nextState.set(q.id, id);
+          yield* this.runQuery(nextState.next());
         }
         return;
       }
       case "members": {
-        for (const item of getVar<unknown[]>(args, q.collection)) {
-          const nextArgs = { ...args };
-          setVar(nextArgs, q.item, item);
-          yield* this.runQuery(query, nextArgs, index + 1);
+        for (const item of state.get<unknown[]>(q.collection)) {
+          const nextState = state.fork();
+          nextState.set(q.item, item);
+          yield* this.runQuery(nextState.next());
         }
         return;
       }
       case "fields": {
-        const id = getVar<Id>(args, q.id);
+        const id = state.get<Id>(q.id);
         const record = this.data.get(id) ?? {};
         for (const [f, value] of Object.entries(record)) {
           if (value != null) {
-            const nextArgs = { ...args };
-            setVar(nextArgs, q.field, f);
-            yield* this.runQuery(query, nextArgs, index + 1);
+            const nextState = state.fork();
+            nextState.set(q.field, f);
+            yield* this.runQuery(nextState.next());
           }
         }
         return;
       }
       case "get": {
-        const id = getVar<Id>(args, q.id);
-        const field = getVar<Field>(args, q.field);
+        const id = state.get<Id>(q.id);
+        const field = state.get<Field>(q.field);
         const record = this.data.get(id);
         if (!record) return;
-        setVar(args, q.value, record[field]);
-        yield* this.runQuery(query, args, index + 1);
+        state.set(q.value, record[field]);
+        yield* this.runQuery(state.next());
         return;
       }
       case "index": {
-        const value = getVar<Id>(args, q.value);
-        const field = getVar<Field>(args, q.field);
+        const value = state.get<Id>(q.value);
+        const field = state.get<Field>(q.field);
         const idx = this.index.get(value);
         if (!idx) return;
         const ids = idx[field];
         if (!ids) return;
         for (const id of ids) {
-          const nextArgs = { ...args };
-          setVar(nextArgs, q.id, id);
-          yield* this.runQuery(query, nextArgs, index + 1);
+          const nextState = state.fork();
+          nextState.set(q.id, id);
+          yield* this.runQuery(nextState.next());
         }
         return;
       }
       case "insert": {
-        const id = getVar<Id>(args, q.id);
-        const rec = getVar<Rec>(args, q.record) ?? {};
+        const id = state.get<Id>(q.id);
+        const rec = state.get<Rec>(q.record) ?? {};
         this.insertRec(id, rec);
-        yield* this.runQuery(query, args, index + 1);
+        yield* this.runQuery(state.next());
         return;
       }
       case "update": {
-        const id = getVar<Id>(args, q.id);
-        const field = getVar<Field>(args, q.field);
-        const value = getVar(args, q.value);
+        const id = state.get<Id>(q.id);
+        const field = state.get<Field>(q.field);
+        const value = state.get(q.value);
         let record = this.data.get(id);
         if (!record) {
           record = {} as Rec;
@@ -251,7 +280,7 @@ export class DB<Rec extends BaseRec> {
           if (value) this.addToIndex(id, field, value as Id);
         }
 
-        yield* this.runQuery(query, args, index + 1);
+        yield* this.runQuery(state.next());
         return;
       }
       case "rule": {
@@ -261,18 +290,18 @@ export class DB<Rec extends BaseRec> {
         for (const key of rule.query.params) {
           const expr = q.args[key];
           if (expr) {
-            ruleArgs[key] = getVar(args, expr);
+            ruleArgs[key] = state.get(expr);
           } else {
             ruleArgs[key] = undefined;
           }
         }
-        yield* this.runQuery(rule.query, ruleArgs);
+        yield* this.runQuery(QueryState.init(rule.query, ruleArgs));
         // TODO
         // for (const key of Object.keys(q.args)) {
         //   setVar(args, { tag: "ident", ident: key }, ruleArgs[key]);
         // }
 
-        yield* this.runQuery(query, args, index + 1);
+        yield* this.runQuery(state);
         return;
       }
     }
