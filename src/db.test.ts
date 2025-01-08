@@ -120,3 +120,18 @@ test("fields", () => {
     ])
   );
 });
+
+test("rollback", () => {
+  const db = new DB();
+  db.bulkInsert({
+    foo: { value: 123, idx: "hello" },
+  });
+
+  const update = q() //
+    .update(k("foo"), "value", k(456))
+    .rollback();
+  db.update(update);
+
+  const { value } = db.query1(q().get(k("foo"), "value", "value"))!;
+  expect(value).toEqual(123);
+});

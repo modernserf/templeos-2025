@@ -14,6 +14,7 @@ export type Query = {
 };
 
 type QueryItem =
+  | { tag: "rollback" }
   | { tag: "id"; id: Expr }
   | { tag: "members"; item: Expr; collection: Expr }
   | { tag: "all"; id: Expr }
@@ -29,6 +30,10 @@ export type QueryArgs = Record<Ident, unknown>;
 class QueryBuilder implements Query {
   items: QueryItem[] = [];
   constructor(public params: Ident[]) {}
+  rollback() {
+    this.items.push({ tag: "rollback" });
+    return this;
+  }
   id(id: Arg) {
     this.items.push({ tag: "id", id: toExpr(id) });
     return this;
@@ -100,7 +105,8 @@ class QueryState {
   constructor(
     private query: Query,
     private args: QueryArgs,
-    private index: number
+    private index: number,
+    private rollbackMap: Map<Id, BaseRec>
   ) {}
   // TODO: typechecking, default values
   static init(query: Query, args: QueryArgs) {
@@ -108,7 +114,7 @@ class QueryState {
     for (const key of query.params) {
       out[key] = args[key];
     }
-    return new QueryState(query, out, 0);
+    return new QueryState(query, out, 0, new Map());
   }
   get<T>(expr: Expr) {
     return getVar<T>(this.args, expr);
@@ -131,7 +137,19 @@ class QueryState {
     }
   }
   fork() {
-    return new QueryState(this.query, { ...this.args }, this.index);
+    return new QueryState(
+      this.query,
+      { ...this.args },
+      this.index,
+      this.rollbackMap
+    );
+  }
+  savePrev(id: Id, prev: BaseRec) {
+    if (this.rollbackMap.has(id)) return;
+    this.rollbackMap.set(id, { ...prev });
+  }
+  rollback() {
+    return this.rollbackMap;
   }
 }
 
@@ -200,6 +218,13 @@ export class DB<Rec extends BaseRec> {
       return;
     }
     switch (q.tag) {
+      // TODO: condition
+      case "rollback": {
+        for (const [key, value] of state.rollback()) {
+          this.insertRec(key, value as Rec);
+        }
+        return;
+      }
       case "id": {
         const id = crypto.randomUUID();
         state.set(q.id, id);
@@ -260,6 +285,7 @@ export class DB<Rec extends BaseRec> {
       case "insert": {
         const id = state.get<Id>(q.id);
         const rec = state.get<Rec>(q.record) ?? {};
+        state.savePrev(id, this.data.get(id) ?? {});
         this.insertRec(id, rec);
         yield* this.runQuery(state.next());
         return;
@@ -269,6 +295,7 @@ export class DB<Rec extends BaseRec> {
         const field = state.get<Field>(q.field);
         const value = state.get(q.value);
         let record = this.data.get(id);
+        state.savePrev(id, record ?? {});
         if (!record) {
           record = {} as Rec;
           this.data.set(id, record);
