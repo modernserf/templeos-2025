@@ -9,28 +9,44 @@ import {
   ViewElement,
 } from "./view";
 
+type Id = string;
+type SchemaId =
+  | "schema__anyType"
+  | "schema__schema"
+  | "schema__view"
+  | "schema__field"
+  | "schema__rule"
+  | "schema__text"
+  | "schema__folder"
+  | "schema__history"
+  | "schema__window"
+  | "schema__browser";
+
+// TODO enum
+type ViewPrimitive = string;
+
 export type Rec = {
   file__name?: string;
   file__description?: string;
-  file__folderItems?: string[];
+  file__folderItems?: Id[];
   text__content?: FormatTextNode[];
-  db__schema?: string;
-  field__refType?: string;
+  db__schema?: SchemaId;
+  field__refType?: Id;
   field__index?: "ref"; // "multiRef" | "unique" | "sorted"
-  rule__id?: string;
+  rule__id?: Id;
   rule__query?: Query;
-  view__primitive?: string;
+  view__primitive?: ViewPrimitive;
   view__elements?: ViewElement[];
-  view__schema?: string;
+  view__schema?: SchemaId;
   view__query?: Query;
-  history__window?: string;
-  history__location?: string;
-  history__view?: string;
+  history__window?: Id;
+  history__location?: Id;
+  history__view?: Id;
   history__data?: Record<string, string>;
-  history__back?: string;
-  history__forward?: string;
-  window__currentHistory?: string;
-  browser__currentWindow?: string;
+  history__back?: Id;
+  history__forward?: Id;
+  window__currentHistory?: Id;
+  browser__currentWindow?: Id;
 };
 
 export type BrowseParams = {
@@ -102,6 +118,12 @@ const initDB: Record<string, Rec> = {
       "if this is set, the value of this field is a ref to a record with this schema",
     field__refType: "schema__schema",
     field__index: "ref",
+  },
+  field__index: {
+    db__schema: "schema__field",
+    file__name: "Field index",
+    file__description:
+      "If set, the field is indexed using an index of this type.",
   },
   view__primitive: {
     db__schema: "schema__field",
@@ -321,9 +343,23 @@ const initDB: Record<string, Rec> = {
     view__query: q("id") //
       .get("id", "file__name", "name"),
     view__elements: new ViewBuilder()
-      .string(k("Schema!"))
-      .string("name")
+      .view(k("view__fileInfo"), { id: "id" })
       .link(k("click me"), k("home"))
+      .build(),
+  },
+  view__fileInfo: {
+    db__schema: "schema__view",
+    file__name: "File Info",
+    view__query: q("id")
+      .get("id", "file__name", "name")
+      .get("id", "file__description", "description"),
+    view__elements: new ViewBuilder()
+      .string(k("id"))
+      .string("id")
+      .string(k("name"))
+      .string("name")
+      .string(k("description"))
+      .string("description")
       .build(),
   },
   view__string: {
@@ -387,10 +423,10 @@ const initDB: Record<string, Rec> = {
   },
   // a self-rendering component
   omnibox: {
-    db__schema: "omnibox",
+    db__schema: "omnibox" as SchemaId,
     file__name: "Omnibox",
     view__primitive: "OmniboxView",
-    view__schema: "omnibox",
+    view__schema: "omnibox" as SchemaId,
   },
 };
 

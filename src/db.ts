@@ -122,12 +122,10 @@ class QueryState {
   set(binding: Expr, value: unknown) {
     setVar(this.args, binding, value);
   }
-  next() {
+  advance() {
+    const current = this.query.items[this.index];
     this.index += 1;
-    return this;
-  }
-  current() {
-    return this.query.items[this.index];
+    return current;
   }
   done() {
     if (this.index >= this.query.items.length) {
@@ -212,7 +210,7 @@ export class DB<Rec extends BaseRec> {
   private *runQuery(
     state: QueryState
   ): Generator<QueryArgs, undefined, undefined> {
-    const q = state.current();
+    const q = state.advance();
     if (!q) {
       yield state.done();
       return;
@@ -228,14 +226,14 @@ export class DB<Rec extends BaseRec> {
       case "id": {
         const id = crypto.randomUUID();
         state.set(q.id, id);
-        yield* this.runQuery(state.next());
+        yield* this.runQuery(state);
         return;
       }
       case "all": {
         for (const id of this.data.keys()) {
           const nextState = state.fork();
           nextState.set(q.id, id);
-          yield* this.runQuery(nextState.next());
+          yield* this.runQuery(nextState);
         }
         return;
       }
@@ -243,7 +241,7 @@ export class DB<Rec extends BaseRec> {
         for (const item of state.get<unknown[]>(q.collection)) {
           const nextState = state.fork();
           nextState.set(q.item, item);
-          yield* this.runQuery(nextState.next());
+          yield* this.runQuery(nextState);
         }
         return;
       }
@@ -254,7 +252,7 @@ export class DB<Rec extends BaseRec> {
           if (value != null) {
             const nextState = state.fork();
             nextState.set(q.field, f);
-            yield* this.runQuery(nextState.next());
+            yield* this.runQuery(nextState);
           }
         }
         return;
@@ -265,7 +263,7 @@ export class DB<Rec extends BaseRec> {
         const record = this.data.get(id);
         if (!record) return;
         state.set(q.value, record[field]);
-        yield* this.runQuery(state.next());
+        yield* this.runQuery(state);
         return;
       }
       case "index": {
@@ -278,7 +276,7 @@ export class DB<Rec extends BaseRec> {
         for (const id of ids) {
           const nextState = state.fork();
           nextState.set(q.id, id);
-          yield* this.runQuery(nextState.next());
+          yield* this.runQuery(nextState);
         }
         return;
       }
@@ -287,7 +285,7 @@ export class DB<Rec extends BaseRec> {
         const rec = state.get<Rec>(q.record) ?? {};
         state.savePrev(id, this.data.get(id) ?? {});
         this.insertRec(id, rec);
-        yield* this.runQuery(state.next());
+        yield* this.runQuery(state);
         return;
       }
       case "update": {
@@ -307,7 +305,7 @@ export class DB<Rec extends BaseRec> {
           if (value) this.addToIndex(id, field, value as Id);
         }
 
-        yield* this.runQuery(state.next());
+        yield* this.runQuery(state);
         return;
       }
       case "rule": {
