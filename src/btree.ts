@@ -12,6 +12,9 @@ export class Tree<K, V> {
       this.node = new Subtree(this.ord, [res.split], [res.left, res.right]);
     }
   }
+  delete(key: K, value: V) {
+    this.node.delete(key, value);
+  }
   *entries() {
     yield* this.node.entries();
   }
@@ -45,6 +48,7 @@ export const desc: Ord<number> = {
 
 interface TreeNode<K, V> {
   insert(key: K, value: V): TreeSplit<K, V> | null;
+  delete(key: K, value: V): void;
   entries(): Generator<[K, V]>;
   range(min: K, max: K): Generator<[K, V]>;
 }
@@ -76,6 +80,11 @@ class Leaf<K, V> implements TreeNode<K, V> {
       }
     }
     this.items.push({ key, value });
+  }
+  delete(key: K, value: V) {
+    this.items = this.items.filter(
+      (item) => item.key !== key || item.value !== value
+    );
   }
   *entries() {
     for (const { key, value } of this.items) {
@@ -130,6 +139,19 @@ class Subtree<K, V> implements TreeNode<K, V> {
       this.values.slice(SPLIT)
     );
     return { left, split, right };
+  }
+  delete(key: K, value: V): void {
+    for (const [i, k] of this.keys.entries()) {
+      if (this.ord.lt(key, k)) {
+        this.deleteAt(i, key, value);
+        return;
+      }
+    }
+    return this.deleteAt(this.keys.length, key, value);
+  }
+  private deleteAt(i: number, key: K, value: V) {
+    const subtree = this.values[i];
+    subtree.delete(key, value);
   }
   *entries() {
     for (const value of this.values) {
