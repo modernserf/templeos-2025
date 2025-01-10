@@ -54,7 +54,7 @@ export function getVar<T>(scope: Scope, expr: Expr): T {
   }
 }
 
-export function setVar<T>(scope: Scope, binding: Expr, value: T) {
+export function setVar<T>(scope: Scope, binding: Expr, value: T): boolean {
   switch (binding.tag) {
     case "ident": {
       const { ident } = binding;
@@ -63,10 +63,12 @@ export function setVar<T>(scope: Scope, binding: Expr, value: T) {
       } else {
         scope[ident] = value;
       }
-      return;
+      return true;
     }
     case "const": {
-      throw new Error("assigning to constant");
+      return binding.value === value;
     }
+    default:
+      throw new Error("not supported");
   }
 }

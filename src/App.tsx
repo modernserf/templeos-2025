@@ -1,14 +1,8 @@
 import { useEffect, useRef, useContext, createContext } from "react";
-import {
-  BrowseParams,
-  useDispatch,
-  useQuery,
-  useDB,
-  useQueryAll,
-} from "./state";
+import { BrowseParams, useDispatch, useQuery, useQueryAll } from "./state";
 import "./App.css";
 import { q, Query } from "./db";
-import { getVar, k, Scope } from "./expr";
+import { getVar, k, Scope, v } from "./expr";
 import { FormatTextNode, ViewElement } from "./view";
 
 const tabContext = createContext("rootWindow");
@@ -73,9 +67,17 @@ function DataViewField({ id, value }: { id: string; value: unknown }) {
   );
 }
 
+const qAllFields = q("id")
+  .fields("id", "fieldId")
+  .get("id", v("fieldId"), "value");
+
+const qAllRefs = q("id")
+  .index("fieldId", "field__index", k("ref"))
+  .index("refId", v("fieldId"), "id");
+
 function DataView({ id }: BrowseParams) {
-  const { data, index } = useDB().getDataView(id);
-  const indexFields = Object.entries(index ?? {});
+  const allFields = [...useQueryAll(qAllFields, { id })];
+  const allRefs = [...useQueryAll(qAllRefs, { id })];
   return (
     <table>
       <tbody>
@@ -86,31 +88,28 @@ function DataView({ id }: BrowseParams) {
         <tr>
           <th colSpan={2}>Fields</th>
         </tr>
-        {Object.entries(data ?? {}).map(([key, value]) => (
-          <tr key={key}>
+        {allFields.map(({ fieldId, value }) => (
+          <tr key={fieldId as string}>
             <td>
-              <FileLink id={key} />
+              <FileLink id={fieldId as string} />
             </td>
             <td>
-              <DataViewField id={key} value={value} />
+              <DataViewField id={fieldId as string} value={value} />
             </td>
           </tr>
         ))}
-        {indexFields.length > 0 ? (
-          <tr>
-            <th colSpan={2}>Referenced by</th>
+        <tr>
+          <th>Field</th>
+          <th>Refernced By</th>
+        </tr>
+        {allRefs.map(({ fieldId, refId }) => (
+          <tr key={`${fieldId} ${refId}`}>
+            <td>{<FileLink id={fieldId as string} />}</td>
+            <td>
+              <FileLink id={refId as string} />
+            </td>
           </tr>
-        ) : null}
-        {indexFields.flatMap(([key, values]) => {
-          return [...values].map((value, i) => (
-            <tr key={`${key} ${value}`}>
-              <td>{i === 0 ? <FileLink id={key} /> : null}</td>
-              <td>
-                <FileLink id={value} />
-              </td>
-            </tr>
-          ));
-        })}
+        ))}
       </tbody>
     </table>
   );

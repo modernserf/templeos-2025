@@ -1,3 +1,4 @@
+import { numberOrd, Ord, Tree, Where } from "./index";
 import { Arg, getVar, Ident, KArg, kToExpr, setVar, toExpr } from "./expr";
 import { Expr } from "./expr";
 
@@ -6,7 +7,6 @@ type Field = string;
 type Rule = string;
 
 type BaseRec = Record<Field, unknown>;
-type Idx = Record<Field, Set<Id>>;
 
 export type Query = {
   params: Ident[];
@@ -101,6 +101,26 @@ class QueryBuilder implements Query {
   }
 }
 
+type RefIndex = { entityId: Id; valueId: Id };
+
+const indexOrd: Ord<RefIndex> = {
+  cmp(l: RefIndex, r: RefIndex) {
+    return (
+      numberOrd.cmp(l.valueId, r.valueId) ||
+      numberOrd.cmp(l.entityId, r.entityId)
+    );
+  },
+};
+
+function whereValue(valueId: Id): Where<RefIndex> {
+  return {
+    cmp(item) {
+      return numberOrd.cmp(valueId, item.valueId);
+    },
+    order: "asc",
+  };
+}
+
 class QueryState {
   constructor(
     private query: Query,
@@ -119,8 +139,8 @@ class QueryState {
   get<T>(expr: Expr) {
     return getVar<T>(this.args, expr);
   }
-  set(binding: Expr, value: unknown) {
-    setVar(this.args, binding, value);
+  set(binding: Expr, value: unknown): boolean {
+    return setVar(this.args, binding, value);
   }
   advance() {
     const current = this.query.items[this.index];
@@ -155,17 +175,10 @@ export const q = (...params: Ident[]) => new QueryBuilder(params);
 
 export class DB<Rec extends BaseRec> {
   private data = new Map<Id, Rec>();
-  private index = new Map<Id, Idx>();
-  private indexedFields = new Set<Field>();
+  // private index = new Map<Id, Idx>();
+  private refIndex = new Map<Field, Tree<RefIndex, null>>();
   private eventListeners: Array<() => void> = [];
   private rules = new Map<string, { query: Query }>();
-  // FIXME
-  getDataView(id: Id) {
-    return {
-      data: this.data.get(id),
-      index: this.index.get(id),
-    };
-  }
   bulkInsert(items: Record<Id, Rec>) {
     for (const [id, rec] of Object.entries(items)) {
       this.insertRec(id, rec);
@@ -187,7 +200,7 @@ export class DB<Rec extends BaseRec> {
     this.notifyEventListeners();
   }
   createIndex(field: Field) {
-    this.indexedFields.add(field);
+    this.refIndex.set(field, new Tree(indexOrd));
     for (const [id, rec] of this.data) {
       if (field in rec) {
         this.addToIndex(id, field, rec[field] as Id);
@@ -263,20 +276,20 @@ export class DB<Rec extends BaseRec> {
         const field = state.get<Field>(q.field);
         const record = this.data.get(id);
         if (!record) return;
-        state.set(q.value, record[field]);
-        yield* this.runQuery(state);
+        if (state.set(q.value, record[field])) {
+          yield* this.runQuery(state);
+        }
         return;
       }
       case "index": {
         const value = state.get<Id>(q.value);
         const field = state.get<Field>(q.field);
-        const idx = this.index.get(value);
+        const idx = this.refIndex.get(field);
         if (!idx) return;
-        const ids = idx[field];
-        if (!ids) return;
-        for (const id of ids) {
+
+        for (const [{ entityId }] of idx.where(whereValue(value))) {
           const nextState = state.fork();
-          nextState.set(q.id, id);
+          nextState.set(q.id, entityId);
           yield* this.runQuery(nextState);
         }
         return;
@@ -301,10 +314,8 @@ export class DB<Rec extends BaseRec> {
         }
         const prevValue = record[field];
         (record as BaseRec)[field] = value;
-        if (this.indexedFields.has(field)) {
-          if (prevValue) this.removeFromIndex(id, field, prevValue as Id);
-          if (value) this.addToIndex(id, field, value as Id);
-        }
+        if (prevValue) this.removeFromIndex(id, field, prevValue as Id);
+        if (value) this.addToIndex(id, field, value as Id);
 
         yield* this.runQuery(state);
         return;
@@ -336,16 +347,12 @@ export class DB<Rec extends BaseRec> {
     const prev = this.data.get(id);
     if (prev) {
       for (const [field, value] of Object.entries(prev)) {
-        if (this.indexedFields.has(field)) {
-          this.removeFromIndex(id, field, value as Id);
-        }
+        this.removeFromIndex(id, field, value as Id);
       }
     }
     this.data.set(id, rec);
     for (const [field, value] of Object.entries(rec)) {
-      if (this.indexedFields.has(field)) {
-        this.addToIndex(id, field, value as Id);
-      }
+      this.addToIndex(id, field, value as Id);
     }
     if (rec.db__schema === "schema__field" && rec.field__index) {
       this.createIndex(id as Field);
@@ -354,18 +361,10 @@ export class DB<Rec extends BaseRec> {
       this.createRule(rec.rule__id as string, rec.rule__query as Query);
     }
   }
-  private addToIndex(id: Id, field: Field, value: Id) {
-    let idx = this.index.get(value);
-    if (!idx) {
-      idx = {};
-      this.index.set(value, idx);
-    }
-    idx[field] ??= new Set();
-    idx[field].add(id);
+  private addToIndex(entityId: Id, field: Field, valueId: Id) {
+    this.refIndex.get(field)?.set({ entityId, valueId }, null);
   }
-  private removeFromIndex(id: Id, field: Field, value: Id) {
-    const idx = this.index.get(value);
-    if (!idx) return;
-    idx[field]?.delete(id);
+  private removeFromIndex(entityId: Id, field: Field, valueId: Id) {
+    this.refIndex.get(field)?.delete({ entityId, valueId });
   }
 }

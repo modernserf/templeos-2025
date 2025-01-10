@@ -124,6 +124,7 @@ const initDB: Record<string, Rec> = {
     file__name: "Field index",
     file__description:
       "If set, the field is indexed using an index of this type.",
+    field__index: "ref",
   },
   view__primitive: {
     db__schema: "schema__field",
@@ -433,11 +434,19 @@ const initDB: Record<string, Rec> = {
 export const database = new DB<Rec>();
 database.bulkInsert(initDB);
 
+declare global {
+  interface Window {
+    db: DB<Rec>;
+  }
+}
+
+window.db = database;
+
 const dbContext = createContext(new DB<Rec>());
 export const DBProvider = dbContext.Provider;
 
 // TODO: separate query / command handlers
-export function useDB() {
+function useDB() {
   const db = useContext(dbContext);
   const [data, setData] = useState({ db });
   useEffect(() => {

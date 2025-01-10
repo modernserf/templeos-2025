@@ -31,8 +31,8 @@ test("indexes", () => {
     .index("id", "idx", "key")
     .get("id", "value", "value");
   expect([...db.queryAll(query, { key: "hello" })]).toEqual([
-    { id: "foo", key: "hello", value: 123 },
     { id: "bar", key: "hello", value: 456 },
+    { id: "foo", key: "hello", value: 123 },
   ]);
   expect([...db.queryAll(query, { key: "goodbye" })]).toEqual([
     { id: "baz", key: "goodbye", value: 789 },
