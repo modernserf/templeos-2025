@@ -180,6 +180,7 @@ export class DB<Rec extends BaseRec> {
     return this.runQuery(QueryState.init(query, args));
   }
   update(query: Query, args: QueryArgs = {}) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const _ of this.runQuery(QueryState.init(query, args))) {
       // empty
     }

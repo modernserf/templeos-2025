@@ -221,6 +221,7 @@ function PrimitiveLink({
   return <Link params={{ id, view, data }}>{label}</Link>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const primitiveViews: Record<string, React.FC<any>> = {
   PrimitiveLink,
   PrimitiveString,
