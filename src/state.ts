@@ -1,7 +1,7 @@
 import { useContext, createContext, useState, useEffect } from "react";
 import "./App.css";
 import { DB, q, Query } from "./db";
-import { k, or } from "./expr";
+import { k, or, v } from "./expr";
 import {
   FormatTextBuilder,
   FormatTextNode,
@@ -296,6 +296,51 @@ const initDB: Record<string, Rec> = {
     file__description: "default viewer for all data types",
     view__primitive: "DataView",
     view__schema: "schema__anyType",
+  },
+  view__dataView2: {
+    db__schema: "schema__view",
+    file__name: "DataView 2",
+    file__description: "default viewer for all data types",
+    view__schema: "schema__anyType",
+    view__query: q("id"),
+    view__elements: new ViewBuilder()
+      .string(k("fields"))
+      .view(k("view__dataViewFields"), { id: "id" })
+      .string(k("references"))
+      .view(k("view__dataViewRefs"), { id: "id" })
+      .build(),
+  },
+  view__fileLink: {
+    db__schema: "schema__view",
+    file__name: "File Link",
+    view__query: q("id").get("id", "file__name", "fileName"),
+    view__elements: new ViewBuilder().link("fileName", "id").build(),
+  },
+  view__dataViewFields: {
+    db__schema: "schema__view",
+    file__name: "DataView - fields",
+    view__query: q("id")
+      .fields("id", "fieldId")
+      .get("id", v("fieldId"), "value"),
+    view__elements: new ViewBuilder()
+      .view(k("view__fileLink"), { id: "fieldId" })
+      .view(k("view__dataViewField"), { id: "id", value: "value" })
+      .build(),
+  },
+  view__dataViewField: {
+    db__schema: "schema__view",
+    view__primitive: "DataViewField",
+  },
+  view__dataViewRefs: {
+    db__schema: "schema__view",
+    file__name: "DataView - fields",
+    view__query: q("id")
+      .index("fieldId", "field__index", k("ref"))
+      .index("refId", v("fieldId"), "id"),
+    view__elements: new ViewBuilder()
+      .view(k("view__fileLink"), { id: "fieldId" })
+      .view(k("view__fileLink"), { id: "refId" })
+      .build(),
   },
   view__text: {
     db__schema: "schema__view",

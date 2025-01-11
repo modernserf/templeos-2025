@@ -227,6 +227,7 @@ const primitiveViews: Record<string, React.FC<any>> = {
   IconView,
   TextView,
   DataView,
+  DataViewField,
   OmniboxView,
 };
 
