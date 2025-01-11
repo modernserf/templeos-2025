@@ -48,11 +48,11 @@ const qAppWindow = q("windowId")
 
 const qViewsForType = q("id")
   .get("id", "db__schema", "schema")
-  .index("view", "view__schema", "schema")
+  .get("view", "view__schema", "schema")
   .get("view", "file__name", "viewName");
 
 const qViewsForAnyType = q()
-  .index("view", "view__schema", k("schema__anyType"))
+  .get("view", "view__schema", k("schema__anyType"))
   .get("view", "file__name", "viewName");
 
 function AppWindow({
@@ -166,7 +166,7 @@ function AppMenu() {
 
 const qApp = q()
   .get(k("browser"), "browser__currentWindow", "currentWindow")
-  .index("id", "db__schema", k("schema__window"));
+  .get("id", "db__schema", k("schema__window"));
 
 function App() {
   const windows = useQueryAll(qApp)!;

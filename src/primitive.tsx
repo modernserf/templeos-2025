@@ -67,12 +67,12 @@ export function DataViewField({ id, value }: { id: string; value: unknown }) {
 }
 
 const qAllFields = q("id")
-  .fields("id", "fieldId")
+  .get("id", "fieldId")
   .get("id", v("fieldId"), "value");
 
 const qAllRefs = q("id")
-  .index("fieldId", "field__index", k("ref"))
-  .index("refId", v("fieldId"), "id");
+  .get("fieldId", "field__index", k("ref"))
+  .get("refId", v("fieldId"), "id");
 
 export function DataView({ id }: BrowseParams) {
   const allFields = [...useQueryAll(qAllFields, { id })];
@@ -134,7 +134,7 @@ export function TextView({ text }: { text: FormatTextNode[] }) {
 }
 
 const allQuery = q() //
-  .all("id")
+  .get("id")
   .get("id", "file__name", "name")
   .get("id", "file__description", "description");
 

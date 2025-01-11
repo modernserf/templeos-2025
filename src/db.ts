@@ -1,5 +1,14 @@
 import { numberOrd, Ord, Tree, Where } from "./index";
-import { Arg, getVar, Ident, KArg, kToExpr, setVar, toExpr } from "./expr";
+import {
+  Arg,
+  getVar,
+  Ident,
+  isOut,
+  KArg,
+  kToExpr,
+  setVar,
+  toExpr,
+} from "./expr";
 import { Expr } from "./expr";
 
 type Id = string;
@@ -18,10 +27,9 @@ type QueryItem =
   | { tag: "id"; id: Expr }
   | { tag: "timestamp"; timestamp: Expr }
   | { tag: "members"; item: Expr; collection: Expr }
-  | { tag: "all"; id: Expr }
-  | { tag: "fields"; id: Expr; field: Expr }
-  | { tag: "get"; id: Expr; field: Expr; value: Expr }
-  | { tag: "index"; id: Expr; field: Expr; value: Expr }
+  | { tag: "get/1"; id: Expr }
+  | { tag: "get/2"; id: Expr; field: Expr }
+  | { tag: "get/3"; id: Expr; field: Expr; value: Expr }
   | { tag: "insert"; id: Expr; record: Expr }
   | { tag: "update"; id: Expr; field: Expr; value: Expr }
   | { tag: "rule"; rule: Rule; args: Record<string, Expr> };
@@ -51,30 +59,29 @@ class QueryBuilder implements Query {
     });
     return this;
   }
-  all(id: Arg) {
-    this.items.push({ tag: "all", id: toExpr(id) });
-    return this;
-  }
-  fields(id: Arg, field: Arg) {
-    this.items.push({ tag: "fields", id: toExpr(id), field: toExpr(field) });
-    return this;
-  }
-  get(id: Arg, field: KArg, value: Arg) {
-    this.items.push({
-      tag: "get",
-      id: toExpr(id),
-      field: kToExpr(field),
-      value: toExpr(value),
-    });
-    return this;
-  }
-  index(id: Arg, field: KArg, value: Arg) {
-    this.items.push({
-      tag: "index",
-      id: toExpr(id),
-      field: kToExpr(field),
-      value: toExpr(value),
-    });
+  get(id: Arg, field?: KArg, value?: Arg) {
+    if (field) {
+      if (value) {
+        this.items.push({
+          tag: "get/3",
+          id: toExpr(id),
+          field: kToExpr(field),
+          value: toExpr(value),
+        });
+      } else {
+        this.items.push({
+          tag: "get/2",
+          id: toExpr(id),
+          field: kToExpr(field),
+        });
+      }
+    } else {
+      this.items.push({
+        tag: "get/1",
+        id: toExpr(id),
+      });
+    }
+
     return this;
   }
   insert(id: Arg, record: Arg) {
@@ -140,6 +147,9 @@ class QueryState {
       out[key] = args[key];
     }
     return new QueryState(query, out, 0, new Map());
+  }
+  isOut(expr: Expr) {
+    return isOut(this.args, expr);
   }
   get<T>(expr: Expr) {
     return getVar<T>(this.args, expr);
@@ -226,6 +236,59 @@ export class DB<Rec extends BaseRec> {
       l();
     }
   }
+  private *runGet1(state: QueryState, q: { id: Expr }) {
+    if (state.isOut(q.id)) {
+      const id = state.get<Id>(q.id);
+      if (this.data.has(id)) {
+        yield* this.runQuery(state);
+      }
+    } else {
+      for (const id of this.data.keys()) {
+        const nextState = state.fork();
+        nextState.set(q.id, id);
+        yield* this.runQuery(nextState);
+      }
+    }
+  }
+  private *runGet2(state: QueryState, q: { id: Expr; field: Expr }) {
+    const id = state.get<Id>(q.id);
+    const record = this.data.get(id);
+    if (state.isOut(q.field)) {
+      for (const [f, value] of Object.entries(record ?? {})) {
+        if (value != null) {
+          const nextState = state.fork();
+          nextState.set(q.field, f);
+          yield* this.runQuery(nextState);
+        }
+      }
+    } else {
+      const field = state.get<Field>(q.field);
+      if (record?.[field]) {
+        yield* this.runQuery(state);
+      }
+    }
+  }
+  private *runGet3(state: QueryState, q: QueryItem & { tag: "get/3" }) {
+    if (state.isOut(q.id)) {
+      const refId = state.get<Id>(q.value);
+      const field = state.get<Field>(q.field);
+      const index = this.refIndex.get(field);
+      if (!index) return;
+      for (const [{ entityId }] of index.where(whereValue(refId))) {
+        const nextState = state.fork();
+        nextState.set(q.id, entityId);
+        yield* this.runQuery(nextState);
+      }
+    } else {
+      const id = state.get<Id>(q.id);
+      const field = state.get<Field>(q.field);
+      const record = this.data.get(id);
+      if (!record) return;
+      if (state.set(q.value, record[field])) {
+        yield* this.runQuery(state);
+      }
+    }
+  }
   private *runQuery(
     state: QueryState
   ): Generator<QueryArgs, undefined, undefined> {
@@ -235,6 +298,15 @@ export class DB<Rec extends BaseRec> {
       return;
     }
     switch (q.tag) {
+      case "get/1":
+        yield* this.runGet1(state, q);
+        return;
+      case "get/2":
+        yield* this.runGet2(state, q);
+        return;
+      case "get/3":
+        yield* this.runGet3(state, q);
+        return;
       // TODO: condition
       case "rollback": {
         for (const [key, value] of state.rollback()) {
@@ -254,53 +326,10 @@ export class DB<Rec extends BaseRec> {
         yield* this.runQuery(state);
         return;
       }
-      case "all": {
-        for (const id of this.data.keys()) {
-          const nextState = state.fork();
-          nextState.set(q.id, id);
-          yield* this.runQuery(nextState);
-        }
-        return;
-      }
       case "members": {
         for (const item of state.get<unknown[]>(q.collection)) {
           const nextState = state.fork();
           nextState.set(q.item, item);
-          yield* this.runQuery(nextState);
-        }
-        return;
-      }
-      case "fields": {
-        const id = state.get<Id>(q.id);
-        const record = this.data.get(id) ?? {};
-        for (const [f, value] of Object.entries(record)) {
-          if (value != null) {
-            const nextState = state.fork();
-            nextState.set(q.field, f);
-            yield* this.runQuery(nextState);
-          }
-        }
-        return;
-      }
-      case "get": {
-        const id = state.get<Id>(q.id);
-        const field = state.get<Field>(q.field);
-        const record = this.data.get(id);
-        if (!record) return;
-        if (state.set(q.value, record[field])) {
-          yield* this.runQuery(state);
-        }
-        return;
-      }
-      case "index": {
-        const value = state.get<Id>(q.value);
-        const field = state.get<Field>(q.field);
-        const idx = this.refIndex.get(field);
-        if (!idx) return;
-
-        for (const [{ entityId }] of idx.where(whereValue(value))) {
-          const nextState = state.fork();
-          nextState.set(q.id, entityId);
           yield* this.runQuery(nextState);
         }
         return;

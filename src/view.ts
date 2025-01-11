@@ -87,8 +87,8 @@ export const views = {
   view__dataViewFields: {
     db__schema: "schema__view",
     file__name: "DataView - fields",
-    view__query: q("id")
-      .fields("id", "fieldId")
+    view__query: q("id") //
+      .get("id", "fieldId")
       .get("id", v("fieldId"), "value"),
     view__elements: new ViewBuilder()
       .view(k("view__fileLink"), { id: "fieldId" })
@@ -103,8 +103,8 @@ export const views = {
     db__schema: "schema__view",
     file__name: "DataView - fields",
     view__query: q("id")
-      .index("fieldId", "field__index", k("ref"))
-      .index("refId", v("fieldId"), "id"),
+      .get("fieldId", "field__index", k("ref"))
+      .get("refId", v("fieldId"), "id"),
     view__elements: new ViewBuilder()
       .view(k("view__fileLink"), { id: "fieldId" })
       .view(k("view__fileLink"), { id: "refId" })

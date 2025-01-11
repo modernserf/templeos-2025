@@ -34,6 +34,10 @@ export const kToExpr = (arg: KArg): Expr => {
 
 export type Scope = Record<string, unknown>;
 
+export function isOut(scope: Scope, expr: Expr): boolean {
+  return expr.tag === "ident" && !(expr.ident in scope);
+}
+
 export function getVar<T>(scope: Scope, expr: Expr): T {
   switch (expr.tag) {
     case "ident": {
