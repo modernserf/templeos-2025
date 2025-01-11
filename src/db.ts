@@ -16,6 +16,7 @@ export type Query = {
 type QueryItem =
   | { tag: "rollback" }
   | { tag: "id"; id: Expr }
+  | { tag: "timestamp"; timestamp: Expr }
   | { tag: "members"; item: Expr; collection: Expr }
   | { tag: "all"; id: Expr }
   | { tag: "fields"; id: Expr; field: Expr }
@@ -36,6 +37,10 @@ class QueryBuilder implements Query {
   }
   id(id: Arg) {
     this.items.push({ tag: "id", id: toExpr(id) });
+    return this;
+  }
+  timestamp(timestamp: Arg) {
+    this.items.push({ tag: "timestamp", timestamp: toExpr(timestamp) });
     return this;
   }
   members(item: Arg, collection: Arg) {
@@ -240,6 +245,12 @@ export class DB<Rec extends BaseRec> {
       case "id": {
         const id = crypto.randomUUID();
         state.set(q.id, id);
+        yield* this.runQuery(state);
+        return;
+      }
+      case "timestamp": {
+        const timestamp = Date.now();
+        state.set(q.timestamp, timestamp);
         yield* this.runQuery(state);
         return;
       }

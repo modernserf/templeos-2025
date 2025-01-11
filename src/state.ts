@@ -26,13 +26,14 @@ type SchemaId =
 type ViewPrimitive = string;
 
 export type Rec = {
+  time__created?: number;
   file__name?: string;
   file__description?: string;
   file__folderItems?: Id[];
   text__content?: FormatTextNode[];
   db__schema?: SchemaId;
   field__refType?: Id;
-  field__index?: "ref"; // "multiRef" | "unique" | "sorted"
+  field__index?: "ref" | "sorted"; // "multiRef" | "unique"
   rule__id?: Id;
   rule__query?: Query;
   view__primitive?: ViewPrimitive;
@@ -110,6 +111,11 @@ const initDB: Record<string, Rec> = {
     file__description: "schema used to validate & render this record",
     field__refType: "schema__schema",
     field__index: "ref",
+  },
+  time__created: {
+    db__schema: "schema__field",
+    file__name: "Time created",
+    // field__index: "sorted", TODO
   },
   field__refType: {
     db__schema: "schema__field",
@@ -220,12 +226,14 @@ const initDB: Record<string, Rec> = {
     rule__query: q("windowId", "id", "view", "data")
       .get("windowId", "window__currentHistory", "currentId")
       .id("h")
+      .timestamp("ts")
       .update("h", "db__schema", k("schema__history"))
       .update("h", "history__window", "windowId")
       .update("h", "history__location", "id")
       .update("h", "history__view", "view")
       .update("h", "history__data", "data")
       .update("h", "history__back", "currentId")
+      .update("h", "time__created", "ts")
       .update("windowId", "window__currentHistory", "h")
       .update("currentId", "history__forward", "h"),
   },
@@ -267,6 +275,7 @@ const initDB: Record<string, Rec> = {
     rule__query: q("id", "view", "data")
       .id("w")
       .id("h")
+      .timestamp("ts")
       .update(k("browser"), "browser__currentWindow", "w")
       .update("w", "db__schema", k("schema__window"))
       .update("w", "window__currentHistory", "h")
@@ -274,7 +283,8 @@ const initDB: Record<string, Rec> = {
       .update("h", "history__window", "w")
       .update("h", "history__location", "id")
       .update("h", "history__view", "view")
-      .update("h", "history__data", "data"),
+      .update("h", "history__data", "data")
+      .update("h", "time__created", "ts"),
   },
   rule__selectWindow: {
     db__schema: "schema__rule",
