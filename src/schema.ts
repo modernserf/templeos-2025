@@ -22,6 +22,7 @@ export type Rec = {
   view__elements?: ViewElement[];
   view__schema?: SchemaId;
   view__query?: Query;
+  view__noResults?: ViewElement[];
   history__window?: Id;
   history__location?: Id;
   history__view?: Id;
@@ -132,10 +133,16 @@ export const fields = {
     file__name: "View elements",
     file__description: "list of elements with params for UI",
   },
-  view_query: {
+  view__query: {
     db__schema: "schema__field",
     file__name: "View query",
     file__description: "query populates data for view",
+  },
+  view__noResults: {
+    db__schema: "schema__field",
+    file__name: "View no results",
+    file__description:
+      "render this component when no results. A hack to handle conditional views",
   },
   file__name: {
     db__schema: "schema__field",

@@ -1,5 +1,5 @@
 import { q } from "./db";
-import { Arg, Expr, k, toExpr, v } from "./expr";
+import { Arg, Expr, getVar, k, toExpr, v } from "./expr";
 import { Rec } from "./schema";
 import { BrowseParams } from "./state";
 
@@ -25,6 +25,7 @@ export class FormatTextBuilder {
 export type ViewElement = {
   view: Expr;
   args: Record<string, Expr>;
+  children?: ViewElement[];
 };
 
 export class ViewBuilder {
@@ -52,22 +53,52 @@ export class ViewBuilder {
     });
     return this;
   }
+  row(children: ViewElement[]) {
+    this.out.push({
+      view: k("view__row"),
+      args: {},
+      children,
+    });
+    return this;
+  }
+  column(children: ViewElement[]) {
+    this.out.push({
+      view: k("view__column"),
+      args: {},
+      children,
+    });
+    return this;
+  }
+}
+
+export type HydratedViewElement = {
+  view: string;
+  args: Record<string, unknown>;
+  children: HydratedViewElement[];
+};
+
+export function hydrateViewElement(
+  scope: Record<string, unknown>,
+  el: ViewElement
+): HydratedViewElement {
+  const view = getVar<string>(scope, el.view);
+  const args = Object.fromEntries(
+    Object.entries(el.args).map(([k, v]) => [k, getVar(scope, v)])
+  );
+  const children = (el.children ?? []).map((child) =>
+    hydrateViewElement(scope, child)
+  );
+
+  return { view, args, children };
 }
 
 type ViewRec = Rec & { db__schema: "schema__view" };
 
 export const views = {
   // Views
-  view__anyType: {
-    db__schema: "schema__view",
-    file__name: "DataView",
-    file__description: "default viewer for all data types",
-    view__primitive: "DataView",
-    view__schema: "schema__anyType",
-  },
   view__dataView2: {
     db__schema: "schema__view",
-    file__name: "DataView 2",
+    file__name: "DataView",
     file__description: "default viewer for all data types",
     view__schema: "schema__anyType",
     view__query: q("id"),
@@ -88,16 +119,27 @@ export const views = {
     db__schema: "schema__view",
     file__name: "DataView - fields",
     view__query: q("id") //
-      .get("id", "fieldId")
+      .get("id", v("fieldId"))
       .get("id", v("fieldId"), "value"),
     view__elements: new ViewBuilder()
-      .view(k("view__fileLink"), { id: "fieldId" })
-      .view(k("view__dataViewField"), { id: "id", value: "value" })
+      .row(
+        new ViewBuilder()
+          .view(k("view__fileLink"), { id: "fieldId" })
+          .view(k("view__maybeLink"), { fieldId: "fieldId", value: "value" })
+          .build()
+      )
       .build(),
   },
-  view__dataViewField: {
+  view__maybeLink: {
     db__schema: "schema__view",
-    view__primitive: "DataViewField",
+    view__query: q("fieldId", "value") //
+      .get("fieldId", "field__index", k("ref")),
+    view__elements: new ViewBuilder()
+      .view(k("view__fileLink"), { id: "value" })
+      .build(),
+    view__noResults: new ViewBuilder()
+      .view(k("view__anyData"), { value: "value" })
+      .build(),
   },
   view__dataViewRefs: {
     db__schema: "schema__view",
@@ -106,8 +148,12 @@ export const views = {
       .get("fieldId", "field__index", k("ref"))
       .get("refId", v("fieldId"), "id"),
     view__elements: new ViewBuilder()
-      .view(k("view__fileLink"), { id: "fieldId" })
-      .view(k("view__fileLink"), { id: "refId" })
+      .row(
+        new ViewBuilder()
+          .view(k("view__fileLink"), { id: "fieldId" })
+          .view(k("view__fileLink"), { id: "refId" })
+          .build()
+      )
       .build(),
   },
   view__text: {
@@ -179,12 +225,18 @@ export const views = {
   view__string: {
     db__schema: "schema__view",
     file__name: "String",
-    view__primitive: "PrimitiveString",
+    view__primitive: "String",
   },
   view__link: {
     db__schema: "schema__view",
     file__name: "Link",
-    view__primitive: "PrimitiveLink",
+    view__primitive: "Link",
+  },
+  view__anyData: {
+    db__schema: "schema__view",
+    file__name: "AnyData",
+    file__description: "JSON stringification of data",
+    view__primitive: "AnyData",
   },
   view__icon: {
     db__schema: "schema__view",
@@ -195,5 +247,15 @@ export const views = {
     db__schema: "schema__view",
     file__name: "Text Content",
     view__primitive: "TextView",
+  },
+  view__row: {
+    db__schema: "schema__view",
+    file__name: "Row layout",
+    view__primitive: "Row",
+  },
+  view__column: {
+    db__schema: "schema__view",
+    file__name: "Column layout",
+    view__primitive: "Column",
   },
 } satisfies Record<string, ViewRec>;

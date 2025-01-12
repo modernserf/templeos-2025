@@ -150,6 +150,7 @@ const initDB: Record<string, Rec> = {
   omnibox: {
     db__schema: "omnibox" as SchemaId,
     file__name: "Omnibox",
+    view__query: q(),
     view__primitive: "OmniboxView",
     view__schema: "omnibox" as SchemaId,
   },

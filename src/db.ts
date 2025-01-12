@@ -238,15 +238,15 @@ export class DB<Rec extends BaseRec> {
   }
   private *runGet1(state: QueryState, q: { id: Expr }) {
     if (state.isOut(q.id)) {
-      const id = state.get<Id>(q.id);
-      if (this.data.has(id)) {
-        yield* this.runQuery(state);
-      }
-    } else {
       for (const id of this.data.keys()) {
         const nextState = state.fork();
         nextState.set(q.id, id);
         yield* this.runQuery(nextState);
+      }
+    } else {
+      const id = state.get<Id>(q.id);
+      if (this.data.has(id)) {
+        yield* this.runQuery(state);
       }
     }
   }

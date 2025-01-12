@@ -1,37 +1,52 @@
 import { useDispatch, useQuery, useQueryAll } from "./state";
-import "./App.css";
 import { q, Query } from "./db";
-import { getVar, k, Scope } from "./expr";
-import { ViewElement } from "./view";
-import { FileLink, TabProvider } from "./primitive";
+import { k, Scope } from "./expr";
+import { HydratedViewElement, hydrateViewElement, ViewElement } from "./view";
+import { Link, TabProvider } from "./primitive";
 import * as primitiveViews from "./primitive";
 import { ViewPrimitive } from "./schema";
+import "./App.css";
 
 const qView = q("view") //
   .get("view", "view__query", "query")
   .get("view", "view__elements", "els")
+  .get("view", "view__noResults", "noResultEls")
   .get("view", "view__primitive", "primitive");
-function SubView({ view, args }: { view: string; args: Scope }) {
-  const { els, query, primitive } = useQuery(qView, { view })!;
-  const result = useQueryAll((query as Query) ?? q(), args);
+function SubView({
+  view,
+  args,
+  children,
+}: {
+  view: string;
+  args: Scope;
+  children?: HydratedViewElement[];
+}) {
+  const { els, noResultEls, query, primitive } = useQuery(qView, { view })!;
+  const result = Array.from(useQueryAll((query as Query) ?? q(), args));
+
+  if (result.length === 0) {
+    return ((noResultEls as ViewElement[]) ?? []).map((el, i) => (
+      <SubView key={i} {...hydrateViewElement(args, el)} />
+    ));
+  }
 
   if (primitive) {
-    const View = primitiveViews[primitive as ViewPrimitive];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return <View {...(args as any)} />;
+    const PrimitiveView = primitiveViews[primitive as ViewPrimitive];
+    return (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      <PrimitiveView {...(args as any)}>
+        {(children ?? []).map((childProps, i) => (
+          <SubView key={i} {...childProps} />
+        ))}
+      </PrimitiveView>
+    );
   }
   return (
     <>
-      {[...result].map((scope, i) => (
+      {result.map((scope, i) => (
         <div key={i}>
-          {((els as ViewElement[]) ?? []).map((el, i) => (
-            <SubView
-              key={i}
-              view={getVar(scope, el.view)}
-              args={Object.fromEntries(
-                Object.entries(el.args).map(([k, v]) => [k, getVar(scope, v)])
-              )}
-            />
+          {((els as ViewElement[]) ?? []).map((el, j) => (
+            <SubView key={j} {...hydrateViewElement(scope, el)} />
           ))}
         </div>
       ))}
@@ -158,8 +173,8 @@ function AppMenu() {
       >
         Forward
       </button>
-      <FileLink id="home" target="new" />
-      <FileLink id="omnibox" target="new" />
+      <Link id="home" target="new" label="Home" />
+      <Link id="omnibox" target="new" label="Omnibox" />
     </nav>
   );
 }

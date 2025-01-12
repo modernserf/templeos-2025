@@ -1,3 +1,12 @@
+.Link {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 .FileLink {
   appearance: none;
   background-color: black;
@@ -27,7 +36,7 @@
 }
 
 .AppWindow--current::after {
-  display:none;
+  display: none;
 }
 
 .AppWindow__header {
@@ -51,12 +60,8 @@
   flex: 1 0 auto;
 }
 
-.TextView__link {
-  appearance: none;
-  background: none;
-  border: none;
+.TextView__Link .Link {
   font-weight: bold;
-  padding: 0;
   text-decoration: underline;
 }
 
@@ -65,8 +70,23 @@
   width: 100%;
 }
 
-
 .OmniboxView__listItem {
   padding: 0.25rem;
   border-top: 1px solid #ccc;
+}
+
+.Row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+}
+
+.Row > * + * {
+  padding-left: 1rem;
+}
+
+.Column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
