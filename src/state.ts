@@ -183,6 +183,11 @@ function useDB() {
   return data.db;
 }
 
+export function useRender(b: Query, args?: Record<string, unknown>) {
+  const db = useDB();
+  return db.render(b, args);
+}
+
 export function useQuery(b: Query, args?: Record<string, unknown>) {
   const db = useDB();
   return db.query1(b, args);

@@ -12,10 +12,10 @@ import {
   toExpr,
 } from "./expr";
 import { Rec, Field } from "./schema";
+import { ViewElement } from "./view";
 
 type Id = string;
 type Rule = string;
-type View = string;
 
 export type Query = {
   params: Ident[];
@@ -99,6 +99,17 @@ class QueryBuilder implements Query {
     });
     return this;
   }
+  view(view: Arg, args: Record<string, Arg>) {
+    this.items.push({
+      tag: "view",
+      view: toExpr(view),
+      args: Object.fromEntries(
+        Object.entries(args).map(([k, v]) => [k, toExpr(v)])
+      ),
+      children: [],
+    });
+    return this;
+  }
 }
 
 type QueryItem =
@@ -114,9 +125,10 @@ type QueryItem =
   | { tag: "rule"; rule: Rule; args: Record<string, Expr> }
   | {
       tag: "view";
-      id: View;
+      view: Expr;
       args: Record<string, Expr>;
-      children: QueryItem[];
+      // TODO: query children
+      children: ViewElement[];
     };
 
 export type QueryArgs = Record<Ident, unknown>;
@@ -130,6 +142,27 @@ function whereValue(valueId: Id): Where<RefIndex> {
     },
     order: "asc",
   };
+}
+
+export type HydratedViewElement = {
+  view: string;
+  args: Record<string, unknown>;
+  children: HydratedViewElement[];
+};
+
+export function hydrateViewElement(
+  scope: Record<string, unknown>,
+  el: ViewElement
+): HydratedViewElement {
+  const view = getVar<string>(scope, el.view);
+  const args = Object.fromEntries(
+    Object.entries(el.args).map(([k, v]) => [k, getVar(scope, v)])
+  );
+  const children = (el.children ?? []).map((child) =>
+    hydrateViewElement(scope, child)
+  );
+
+  return { view, args, children };
 }
 
 class QueryState {
@@ -155,6 +188,9 @@ class QueryState {
   }
   set(binding: Expr, value: unknown): boolean {
     return setVar(this.args, binding, value);
+  }
+  hydrateView(view: ViewElement): HydratedViewElement {
+    return hydrateViewElement(this.args, view);
   }
   advance() {
     const current = this.query.items[this.index];
@@ -185,6 +221,10 @@ class QueryState {
   }
 }
 
+type QueryResult =
+  | { tag: "result"; value: QueryArgs }
+  | { tag: "view"; value: HydratedViewElement };
+
 export class Runtime {
   constructor(private db: DB<Rec>) {}
   private eventListeners: Array<() => void> = [];
@@ -195,12 +235,21 @@ export class Runtime {
     }
     this.notifyEventListeners();
   }
-  query1(query: Query, args: QueryArgs = {}) {
-    const iter = this.runQuery(QueryState.init(query, args));
-    return iter.next().value;
+  *render(query: Query, args: QueryArgs = {}) {
+    for (const result of this.runQuery(QueryState.init(query, args))) {
+      if (result.tag === "view") yield result.value;
+    }
   }
-  queryAll(query: Query, args: QueryArgs = {}) {
-    return this.runQuery(QueryState.init(query, args));
+  query1(query: Query, args: QueryArgs = {}) {
+    for (const item of this.runQuery(QueryState.init(query, args))) {
+      if (item.tag === "result") return item.value;
+    }
+    return null;
+  }
+  *queryAll(query: Query, args: QueryArgs = {}) {
+    for (const item of this.runQuery(QueryState.init(query, args))) {
+      if (item.tag === "result") yield item.value;
+    }
   }
   update(query: Query, args: QueryArgs = {}) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -277,13 +326,17 @@ export class Runtime {
   }
   private *runQuery(
     state: QueryState
-  ): Generator<QueryArgs, undefined, undefined> {
+  ): Generator<QueryResult, undefined, undefined> {
     const q = state.advance();
     if (!q) {
-      yield state.done();
+      yield { tag: "result", value: state.done() };
       return;
     }
     switch (q.tag) {
+      case "view":
+        yield { tag: "view", value: state.hydrateView(q) };
+        yield* this.runQuery(state);
+        return;
       case "get/1":
         yield* this.runGet1(state, q);
         return;

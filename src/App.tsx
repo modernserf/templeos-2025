@@ -1,7 +1,7 @@
-import { useDispatch, useQuery, useQueryAll } from "./state";
-import { q, Query } from "./runtime";
+import { useDispatch, useQuery, useQueryAll, useRender } from "./state";
+import { q, Query, HydratedViewElement, hydrateViewElement } from "./runtime";
 import { k, Scope } from "./expr";
-import { HydratedViewElement, hydrateViewElement, ViewElement } from "./view";
+import { ViewElement } from "./view";
 import { Link, TabProvider } from "./primitive";
 import * as primitiveViews from "./primitive";
 import { ViewPrimitive } from "./schema";
@@ -23,6 +23,7 @@ function SubView({
 }) {
   const { els, noResultEls, query, primitive } = useQuery(qView, { view })!;
   const result = Array.from(useQueryAll((query as Query) ?? q(), args));
+  const renders = Array.from(useRender((query as Query) ?? q(), args));
 
   if (result.length === 0) {
     return ((noResultEls as ViewElement[]) ?? []).map((el, i) => (
@@ -41,8 +42,14 @@ function SubView({
       </PrimitiveView>
     );
   }
+
   return (
     <>
+      <>
+        {renders.map((el, i) => (
+          <SubView key={i} {...el} />
+        ))}
+      </>
       {result.map((scope, i) => (
         <div key={i}>
           {((els as ViewElement[]) ?? []).map((el, j) => (

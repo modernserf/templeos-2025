@@ -1,4 +1,4 @@
-import { Arg, Expr, getVar, k, toExpr, v } from "./expr";
+import { Arg, Expr, k, toExpr, v } from "./expr";
 import { q } from "./runtime";
 import { Rec } from "./schema";
 import { BrowseParams } from "./state";
@@ -71,27 +71,6 @@ export class ViewBuilder {
   }
 }
 
-export type HydratedViewElement = {
-  view: string;
-  args: Record<string, unknown>;
-  children: HydratedViewElement[];
-};
-
-export function hydrateViewElement(
-  scope: Record<string, unknown>,
-  el: ViewElement
-): HydratedViewElement {
-  const view = getVar<string>(scope, el.view);
-  const args = Object.fromEntries(
-    Object.entries(el.args).map(([k, v]) => [k, getVar(scope, v)])
-  );
-  const children = (el.children ?? []).map((child) =>
-    hydrateViewElement(scope, child)
-  );
-
-  return { view, args, children };
-}
-
 type ViewRec = Rec & { db__schema: "schema__view" };
 
 export const views = {
@@ -162,10 +141,8 @@ export const views = {
     file__description: "viewer for text cards",
     view__schema: "schema__text",
     view__query: q("id") //
-      .get("id", "text__content", "content"),
-    view__elements: new ViewBuilder() //
-      .view(k("view__textContent"), { text: "content" })
-      .build(),
+      .get("id", "text__content", "content")
+      .view(k("view__textContent"), { text: "content" }),
   },
   view__folderList: {
     db__schema: "schema__view",
