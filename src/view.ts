@@ -31,17 +31,71 @@ export type ViewElement = {
 type ViewRec = Rec & { db__schema: "schema__view" };
 
 export const views = {
-  // Views
-  view__dataView2: {
+  // primitives
+  view__string: {
     db__schema: "schema__view",
-    file__name: "DataView",
-    file__description: "default viewer for all data types",
-    view__schema: "schema__anyType",
-    view__query: q("id")
-      .string(k("fields"))
-      .view(k("view__dataViewFields"), { id: "id" })
-      .string(k("references"))
-      .view(k("view__dataViewRefs"), { id: "id" })
+    file__name: "String",
+    view__primitive: "String",
+  },
+  view__button: {
+    db__schema: "schema__view",
+    file__name: "Button",
+    view__primitive: "Button",
+  },
+  view__link: {
+    db__schema: "schema__view",
+    file__name: "Link",
+    view__primitive: "Link",
+  },
+  view__anyData: {
+    db__schema: "schema__view",
+    file__name: "AnyData",
+    file__description: "JSON stringification of data",
+    view__primitive: "AnyData",
+  },
+  view__icon: {
+    db__schema: "schema__view",
+    file__name: "Icon",
+    view__primitive: "IconView",
+  },
+  view__textContent: {
+    db__schema: "schema__view",
+    file__name: "Text Content",
+    view__primitive: "TextView",
+  },
+  view__row: {
+    db__schema: "schema__view",
+    file__name: "Row layout",
+    view__primitive: "Row",
+  },
+  view__column: {
+    db__schema: "schema__view",
+    file__name: "Column layout",
+    view__primitive: "Column",
+  },
+  // system components
+  view__appMenu: {
+    db__schema: "schema__view",
+    file__name: "App menu",
+    view__query: q()
+      .row((q) =>
+        q
+          .or((q) =>
+            q
+              .get(k("browser"), "browser__currentWindow", "windowId")
+              .get("windowId", "window__currentHistory", "currentHistory")
+              .get("currentHistory", "history__back", "back")
+              .get("currentHistory", "history__forward", "forward")
+              .button(k("back"), (q) =>
+                q.rule("rule__back", { windowId: "windowId" })
+              )
+              .button(k("forward"), (q) =>
+                q.rule("rule__forward", { windowId: "windowId" })
+              )
+          )
+          .link(k("home"), k("home"), k("new"))
+          .link(k("omnibox"), k("omnibox"), k("new"))
+      )
       .build(),
   },
   view__fileLink: {
@@ -52,39 +106,50 @@ export const views = {
       .link("fileName", "id")
       .build(),
   },
-  view__dataViewFields: {
+  view__fileInfo: {
     db__schema: "schema__view",
-    file__name: "DataView - fields",
-    view__query: q("id") //
-      .get("id", v("fieldId"))
-      .get("id", v("fieldId"), "value")
-      .row((q) =>
-        q
-          .view(k("view__fileLink"), { id: "fieldId" })
-          .view(k("view__maybeLink"), { fieldId: "fieldId", value: "value" })
-      )
-      .build(),
-  },
-  view__maybeLink: {
-    db__schema: "schema__view",
-    view__query: q("fieldId", "value") //
-      .cond(
-        (q) => q.get("fieldId", "field__index", k("ref")),
-        (q) => q.view(k("view__fileLink"), { id: "value" }),
-        (q) => q.view(k("view__anyData"), { value: "value" })
-      )
-      .build(),
-  },
-  view__dataViewRefs: {
-    db__schema: "schema__view",
-    file__name: "DataView - fields",
+    file__name: "File Info",
     view__query: q("id")
-      .get("fieldId", "field__index", k("ref"))
-      .get("refId", v("fieldId"), "id")
-      .row((q) =>
+      .get("id", "file__name", "name")
+      .get("id", "file__description", "description")
+      .string(k("id"))
+      .string("id")
+      .string(k("name"))
+      .string("name")
+      .string(k("description"))
+      .string("description")
+      .build(),
+  },
+  // built in root viewers
+  view__anyType: {
+    db__schema: "schema__view",
+    file__name: "Raw Data",
+    file__description: "default viewer for all data types",
+    view__schema: "schema__anyType",
+    view__query: q("id")
+      .string(k("fields"))
+      .or((q) =>
         q
-          .view(k("view__fileLink"), { id: "fieldId" })
-          .view(k("view__fileLink"), { id: "refId" })
+          .get("id", v("fieldId"))
+          .get("id", v("fieldId"), "value")
+          .row((q) =>
+            q.view(k("view__fileLink"), { id: "fieldId" }).cond(
+              (q) => q.get("fieldId", "field__index", k("ref")),
+              (q) => q.view(k("view__fileLink"), { id: "value" }),
+              (q) => q.view(k("view__anyData"), { value: "value" })
+            )
+          )
+      )
+      .string(k("references"))
+      .or((q) =>
+        q
+          .get("fieldId", "field__index", k("ref"))
+          .get("refId", v("fieldId"), "id")
+          .row((q) =>
+            q
+              .view(k("view__fileLink"), { id: "fieldId" })
+              .view(k("view__fileLink"), { id: "refId" })
+          )
       )
       .build(),
   },
@@ -133,85 +198,6 @@ export const views = {
       .get("id", "file__name", "name")
       .view(k("view__fileInfo"), { id: "id" })
       .link(k("click me"), k("home"))
-      .build(),
-  },
-  view__fileInfo: {
-    db__schema: "schema__view",
-    file__name: "File Info",
-    view__query: q("id")
-      .get("id", "file__name", "name")
-      .get("id", "file__description", "description")
-      .string(k("id"))
-      .string("id")
-      .string(k("name"))
-      .string("name")
-      .string(k("description"))
-      .string("description")
-      .build(),
-  },
-  view__string: {
-    db__schema: "schema__view",
-    file__name: "String",
-    view__primitive: "String",
-  },
-  view__button: {
-    db__schema: "schema__view",
-    file__name: "Button",
-    view__primitive: "Button",
-  },
-  view__link: {
-    db__schema: "schema__view",
-    file__name: "Link",
-    view__primitive: "Link",
-  },
-  view__anyData: {
-    db__schema: "schema__view",
-    file__name: "AnyData",
-    file__description: "JSON stringification of data",
-    view__primitive: "AnyData",
-  },
-  view__icon: {
-    db__schema: "schema__view",
-    file__name: "Icon",
-    view__primitive: "IconView",
-  },
-  view__textContent: {
-    db__schema: "schema__view",
-    file__name: "Text Content",
-    view__primitive: "TextView",
-  },
-  view__row: {
-    db__schema: "schema__view",
-    file__name: "Row layout",
-    view__primitive: "Row",
-  },
-  view__column: {
-    db__schema: "schema__view",
-    file__name: "Column layout",
-    view__primitive: "Column",
-  },
-  view__appMenu: {
-    db__schema: "schema__view",
-    file__name: "App menu",
-    view__query: q()
-      .row((q) =>
-        q
-          .or((q) =>
-            q
-              .get(k("browser"), "browser__currentWindow", "windowId")
-              .get("windowId", "window__currentHistory", "currentHistory")
-              .get("currentHistory", "history__back", "back")
-              .get("currentHistory", "history__forward", "forward")
-              .button(k("back"), (q) =>
-                q.rule("rule__back", { windowId: "windowId" })
-              )
-              .button(k("forward"), (q) =>
-                q.rule("rule__forward", { windowId: "windowId" })
-              )
-          )
-          .link(k("home"), k("home"), k("new"))
-          .link(k("omnibox"), k("omnibox"), k("new"))
-      )
       .build(),
   },
 } satisfies Record<string, ViewRec>;

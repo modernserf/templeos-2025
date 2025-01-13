@@ -157,10 +157,18 @@ export function OmniboxView(props: BrowseParams) {
         {[...filtered].map(
           ({ id, name, description, schemaId, schemaName }) => (
             <li key={id as string} className="OmniboxView__listItem">
-              <Link id={id as string} label={name as string} />
-              {schemaId && (
-                <Link id={schemaId as string} label={schemaName as string} />
-              )}
+              <span className="Row">
+                <Link id={id as string} label={name as string} />
+                {schemaId && (
+                  <>
+                    <span>:</span>
+                    <Link
+                      id={schemaId as string}
+                      label={schemaName as string}
+                    />
+                  </>
+                )}
+              </span>
               <span>{description as string}</span>
             </li>
           )
