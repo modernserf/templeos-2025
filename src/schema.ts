@@ -58,6 +58,11 @@ export const schemas = {
     file__name: "View",
     file__description: "schema for View",
   },
+  schema__form: {
+    db__schema: "schema__schema",
+    file__name: "Form",
+    file__description: "schema for form UI",
+  },
   schema__folder: {
     db__schema: "schema__schema",
     file__name: "Folder",

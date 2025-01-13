@@ -6,25 +6,13 @@ import { FormatTextBuilder, views } from "./view";
 import { fields, Rec, schemas } from "./schema";
 import { q, Query } from "./query";
 
-type SchemaId =
-  | "schema__anyType"
-  | "schema__schema"
-  | "schema__view"
-  | "schema__field"
-  | "schema__rule"
-  | "schema__text"
-  | "schema__folder"
-  | "schema__history"
-  | "schema__window"
-  | "schema__browser";
-
 export type BrowseParams = {
   id: string;
   view?: string;
   data?: Record<string, string>;
 };
 
-const initDB: Record<string, Rec> = {
+const initDB = {
   ...schemas,
   ...fields,
   ...views,
@@ -148,15 +136,13 @@ const initDB: Record<string, Rec> = {
     file__name: "Browser state",
     browser__currentWindow: "rootWindow",
   },
-  // a self-rendering component
   omnibox: {
-    db__schema: "omnibox" as SchemaId,
+    db__schema: "schema__form",
     file__name: "Omnibox",
     view__query: q().build(),
     view__primitive: "OmniboxView",
-    view__schema: "omnibox" as SchemaId,
   },
-};
+} satisfies Record<string, Rec>;
 
 export const runtime = new Runtime(new DB());
 runtime.bulkInsert(initDB);

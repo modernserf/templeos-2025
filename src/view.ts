@@ -200,4 +200,12 @@ export const views = {
       .link(k("click me"), k("home"))
       .build(),
   },
+  view__form: {
+    db__schema: "schema__view",
+    file__name: "Form",
+    view__schema: "schema__form",
+    view__query: q("id", "view", "data") //
+      .view("id", { id: "id", view: "view", data: "data" })
+      .build(),
+  },
 } satisfies Record<string, ViewRec>;

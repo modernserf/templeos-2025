@@ -159,7 +159,7 @@ export function OmniboxView(props: BrowseParams) {
             <li key={id as string} className="OmniboxView__listItem">
               <span className="Row">
                 <Link id={id as string} label={name as string} />
-                {schemaId && (
+                {!!schemaId && (
                   <>
                     <span>:</span>
                     <Link
