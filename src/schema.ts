@@ -15,7 +15,6 @@ export type Rec = {
   db__schema?: SchemaId;
   field__refType?: Id;
   field__index?: "ref" | "sorted"; // "multiRef" | "unique"
-  rule__id?: Id;
   rule__query?: Query;
   view__primitive?: ViewPrimitive;
   view__schema?: SchemaId;
@@ -145,11 +144,6 @@ export const fields = {
     file__name: "File folder items",
     file__description: "ids of files in folder",
     field__index: "ref",
-  },
-  // TODO: unique index
-  rule__id: {
-    db__schema: "schema__field",
-    file__name: "Rule id",
   },
   rule__query: {
     db__schema: "schema__field",

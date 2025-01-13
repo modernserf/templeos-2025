@@ -1,5 +1,4 @@
 import { numberOrd, Ord, Tree } from "./index";
-import { Query } from "./query";
 
 type Id = string;
 type Field = string;
@@ -20,16 +19,12 @@ const indexOrd: Ord<RefIndex> = {
 export class DB<Rec extends BaseRec> {
   private data = new Map<Id, Rec>();
   private refIndex = new Map<Field, Tree<RefIndex, null>>();
-  private rules = new Map<string, { query: Query }>();
 
   get(id: Id): Rec | null {
     return this.data.get(id) ?? null;
   }
   getIndex(field: Field) {
     return this.refIndex.get(field);
-  }
-  getRule(rule: Id) {
-    return this.rules.get(rule);
   }
   *keys() {
     yield* this.data.keys();
@@ -47,9 +42,6 @@ export class DB<Rec extends BaseRec> {
     }
     if (rec.db__schema === "schema__field" && rec.field__index) {
       this.createIndex(id as Field);
-    }
-    if (rec.db__schema === "schema__rule" && rec.rule__id && rec.rule__query) {
-      this.createRule(rec.rule__id as string, rec.rule__query as Query);
     }
   }
   update(id: Id, field: Field, value: unknown) {
@@ -70,9 +62,6 @@ export class DB<Rec extends BaseRec> {
         this.addToIndex(id, field, rec[field] as Id);
       }
     }
-  }
-  private createRule(name: string, query: Query) {
-    this.rules.set(name, { query });
   }
   private addToIndex(entityId: Id, field: Field, valueId: Id) {
     this.refIndex.get(field)?.set({ entityId, valueId }, null);

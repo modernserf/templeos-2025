@@ -58,13 +58,11 @@ export const views = {
     view__query: q("id") //
       .get("id", v("fieldId"))
       .get("id", v("fieldId"), "value")
-      // FIXME: row children
-      // .row(
-      // q()
-      .view(k("view__fileLink"), { id: "fieldId" })
-      .view(k("view__maybeLink"), { fieldId: "fieldId", value: "value" })
-      // .build()
-      // )
+      .row((q) =>
+        q
+          .view(k("view__fileLink"), { id: "fieldId" })
+          .view(k("view__maybeLink"), { fieldId: "fieldId", value: "value" })
+      )
       .build(),
   },
   view__maybeLink: {
@@ -83,14 +81,11 @@ export const views = {
     view__query: q("id")
       .get("fieldId", "field__index", k("ref"))
       .get("refId", v("fieldId"), "id")
-
-      // FIXME: row children
-      //   .row(
-      //     q()
-      .view(k("view__fileLink"), { id: "fieldId" })
-      .view(k("view__fileLink"), { id: "refId" })
-      // .build()
-      // )
+      .row((q) =>
+        q
+          .view(k("view__fileLink"), { id: "fieldId" })
+          .view(k("view__fileLink"), { id: "refId" })
+      )
       .build(),
   },
   view__text: {

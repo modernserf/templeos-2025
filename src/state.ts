@@ -31,7 +31,6 @@ const initDB: Record<string, Rec> = {
   // Rules
   rule__push: {
     db__schema: "schema__rule",
-    rule__id: "push",
     rule__query: q("windowId", "id", "view", "data")
       .get("windowId", "window__currentHistory", "currentId")
       .id("h")
@@ -49,7 +48,6 @@ const initDB: Record<string, Rec> = {
   },
   rule__replace: {
     db__schema: "schema__rule",
-    rule__id: "replace",
     rule__query: q("windowId", "id", "view", "data")
       .get("windowId", "window__currentHistory", "currentId")
       .get("currentId", "history__location", "_id")
@@ -62,7 +60,6 @@ const initDB: Record<string, Rec> = {
   },
   rule__back: {
     db__schema: "schema__rule",
-    rule__id: "back",
     rule__query: q("windowId")
       .get("windowId", "window__currentHistory", "currentId")
       .get("currentId", "history__back", "backId")
@@ -73,7 +70,6 @@ const initDB: Record<string, Rec> = {
   },
   rule__forward: {
     db__schema: "schema__rule",
-    rule__id: "forward",
     rule__query: q("windowId")
       .get("windowId", "window__currentHistory", "currentId")
       .get("currentId", "history__forward", "forwardId")
@@ -84,7 +80,6 @@ const initDB: Record<string, Rec> = {
   },
   rule__newWindow: {
     db__schema: "schema__rule",
-    rule__id: "newWindow",
     rule__query: q("id", "view", "data")
       .id("w")
       .id("h")
@@ -102,14 +97,12 @@ const initDB: Record<string, Rec> = {
   },
   rule__selectWindow: {
     db__schema: "schema__rule",
-    rule__id: "selectWindow",
     rule__query: q("windowId") //
       .update(k("browser"), "browser__currentWindow", "windowId")
       .build(),
   },
   rule__closeWindow: {
     db__schema: "schema__rule",
-    rule__id: "closeWindow",
     rule__query: q("windowId") //
       .insert("windowId", k(null))
       .update(k("browser"), "browser__currentWindow", k(null))

@@ -4,21 +4,25 @@ import { k } from "./expr";
 import { Link, TabProvider } from "./primitive";
 import * as primitiveViews from "./primitive";
 import "./App.css";
+import { ViewPrimitive } from "./schema";
+import { QueryResult } from "./runtime";
 
-const qRootView = q("id", "view", "data")
-  .view("view", { id: "id", view: "view", data: "data" })
-  .build();
-
-function RootView({ id, view, data }) {
-  const renders = Array.from(useRender(qRootView, { id, view, data }));
-
+function Primitive({
+  primitive,
+  args,
+  children,
+}: {
+  primitive: ViewPrimitive;
+  args: Record<string, unknown>;
+  children: (QueryResult & { tag: "viewPrimitive" })[];
+}) {
+  const View = primitiveViews[primitive];
   return (
-    <>
-      {renders.map(({ primitive, args }, i) => {
-        const PrimitiveView = primitiveViews[primitive];
-        return <PrimitiveView key={i} {...args} />;
-      })}
-    </>
+    <View {...args}>
+      {children.map((child, i) => (
+        <Primitive key={i} {...child} />
+      ))}
+    </View>
   );
 }
 
@@ -31,14 +35,18 @@ const qAppWindow = q("windowId")
   .build();
 
 const qViewsForType = q("id")
-  .get("id", "db__schema", "schema")
-  .get("view", "view__schema", "schema")
+  .or((q) =>
+    q
+      .get("id", "db__schema", "schema")
+      .get("view", "view__schema", "schema")
+      .get("view", "file__name", "viewName")
+  )
+  .get("view", "view__schema", k("schema__anyType"))
   .get("view", "file__name", "viewName")
   .build();
 
-const qViewsForAnyType = q()
-  .get("view", "view__schema", k("schema__anyType"))
-  .get("view", "file__name", "viewName")
+const qRootView = q("id", "view", "data")
+  .view("view", { id: "id", view: "view", data: "data" })
   .build();
 
 function AppWindow({
@@ -51,12 +59,12 @@ function AppWindow({
   const dispatch = useDispatch();
   const { data, id, viewId, fileName } = useQuery(qAppWindow, { windowId })!;
 
-  const viewers = [
-    ...useQueryAll(qViewsForType, { id }),
-    ...useQueryAll(qViewsForAnyType),
-  ];
+  const viewers = [...useQueryAll(qViewsForType, { id })];
 
-  const activeView = (viewId as string) || viewers[0].view;
+  const view = (viewId as string) || viewers[0].view;
+  const renders = Array.from(
+    useRender(qRootView, { id, view, data: data ?? {} })
+  );
 
   return (
     <TabProvider value={windowId}>
@@ -66,16 +74,16 @@ function AppWindow({
           .filter(Boolean)
           .join(" ")}
         onMouseDownCapture={() => {
-          dispatch("selectWindow", { windowId });
+          dispatch("rule__selectWindow", { windowId });
         }}
         onKeyDownCapture={(e) => {
           if (e.key == "[" && e.metaKey) {
             e.preventDefault();
-            dispatch("back", { windowId });
+            dispatch("rule__back", { windowId });
           }
           if (e.key == "]" && e.metaKey) {
             e.preventDefault();
-            dispatch("forward", { windowId });
+            dispatch("rule__forward", { windowId });
           }
         }}
       >
@@ -84,15 +92,15 @@ function AppWindow({
             className="AppWindow__closeButton"
             type="button"
             onClick={() => {
-              dispatch("closeWindow", { windowId });
+              dispatch("rule__closeWindow", { windowId });
             }}
           ></button>
           <h1 className="AppWindow__title">{fileName as string}</h1>
           <select
             className="AppWindow__viewMenu"
-            value={activeView as string}
+            value={view as string}
             onChange={(e) => {
-              dispatch("replace", {
+              dispatch("rule__replace", {
                 windowId,
                 view: e.target.value,
               });
@@ -105,7 +113,9 @@ function AppWindow({
             ))}
           </select>
         </header>
-        <RootView id={id} view={activeView as string} data={data ?? {}} />
+        {renders.map((props, i) => (
+          <Primitive key={i} {...props} />
+        ))}
       </div>
     </TabProvider>
   );
@@ -127,7 +137,7 @@ function AppMenu() {
       <button
         type="button"
         onClick={() => {
-          dispatch("back", { windowId: win?.id as string });
+          dispatch("rule__back", { windowId: win?.id as string });
         }}
         disabled={!win?.back}
       >
@@ -136,7 +146,7 @@ function AppMenu() {
       <button
         type="button"
         onClick={() => {
-          dispatch("forward", { windowId: win?.id as string });
+          dispatch("rule__forward", { windowId: win?.id as string });
         }}
         disabled={!win?.forward}
       >

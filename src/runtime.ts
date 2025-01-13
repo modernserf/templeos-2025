@@ -86,9 +86,14 @@ class QueryState {
   }
 }
 
-type QueryResult =
+export type QueryResult =
   | { tag: "result"; value: QueryArgs }
-  | { tag: "viewPrimitive"; args: QueryArgs; primitive: ViewPrimitive };
+  | {
+      tag: "viewPrimitive";
+      args: QueryArgs;
+      primitive: ViewPrimitive;
+      children: QueryResult[];
+    };
 
 export class Runtime {
   constructor(private db: DB<Rec>) {}
@@ -189,6 +194,30 @@ export class Runtime {
       }
     }
   }
+  private *runRule(state: QueryState, q: QueryItem & { tag: "rule" }) {
+    const ruleId = state.get<Id>(q.rule);
+    const rule = this.db.get(ruleId);
+    if (!rule || !rule.rule__query) {
+      console.log(q, ruleId, rule);
+      throw new Error(`Unknown rule ${ruleId}`);
+    }
+    const ruleArgs: QueryArgs = {};
+    for (const key of rule.rule__query.params) {
+      const expr = q.args[key];
+      if (expr) {
+        ruleArgs[key] = state.get(expr);
+      } else {
+        ruleArgs[key] = undefined;
+      }
+    }
+    yield* this.runQuery(QueryState.init(rule.rule__query, ruleArgs));
+    // TODO
+    // for (const key of Object.keys(q.args)) {
+    //   setVar(args, { tag: "ident", ident: key }, ruleArgs[key]);
+    // }
+
+    yield* this.runQuery(state);
+  }
   // TODO: running view and rule should be similar
   private *runView(state: QueryState, q: QueryItem & { tag: "view" }) {
     const viewId = state.get<Id>(q.view);
@@ -196,7 +225,16 @@ export class Runtime {
     if (!view) throw new Error(`unknown view ${viewId}`);
     const args = state.getArgs(q.args);
     if (view.view__primitive) {
-      yield { tag: "viewPrimitive", args, primitive: view.view__primitive };
+      const children = Array.from(
+        this.runQuery(new QueryState(q.children, state.getState()))
+      ).filter((r) => r.tag === "viewPrimitive");
+
+      yield {
+        tag: "viewPrimitive",
+        args,
+        primitive: view.view__primitive,
+        children,
+      };
     } else if (view.view__query) {
       for (const res of this.runQuery(
         QueryState.init(view.view__query, args)
@@ -275,32 +313,11 @@ export class Runtime {
         return;
       }
       case "rule": {
-        const rule = this.db.getRule(q.rule);
-        if (!rule) throw new Error();
-        const ruleArgs: QueryArgs = {};
-        for (const key of rule.query.params) {
-          const expr = q.args[key];
-          if (expr) {
-            ruleArgs[key] = state.get(expr);
-          } else {
-            ruleArgs[key] = undefined;
-          }
-        }
-        yield* this.runQuery(QueryState.init(rule.query, ruleArgs));
-        // TODO
-        // for (const key of Object.keys(q.args)) {
-        //   setVar(args, { tag: "ident", ident: key }, ruleArgs[key]);
-        // }
-
-        yield* this.runQuery(state);
+        yield* this.runRule(state, q);
         return;
       }
       case "or": {
-        for (const subquery of q.queries) {
-          yield* this.runQuery(
-            new QueryState(subquery.items, state.getState())
-          );
-        }
+        yield* this.runQuery(new QueryState(q.items, state.getState()));
         yield* this.runQuery(state);
         return;
       }
@@ -311,12 +328,13 @@ export class Runtime {
           if (res.tag === "result") {
             didSucceed = true;
             yield* this.runQuery(new QueryState(q.then, res.value));
+            yield* this.runQuery(state);
           }
         }
         if (!didSucceed) {
           yield* this.runQuery(new QueryState(q.else, state.getState()));
+          yield* this.runQuery(state);
         }
-        yield* this.runQuery(state);
         return;
       }
     }

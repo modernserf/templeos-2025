@@ -40,9 +40,9 @@ export function Link({
       className="Link"
       onClick={(e) => {
         if (e.metaKey || target === "new") {
-          dispatch("newWindow", { id, view, data });
+          dispatch("rule__newWindow", { id, view, data });
         } else {
-          dispatch("push", { windowId, id, view, data });
+          dispatch("rule__push", { windowId, id, view, data });
         }
       }}
     >
@@ -78,6 +78,8 @@ const allQuery = q() //
   .get("id")
   .get("id", "file__name", "name")
   .get("id", "file__description", "description")
+  .get("id", "db__schema", "schemaId")
+  .get("schemaId", "file__name", "schemaName")
   .build();
 
 // TODO: put these into DB ("where" and "limit" respectively)
@@ -131,19 +133,24 @@ export function OmniboxView(props: BrowseParams) {
         value={omnibox}
         ref={ref}
         onChange={(e) => {
-          dispatch("replace", {
+          dispatch("rule__replace", {
             windowId,
             data: { omnibox: e.target.value },
           });
         }}
       />
       <ul className="OmniboxView__list">
-        {[...filtered].map(({ id, name, description }) => (
-          <li key={id as string} className="OmniboxView__listItem">
-            <Link id={id as string} label={name as string} />{" "}
-            <span>{description as string}</span>
-          </li>
-        ))}
+        {[...filtered].map(
+          ({ id, name, description, schemaId, schemaName }) => (
+            <li key={id as string} className="OmniboxView__listItem">
+              <Link id={id as string} label={name as string} />
+              {schemaId && (
+                <Link id={schemaId as string} label={schemaName as string} />
+              )}
+              <span>{description as string}</span>
+            </li>
+          )
+        )}
       </ul>
     </div>
   );

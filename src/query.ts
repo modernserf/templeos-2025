@@ -12,7 +12,7 @@ export type QueryItem =
   | { tag: "get/3"; id: Expr; field: Expr; value: Expr }
   | { tag: "insert"; id: Expr; record: Expr }
   | { tag: "update"; id: Expr; field: Expr; value: Expr }
-  | { tag: "rule"; rule: Rule; args: Record<string, Expr> }
+  | { tag: "rule"; rule: Expr; args: Record<string, Expr> }
   | {
       tag: "view";
       view: Expr;
@@ -20,7 +20,7 @@ export type QueryItem =
       children: QueryItem[];
     }
   | { tag: "cond"; if: QueryItem[]; then: QueryItem[]; else: QueryItem[] }
-  | { tag: "or"; queries: Query[] };
+  | { tag: "or"; items: QueryItem[] };
 
 export type Query = {
   params: Ident[];
@@ -99,10 +99,10 @@ class QueryBuilder {
     });
     return this;
   }
-  rule(rule: Rule, args: Record<string, Arg>) {
+  rule(rule: KArg, args: Record<string, Arg>) {
     this.items.push({
       tag: "rule",
-      rule,
+      rule: kToExpr(rule),
       args: Object.fromEntries(
         Object.entries(args).map(([k, v]) => [k, toExpr(v)])
       ),
@@ -138,21 +138,21 @@ class QueryBuilder {
     });
     return this;
   }
-  row(children: QueryItem[]) {
+  row(fn: QBCallback) {
     this.items.push({
       tag: "view",
       view: k("view__row"),
       args: {},
-      children,
+      children: fn(new QueryBuilder(this.params)).build().items,
     });
     return this;
   }
-  column(children: QueryItem[]) {
+  column(fn: QBCallback) {
     this.items.push({
       tag: "view",
       view: k("view__column"),
       args: {},
-      children,
+      children: fn(new QueryBuilder(this.params)).build().items,
     });
     return this;
   }
@@ -165,11 +165,10 @@ class QueryBuilder {
     });
     return this;
   }
-  or(...fns: QBCallback[]) {
-    const queries = fns.map((f) => f(new QueryBuilder(this.params)).build());
+  or(fn: QBCallback) {
     this.items.push({
       tag: "or",
-      queries,
+      items: fn(new QueryBuilder(this.params)).build().items,
     });
     return this;
   }
