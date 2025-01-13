@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect, useRef } from "react";
 import { BrowseParams, useDispatch, useQueryAll } from "./state";
-import { q } from "./db";
+import { q } from "./runtime";
 import { FormatTextNode } from "./view";
 
 type Target = "current" | "new";

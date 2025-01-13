@@ -1,5 +1,6 @@
 import { useContext, createContext, useState, useEffect } from "react";
-import { DB, q, Query } from "./db";
+import { DB } from "./db";
+import { Runtime, q, Query } from "./runtime";
 import { k, or } from "./expr";
 import { FormatTextBuilder, views } from "./view";
 import { fields, Rec, schemas } from "./schema";
@@ -156,18 +157,18 @@ const initDB: Record<string, Rec> = {
   },
 };
 
-export const database = new DB<Rec>();
-database.bulkInsert(initDB);
+export const runtime = new Runtime(new DB());
+runtime.bulkInsert(initDB);
 
 declare global {
   interface Window {
-    db: DB<Rec>;
+    runtime: Runtime;
   }
 }
 
-window.db = database;
+window.runtime = runtime;
 
-const dbContext = createContext(new DB<Rec>());
+const dbContext = createContext(runtime);
 export const DBProvider = dbContext.Provider;
 
 // TODO: separate query / command handlers

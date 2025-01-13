@@ -1,5 +1,5 @@
 import { useDispatch, useQuery, useQueryAll } from "./state";
-import { q, Query } from "./db";
+import { q, Query } from "./runtime";
 import { k, Scope } from "./expr";
 import { HydratedViewElement, hydrateViewElement, ViewElement } from "./view";
 import { Link, TabProvider } from "./primitive";

@@ -4,7 +4,6 @@ import * as primitives from "./primitive";
 
 type Id = string;
 
-// TODO enum
 export type ViewPrimitive = keyof typeof primitives;
 
 export type Rec = {
@@ -86,7 +85,7 @@ export const schemas = {
 } satisfies Record<string, SchemaRec>;
 
 type FieldRec = Rec & { db__schema: "schema__field" };
-export type FieldId = keyof typeof fields;
+export type Field = keyof typeof fields;
 
 export const fields = {
   db__schema: {
