@@ -1,45 +1,23 @@
 import { useDispatch, useQuery, useQueryAll, useRender } from "./state";
-import { q, Query } from "./query";
-import { k, Scope } from "./expr";
+import { q } from "./query";
+import { k } from "./expr";
 import { Link, TabProvider } from "./primitive";
 import * as primitiveViews from "./primitive";
-import { ViewPrimitive } from "./schema";
 import "./App.css";
 
-const qView = q("view") //
-  .get("view", "view__query", "query")
-  // .get("view", "view__noResults", "noResultEls")
-  .get("view", "view__primitive", "primitive")
+const qRootView = q("id", "view", "data")
+  .view("view", { id: "id", view: "view", data: "data" })
   .build();
-function SubView({
-  view,
-  args,
-}: // children,
-{
-  view: string;
-  args: Scope;
-  // children?: HydratedViewElement[];
-}) {
-  const { query, primitive } = useQuery(qView, { view })!;
-  const renders = Array.from(useRender((query as Query) ?? q(), args));
 
-  if (primitive) {
-    const PrimitiveView = primitiveViews[primitive as ViewPrimitive];
-    return (
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      <PrimitiveView {...(args as any)}>
-        {/* {(children ?? []).map((childProps, i) => (
-          <SubView key={i} {...childProps} />
-        ))} */}
-      </PrimitiveView>
-    );
-  }
+function RootView({ id, view, data }) {
+  const renders = Array.from(useRender(qRootView, { id, view, data }));
 
   return (
     <>
-      {renders.map((el, i) => (
-        <SubView key={i} {...el} />
-      ))}
+      {renders.map(({ primitive, args }, i) => {
+        const PrimitiveView = primitiveViews[primitive];
+        return <PrimitiveView key={i} {...args} />;
+      })}
     </>
   );
 }
@@ -127,10 +105,7 @@ function AppWindow({
             ))}
           </select>
         </header>
-        <SubView
-          view={activeView as string}
-          args={{ id, view: activeView, data: data ?? {} }}
-        />
+        <RootView id={id} view={activeView as string} data={data ?? {}} />
       </div>
     </TabProvider>
   );

@@ -1,8 +1,7 @@
 import { numberOrd, Where } from "./index";
 import { DB } from "./db";
 import { Expr, getVar, Ident, isOut, setVar } from "./expr";
-import { Rec, Field } from "./schema";
-import { ViewElement } from "./view";
+import { Rec, Field, ViewPrimitive } from "./schema";
 import { Query, QueryItem } from "./query";
 
 type Id = string;
@@ -25,21 +24,6 @@ export type HydratedViewElement = {
   args: Record<string, unknown>;
   children: HydratedViewElement[];
 };
-
-export function hydrateViewElement(
-  scope: Record<string, unknown>,
-  el: ViewElement
-): HydratedViewElement {
-  const view = getVar<string>(scope, el.view);
-  const args = Object.fromEntries(
-    Object.entries(el.args).map(([k, v]) => [k, getVar(scope, v)])
-  );
-  const children = (el.children ?? []).map((child) =>
-    hydrateViewElement(scope, child)
-  );
-
-  return { view, args, children };
-}
 
 class QueryState {
   constructor(
@@ -65,8 +49,10 @@ class QueryState {
   set(binding: Expr, value: unknown): boolean {
     return setVar(this.args, binding, value);
   }
-  hydrateView(view: ViewElement): HydratedViewElement {
-    return hydrateViewElement(this.args, view);
+  getArgs(args: Record<string, Expr>) {
+    return Object.fromEntries(
+      Object.entries(args).map(([k, v]) => [k, this.get(v)])
+    );
   }
   advance() {
     const current = this.queryItems[this.index];
@@ -102,7 +88,7 @@ class QueryState {
 
 type QueryResult =
   | { tag: "result"; value: QueryArgs }
-  | { tag: "view"; value: HydratedViewElement };
+  | { tag: "viewPrimitive"; args: QueryArgs; primitive: ViewPrimitive };
 
 export class Runtime {
   constructor(private db: DB<Rec>) {}
@@ -116,7 +102,7 @@ export class Runtime {
   }
   *render(query: Query, args: QueryArgs = {}) {
     for (const result of this.runQuery(QueryState.init(query, args))) {
-      if (result.tag === "view") yield result.value;
+      if (result.tag === "viewPrimitive") yield result;
     }
   }
   query1(query: Query, args: QueryArgs = {}) {
@@ -203,6 +189,24 @@ export class Runtime {
       }
     }
   }
+  // TODO: running view and rule should be similar
+  private *runView(state: QueryState, q: QueryItem & { tag: "view" }) {
+    const viewId = state.get<Id>(q.view);
+    const view = this.db.get(viewId);
+    if (!view) throw new Error(`unknown view ${viewId}`);
+    const args = state.getArgs(q.args);
+    if (view.view__primitive) {
+      yield { tag: "viewPrimitive", args, primitive: view.view__primitive };
+    } else if (view.view__query) {
+      for (const res of this.runQuery(
+        QueryState.init(view.view__query, args)
+      )) {
+        if (res.tag === "viewPrimitive") yield res;
+      }
+    }
+
+    yield* this.runQuery(state);
+  }
   private *runQuery(
     state: QueryState
   ): Generator<QueryResult, undefined, undefined> {
@@ -213,8 +217,7 @@ export class Runtime {
     }
     switch (q.tag) {
       case "view":
-        yield { tag: "view", value: state.hydrateView(q) };
-        yield* this.runQuery(state);
+        yield* this.runView(state, q);
         return;
       case "get/1":
         yield* this.runGet1(state, q);
