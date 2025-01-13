@@ -1,7 +1,15 @@
 import { createContext, ReactNode, useContext, useEffect, useRef } from "react";
-import { BrowseParams, useDispatch, useQueryAll, useUpdate } from "./state";
+import {
+  BrowseParams,
+  useDispatch,
+  useQueryAll,
+  useRender,
+  useUpdate,
+} from "./state";
 import { q } from "./query";
 import { FormatTextNode } from "./view";
+import { QueryResult } from "./runtime";
+import { k } from "./expr";
 
 type Target = "current" | "new";
 
@@ -9,23 +17,23 @@ const tabContext = createContext("rootWindow");
 export const TabProvider = tabContext.Provider;
 
 // TODO: want to do non-hierarchichal layout
-export function Row({ children }: { children: ReactNode }) {
+function Row({ children }: { children: ReactNode }) {
   return <div className="Row">{children}</div>;
 }
 
-export function Column({ children }: { children: ReactNode }) {
+function Column({ children }: { children: ReactNode }) {
   return <div className="Column">{children}</div>;
 }
 
-export function AnyData({ value }: { value: unknown }) {
+function AnyData({ value }: { value: unknown }) {
   return <pre>{JSON.stringify(value, null, 2)}</pre>;
 }
 
-export function String({ value }: { value: string }) {
+function String({ value }: { value: string }) {
   return <div>{value}</div>;
 }
 
-export function Button({ label, query, scope }: { label: string }) {
+function Button({ label, query, scope }: { label: string }) {
   const update = useUpdate();
   return (
     <button
@@ -65,11 +73,11 @@ export function Link({
   );
 }
 
-export function IconView() {
+function IconView() {
   return <div style={{ textAlign: "center", fontSize: 32 }}>📄</div>;
 }
 
-export function TextView({ text }: { text: FormatTextNode[] }) {
+function TextView({ text }: { text: FormatTextNode[] }) {
   return (
     <>
       {text.map((node, i) => {
@@ -87,14 +95,6 @@ export function TextView({ text }: { text: FormatTextNode[] }) {
     </>
   );
 }
-
-const allQuery = q() //
-  .get("id")
-  .get("id", "file__name", "name")
-  .get("id", "file__description", "description")
-  .get("id", "db__schema", "schemaId")
-  .get("schemaId", "file__name", "schemaName")
-  .build();
 
 // TODO: put these into DB ("where" and "limit" respectively)
 function* filter<T>(f: (t: T) => boolean, iter: Iterable<T>) {
@@ -115,7 +115,22 @@ function* take<T>(count: number, iter: Iterable<T>) {
   }
 }
 
-export function OmniboxView(props: BrowseParams) {
+const allQuery = q() //
+  .get("id")
+  .get("id", "file__name", "name")
+  .get("id", "file__description", "description")
+  .get("id", "db__schema", "schemaId")
+  .get("schemaId", "file__name", "schemaName")
+  .build();
+
+const rowQuery = q("id", "name", "description", "schemaId", "schemaName")
+  .row((q) =>
+    q.link("name", "id").string(k(":")).link("schemaName", "schemaId")
+  )
+  .string("description")
+  .build();
+
+function OmniboxView(props: BrowseParams) {
   const { data } = props;
   const results = useQueryAll(allQuery);
   const dispatch = useDispatch();
@@ -154,26 +169,56 @@ export function OmniboxView(props: BrowseParams) {
         }}
       />
       <ul className="OmniboxView__list">
-        {[...filtered].map(
-          ({ id, name, description, schemaId, schemaName }) => (
-            <li key={id as string} className="OmniboxView__listItem">
-              <span className="Row">
-                <Link id={id as string} label={name as string} />
-                {!!schemaId && (
-                  <>
-                    <span>:</span>
-                    <Link
-                      id={schemaId as string}
-                      label={schemaName as string}
-                    />
-                  </>
-                )}
-              </span>
-              <span>{description as string}</span>
-            </li>
-          )
-        )}
+        {[...filtered].map((args) => (
+          <li key={args.id as string} className="OmniboxView__listItem">
+            <Query query={rowQuery} args={args} />
+          </li>
+        ))}
       </ul>
     </div>
+  );
+}
+
+const primitiveViews = {
+  Row,
+  Column,
+  AnyData,
+  String,
+  Button,
+  Link,
+  IconView,
+  TextView,
+  OmniboxView,
+};
+
+function Primitive({
+  primitive,
+  args,
+  scope,
+  children,
+}: {
+  primitive: keyof typeof primitiveViews;
+  args: Record<string, any>;
+  scope: Record<string, any>;
+  children: (QueryResult & { tag: "viewPrimitive" })[];
+}) {
+  const View = primitiveViews[primitive];
+  return (
+    <View scope={scope} {...args}>
+      {children.map((child, i) => (
+        <Primitive key={i} {...child} />
+      ))}
+    </View>
+  );
+}
+
+export function Query({ query, args }) {
+  const res = Array.from(useRender(query, args));
+  return (
+    <>
+      {res.map((props, i) => (
+        <Primitive key={i} {...props} />
+      ))}
+    </>
   );
 }

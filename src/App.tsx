@@ -1,31 +1,8 @@
-import { useDispatch, useQuery, useQueryAll, useRender } from "./state";
+import { useDispatch, useQuery, useQueryAll } from "./state";
 import { q } from "./query";
 import { k } from "./expr";
-import { TabProvider } from "./primitive";
-import * as primitiveViews from "./primitive";
+import { TabProvider, Query } from "./primitive";
 import "./App.css";
-import { ViewPrimitive } from "./schema";
-import { QueryResult } from "./runtime";
-
-function Primitive({
-  primitive,
-  args,
-  scope,
-  children,
-}: {
-  primitive: ViewPrimitive;
-  args: Record<string, unknown>;
-  children: (QueryResult & { tag: "viewPrimitive" })[];
-}) {
-  const View = primitiveViews[primitive];
-  return (
-    <View scope={scope} {...args}>
-      {children.map((child, i) => (
-        <Primitive key={i} {...child} />
-      ))}
-    </View>
-  );
-}
 
 const qAppWindow = q("windowId")
   .get("windowId", "window__currentHistory", "historyId")
@@ -59,13 +36,8 @@ function AppWindow({
 }) {
   const dispatch = useDispatch();
   const { data, id, viewId, fileName } = useQuery(qAppWindow, { windowId })!;
-
   const viewers = [...useQueryAll(qViewsForType, { id })];
-
   const view = (viewId as string) || viewers[0].view;
-  const renders = Array.from(
-    useRender(qRootView, { id, view, data: data ?? {} })
-  );
 
   return (
     <TabProvider value={windowId}>
@@ -114,9 +86,7 @@ function AppWindow({
             ))}
           </select>
         </header>
-        {renders.map((props, i) => (
-          <Primitive key={i} {...props} />
-        ))}
+        <Query query={qRootView} args={{ id, view, data: data ?? {} }} />
       </div>
     </TabProvider>
   );
@@ -131,15 +101,11 @@ const qAppMenu = q().view(k("view__appMenu"), {}).build();
 
 function App() {
   const windows = useQueryAll(qApp)!;
-  const appMenu = Array.from(useRender(qAppMenu));
   return (
     <>
       <nav>
-        {appMenu.map((props, i) => (
-          <Primitive key={i} {...props} />
-        ))}
+        <Query query={qAppMenu} args={{}} />
       </nav>
-      {/* <AppMenu /> */}
       {[...windows].map(({ id, currentWindow }) => (
         <AppWindow
           key={id as string}
