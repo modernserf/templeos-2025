@@ -154,6 +154,11 @@ export const views = {
     file__name: "String",
     view__primitive: "String",
   },
+  view__button: {
+    db__schema: "schema__view",
+    file__name: "Button",
+    view__primitive: "Button",
+  },
   view__link: {
     db__schema: "schema__view",
     file__name: "Link",
@@ -184,5 +189,29 @@ export const views = {
     db__schema: "schema__view",
     file__name: "Column layout",
     view__primitive: "Column",
+  },
+  view__appMenu: {
+    db__schema: "schema__view",
+    file__name: "App menu",
+    view__query: q()
+      .row((q) =>
+        q
+          .or((q) =>
+            q
+              .get(k("browser"), "browser__currentWindow", "windowId")
+              .get("windowId", "window__currentHistory", "currentHistory")
+              .get("currentHistory", "history__back", "back")
+              .get("currentHistory", "history__forward", "forward")
+              .button(k("back"), (q) =>
+                q.rule("rule__back", { windowId: "windowId" })
+              )
+              .button(k("forward"), (q) =>
+                q.rule("rule__forward", { windowId: "windowId" })
+              )
+          )
+          .link(k("home"), k("home"), k("new"))
+          .link(k("omnibox"), k("omnibox"), k("new"))
+      )
+      .build(),
   },
 } satisfies Record<string, ViewRec>;

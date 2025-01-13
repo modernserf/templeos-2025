@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useContext, useEffect, useRef } from "react";
-import { BrowseParams, useDispatch, useQueryAll } from "./state";
+import { BrowseParams, useDispatch, useQueryAll, useUpdate } from "./state";
 import { q } from "./query";
 import { FormatTextNode } from "./view";
 
@@ -23,6 +23,20 @@ export function AnyData({ value }: { value: unknown }) {
 
 export function String({ value }: { value: string }) {
   return <div>{value}</div>;
+}
+
+export function Button({ label, query, scope }: { label: string }) {
+  const update = useUpdate();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        update(query, scope);
+      }}
+    >
+      {label}
+    </button>
+  );
 }
 
 export function Link({

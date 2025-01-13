@@ -19,12 +19,6 @@ function whereValue(valueId: Id): Where<RefIndex> {
   };
 }
 
-export type HydratedViewElement = {
-  view: string;
-  args: Record<string, unknown>;
-  children: HydratedViewElement[];
-};
-
 class QueryState {
   constructor(
     private queryItems: QueryItem[],
@@ -90,6 +84,7 @@ export type QueryResult =
   | { tag: "result"; value: QueryArgs }
   | {
       tag: "viewPrimitive";
+      scope: QueryArgs;
       args: QueryArgs;
       primitive: ViewPrimitive;
       children: QueryResult[];
@@ -123,7 +118,7 @@ export class Runtime {
   }
   update(query: Query, args: QueryArgs = {}) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const _ of this.runQuery(QueryState.init(query, args))) {
+    for (const _ of this.runQuery(new QueryState(query.items, args))) {
       // empty
     }
     this.notifyEventListeners();
@@ -197,19 +192,8 @@ export class Runtime {
   private *runRule(state: QueryState, q: QueryItem & { tag: "rule" }) {
     const ruleId = state.get<Id>(q.rule);
     const rule = this.db.get(ruleId);
-    if (!rule || !rule.rule__query) {
-      console.log(q, ruleId, rule);
-      throw new Error(`Unknown rule ${ruleId}`);
-    }
-    const ruleArgs: QueryArgs = {};
-    for (const key of rule.rule__query.params) {
-      const expr = q.args[key];
-      if (expr) {
-        ruleArgs[key] = state.get(expr);
-      } else {
-        ruleArgs[key] = undefined;
-      }
-    }
+    if (!rule || !rule.rule__query) throw new Error(`Unknown rule ${ruleId}`);
+    const ruleArgs = state.getArgs(q.args);
     yield* this.runQuery(QueryState.init(rule.rule__query, ruleArgs));
     // TODO
     // for (const key of Object.keys(q.args)) {
@@ -218,8 +202,10 @@ export class Runtime {
 
     yield* this.runQuery(state);
   }
-  // TODO: running view and rule should be similar
-  private *runView(state: QueryState, q: QueryItem & { tag: "view" }) {
+  private *runView(
+    state: QueryState,
+    q: QueryItem & { tag: "view" }
+  ): Generator<QueryResult, undefined, undefined> {
     const viewId = state.get<Id>(q.view);
     const view = this.db.get(viewId);
     if (!view) throw new Error(`unknown view ${viewId}`);
@@ -234,6 +220,7 @@ export class Runtime {
         args,
         primitive: view.view__primitive,
         children,
+        scope: state.getState(),
       };
     } else if (view.view__query) {
       for (const res of this.runQuery(

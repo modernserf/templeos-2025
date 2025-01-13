@@ -1,7 +1,7 @@
 import { useDispatch, useQuery, useQueryAll, useRender } from "./state";
 import { q } from "./query";
 import { k } from "./expr";
-import { Link, TabProvider } from "./primitive";
+import { TabProvider } from "./primitive";
 import * as primitiveViews from "./primitive";
 import "./App.css";
 import { ViewPrimitive } from "./schema";
@@ -10,6 +10,7 @@ import { QueryResult } from "./runtime";
 function Primitive({
   primitive,
   args,
+  scope,
   children,
 }: {
   primitive: ViewPrimitive;
@@ -18,7 +19,7 @@ function Primitive({
 }) {
   const View = primitiveViews[primitive];
   return (
-    <View {...args}>
+    <View scope={scope} {...args}>
       {children.map((child, i) => (
         <Primitive key={i} {...child} />
       ))}
@@ -121,53 +122,24 @@ function AppWindow({
   );
 }
 
-const qAppMenu = q()
-  .get(k("browser"), "browser__currentWindow", "id")
-  .get("id", "window__currentHistory", "currentHistory")
-  .get("currentHistory", "history__back", "back")
-  .get("currentHistory", "history__forward", "forward")
-  .build();
-
-function AppMenu() {
-  const dispatch = useDispatch();
-  const win = useQuery(qAppMenu);
-
-  return (
-    <nav>
-      <button
-        type="button"
-        onClick={() => {
-          dispatch("rule__back", { windowId: win?.id as string });
-        }}
-        disabled={!win?.back}
-      >
-        Back
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          dispatch("rule__forward", { windowId: win?.id as string });
-        }}
-        disabled={!win?.forward}
-      >
-        Forward
-      </button>
-      <Link id="home" target="new" label="Home" />
-      <Link id="omnibox" target="new" label="Omnibox" />
-    </nav>
-  );
-}
-
 const qApp = q()
   .get(k("browser"), "browser__currentWindow", "currentWindow")
   .get("id", "db__schema", k("schema__window"))
   .build();
 
+const qAppMenu = q().view(k("view__appMenu"), {}).build();
+
 function App() {
   const windows = useQueryAll(qApp)!;
+  const appMenu = Array.from(useRender(qAppMenu));
   return (
     <>
-      <AppMenu />
+      <nav>
+        {appMenu.map((props, i) => (
+          <Primitive key={i} {...props} />
+        ))}
+      </nav>
+      {/* <AppMenu /> */}
       {[...windows].map(({ id, currentWindow }) => (
         <AppWindow
           key={id as string}

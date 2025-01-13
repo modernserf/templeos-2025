@@ -199,6 +199,13 @@ export function useQueryAll(b: Query, args?: Record<string, unknown>) {
   return db.queryAll(b, args);
 }
 
+export function useUpdate() {
+  const db = useContext(dbContext);
+  return function (query: Query, args: Record<string, unknown> = {}) {
+    db.update(query, args);
+  };
+}
+
 export function useDispatch() {
   const db = useContext(dbContext);
   return function (rule: string, args: Record<string, unknown> = {}) {

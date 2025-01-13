@@ -1,7 +1,5 @@
 import { Expr, Ident, Arg, KArg, kToExpr, toExpr, k } from "./expr";
 
-type Rule = string;
-
 export type QueryItem =
   | { tag: "rollback" }
   | { tag: "id"; id: Expr }
@@ -26,6 +24,14 @@ export type Query = {
   params: Ident[];
   items: QueryItem[];
 };
+
+type ArgRecord = Record<string, Arg>;
+
+function toRecordExpr(args: ArgRecord) {
+  return Object.fromEntries(
+    Object.entries(args).map(([k, v]) => [k, toExpr(v)])
+  );
+}
 
 export const q = (...params: Ident[]) => new QueryBuilder(params);
 
@@ -99,23 +105,19 @@ class QueryBuilder {
     });
     return this;
   }
-  rule(rule: KArg, args: Record<string, Arg>) {
+  rule(rule: KArg, args: ArgRecord) {
     this.items.push({
       tag: "rule",
       rule: kToExpr(rule),
-      args: Object.fromEntries(
-        Object.entries(args).map(([k, v]) => [k, toExpr(v)])
-      ),
+      args: toRecordExpr(args),
     });
     return this;
   }
-  view(view: Arg, args: Record<string, Arg>) {
+  view(view: Arg, args: ArgRecord) {
     this.items.push({
       tag: "view",
       view: toExpr(view),
-      args: Object.fromEntries(
-        Object.entries(args).map(([k, v]) => [k, toExpr(v)])
-      ),
+      args: toRecordExpr(args),
       children: [],
     });
     return this;
@@ -129,11 +131,27 @@ class QueryBuilder {
     });
     return this;
   }
-  link(label: Arg, id: Arg) {
+  button(label: Arg, fn: QBCallback) {
+    this.items.push({
+      tag: "view",
+      view: k("view__button"),
+      args: {
+        label: toExpr(label),
+        query: k(fn(new QueryBuilder([])).build()),
+      },
+      children: [],
+    });
+    return this;
+  }
+  link(label: Arg, id: Arg, target?: Arg) {
     this.items.push({
       tag: "view",
       view: k("view__link"),
-      args: { label: toExpr(label), id: toExpr(id) },
+      args: {
+        label: toExpr(label),
+        id: toExpr(id),
+        target: target ? toExpr(target) : k("current"),
+      },
       children: [],
     });
     return this;

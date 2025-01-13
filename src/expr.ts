@@ -54,6 +54,7 @@ export function getVar<T>(scope: Scope, expr: Expr): T {
       return getVar<T>(scope, expr.expr) ?? getVar<T>(scope, expr.default);
     }
     default:
+      console.log(expr);
       throw new Error("unimplemented");
   }
 }
