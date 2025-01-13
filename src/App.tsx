@@ -1,7 +1,6 @@
 import { useDispatch, useQuery, useQueryAll, useRender } from "./state";
-import { q, Query, HydratedViewElement, hydrateViewElement } from "./runtime";
+import { q, Query } from "./query";
 import { k, Scope } from "./expr";
-import { ViewElement } from "./view";
 import { Link, TabProvider } from "./primitive";
 import * as primitiveViews from "./primitive";
 import { ViewPrimitive } from "./schema";
@@ -9,53 +8,37 @@ import "./App.css";
 
 const qView = q("view") //
   .get("view", "view__query", "query")
-  .get("view", "view__elements", "els")
-  .get("view", "view__noResults", "noResultEls")
-  .get("view", "view__primitive", "primitive");
+  // .get("view", "view__noResults", "noResultEls")
+  .get("view", "view__primitive", "primitive")
+  .build();
 function SubView({
   view,
   args,
-  children,
-}: {
+}: // children,
+{
   view: string;
   args: Scope;
-  children?: HydratedViewElement[];
+  // children?: HydratedViewElement[];
 }) {
-  const { els, noResultEls, query, primitive } = useQuery(qView, { view })!;
-  const result = Array.from(useQueryAll((query as Query) ?? q(), args));
+  const { query, primitive } = useQuery(qView, { view })!;
   const renders = Array.from(useRender((query as Query) ?? q(), args));
-
-  if (result.length === 0) {
-    return ((noResultEls as ViewElement[]) ?? []).map((el, i) => (
-      <SubView key={i} {...hydrateViewElement(args, el)} />
-    ));
-  }
 
   if (primitive) {
     const PrimitiveView = primitiveViews[primitive as ViewPrimitive];
     return (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       <PrimitiveView {...(args as any)}>
-        {(children ?? []).map((childProps, i) => (
+        {/* {(children ?? []).map((childProps, i) => (
           <SubView key={i} {...childProps} />
-        ))}
+        ))} */}
       </PrimitiveView>
     );
   }
 
   return (
     <>
-      <>
-        {renders.map((el, i) => (
-          <SubView key={i} {...el} />
-        ))}
-      </>
-      {result.map((scope, i) => (
-        <div key={i}>
-          {((els as ViewElement[]) ?? []).map((el, j) => (
-            <SubView key={j} {...hydrateViewElement(scope, el)} />
-          ))}
-        </div>
+      {renders.map((el, i) => (
+        <SubView key={i} {...el} />
       ))}
     </>
   );
@@ -66,16 +49,19 @@ const qAppWindow = q("windowId")
   .get("historyId", "history__data", "data")
   .get("historyId", "history__location", "id")
   .get("historyId", "history__view", "viewId")
-  .get("id", "file__name", "fileName");
+  .get("id", "file__name", "fileName")
+  .build();
 
 const qViewsForType = q("id")
   .get("id", "db__schema", "schema")
   .get("view", "view__schema", "schema")
-  .get("view", "file__name", "viewName");
+  .get("view", "file__name", "viewName")
+  .build();
 
 const qViewsForAnyType = q()
   .get("view", "view__schema", k("schema__anyType"))
-  .get("view", "file__name", "viewName");
+  .get("view", "file__name", "viewName")
+  .build();
 
 function AppWindow({
   windowId,
@@ -154,7 +140,8 @@ const qAppMenu = q()
   .get(k("browser"), "browser__currentWindow", "id")
   .get("id", "window__currentHistory", "currentHistory")
   .get("currentHistory", "history__back", "back")
-  .get("currentHistory", "history__forward", "forward");
+  .get("currentHistory", "history__forward", "forward")
+  .build();
 
 function AppMenu() {
   const dispatch = useDispatch();
@@ -188,7 +175,8 @@ function AppMenu() {
 
 const qApp = q()
   .get(k("browser"), "browser__currentWindow", "currentWindow")
-  .get("id", "db__schema", k("schema__window"));
+  .get("id", "db__schema", k("schema__window"))
+  .build();
 
 function App() {
   const windows = useQueryAll(qApp)!;

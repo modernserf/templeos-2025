@@ -5,6 +5,7 @@
   padding: 0;
   cursor: pointer;
   text-decoration: underline;
+  display: block;
 }
 
 .FileLink {
@@ -63,6 +64,7 @@
 .TextView__Link .Link {
   font-weight: bold;
   text-decoration: underline;
+  display: inline-block;
 }
 
 .OmniboxView__input {

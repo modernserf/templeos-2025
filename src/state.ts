@@ -1,9 +1,10 @@
 import { useContext, createContext, useState, useEffect } from "react";
 import { DB } from "./db";
-import { Runtime, q, Query } from "./runtime";
+import { Runtime } from "./runtime";
 import { k, or } from "./expr";
 import { FormatTextBuilder, views } from "./view";
 import { fields, Rec, schemas } from "./schema";
+import { q, Query } from "./query";
 
 type SchemaId =
   | "schema__anyType"
@@ -43,7 +44,8 @@ const initDB: Record<string, Rec> = {
       .update("h", "history__back", "currentId")
       .update("h", "time__created", "ts")
       .update("windowId", "window__currentHistory", "h")
-      .update("currentId", "history__forward", "h"),
+      .update("currentId", "history__forward", "h")
+      .build(),
   },
   rule__replace: {
     db__schema: "schema__rule",
@@ -55,7 +57,8 @@ const initDB: Record<string, Rec> = {
       .get("currentId", "history__view", "_view")
       .update("currentId", "history__view", or("view", "_view"))
       .get("currentId", "history__data", "_data")
-      .update("currentId", "history__data", or("data", "_data")),
+      .update("currentId", "history__data", or("data", "_data"))
+      .build(),
   },
   rule__back: {
     db__schema: "schema__rule",
@@ -65,7 +68,8 @@ const initDB: Record<string, Rec> = {
       .get("currentId", "history__back", "backId")
       .update("windowId", "window__currentHistory", "backId")
       .update("currentId", "history__back", k(null))
-      .update("backId", "history__forward", "currentId"),
+      .update("backId", "history__forward", "currentId")
+      .build(),
   },
   rule__forward: {
     db__schema: "schema__rule",
@@ -75,7 +79,8 @@ const initDB: Record<string, Rec> = {
       .get("currentId", "history__forward", "forwardId")
       .update("windowId", "window__currentHistory", "forwardId")
       .update("currentId", "history__forward", k(null))
-      .update("forwardId", "history__back", "currentId"),
+      .update("forwardId", "history__back", "currentId")
+      .build(),
   },
   rule__newWindow: {
     db__schema: "schema__rule",
@@ -92,20 +97,23 @@ const initDB: Record<string, Rec> = {
       .update("h", "history__location", "id")
       .update("h", "history__view", "view")
       .update("h", "history__data", "data")
-      .update("h", "time__created", "ts"),
+      .update("h", "time__created", "ts")
+      .build(),
   },
   rule__selectWindow: {
     db__schema: "schema__rule",
     rule__id: "selectWindow",
     rule__query: q("windowId") //
-      .update(k("browser"), "browser__currentWindow", "windowId"),
+      .update(k("browser"), "browser__currentWindow", "windowId")
+      .build(),
   },
   rule__closeWindow: {
     db__schema: "schema__rule",
     rule__id: "closeWindow",
     rule__query: q("windowId") //
       .insert("windowId", k(null))
-      .update(k("browser"), "browser__currentWindow", k(null)),
+      .update(k("browser"), "browser__currentWindow", k(null))
+      .build(),
   },
 
   // Cards
@@ -151,7 +159,7 @@ const initDB: Record<string, Rec> = {
   omnibox: {
     db__schema: "omnibox" as SchemaId,
     file__name: "Omnibox",
-    view__query: q(),
+    view__query: q().build(),
     view__primitive: "OmniboxView",
     view__schema: "omnibox" as SchemaId,
   },
@@ -203,7 +211,9 @@ export function useDispatch() {
   return function (rule: string, args: Record<string, unknown> = {}) {
     const keys = Object.keys(args);
     const pairs = Object.fromEntries(keys.map((k) => [k, k]));
-    const query = q(...Object.keys(args)).rule(rule, pairs);
+    const query = q(...Object.keys(args))
+      .rule(rule, pairs)
+      .build();
     db.update(query, args);
   };
 }

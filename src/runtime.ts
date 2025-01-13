@@ -1,135 +1,11 @@
 import { numberOrd, Where } from "./index";
 import { DB } from "./db";
-import {
-  Expr,
-  getVar,
-  Ident,
-  isOut,
-  setVar,
-  Arg,
-  KArg,
-  kToExpr,
-  toExpr,
-} from "./expr";
+import { Expr, getVar, Ident, isOut, setVar } from "./expr";
 import { Rec, Field } from "./schema";
 import { ViewElement } from "./view";
+import { Query, QueryItem } from "./query";
 
 type Id = string;
-type Rule = string;
-
-export type Query = {
-  params: Ident[];
-  items: QueryItem[];
-};
-
-export const q = (...params: Ident[]) => new QueryBuilder(params);
-
-class QueryBuilder implements Query {
-  items: QueryItem[] = [];
-  constructor(public params: Ident[]) {}
-  rollback() {
-    this.items.push({ tag: "rollback" });
-    return this;
-  }
-  id(id: Arg) {
-    this.items.push({ tag: "id", id: toExpr(id) });
-    return this;
-  }
-  timestamp(timestamp: Arg) {
-    this.items.push({ tag: "timestamp", timestamp: toExpr(timestamp) });
-    return this;
-  }
-  members(item: Arg, collection: Arg) {
-    this.items.push({
-      tag: "members",
-      item: toExpr(item),
-      collection: toExpr(collection),
-    });
-    return this;
-  }
-  get(id: Arg, field?: KArg, value?: Arg) {
-    if (field) {
-      if (value) {
-        this.items.push({
-          tag: "get/3",
-          id: toExpr(id),
-          field: kToExpr(field),
-          value: toExpr(value),
-        });
-      } else {
-        this.items.push({
-          tag: "get/2",
-          id: toExpr(id),
-          field: kToExpr(field),
-        });
-      }
-    } else {
-      this.items.push({
-        tag: "get/1",
-        id: toExpr(id),
-      });
-    }
-
-    return this;
-  }
-  insert(id: Arg, record: Arg) {
-    this.items.push({
-      tag: "insert",
-      id: toExpr(id),
-      record: toExpr(record),
-    });
-    return this;
-  }
-  update(id: Arg, field: KArg, value: Arg) {
-    this.items.push({
-      tag: "update",
-      id: toExpr(id),
-      field: kToExpr(field),
-      value: toExpr(value),
-    });
-    return this;
-  }
-  rule(rule: Rule, args: Record<string, Arg>) {
-    this.items.push({
-      tag: "rule",
-      rule,
-      args: Object.fromEntries(
-        Object.entries(args).map(([k, v]) => [k, toExpr(v)])
-      ),
-    });
-    return this;
-  }
-  view(view: Arg, args: Record<string, Arg>) {
-    this.items.push({
-      tag: "view",
-      view: toExpr(view),
-      args: Object.fromEntries(
-        Object.entries(args).map(([k, v]) => [k, toExpr(v)])
-      ),
-      children: [],
-    });
-    return this;
-  }
-}
-
-type QueryItem =
-  | { tag: "rollback" }
-  | { tag: "id"; id: Expr }
-  | { tag: "timestamp"; timestamp: Expr }
-  | { tag: "members"; item: Expr; collection: Expr }
-  | { tag: "get/1"; id: Expr }
-  | { tag: "get/2"; id: Expr; field: Expr }
-  | { tag: "get/3"; id: Expr; field: Expr; value: Expr }
-  | { tag: "insert"; id: Expr; record: Expr }
-  | { tag: "update"; id: Expr; field: Expr; value: Expr }
-  | { tag: "rule"; rule: Rule; args: Record<string, Expr> }
-  | {
-      tag: "view";
-      view: Expr;
-      args: Record<string, Expr>;
-      // TODO: query children
-      children: ViewElement[];
-    };
 
 export type QueryArgs = Record<Ident, unknown>;
 
@@ -167,10 +43,10 @@ export function hydrateViewElement(
 
 class QueryState {
   constructor(
-    private query: Query,
+    private queryItems: QueryItem[],
     private args: QueryArgs,
-    private index: number,
-    private rollbackMap: Map<Id, Rec>
+    private index: number = 0,
+    private rollbackMap: Map<Id, Rec> = new Map()
   ) {}
   // TODO: typechecking, default values
   static init(query: Query, args: QueryArgs) {
@@ -178,7 +54,7 @@ class QueryState {
     for (const key of query.params) {
       out[key] = args[key];
     }
-    return new QueryState(query, out, 0, new Map());
+    return new QueryState(query.items, out);
   }
   isOut(expr: Expr) {
     return isOut(this.args, expr);
@@ -193,20 +69,23 @@ class QueryState {
     return hydrateViewElement(this.args, view);
   }
   advance() {
-    const current = this.query.items[this.index];
+    const current = this.queryItems[this.index];
     this.index += 1;
     return current;
   }
   done() {
-    if (this.index >= this.query.items.length) {
+    if (this.index >= this.queryItems.length) {
       return this.args;
     } else {
       throw new Error("not done");
     }
   }
+  getState() {
+    return { ...this.args };
+  }
   fork() {
     return new QueryState(
-      this.query,
+      this.queryItems,
       { ...this.args },
       this.index,
       this.rollbackMap
@@ -410,6 +289,30 @@ export class Runtime {
         //   setVar(args, { tag: "ident", ident: key }, ruleArgs[key]);
         // }
 
+        yield* this.runQuery(state);
+        return;
+      }
+      case "or": {
+        for (const subquery of q.queries) {
+          yield* this.runQuery(
+            new QueryState(subquery.items, state.getState())
+          );
+        }
+        yield* this.runQuery(state);
+        return;
+      }
+      case "cond": {
+        let didSucceed = false;
+        const qIfState = new QueryState(q.if, state.getState());
+        for (const res of this.runQuery(qIfState)) {
+          if (res.tag === "result") {
+            didSucceed = true;
+            yield* this.runQuery(new QueryState(q.then, res.value));
+          }
+        }
+        if (!didSucceed) {
+          yield* this.runQuery(new QueryState(q.else, state.getState()));
+        }
         yield* this.runQuery(state);
         return;
       }

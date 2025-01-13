@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect, useRef } from "react";
 import { BrowseParams, useDispatch, useQueryAll } from "./state";
-import { q } from "./runtime";
+import { q } from "./query";
 import { FormatTextNode } from "./view";
 
 type Target = "current" | "new";
@@ -77,7 +77,8 @@ export function TextView({ text }: { text: FormatTextNode[] }) {
 const allQuery = q() //
   .get("id")
   .get("id", "file__name", "name")
-  .get("id", "file__description", "description");
+  .get("id", "file__description", "description")
+  .build();
 
 // TODO: put these into DB ("where" and "limit" respectively)
 function* filter<T>(f: (t: T) => boolean, iter: Iterable<T>) {

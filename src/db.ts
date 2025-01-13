@@ -1,6 +1,5 @@
 import { numberOrd, Ord, Tree } from "./index";
-
-import { Query } from "./runtime";
+import { Query } from "./query";
 
 type Id = string;
 type Field = string;
