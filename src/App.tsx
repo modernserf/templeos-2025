@@ -1,8 +1,9 @@
-import { useDispatch, useQuery, useQueryAll } from "./state";
+import { useDB, useQuery, useUpdate } from "./state";
 import { q } from "./query";
 import { k } from "./expr";
 import { TabProvider, Query } from "./primitive";
 import "./App.css";
+import { QueryState } from "./runtime";
 
 const qAppWindow = q("windowId")
   .get("windowId", "window__currentHistory", "historyId")
@@ -10,6 +11,7 @@ const qAppWindow = q("windowId")
   .get("historyId", "history__location", "id")
   .get("historyId", "history__view", "viewId")
   .get("id", "file__name", "fileName")
+  .result()
   .build();
 
 const qViewsForType = q("id")
@@ -18,9 +20,11 @@ const qViewsForType = q("id")
       .get("id", "db__schema", "schema")
       .get("view", "view__schema", "schema")
       .get("view", "file__name", "viewName")
+      .result()
   )
   .get("view", "view__schema", k("schema__anyType"))
   .get("view", "file__name", "viewName")
+  .result()
   .build();
 
 const qRootView = q("id", "view", "data")
@@ -30,14 +34,31 @@ const qRootView = q("id", "view", "data")
 function AppWindow({
   windowId,
   isCurrent,
+  state,
 }: {
+  state: QueryState;
   windowId: string;
   isCurrent: boolean;
 }) {
-  const dispatch = useDispatch();
-  const { data, id, viewId, fileName } = useQuery(qAppWindow, { windowId })!;
-  const viewers = [...useQueryAll(qViewsForType, { id })];
-  const view = (viewId as string) || viewers[0].view;
+  const [
+    {
+      value: { data, id, viewId, fileName },
+    },
+  ] = Array.from(
+    useQuery(state, qAppWindow, {
+      windowId,
+    })
+  );
+  const viewers = Array.from(useQuery(state, qViewsForType, { id }));
+  const view = viewId || viewers[0].value.view;
+  const update = useUpdate(state);
+  const dispatch = (name: string, args: Record<string, unknown>) => {
+    const argExprs = Object.fromEntries(
+      Object.keys(args).map((key) => [key, key])
+    );
+    console.log(args);
+    update(q().rule(name, argExprs).build(), args);
+  };
 
   return (
     <TabProvider value={windowId}>
@@ -68,25 +89,31 @@ function AppWindow({
               dispatch("rule__closeWindow", { windowId });
             }}
           ></button>
-          <h1 className="AppWindow__title">{fileName as string}</h1>
+          <h1 className="AppWindow__title">{fileName}</h1>
           <select
             className="AppWindow__viewMenu"
-            value={view as string}
+            value={view}
             onChange={(e) => {
               dispatch("rule__replace", {
+                id: undefined,
+                data: undefined,
                 windowId,
                 view: e.target.value,
               });
             }}
           >
-            {viewers.map((v) => (
-              <option key={v.view as string} value={v.view as string}>
-                {(v.viewName as string) ?? viewId}
+            {viewers.map(({ value: v }) => (
+              <option key={v.view} value={v.view}>
+                {v.viewName ?? viewId}
               </option>
             ))}
           </select>
         </header>
-        <Query query={qRootView} args={{ id, view, data: data ?? {} }} />
+        <Query
+          state={state}
+          query={qRootView}
+          args={{ id, view, data: data ?? {} }}
+        />
       </div>
     </TabProvider>
   );
@@ -95,21 +122,26 @@ function AppWindow({
 const qApp = q()
   .get(k("browser"), "browser__currentWindow", "currentWindow")
   .get("id", "db__schema", k("schema__window"))
+  .result()
   .build();
 
 const qAppMenu = q().view(k("view__appMenu"), {}).build();
 
 function App() {
-  const windows = useQueryAll(qApp)!;
+  const state = useDB();
+  const windows = Array.from(useQuery(state, qApp)) as unknown as {
+    value: { id: string; currentWindow: string };
+  }[];
   return (
     <>
       <nav>
-        <Query query={qAppMenu} args={{}} />
+        <Query state={state} query={qAppMenu} args={{}} />
       </nav>
-      {[...windows].map(({ id, currentWindow }) => (
+      {windows.map(({ value: { id, currentWindow } }) => (
         <AppWindow
-          key={id as string}
-          windowId={id as string}
+          state={state}
+          key={id}
+          windowId={id}
           isCurrent={currentWindow === id}
         />
       ))}

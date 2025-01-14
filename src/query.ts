@@ -1,7 +1,8 @@
 import { Expr, Ident, Arg, KArg, kToExpr, toExpr, k } from "./expr";
 
 export type QueryItem =
-  | { tag: "rollback" }
+  | { tag: "result" }
+  | { tag: "fail" }
   | { tag: "id"; id: Expr }
   | { tag: "timestamp"; timestamp: Expr }
   | { tag: "members"; item: Expr; collection: Expr }
@@ -43,8 +44,12 @@ class QueryBuilder {
   build(): Query {
     return { params: this.params, items: this.items };
   }
-  rollback() {
-    this.items.push({ tag: "rollback" });
+  result() {
+    this.items.push({ tag: "result" });
+    return this;
+  }
+  fail() {
+    this.items.push({ tag: "fail" });
     return this;
   }
   id(id: Arg) {

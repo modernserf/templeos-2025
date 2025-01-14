@@ -1,6 +1,6 @@
-import { useContext, createContext, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { DB } from "./db";
-import { Runtime } from "./runtime";
+import { EventSource, QueryState, Runtime } from "./runtime";
 import { k, or } from "./expr";
 import { FormatTextBuilder, views } from "./view";
 import { fields, Rec, schemas } from "./schema";
@@ -144,7 +144,9 @@ const initDB = {
   },
 } satisfies Record<string, Rec>;
 
-export const runtime = new Runtime(new DB());
+export const eventSource = new EventSource();
+export const db = new DB();
+export const runtime = new Runtime(db, eventSource);
 runtime.bulkInsert(initDB);
 
 declare global {
@@ -155,51 +157,30 @@ declare global {
 
 window.runtime = runtime;
 
-const dbContext = createContext(runtime);
-export const DBProvider = dbContext.Provider;
-
-// TODO: separate query / command handlers
-function useDB() {
-  const db = useContext(dbContext);
-  const [data, setData] = useState({ db });
+// this triggers a re-render on every update
+export function useDB() {
+  const [, setData] = useState({});
   useEffect(() => {
-    return db.addEventListener(() => {
-      setData({ db });
+    return eventSource.addEventListener(() => {
+      setData({});
     });
-  }, [db]);
-  return data.db;
+  }, []);
+  return QueryState.root();
 }
 
-export function useRender(b: Query, args?: Record<string, unknown>) {
-  const db = useDB();
-  return db.render(b, args);
+export function useQuery(
+  state: QueryState,
+  b: Query,
+  args?: Record<string, unknown>
+) {
+  return runtime.query(state.update(b, args ?? {}));
 }
 
-export function useQuery(b: Query, args?: Record<string, unknown>) {
-  const db = useDB();
-  return db.query1(b, args);
-}
-
-export function useQueryAll(b: Query, args?: Record<string, unknown>) {
-  const db = useDB();
-  return db.queryAll(b, args);
-}
-
-export function useUpdate() {
-  const db = useContext(dbContext);
+export function useUpdate(state: QueryState) {
   return function (query: Query, args: Record<string, unknown> = {}) {
-    db.update(query, args);
-  };
-}
-
-export function useDispatch() {
-  const db = useContext(dbContext);
-  return function (rule: string, args: Record<string, unknown> = {}) {
-    const keys = Object.keys(args);
-    const pairs = Object.fromEntries(keys.map((k) => [k, k]));
-    const query = q(...Object.keys(args))
-      .rule(rule, pairs)
-      .build();
-    db.update(query, args);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for (const _ of runtime.query(state.update(query, args))) {
+      // empty
+    }
   };
 }

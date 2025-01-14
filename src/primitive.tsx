@@ -1,15 +1,23 @@
-import { createContext, ReactNode, useContext, useEffect, useRef } from "react";
 import {
-  BrowseParams,
-  useDispatch,
-  useQueryAll,
-  useRender,
-  useUpdate,
-} from "./state";
-import { q } from "./query";
+  createContext,
+  FC,
+  ReactNode,
+  useContext,
+  useEffect,
+  useRef,
+} from "react";
+import { useQuery, useUpdate } from "./state";
+import { q, Query as TQuery } from "./query";
 import { FormatTextNode } from "./view";
-import { QueryResult } from "./runtime";
+import { QueryNext, QueryState } from "./runtime";
 import { k } from "./expr";
+import { flatMap, take } from "./iter";
+
+type ViewProps<T extends Record<string, unknown> = Record<string, unknown>> = {
+  children?: ReactNode;
+  args: T;
+  state: QueryState;
+};
 
 type Target = "current" | "new";
 
@@ -17,29 +25,32 @@ const tabContext = createContext("rootWindow");
 export const TabProvider = tabContext.Provider;
 
 // TODO: want to do non-hierarchichal layout
-function Row({ children }: { children: ReactNode }) {
+function Row({ children }: ViewProps) {
   return <div className="Row">{children}</div>;
 }
 
-function Column({ children }: { children: ReactNode }) {
+function Column({ children }: ViewProps) {
   return <div className="Column">{children}</div>;
 }
 
-function AnyData({ value }: { value: unknown }) {
+function AnyData({ args: { value } }: ViewProps<{ value: unknown }>) {
   return <pre>{JSON.stringify(value, null, 2)}</pre>;
 }
 
-function String({ value }: { value: string }) {
+function String({ args: { value } }: ViewProps<{ value: string }>) {
   return <div>{value}</div>;
 }
 
-function Button({ label, query, scope }: { label: string }) {
-  const update = useUpdate();
+function Button({
+  args: { label, query },
+  state,
+}: ViewProps<{ label: string; query: TQuery }>) {
+  const update = useUpdate(state);
   return (
     <button
       type="button"
       onClick={() => {
-        update(query, scope);
+        update(query, {});
       }}
     >
       {label}
@@ -47,14 +58,29 @@ function Button({ label, query, scope }: { label: string }) {
   );
 }
 
-export function Link({
-  label,
-  id,
-  view,
-  data,
-  target = "current",
-}: { label: string; target?: Target } & BrowseParams) {
-  const dispatch = useDispatch();
+const qNewWindow = q("id", "view", "data")
+  .rule("rule__newWindow", { id: "id", view: "view", data: "data" })
+  .build();
+const qPush = q("windowId", "id", "view", "data")
+  .rule("rule__push", {
+    windowId: "windowId",
+    id: "id",
+    view: "view",
+    data: "data",
+  })
+  .build();
+
+function Link({
+  args: { label, id, view, data, target = "current" },
+  state,
+}: ViewProps<{
+  label: string;
+  id: string;
+  view?: string;
+  data?: Record<string, string>;
+  target?: Target;
+}>) {
+  const update = useUpdate(state);
   const windowId = useContext(tabContext);
   return (
     <button
@@ -62,9 +88,9 @@ export function Link({
       className="Link"
       onClick={(e) => {
         if (e.metaKey || target === "new") {
-          dispatch("rule__newWindow", { id, view, data });
+          update(qNewWindow, { id, view, data });
         } else {
-          dispatch("rule__push", { windowId, id, view, data });
+          update(qPush, { windowId, id, view, data });
         }
       }}
     >
@@ -73,11 +99,15 @@ export function Link({
   );
 }
 
-function IconView() {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function IconView(_: ViewProps) {
   return <div style={{ textAlign: "center", fontSize: 32 }}>📄</div>;
 }
 
-function TextView({ text }: { text: FormatTextNode[] }) {
+function TextView({
+  state,
+  args: { text },
+}: ViewProps<{ text: FormatTextNode[] }>) {
   return (
     <>
       {text.map((node, i) => {
@@ -87,7 +117,10 @@ function TextView({ text }: { text: FormatTextNode[] }) {
           case "link":
             return (
               <span key={i} className="TextView__Link">
-                <Link {...node.params} label={node.text} />
+                <Link
+                  state={state}
+                  args={{ ...node.params, label: node.text }}
+                />
               </span>
             );
         }
@@ -96,31 +129,13 @@ function TextView({ text }: { text: FormatTextNode[] }) {
   );
 }
 
-// TODO: put these into DB ("where" and "limit" respectively)
-function* filter<T>(f: (t: T) => boolean, iter: Iterable<T>) {
-  for (const item of iter) {
-    if (f(item)) {
-      yield item;
-    }
-  }
-}
-
-function* take<T>(count: number, iter: Iterable<T>) {
-  let i = 0;
-  for (const item of iter) {
-    if (i < count) {
-      i++;
-      yield item;
-    }
-  }
-}
-
 const allQuery = q() //
   .get("id")
   .get("id", "file__name", "name")
   .get("id", "file__description", "description")
   .get("id", "db__schema", "schemaId")
   .get("schemaId", "file__name", "schemaName")
+  .result()
   .build();
 
 const rowQuery = q("id", "name", "description", "schemaId", "schemaName")
@@ -130,30 +145,54 @@ const rowQuery = q("id", "name", "description", "schemaId", "schemaName")
   .string("description")
   .build();
 
-function OmniboxView(props: BrowseParams) {
-  const { data } = props;
-  const results = useQueryAll(allQuery);
-  const dispatch = useDispatch();
+const qReplace = q("data", "windowId")
+  .rule("rule__replace", {
+    id: k(undefined),
+    view: k(undefined),
+    data: "data",
+    windowId: "windowId",
+  })
+  .build();
+
+function OmniboxView({
+  args: { data },
+  state,
+}: ViewProps<{ data: { omnibox?: string } }>) {
+  const results = useQuery(state, allQuery);
+  const update = useUpdate(state);
   const windowId = useContext(tabContext);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     ref.current?.focus();
   }, []);
 
-  const omnibox = data!.omnibox ?? "";
+  const omnibox = data.omnibox ?? "";
 
   const re = RegExp(omnibox, "i");
 
-  const filtered = take(
-    10,
-    filter(
-      ({ id, name, description }) =>
-        re.test(id as string) ||
-        re.test((name as string) ?? "") ||
-        re.test((description as string) ?? ""),
-      results
+  const filtered = Array.from(
+    take(
+      10,
+      flatMap(function* (item) {
+        if (item.tag === "result") {
+          const { id, name, description } = item.value as {
+            id: string;
+            name: string;
+            description: string;
+          };
+          if (
+            re.test(id) ||
+            re.test(name ?? "") ||
+            re.test(description ?? "")
+          ) {
+            yield item.value;
+          }
+        }
+      }, results)
     )
   );
+
+  console.log("Omnibox", filtered);
 
   return (
     <div className="OmniboxView">
@@ -162,16 +201,16 @@ function OmniboxView(props: BrowseParams) {
         value={omnibox}
         ref={ref}
         onChange={(e) => {
-          dispatch("rule__replace", {
+          update(qReplace, {
             windowId,
             data: { omnibox: e.target.value },
           });
         }}
       />
       <ul className="OmniboxView__list">
-        {[...filtered].map((args) => (
+        {filtered.map((args) => (
           <li key={args.id as string} className="OmniboxView__listItem">
-            <Query query={rowQuery} args={args} />
+            <Query state={state} query={rowQuery} args={args} />
           </li>
         ))}
       </ul>
@@ -179,7 +218,8 @@ function OmniboxView(props: BrowseParams) {
   );
 }
 
-const primitiveViews = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const primitiveViews: Record<string, FC<ViewProps<any>>> = {
   Row,
   Column,
   AnyData,
@@ -194,31 +234,39 @@ const primitiveViews = {
 function Primitive({
   primitive,
   args,
-  scope,
+  state,
   children,
 }: {
-  primitive: keyof typeof primitiveViews;
-  args: Record<string, any>;
-  scope: Record<string, any>;
-  children: (QueryResult & { tag: "viewPrimitive" })[];
+  primitive: string;
+  args: Record<string, unknown>;
+  state: QueryState;
+  children: QueryNext[];
 }) {
   const View = primitiveViews[primitive];
   return (
-    <View scope={scope} {...args}>
-      {children.map((child, i) => (
-        <Primitive key={i} {...child} />
-      ))}
+    <View state={state} args={args}>
+      {children.map((child, i) =>
+        child.tag === "viewPrimitive" ? <Primitive key={i} {...child} /> : null
+      )}
     </View>
   );
 }
 
-export function Query({ query, args }) {
-  const res = Array.from(useRender(query, args));
+export function Query({
+  query,
+  args,
+  state,
+}: {
+  query: TQuery;
+  args: Record<string, unknown>;
+  state: QueryState;
+}) {
+  const res = Array.from(useQuery(state, query, args));
   return (
     <>
-      {res.map((props, i) => (
-        <Primitive key={i} {...props} />
-      ))}
+      {res.map((props, i) =>
+        props.tag === "viewPrimitive" ? <Primitive key={i} {...props} /> : null
+      )}
     </>
   );
 }

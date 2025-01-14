@@ -1,10 +1,7 @@
 import { Query } from "./query";
 import { FormatTextNode } from "./view";
-import * as primitives from "./primitive";
 
 type Id = string;
-
-export type ViewPrimitive = keyof typeof primitives;
 
 export type Rec = {
   time__created?: number;
@@ -16,7 +13,7 @@ export type Rec = {
   field__refType?: Id;
   field__index?: "ref" | "sorted"; // "multiRef" | "unique"
   rule__query?: Query;
-  view__primitive?: ViewPrimitive;
+  view__primitive?: string;
   view__schema?: SchemaId;
   view__query?: Query;
   history__window?: Id;
