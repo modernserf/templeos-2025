@@ -6,12 +6,12 @@ import {
   useEffect,
   useRef,
 } from "react";
-import { useEventHandler, useQuery } from "./state";
+import { useEventHandler, useQueryResult, useQueryView } from "./state";
 import { q, Query as TQuery } from "./query";
 import { FormatTextNode } from "./view";
 import { QueryNext, QueryState } from "./runtime";
 import { k } from "./expr";
-import { flatMap, take } from "./iter";
+import { filter, take } from "./iter";
 
 type ViewProps<T extends Record<string, unknown> = Record<string, unknown>> = {
   children?: ReactNode;
@@ -173,7 +173,13 @@ function OmniboxView({
   args: { data },
   state,
 }: ViewProps<{ data: { omnibox?: string } }>) {
-  const results = useQuery(state, allQuery);
+  const results = useQueryResult<{
+    id: string;
+    name: string;
+    description: string;
+    schemaId: string;
+    schemaName: string;
+  }>(state, allQuery);
   const handle = useEventHandler(state);
   const windowId = useContext(tabContext);
   const ref = useRef<HTMLInputElement>(null);
@@ -188,22 +194,18 @@ function OmniboxView({
   const filtered = Array.from(
     take(
       10,
-      flatMap(function* (item) {
-        if (item.tag === "result") {
-          const { id, name, description } = item.value as {
-            id: string;
-            name: string;
-            description: string;
-          };
-          if (
-            re.test(id) ||
-            re.test(name ?? "") ||
-            re.test(description ?? "")
-          ) {
-            yield item.value;
-          }
-        }
-      }, results)
+      filter(
+        ({
+          id,
+          name,
+          description,
+        }: {
+          id: string;
+          name: string;
+          description: string;
+        }) => re.test(id) || re.test(name ?? "") || re.test(description ?? ""),
+        results
+      )
     )
   );
 
@@ -222,7 +224,7 @@ function OmniboxView({
       />
       <ul className="OmniboxView__list">
         {filtered.map((args) => (
-          <li key={args.id as string} className="OmniboxView__listItem">
+          <li key={args.id} className="OmniboxView__listItem">
             <Query state={state} query={rowQuery} args={args} />
           </li>
         ))}
@@ -275,12 +277,12 @@ export function Query({
   args: Record<string, unknown>;
   state: QueryState;
 }) {
-  const res = Array.from(useQuery(state, query, args));
+  const res = Array.from(useQueryView(state, query, args));
   return (
     <>
-      {res.map((props, i) =>
-        props.tag === "viewPrimitive" ? <Primitive key={i} {...props} /> : null
-      )}
+      {res.map((props, i) => (
+        <Primitive key={i} {...props} />
+      ))}
     </>
   );
 }

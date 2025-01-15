@@ -5,6 +5,7 @@ import { k, or } from "./expr";
 import { FormatTextBuilder, views } from "./view";
 import { fields, Rec, schemas } from "./schema";
 import { q, Query } from "./query";
+import { flatMap } from "./iter";
 
 export type BrowseParams = {
   id: string;
@@ -168,12 +169,24 @@ export function useDB() {
   return QueryState.root();
 }
 
-export function useQuery(
+export function useQueryView(
   state: QueryState,
   b: Query,
-  args?: Record<string, unknown>
+  args: Record<string, unknown> = {}
 ) {
-  return runtime.query(state.update(b, args ?? {}));
+  return flatMap(function* (item) {
+    if (item.tag === "viewPrimitive") yield item;
+  }, runtime.query(state.update(b, args)));
+}
+
+export function useQueryResult<T>(
+  state: QueryState,
+  b: Query,
+  args: Record<string, unknown> = {}
+) {
+  return flatMap(function* (item) {
+    if (item.tag === "result") yield item.value as T;
+  }, runtime.query(state.update(b, args)));
 }
 
 export function useEventHandler(state: QueryState) {

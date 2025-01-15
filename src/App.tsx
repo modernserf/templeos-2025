@@ -1,4 +1,4 @@
-import { useDB, useEventHandler, useQuery } from "./state";
+import { useDB, useEventHandler, useQueryResult } from "./state";
 import { q } from "./query";
 import { k } from "./expr";
 import { TabProvider, Query } from "./primitive";
@@ -40,17 +40,22 @@ function AppWindow({
   windowId: string;
   isCurrent: boolean;
 }) {
-  const [
-    {
-      value: { data, id, viewId, fileName },
-    },
-  ] = Array.from(
-    useQuery(state, qAppWindow, {
+  const [{ data, id, viewId, fileName }] = Array.from(
+    useQueryResult<{
+      id: string;
+      viewId: string;
+      fileName: string;
+      data: Record<string, string>;
+    }>(state, qAppWindow, {
       windowId,
     })
   );
-  const viewers = Array.from(useQuery(state, qViewsForType, { id }));
-  const view = viewId || viewers[0].value.view;
+  const viewers = Array.from(
+    useQueryResult<{ view: string; viewName: string }>(state, qViewsForType, {
+      id,
+    })
+  );
+  const view = viewId || viewers[0].view;
   const handle = useEventHandler(state);
   const dispatch = (name: string, args: Record<string, unknown>) => {
     const argExprs = Object.fromEntries(
@@ -101,7 +106,7 @@ function AppWindow({
               });
             }}
           >
-            {viewers.map(({ value: v }) => (
+            {viewers.map((v) => (
               <option key={v.view} value={v.view}>
                 {v.viewName ?? viewId}
               </option>
@@ -128,15 +133,18 @@ const qAppMenu = q().view(k("view__appMenu"), {}).build();
 
 function App() {
   const state = useDB();
-  const windows = Array.from(useQuery(state, qApp)) as unknown as {
-    value: { id: string; currentWindow: string };
-  }[];
+  const windows = Array.from(
+    useQueryResult<{
+      id: string;
+      currentWindow: string;
+    }>(state, qApp)
+  );
   return (
     <>
       <nav>
         <Query state={state} query={qAppMenu} args={{}} />
       </nav>
-      {windows.map(({ value: { id, currentWindow } }) => (
+      {windows.map(({ id, currentWindow }) => (
         <AppWindow
           state={state}
           key={id}

@@ -153,6 +153,17 @@ class QueryBuilder {
     });
     return this;
   }
+  input(value: Arg, query: Query) {
+    this.items.push({
+      tag: "view",
+      view: k("view__input"),
+      args: {
+        value: toExpr(value),
+        query: k(query),
+      },
+      children: [],
+    });
+  }
   link(label: Arg, id: Arg, target?: Arg) {
     this.items.push({
       tag: "view",
