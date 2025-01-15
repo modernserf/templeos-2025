@@ -176,10 +176,10 @@ export function useQuery(
   return runtime.query(state.update(b, args ?? {}));
 }
 
-export function useUpdate(state: QueryState) {
+export function useEventHandler(state: QueryState) {
   return function (query: Query, args: Record<string, unknown> = {}) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const _ of runtime.query(state.update(query, args))) {
+    for (const _ of runtime.query(state.eventHandler(query, args))) {
       // empty
     }
   };

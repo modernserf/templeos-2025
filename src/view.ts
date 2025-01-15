@@ -42,6 +42,11 @@ export const views = {
     file__name: "Button",
     view__primitive: "Button",
   },
+  view__input: {
+    db__schema: "schema__view",
+    file__name: "Input",
+    view__primitive: "Input",
+  },
   view__link: {
     db__schema: "schema__view",
     file__name: "Link",
@@ -78,19 +83,21 @@ export const views = {
     db__schema: "schema__view",
     file__name: "App menu",
     view__query: q()
-      .row((q) =>
-        q
-          .or((q) =>
-            q
+      .row((qq) =>
+        qq
+          .or((qq) =>
+            qq
               .get(k("browser"), "browser__currentWindow", "windowId")
               .get("windowId", "window__currentHistory", "currentHistory")
               .get("currentHistory", "history__back", "back")
               .get("currentHistory", "history__forward", "forward")
-              .button(k("back"), (q) =>
-                q.rule("rule__back", { windowId: "windowId" })
+              .button(
+                k("back"),
+                q().rule("rule__back", { windowId: "windowId" }).build()
               )
-              .button(k("forward"), (q) =>
-                q.rule("rule__forward", { windowId: "windowId" })
+              .button(
+                k("forward"),
+                q().rule("rule__forward", { windowId: "windowId" }).build()
               )
           )
           .link(k("home"), k("home"), k("new"))

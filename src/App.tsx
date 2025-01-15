@@ -1,4 +1,4 @@
-import { useDB, useQuery, useUpdate } from "./state";
+import { useDB, useEventHandler, useQuery } from "./state";
 import { q } from "./query";
 import { k } from "./expr";
 import { TabProvider, Query } from "./primitive";
@@ -51,13 +51,12 @@ function AppWindow({
   );
   const viewers = Array.from(useQuery(state, qViewsForType, { id }));
   const view = viewId || viewers[0].value.view;
-  const update = useUpdate(state);
+  const handle = useEventHandler(state);
   const dispatch = (name: string, args: Record<string, unknown>) => {
     const argExprs = Object.fromEntries(
       Object.keys(args).map((key) => [key, key])
     );
-    console.log(args);
-    update(q().rule(name, argExprs).build(), args);
+    handle(q().rule(name, argExprs).build(), args);
   };
 
   return (

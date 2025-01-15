@@ -129,6 +129,15 @@ export class QueryState {
   update(query: Query, args: Scope) {
     return new QueryState(query.items, args, this.context, 0, this.rollbackMap);
   }
+  eventHandler(query: Query, args: Scope) {
+    return new QueryState(
+      query.items,
+      { ...this.scope, ...args },
+      this.context,
+      0,
+      this.rollbackMap
+    );
+  }
 }
 
 export class Runtime {
@@ -206,6 +215,11 @@ export class Runtime {
       case "result":
         yield { tag: "result", value: qs.result() };
         return yield* this.runQuery(qs);
+      case "log": {
+        const message = qs.get(q.message);
+        console.log(message, qs.result());
+        return yield* this.runQuery(qs);
+      }
       case "view":
         return yield* this.view(qs, q.view, q.args, q.children);
       case "rule":

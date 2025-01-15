@@ -6,7 +6,7 @@ import {
   useEffect,
   useRef,
 } from "react";
-import { useQuery, useUpdate } from "./state";
+import { useEventHandler, useQuery } from "./state";
 import { q, Query as TQuery } from "./query";
 import { FormatTextNode } from "./view";
 import { QueryNext, QueryState } from "./runtime";
@@ -45,16 +45,31 @@ function Button({
   args: { label, query },
   state,
 }: ViewProps<{ label: string; query: TQuery }>) {
-  const update = useUpdate(state);
+  const handle = useEventHandler(state);
   return (
     <button
       type="button"
       onClick={() => {
-        update(query, {});
+        handle(query, {});
       }}
     >
       {label}
     </button>
+  );
+}
+
+function Input({
+  args: { value, query },
+  state,
+}: ViewProps<{ value: string; query: TQuery }>) {
+  const handle = useEventHandler(state);
+  return (
+    <input
+      value={value}
+      onChange={(e) => {
+        handle(query, { [query.params[0]]: e.target.value });
+      }}
+    />
   );
 }
 
@@ -80,7 +95,7 @@ function Link({
   data?: Record<string, string>;
   target?: Target;
 }>) {
-  const update = useUpdate(state);
+  const handle = useEventHandler(state);
   const windowId = useContext(tabContext);
   return (
     <button
@@ -88,9 +103,9 @@ function Link({
       className="Link"
       onClick={(e) => {
         if (e.metaKey || target === "new") {
-          update(qNewWindow, { id, view, data });
+          handle(qNewWindow, { id, view, data });
         } else {
-          update(qPush, { windowId, id, view, data });
+          handle(qPush, { windowId, id, view, data });
         }
       }}
     >
@@ -159,7 +174,7 @@ function OmniboxView({
   state,
 }: ViewProps<{ data: { omnibox?: string } }>) {
   const results = useQuery(state, allQuery);
-  const update = useUpdate(state);
+  const handle = useEventHandler(state);
   const windowId = useContext(tabContext);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -192,8 +207,6 @@ function OmniboxView({
     )
   );
 
-  console.log("Omnibox", filtered);
-
   return (
     <div className="OmniboxView">
       <input
@@ -201,7 +214,7 @@ function OmniboxView({
         value={omnibox}
         ref={ref}
         onChange={(e) => {
-          update(qReplace, {
+          handle(qReplace, {
             windowId,
             data: { omnibox: e.target.value },
           });
@@ -225,6 +238,7 @@ const primitiveViews: Record<string, FC<ViewProps<any>>> = {
   AnyData,
   String,
   Button,
+  Input,
   Link,
   IconView,
   TextView,

@@ -2,6 +2,7 @@ import { Expr, Ident, Arg, KArg, kToExpr, toExpr, k } from "./expr";
 
 export type QueryItem =
   | { tag: "result" }
+  | { tag: "log"; message: Expr }
   | { tag: "fail" }
   | { tag: "id"; id: Expr }
   | { tag: "timestamp"; timestamp: Expr }
@@ -46,6 +47,10 @@ class QueryBuilder {
   }
   result() {
     this.items.push({ tag: "result" });
+    return this;
+  }
+  log(message: KArg) {
+    this.items.push({ tag: "log", message: kToExpr(message) });
     return this;
   }
   fail() {
@@ -136,13 +141,13 @@ class QueryBuilder {
     });
     return this;
   }
-  button(label: Arg, fn: QBCallback) {
+  button(label: Arg, query: Query) {
     this.items.push({
       tag: "view",
       view: k("view__button"),
       args: {
         label: toExpr(label),
-        query: k(fn(new QueryBuilder([])).build()),
+        query: k(query),
       },
       children: [],
     });
