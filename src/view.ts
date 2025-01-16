@@ -168,6 +168,16 @@ export const views = {
               .view(k("view__fileLink"), { id: "refId" })
           )
       )
+      .or((q) =>
+        q
+          .get("fieldId", "field__index", k("multiRef"))
+          .get("refId", v("fieldId"), "id")
+          .row((q) =>
+            q
+              .view(k("view__fileLink"), { id: "fieldId" })
+              .view(k("view__fileLink"), { id: "refId" })
+          )
+      )
       .build(),
   },
   view__text: {

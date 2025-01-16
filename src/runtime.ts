@@ -331,7 +331,7 @@ export class Runtime {
       const refId = qs.get<Id>(qValue);
       const index = this.db.getIndex(field);
       if (!index) return { tag: "fail" };
-      for (const [{ entityId }] of index.where(whereValue(refId))) {
+      for (const [{ entityId }] of index.tree.where(whereValue(refId))) {
         const nextState = qs.fork(qId, entityId);
         if (!nextState) return { tag: "fail" };
         yield* this.runQuery(nextState);

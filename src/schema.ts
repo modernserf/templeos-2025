@@ -10,8 +10,8 @@ export type Rec = {
   file__folderItems?: Id[];
   text__content?: FormatTextNode[];
   db__schema?: SchemaId;
-  field__refType?: Id;
-  field__index?: "ref" | "sorted"; // "multiRef" | "unique"
+  field__refType?: SchemaId;
+  field__index?: IndexType;
   rule__query?: Query;
   view__primitive?: string;
   view__schema?: SchemaId;
@@ -39,6 +39,10 @@ export const schemas = {
   schema__field: {
     db__schema: "schema__schema",
     file__name: "Field",
+  },
+  schema__indexType: {
+    db__schema: "schema__schema",
+    file__name: "Index type",
   },
   schema__anyType: {
     db__schema: "schema__schema",
@@ -83,6 +87,31 @@ export const schemas = {
   },
 } satisfies Record<string, SchemaRec>;
 
+type IndexTypeRec = Rec & {
+  db__schema: "schema__indexType";
+};
+
+export const indexTypes = {
+  ref: {
+    db__schema: "schema__indexType",
+    file__name: "Ref",
+  },
+  multiRef: {
+    db__schema: "schema__indexType",
+    file__name: "Multi-ref",
+  },
+  sorted: {
+    db__schema: "schema__indexType",
+    file__name: "Sorted",
+  },
+  unique: {
+    db__schema: "schema__indexType",
+    file__name: "Unique",
+  },
+} satisfies Record<string, IndexTypeRec>;
+
+type IndexType = keyof typeof indexTypes;
+
 type FieldRec = Rec & { db__schema: "schema__field" };
 export type Field = keyof typeof fields;
 
@@ -97,7 +126,7 @@ export const fields = {
   time__created: {
     db__schema: "schema__field",
     file__name: "Time created",
-    // field__index: "sorted", TODO
+    field__index: "sorted",
   },
   field__refType: {
     db__schema: "schema__field",
@@ -112,6 +141,7 @@ export const fields = {
     file__name: "Field index",
     file__description:
       "If set, the field is indexed using an index of this type.",
+    field__refType: "schema__indexType",
     field__index: "ref",
   },
   view__primitive: {
@@ -145,7 +175,7 @@ export const fields = {
     db__schema: "schema__field",
     file__name: "File folder items",
     file__description: "ids of files in folder",
-    field__index: "ref",
+    field__index: "multiRef",
   },
   rule__query: {
     db__schema: "schema__field",

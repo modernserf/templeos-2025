@@ -3,7 +3,7 @@ import { DB } from "./db";
 import { EventSource, QueryState, Runtime } from "./runtime";
 import { k, or, v } from "./expr";
 import { FormatTextBuilder, views } from "./view";
-import { fields, Rec, schemas } from "./schema";
+import { fields, indexTypes, Rec, schemas } from "./schema";
 import { q, Query } from "./query";
 import { flatMap } from "./iter";
 
@@ -16,9 +16,9 @@ export type BrowseParams = {
 const initDB = {
   ...schemas,
   ...fields,
+  ...indexTypes,
   ...views,
   // Rules
-  // TODO: out params
   rule__getData: {
     db__schema: "schema__rule",
     rule__query: q("field", "data")

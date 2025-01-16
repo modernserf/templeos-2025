@@ -4,6 +4,12 @@ type Id = string;
 type Field = string;
 
 type BaseRec = Record<Field, unknown>;
+type IndexType = "ref" | "multiRef" | "sorted";
+
+type Index = {
+  tree: Tree<RefIndex, null>;
+  indexType: IndexType;
+};
 
 type RefIndex = { entityId: Id; valueId: Id };
 
@@ -18,13 +24,13 @@ const indexOrd: Ord<RefIndex> = {
 
 export class DB<Rec extends BaseRec> {
   private data = new Map<Id, Rec>();
-  private refIndex = new Map<Field, Tree<RefIndex, null>>();
+  private index = new Map<Field, Index>();
 
   get(id: Id): Rec | null {
     return this.data.get(id) ?? null;
   }
   getIndex(field: Field) {
-    return this.refIndex.get(field);
+    return this.index.get(field);
   }
   *keys() {
     yield* this.data.keys();
@@ -41,7 +47,7 @@ export class DB<Rec extends BaseRec> {
       this.addToIndex(id, field, value as Id);
     }
     if (rec.db__schema === "schema__field" && rec.field__index) {
-      this.createIndex(id as Field);
+      this.createIndex(id as Field, rec.field__index as IndexType);
     }
   }
   update(id: Id, field: Field, value: unknown) {
@@ -55,18 +61,42 @@ export class DB<Rec extends BaseRec> {
     if (prevValue) this.removeFromIndex(id, field, prevValue as Id);
     if (value) this.addToIndex(id, field, value as Id);
   }
-  private createIndex(field: Field) {
-    this.refIndex.set(field, new Tree(indexOrd));
+  private createIndex(field: Field, indexType: IndexType) {
+    this.index.set(field, { indexType, tree: new Tree(indexOrd) });
     for (const [id, rec] of this.data) {
       if (field in rec) {
         this.addToIndex(id, field, rec[field] as Id);
       }
     }
   }
-  private addToIndex(entityId: Id, field: Field, valueId: Id) {
-    this.refIndex.get(field)?.set({ entityId, valueId }, null);
+  private addToIndex<T>(entityId: Id, field: Field, value: T) {
+    const idx = this.index.get(field);
+    if (!idx) return;
+    switch (idx.indexType) {
+      case "ref":
+      case "sorted":
+        idx.tree.set({ entityId, valueId: value as Id }, null);
+        return;
+      case "multiRef":
+        for (const valueId of value as Id[]) {
+          idx.tree.set({ entityId, valueId }, null);
+        }
+        return;
+    }
   }
-  private removeFromIndex(entityId: Id, field: Field, valueId: Id) {
-    this.refIndex.get(field)?.delete({ entityId, valueId });
+  private removeFromIndex<T>(entityId: Id, field: Field, value: T) {
+    const idx = this.index.get(field);
+    if (!idx) return;
+    switch (idx.indexType) {
+      case "ref":
+      case "sorted":
+        idx.tree.delete({ entityId, valueId: value as Id });
+        return;
+      case "multiRef":
+        for (const valueId of value as Id[]) {
+          idx.tree.delete({ entityId, valueId });
+        }
+        return;
+    }
   }
 }
