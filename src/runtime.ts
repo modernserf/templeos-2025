@@ -92,6 +92,16 @@ export class QueryState {
     if (this.rollbackMap.has(id)) return;
     this.rollbackMap.set(id, { ...prev });
   }
+  getContext<T>(field: Expr, binding: Expr) {
+    const value = this.context[this.get<Field>(field)] as T;
+    if (!value) throw new Error();
+    return this.set<T>(binding, value);
+  }
+  setContext(field: Expr, value: Expr) {
+    const nextContext = { ...this.context };
+    nextContext[this.get<Field>(field)] = this.get(value);
+    this.context = nextContext;
+  }
   fork<T>(binding: Expr, value: T) {
     const nextState = new QueryState(
       this.queryItems,
@@ -226,6 +236,12 @@ export class Runtime {
         return yield* this.rule(qs, q.rule, q.args);
       case "members":
         return yield* this.members(qs, q.item, q.collection);
+      case "getContext":
+        if (!qs.getContext(q.field, q.value)) return { tag: "fail" };
+        return yield* this.runQuery(qs);
+      case "setContext":
+        qs.setContext(q.field, q.value);
+        return yield* this.runQuery(qs);
       default:
         return { tag: "fail" };
     }

@@ -1,11 +1,4 @@
-import {
-  createContext,
-  FC,
-  ReactNode,
-  useContext,
-  useEffect,
-  useRef,
-} from "react";
+import { FC, ReactNode, useEffect, useRef } from "react";
 import { useEventHandler, useQueryResult, useQueryView } from "./state";
 import { q, Query as TQuery } from "./query";
 import { FormatTextNode } from "./view";
@@ -20,9 +13,6 @@ type ViewProps<T extends Record<string, unknown> = Record<string, unknown>> = {
 };
 
 type Target = "current" | "new";
-
-const tabContext = createContext("rootWindow");
-export const TabProvider = tabContext.Provider;
 
 // TODO: want to do non-hierarchichal layout
 function Row({ children }: ViewProps) {
@@ -76,7 +66,8 @@ function Input({
 const qNewWindow = q("id", "view", "data")
   .rule("rule__newWindow", { id: "id", view: "view", data: "data" })
   .build();
-const qPush = q("windowId", "id", "view", "data")
+const qPush = q("id", "view", "data")
+  .getContext("windowId", "windowId")
   .rule("rule__push", {
     windowId: "windowId",
     id: "id",
@@ -96,7 +87,6 @@ function Link({
   target?: Target;
 }>) {
   const handle = useEventHandler(state);
-  const windowId = useContext(tabContext);
   return (
     <button
       type="button"
@@ -105,7 +95,7 @@ function Link({
         if (e.metaKey || target === "new") {
           handle(qNewWindow, { id, view, data });
         } else {
-          handle(qPush, { windowId, id, view, data });
+          handle(qPush, { id, view, data });
         }
       }}
     >
@@ -160,7 +150,8 @@ const rowQuery = q("id", "name", "description", "schemaId", "schemaName")
   .string("description")
   .build();
 
-const qReplace = q("data", "windowId")
+const qReplace = q("data")
+  .getContext("windowId", "windowId")
   .rule("rule__replace", {
     id: k(undefined),
     view: k(undefined),
@@ -181,7 +172,6 @@ function OmniboxView({
     schemaName: string;
   }>(state, allQuery);
   const handle = useEventHandler(state);
-  const windowId = useContext(tabContext);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     ref.current?.focus();
@@ -217,7 +207,6 @@ function OmniboxView({
         ref={ref}
         onChange={(e) => {
           handle(qReplace, {
-            windowId,
             data: { omnibox: e.target.value },
           });
         }}

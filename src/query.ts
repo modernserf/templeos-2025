@@ -10,8 +10,10 @@ export type QueryItem =
   | { tag: "get/1"; id: Expr }
   | { tag: "get/2"; id: Expr; field: Expr }
   | { tag: "get/3"; id: Expr; field: Expr; value: Expr }
+  | { tag: "getContext"; field: Expr; value: Expr }
   | { tag: "insert"; id: Expr; record: Expr }
   | { tag: "update"; id: Expr; field: Expr; value: Expr }
+  | { tag: "setContext"; field: Expr; value: Expr }
   | { tag: "rule"; rule: Expr; args: Record<string, Expr> }
   | {
       tag: "view";
@@ -208,6 +210,22 @@ class QueryBuilder {
     this.items.push({
       tag: "or",
       items: fn(new QueryBuilder(this.params)).build().items,
+    });
+    return this;
+  }
+  getContext(field: KArg, value: Arg) {
+    this.items.push({
+      tag: "getContext",
+      field: kToExpr(field),
+      value: toExpr(value),
+    });
+    return this;
+  }
+  setContext(field: KArg, value: Arg) {
+    this.items.push({
+      tag: "setContext",
+      field: kToExpr(field),
+      value: toExpr(value),
     });
     return this;
   }

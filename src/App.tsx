@@ -1,7 +1,7 @@
 import { useDB, useEventHandler, useQueryResult } from "./state";
 import { q } from "./query";
 import { k } from "./expr";
-import { TabProvider, Query } from "./primitive";
+import { Query } from "./primitive";
 import "./App.css";
 import { QueryState } from "./runtime";
 
@@ -27,7 +27,8 @@ const qViewsForType = q("id")
   .result()
   .build();
 
-const qRootView = q("id", "view", "data")
+const qRootView = q("windowId", "id", "view", "data")
+  .setContext("windowId", "windowId")
   .view("view", { id: "id", view: "view", data: "data" })
   .build();
 
@@ -65,61 +66,59 @@ function AppWindow({
   };
 
   return (
-    <TabProvider value={windowId}>
-      <div
-        tabIndex={0}
-        className={["AppWindow", isCurrent && "AppWindow--current"]
-          .filter(Boolean)
-          .join(" ")}
-        onMouseDownCapture={() => {
-          dispatch("rule__selectWindow", { windowId });
-        }}
-        onKeyDownCapture={(e) => {
-          if (e.key == "[" && e.metaKey) {
-            e.preventDefault();
-            dispatch("rule__back", { windowId });
-          }
-          if (e.key == "]" && e.metaKey) {
-            e.preventDefault();
-            dispatch("rule__forward", { windowId });
-          }
-        }}
-      >
-        <header className="AppWindow__header">
-          <button
-            className="AppWindow__closeButton"
-            type="button"
-            onClick={() => {
-              dispatch("rule__closeWindow", { windowId });
-            }}
-          ></button>
-          <h1 className="AppWindow__title">{fileName}</h1>
-          <select
-            className="AppWindow__viewMenu"
-            value={view}
-            onChange={(e) => {
-              dispatch("rule__replace", {
-                id: undefined,
-                data: undefined,
-                windowId,
-                view: e.target.value,
-              });
-            }}
-          >
-            {viewers.map((v) => (
-              <option key={v.view} value={v.view}>
-                {v.viewName ?? viewId}
-              </option>
-            ))}
-          </select>
-        </header>
-        <Query
-          state={state}
-          query={qRootView}
-          args={{ id, view, data: data ?? {} }}
-        />
-      </div>
-    </TabProvider>
+    <div
+      tabIndex={0}
+      className={["AppWindow", isCurrent && "AppWindow--current"]
+        .filter(Boolean)
+        .join(" ")}
+      onMouseDownCapture={() => {
+        dispatch("rule__selectWindow", { windowId });
+      }}
+      onKeyDownCapture={(e) => {
+        if (e.key == "[" && e.metaKey) {
+          e.preventDefault();
+          dispatch("rule__back", { windowId });
+        }
+        if (e.key == "]" && e.metaKey) {
+          e.preventDefault();
+          dispatch("rule__forward", { windowId });
+        }
+      }}
+    >
+      <header className="AppWindow__header">
+        <button
+          className="AppWindow__closeButton"
+          type="button"
+          onClick={() => {
+            dispatch("rule__closeWindow", { windowId });
+          }}
+        ></button>
+        <h1 className="AppWindow__title">{fileName}</h1>
+        <select
+          className="AppWindow__viewMenu"
+          value={view}
+          onChange={(e) => {
+            dispatch("rule__replace", {
+              id: undefined,
+              data: undefined,
+              windowId,
+              view: e.target.value,
+            });
+          }}
+        >
+          {viewers.map((v) => (
+            <option key={v.view} value={v.view}>
+              {v.viewName ?? viewId}
+            </option>
+          ))}
+        </select>
+      </header>
+      <Query
+        state={state}
+        query={qRootView}
+        args={{ windowId, id, view, data: data ?? {} }}
+      />
+    </div>
   );
 }
 
