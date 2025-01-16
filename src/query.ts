@@ -125,12 +125,12 @@ class QueryBuilder {
     });
     return this;
   }
-  view(view: Arg, args: ArgRecord) {
+  view(view: Arg, args: ArgRecord, children?: Query) {
     this.items.push({
       tag: "view",
       view: toExpr(view),
       args: toRecordExpr(args),
-      children: [],
+      children: children?.items ?? [],
     });
     return this;
   }

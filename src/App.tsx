@@ -4,6 +4,7 @@ import { k } from "./expr";
 import { Query } from "./primitive";
 import "./App.css";
 import { QueryState } from "./runtime";
+import { take } from "./iter";
 
 const qAppWindow = q("windowId")
   .get("windowId", "window__currentHistory", "historyId")
@@ -23,15 +24,38 @@ const qViewsForType = q("id")
   .get("view", "file__name", "viewName")
   .build();
 
+const qViewMenu = q("windowId", "id", "view")
+  .view(
+    k("view__select"),
+    {
+      value: "view",
+      query: k(
+        q("nextView")
+          .get("windowId", "window__currentHistory", "h")
+          .log("qViewMenu")
+          .update("h", "history__view", "nextView")
+          .build()
+      ),
+    },
+    q()
+      .or((q) =>
+        q
+          .get("id", "db__schema", "schema")
+          .get("viewId", "view__schema", "schema")
+          .get("viewId", "file__name", "viewName")
+          .view(k("view__option"), { id: "viewId", label: "viewName" })
+      )
+      .get("viewId", "view__schema", k("schema__anyType"))
+      .get("viewId", "file__name", "viewName")
+      .view(k("view__option"), { id: "viewId", label: "viewName" })
+      .build()
+  )
+  .build();
+
 const qRootView = q("windowId", "id", "view")
   .setContext("windowId", "windowId")
   .setContext("id", "id")
   .view("view", { id: "id" })
-  .build();
-
-const onChangeView = q("windowId", "view")
-  .get("windowId", "window__currentHistory", "h")
-  .update("h", "history__view", "view")
   .build();
 
 function AppWindow({
@@ -43,6 +67,14 @@ function AppWindow({
   windowId: string;
   isCurrent: boolean;
 }) {
+  const handle = useEventHandler(state);
+  const dispatch = (name: string, args: Record<string, unknown>) => {
+    const argExprs = Object.fromEntries(
+      Object.keys(args).map((key) => [key, key])
+    );
+    handle(q().rule(name, argExprs).build(), args);
+  };
+
   const [{ id, viewId, fileName }] = Array.from(
     useQueryResult<{
       id: string;
@@ -52,19 +84,15 @@ function AppWindow({
       windowId,
     })
   );
-  const viewers = Array.from(
-    useQueryResult<{ view: string; viewName: string }>(state, qViewsForType, {
-      id,
-    })
+  const [currentView] = Array.from(
+    take(
+      1,
+      useQueryResult<{ view: string; viewName: string }>(state, qViewsForType, {
+        id,
+      })
+    )
   );
-  const view = viewId || viewers[0].view;
-  const handle = useEventHandler(state);
-  const dispatch = (name: string, args: Record<string, unknown>) => {
-    const argExprs = Object.fromEntries(
-      Object.keys(args).map((key) => [key, key])
-    );
-    handle(q().rule(name, argExprs).build(), args);
-  };
+  const view = viewId || currentView.view;
 
   return (
     <div
@@ -95,19 +123,7 @@ function AppWindow({
           }}
         ></button>
         <h1 className="AppWindow__title">{fileName}</h1>
-        <select
-          className="AppWindow__viewMenu"
-          value={view}
-          onChange={(e) => {
-            handle(onChangeView, { windowId, view: e.target.value });
-          }}
-        >
-          {viewers.map((v) => (
-            <option key={v.view} value={v.view}>
-              {v.viewName ?? viewId}
-            </option>
-          ))}
-        </select>
+        <Query state={state} query={qViewMenu} args={{ windowId, id, view }} />
       </header>
       <Query state={state} query={qRootView} args={{ windowId, id, view }} />
     </div>

@@ -63,6 +63,31 @@ function Input({
   );
 }
 
+function Select({
+  state,
+  children,
+  args: { value, query },
+}: ViewProps<{ value: string; query: TQuery }>) {
+  const handle = useEventHandler(state);
+  return (
+    <select
+      value={value}
+      onChange={(e) => {
+        console.log("onChange", e.target.value);
+        handle(query, { [query.params[0]]: e.target.value });
+      }}
+    >
+      {children}
+    </select>
+  );
+}
+
+function Option({
+  args: { id, label },
+}: ViewProps<{ id: string; label: string }>) {
+  return <option value={id}>{label}</option>;
+}
+
 const qNewWindow = q("id", "view")
   .rule("rule__newWindow", { id: "id", view: "view" })
   .build();
@@ -222,6 +247,8 @@ const primitiveViews: Record<string, FC<ViewProps<any>>> = {
   String,
   Button,
   Input,
+  Select,
+  Option,
   Link,
   IconView,
   TextView,

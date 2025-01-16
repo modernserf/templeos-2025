@@ -47,6 +47,16 @@ export const views = {
     file__name: "Input",
     view__primitive: "Input",
   },
+  view__select: {
+    db__schema: "schema__view",
+    file__name: "Select",
+    view__primitive: "Select",
+  },
+  view__option: {
+    db__schema: "schema__view",
+    file__name: "Option",
+    view__primitive: "Option",
+  },
   view__link: {
     db__schema: "schema__view",
     file__name: "Link",
