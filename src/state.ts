@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { DB } from "./db";
 import { EventSource, QueryState, Runtime } from "./runtime";
-import { k, or } from "./expr";
+import { k, or, v } from "./expr";
 import { FormatTextBuilder, views } from "./view";
 import { fields, Rec, schemas } from "./schema";
 import { q, Query } from "./query";
@@ -18,9 +18,26 @@ const initDB = {
   ...fields,
   ...views,
   // Rules
+  // TODO: out params
+  rule__getData: {
+    db__schema: "schema__rule",
+    rule__query: q("field", "data")
+      .getContext("windowId", "windowId")
+      .get("windowId", "window__currentHistory", "h")
+      .get("h", v("field"), "data")
+      .build(),
+  },
+  rule__setData: {
+    db__schema: "schema__rule",
+    rule__query: q("field", "data")
+      .getContext("windowId", "windowId")
+      .get("windowId", "window__currentHistory", "h")
+      .update("h", v("field"), "data")
+      .build(),
+  },
   rule__push: {
     db__schema: "schema__rule",
-    rule__query: q("windowId", "id", "view", "data")
+    rule__query: q("windowId", "id", "view")
       .get("windowId", "window__currentHistory", "currentId")
       .id("h")
       .timestamp("ts")
@@ -28,7 +45,6 @@ const initDB = {
       .update("h", "history__window", "windowId")
       .update("h", "history__location", "id")
       .update("h", "history__view", "view")
-      .update("h", "history__data", "data")
       .update("h", "history__back", "currentId")
       .update("h", "time__created", "ts")
       .update("windowId", "window__currentHistory", "h")
@@ -37,14 +53,12 @@ const initDB = {
   },
   rule__replace: {
     db__schema: "schema__rule",
-    rule__query: q("windowId", "id", "view", "data")
+    rule__query: q("windowId", "id", "view")
       .get("windowId", "window__currentHistory", "currentId")
       .get("currentId", "history__location", "_id")
       .update("currentId", "history__location", or("id", "_id"))
       .get("currentId", "history__view", "_view")
       .update("currentId", "history__view", or("view", "_view"))
-      .get("currentId", "history__data", "_data")
-      .update("currentId", "history__data", or("data", "_data"))
       .build(),
   },
   rule__back: {
@@ -69,7 +83,7 @@ const initDB = {
   },
   rule__newWindow: {
     db__schema: "schema__rule",
-    rule__query: q("id", "view", "data")
+    rule__query: q("id", "view")
       .id("w")
       .id("h")
       .timestamp("ts")
@@ -80,7 +94,6 @@ const initDB = {
       .update("h", "history__window", "w")
       .update("h", "history__location", "id")
       .update("h", "history__view", "view")
-      .update("h", "history__data", "data")
       .update("h", "time__created", "ts")
       .build(),
   },

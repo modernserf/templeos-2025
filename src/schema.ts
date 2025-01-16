@@ -19,11 +19,11 @@ export type Rec = {
   history__window?: Id;
   history__location?: Id;
   history__view?: Id;
-  history__data?: Record<string, string>;
   history__back?: Id;
   history__forward?: Id;
   window__currentHistory?: Id;
   browser__currentWindow?: Id;
+  data__omnibox?: string;
 };
 
 type SchemaId = keyof typeof schemas;
@@ -162,10 +162,6 @@ export const fields = {
     file__name: "History view ref",
     field__refType: "schema__view",
   },
-  history__data: {
-    db__schema: "schema__field",
-    file__name: "History data",
-  },
   history__back: {
     db__schema: "schema__field",
     file__name: "History back ref",
@@ -190,5 +186,9 @@ export const fields = {
     db__schema: "schema__field",
     file__name: "Text content",
     file__description: "a list of text nodes used in text schema",
+  },
+  data__omnibox: {
+    db__schema: "schema__field",
+    file__name: "Omnibox search string",
   },
 } satisfies Record<string, FieldRec>;

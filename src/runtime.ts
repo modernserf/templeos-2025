@@ -85,6 +85,15 @@ export class QueryState {
       Object.entries(args).map(([k, v]) => [k, this.get(v)])
     );
   }
+  tryGetArgs(args: ExprArgs) {
+    const evalArgs: Record<string, unknown> = {};
+    for (const key in args) {
+      if (!this.isOut(args[key])) {
+        evalArgs[key] = this.get(args[key]);
+      }
+    }
+    return evalArgs;
+  }
   set<T>(binding: Expr, value: T): boolean {
     return setVar(this.scope, binding, value);
   }
@@ -133,8 +142,14 @@ export class QueryState {
   }
   rule(query: Query, qArgs: ExprArgs) {
     // TODO: check query params against args
-    const args = this.getArgs(qArgs);
+    const args = this.tryGetArgs(qArgs);
     return new QueryState(query.items, args, this.context, 0, this.rollbackMap);
+  }
+  ruleReturn(childState: QueryState, qArgs: ExprArgs, query: Query) {
+    for (const p of query.params) {
+      const value = childState.scope[p];
+      this.set(qArgs[p], value);
+    }
   }
   update(query: Query, args: Scope) {
     return new QueryState(query.items, args, this.context, 0, this.rollbackMap);
@@ -167,7 +182,10 @@ export class Runtime {
     }
   }
   private *runQuery(qs: QueryState): Generator<QueryNext, QueryReturn> {
-    if (qs.done()) return { tag: "ok" };
+    if (qs.done()) {
+      yield { tag: "result", value: qs.result() };
+      return { tag: "ok" };
+    }
     const q = qs.advance();
     switch (q.tag) {
       case "fail":
@@ -349,7 +367,7 @@ export class Runtime {
     const ruleState = qs.rule(rule.rule__query, qArgs);
     const res = yield* this.runQuery(ruleState);
     if (res.tag === "fail") return res;
-    // TODO: copy out params to parent state
+    qs.ruleReturn(ruleState, qArgs, rule.rule__query);
     return yield* this.runQuery(qs);
   }
   private *members(

@@ -63,27 +63,27 @@ function Input({
   );
 }
 
-const qNewWindow = q("id", "view", "data")
-  .rule("rule__newWindow", { id: "id", view: "view", data: "data" })
+const qNewWindow = q("id", "view")
+  .rule("rule__newWindow", { id: "id", view: "view" })
   .build();
-const qPush = q("id", "view", "data")
+const qPush = q("id", "view")
   .getContext("windowId", "windowId")
   .rule("rule__push", {
     windowId: "windowId",
     id: "id",
     view: "view",
-    data: "data",
   })
   .build();
 
 function Link({
-  args: { label, id, view, data, target = "current" },
+  args: { label, id, view, target = "current" },
   state,
 }: ViewProps<{
   label: string;
   id: string;
   view?: string;
-  data?: Record<string, string>;
+  // TODO
+  // data?: Record<string, string>;
   target?: Target;
 }>) {
   const handle = useEventHandler(state);
@@ -93,9 +93,9 @@ function Link({
       className="Link"
       onClick={(e) => {
         if (e.metaKey || target === "new") {
-          handle(qNewWindow, { id, view, data });
+          handle(qNewWindow, { id, view });
         } else {
-          handle(qPush, { id, view, data });
+          handle(qPush, { id, view });
         }
       }}
     >
@@ -140,7 +140,6 @@ const allQuery = q() //
   .get("id", "file__description", "description")
   .get("id", "db__schema", "schemaId")
   .get("schemaId", "file__name", "schemaName")
-  .result()
   .build();
 
 const rowQuery = q("id", "name", "description", "schemaId", "schemaName")
@@ -150,20 +149,15 @@ const rowQuery = q("id", "name", "description", "schemaId", "schemaName")
   .string("description")
   .build();
 
-const qReplace = q("data")
-  .getContext("windowId", "windowId")
-  .rule("rule__replace", {
-    id: k(undefined),
-    view: k(undefined),
-    data: "data",
-    windowId: "windowId",
-  })
+const qData = q()
+  .rule("rule__getData", { field: k("data__omnibox"), data: "data" })
   .build();
 
-function OmniboxView({
-  args: { data },
-  state,
-}: ViewProps<{ data: { omnibox?: string } }>) {
+const qReplace = q("data")
+  .rule("rule__setData", { field: k("data__omnibox"), data: "data" })
+  .build();
+
+function OmniboxView({ state }: ViewProps) {
   const results = useQueryResult<{
     id: string;
     name: string;
@@ -177,8 +171,8 @@ function OmniboxView({
     ref.current?.focus();
   }, []);
 
-  const omnibox = data.omnibox ?? "";
-
+  const [{ data }] = Array.from(useQueryResult<{ data: string }>(state, qData));
+  const omnibox = data ?? "";
   const re = RegExp(omnibox, "i");
 
   const filtered = Array.from(
@@ -206,9 +200,7 @@ function OmniboxView({
         value={omnibox}
         ref={ref}
         onChange={(e) => {
-          handle(qReplace, {
-            data: { omnibox: e.target.value },
-          });
+          handle(qReplace, { data: e.target.value });
         }}
       />
       <ul className="OmniboxView__list">

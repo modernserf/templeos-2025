@@ -211,8 +211,8 @@ export const views = {
     db__schema: "schema__view",
     file__name: "Form",
     view__schema: "schema__form",
-    view__query: q("id", "view", "data") //
-      .view("id", { id: "id", view: "view", data: "data" })
+    view__query: q("id") //
+      .view("id", { id: "id" })
       .build(),
   },
 } satisfies Record<string, ViewRec>;

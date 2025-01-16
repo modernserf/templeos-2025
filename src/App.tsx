@@ -7,11 +7,9 @@ import { QueryState } from "./runtime";
 
 const qAppWindow = q("windowId")
   .get("windowId", "window__currentHistory", "historyId")
-  .get("historyId", "history__data", "data")
   .get("historyId", "history__location", "id")
   .get("historyId", "history__view", "viewId")
   .get("id", "file__name", "fileName")
-  .result()
   .build();
 
 const qViewsForType = q("id")
@@ -20,16 +18,20 @@ const qViewsForType = q("id")
       .get("id", "db__schema", "schema")
       .get("view", "view__schema", "schema")
       .get("view", "file__name", "viewName")
-      .result()
   )
   .get("view", "view__schema", k("schema__anyType"))
   .get("view", "file__name", "viewName")
-  .result()
   .build();
 
-const qRootView = q("windowId", "id", "view", "data")
+const qRootView = q("windowId", "id", "view")
   .setContext("windowId", "windowId")
-  .view("view", { id: "id", view: "view", data: "data" })
+  .setContext("id", "id")
+  .view("view", { id: "id" })
+  .build();
+
+const onChangeView = q("windowId", "view")
+  .get("windowId", "window__currentHistory", "h")
+  .update("h", "history__view", "view")
   .build();
 
 function AppWindow({
@@ -41,12 +43,11 @@ function AppWindow({
   windowId: string;
   isCurrent: boolean;
 }) {
-  const [{ data, id, viewId, fileName }] = Array.from(
+  const [{ id, viewId, fileName }] = Array.from(
     useQueryResult<{
       id: string;
       viewId: string;
       fileName: string;
-      data: Record<string, string>;
     }>(state, qAppWindow, {
       windowId,
     })
@@ -98,12 +99,7 @@ function AppWindow({
           className="AppWindow__viewMenu"
           value={view}
           onChange={(e) => {
-            dispatch("rule__replace", {
-              id: undefined,
-              data: undefined,
-              windowId,
-              view: e.target.value,
-            });
+            handle(onChangeView, { windowId, view: e.target.value });
           }}
         >
           {viewers.map((v) => (
@@ -113,11 +109,7 @@ function AppWindow({
           ))}
         </select>
       </header>
-      <Query
-        state={state}
-        query={qRootView}
-        args={{ windowId, id, view, data: data ?? {} }}
-      />
+      <Query state={state} query={qRootView} args={{ windowId, id, view }} />
     </div>
   );
 }
@@ -125,7 +117,6 @@ function AppWindow({
 const qApp = q()
   .get(k("browser"), "browser__currentWindow", "currentWindow")
   .get("id", "db__schema", k("schema__window"))
-  .result()
   .build();
 
 const qAppMenu = q().view(k("view__appMenu"), {}).build();
