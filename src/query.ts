@@ -22,7 +22,9 @@ export type QueryItem =
       children: QueryItem[];
     }
   | { tag: "cond"; if: QueryItem[]; then: QueryItem[]; else: QueryItem[] }
-  | { tag: "or"; items: QueryItem[] };
+  | { tag: "or"; items: QueryItem[] }
+  | { tag: "limit"; count: Expr }
+  | { tag: "matchString"; matcher: Expr; subject: Expr };
 
 export type Query = {
   params: Ident[];
@@ -226,6 +228,21 @@ class QueryBuilder {
       tag: "setContext",
       field: kToExpr(field),
       value: toExpr(value),
+    });
+    return this;
+  }
+  limit(count: number | Arg) {
+    this.items.push({
+      tag: "limit",
+      count: typeof count === "number" ? k(count) : toExpr(count),
+    });
+    return this;
+  }
+  matchString(matcher: Arg, subject: Arg) {
+    this.items.push({
+      tag: "matchString",
+      matcher: toExpr(matcher),
+      subject: toExpr(subject),
     });
     return this;
   }

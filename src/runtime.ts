@@ -3,6 +3,7 @@ import { DB } from "./db";
 import { Expr, getVar, isOut, setVar } from "./expr";
 import { Query, QueryItem } from "./query";
 import { Field, Rec } from "./schema";
+import { flatMap } from "./iter";
 
 type RefIndex = { entityId: Id; valueId: Id };
 function whereValue(valueId: Id): Where<RefIndex> {
@@ -260,6 +261,26 @@ export class Runtime {
       case "setContext":
         qs.setContext(q.field, q.value);
         return yield* this.runQuery(qs);
+      case "limit": {
+        const max = qs.get(q.count);
+        let resultCount = 0;
+        for (const res of this.runQuery(qs)) {
+          if (resultCount === max) break;
+          if (res.tag === "result") resultCount += 1;
+          yield res;
+        }
+        return { tag: "ok" };
+      }
+      case "matchString": {
+        const matcher = qs.get<string>(q.matcher);
+        const re = new RegExp(matcher, "i");
+        const subject = qs.get<string>(q.subject);
+        if (re.test(subject)) {
+          return yield* this.runQuery(qs);
+        } else {
+          return { tag: "fail" };
+        }
+      }
       default:
         return { tag: "fail" };
     }
@@ -365,7 +386,8 @@ export class Runtime {
     if (!rule.rule__query) throw new Error(`Invalid rule ${ruleId}`);
 
     const ruleState = qs.rule(rule.rule__query, qArgs);
-    const res = yield* this.runQuery(ruleState);
+    // don't yield results/views from rule
+    const res = yield* flatMap(function* () {}, this.runQuery(ruleState));
     if (res.tag === "fail") return res;
     qs.ruleReturn(ruleState, qArgs, rule.rule__query);
     return yield* this.runQuery(qs);

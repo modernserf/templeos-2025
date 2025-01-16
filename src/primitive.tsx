@@ -3,8 +3,7 @@ import { useEventHandler, useQueryResult, useQueryView } from "./state";
 import { q, Query as TQuery } from "./query";
 import { FormatTextNode } from "./view";
 import { QueryNext, QueryState } from "./runtime";
-import { k } from "./expr";
-import { filter, take } from "./iter";
+import { k, or } from "./expr";
 
 type ViewProps<T extends Record<string, unknown> = Record<string, unknown>> = {
   children?: ReactNode;
@@ -73,7 +72,6 @@ function Select({
     <select
       value={value}
       onChange={(e) => {
-        console.log("onChange", e.target.value);
         handle(query, { [query.params[0]]: e.target.value });
       }}
     >
@@ -159,19 +157,25 @@ function TextView({
   );
 }
 
-const allQuery = q() //
+const qRows = q() //
+  .limit(10)
+  .rule("rule__getData", { field: k("data__omnibox"), data: "data" })
   .get("id")
   .get("id", "file__name", "name")
   .get("id", "file__description", "description")
   .get("id", "db__schema", "schemaId")
   .get("schemaId", "file__name", "schemaName")
-  .build();
-
-const rowQuery = q("id", "name", "description", "schemaId", "schemaName")
-  .row((q) =>
-    q.link("name", "id").string(k(":")).link("schemaName", "schemaId")
+  // TODO: also match description
+  .matchString(or("data", k("")), "name")
+  .row((qq) =>
+    qq //
+      .link("name", "id")
+      .string(k(":"))
+      .link("schemaName", "schemaId")
   )
   .string("description")
+  // TODO: real layout instead of these dividers
+  .string(k("--------"))
   .build();
 
 const qData = q()
@@ -183,13 +187,6 @@ const qReplace = q("data")
   .build();
 
 function OmniboxView({ state }: ViewProps) {
-  const results = useQueryResult<{
-    id: string;
-    name: string;
-    description: string;
-    schemaId: string;
-    schemaName: string;
-  }>(state, allQuery);
   const handle = useEventHandler(state);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -198,26 +195,6 @@ function OmniboxView({ state }: ViewProps) {
 
   const [{ data }] = Array.from(useQueryResult<{ data: string }>(state, qData));
   const omnibox = data ?? "";
-  const re = RegExp(omnibox, "i");
-
-  const filtered = Array.from(
-    take(
-      10,
-      filter(
-        ({
-          id,
-          name,
-          description,
-        }: {
-          id: string;
-          name: string;
-          description: string;
-        }) => re.test(id) || re.test(name ?? "") || re.test(description ?? ""),
-        results
-      )
-    )
-  );
-
   return (
     <div className="OmniboxView">
       <input
@@ -228,13 +205,7 @@ function OmniboxView({ state }: ViewProps) {
           handle(qReplace, { data: e.target.value });
         }}
       />
-      <ul className="OmniboxView__list">
-        {filtered.map((args) => (
-          <li key={args.id} className="OmniboxView__listItem">
-            <Query state={state} query={rowQuery} args={args} />
-          </li>
-        ))}
-      </ul>
+      <Query state={state} query={qRows} args={{}} />
     </div>
   );
 }

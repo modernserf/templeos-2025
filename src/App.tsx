@@ -4,7 +4,6 @@ import { k } from "./expr";
 import { Query } from "./primitive";
 import "./App.css";
 import { QueryState } from "./runtime";
-import { take } from "./iter";
 
 const qAppWindow = q("windowId")
   .get("windowId", "window__currentHistory", "historyId")
@@ -14,14 +13,11 @@ const qAppWindow = q("windowId")
   .build();
 
 const qViewsForType = q("id")
+  .limit(1)
   .or((q) =>
-    q
-      .get("id", "db__schema", "schema")
-      .get("view", "view__schema", "schema")
-      .get("view", "file__name", "viewName")
+    q.get("id", "db__schema", "schema").get("view", "view__schema", "schema")
   )
   .get("view", "view__schema", k("schema__anyType"))
-  .get("view", "file__name", "viewName")
   .build();
 
 const qViewMenu = q("windowId", "id", "view")
@@ -32,7 +28,6 @@ const qViewMenu = q("windowId", "id", "view")
       query: k(
         q("nextView")
           .get("windowId", "window__currentHistory", "h")
-          .log("qViewMenu")
           .update("h", "history__view", "nextView")
           .build()
       ),
@@ -85,12 +80,9 @@ function AppWindow({
     })
   );
   const [currentView] = Array.from(
-    take(
-      1,
-      useQueryResult<{ view: string; viewName: string }>(state, qViewsForType, {
-        id,
-      })
-    )
+    useQueryResult<{ view: string; viewName: string }>(state, qViewsForType, {
+      id,
+    })
   );
   const view = viewId || currentView.view;
 
