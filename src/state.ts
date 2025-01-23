@@ -1,212 +1,164 @@
-import { useState, useEffect } from "react";
 import { DB } from "./db";
-import { EventSource, QueryState, Runtime } from "./runtime";
-import { k, or, v } from "./expr";
-import { FormatTextBuilder, views } from "./view";
-import { fields, indexTypes, Rec, schemas } from "./schema";
-import { q, Query } from "./query";
-import { flatMap } from "./iter";
+import { Rec, Id, Ident, Expr, Param, Clause, RuleRec } from "./schema";
+import { deepEqual } from "./util";
+import { k } from "./rule_builder";
+import { rulePrimitives } from "./rule_primitive";
+import { ViewPrimitiveId } from "./view_primitive";
 
-export type BrowseParams = {
-  id: string;
-  view?: string;
-  data?: Record<string, string>;
-};
+export type RuleOutput =
+  | { tag: "result"; state: State }
+  | {
+      tag: "view";
+      state: State;
+      view: ViewPrimitiveId;
+      args: unknown[];
+    };
 
-const initDB = {
-  ...schemas,
-  ...fields,
-  ...indexTypes,
-  ...views,
-  // Rules
-  rule__getData: {
-    db__schema: "schema__rule",
-    rule__query: q("field", "data")
-      .getContext("windowId", "windowId")
-      .get("windowId", "window__currentHistory", "h")
-      .get("h", v("field"), "data")
-      .build(),
-  },
-  rule__setData: {
-    db__schema: "schema__rule",
-    rule__query: q("field", "data")
-      .getContext("windowId", "windowId")
-      .get("windowId", "window__currentHistory", "h")
-      .update("h", v("field"), "data")
-      .build(),
-  },
-  rule__push: {
-    db__schema: "schema__rule",
-    rule__query: q("windowId", "id", "view")
-      .get("windowId", "window__currentHistory", "currentId")
-      .id("h")
-      .timestamp("ts")
-      .update("h", "db__schema", k("schema__history"))
-      .update("h", "history__window", "windowId")
-      .update("h", "history__location", "id")
-      .update("h", "history__view", "view")
-      .update("h", "history__back", "currentId")
-      .update("h", "time__created", "ts")
-      .update("windowId", "window__currentHistory", "h")
-      .update("currentId", "history__forward", "h")
-      .build(),
-  },
-  rule__replace: {
-    db__schema: "schema__rule",
-    rule__query: q("windowId", "id", "view")
-      .get("windowId", "window__currentHistory", "currentId")
-      .get("currentId", "history__location", "_id")
-      .update("currentId", "history__location", or("id", "_id"))
-      .get("currentId", "history__view", "_view")
-      .update("currentId", "history__view", or("view", "_view"))
-      .build(),
-  },
-  rule__back: {
-    db__schema: "schema__rule",
-    rule__query: q("windowId")
-      .get("windowId", "window__currentHistory", "currentId")
-      .get("currentId", "history__back", "backId")
-      .update("windowId", "window__currentHistory", "backId")
-      .update("currentId", "history__back", k(null))
-      .update("backId", "history__forward", "currentId")
-      .build(),
-  },
-  rule__forward: {
-    db__schema: "schema__rule",
-    rule__query: q("windowId")
-      .get("windowId", "window__currentHistory", "currentId")
-      .get("currentId", "history__forward", "forwardId")
-      .update("windowId", "window__currentHistory", "forwardId")
-      .update("currentId", "history__forward", k(null))
-      .update("forwardId", "history__back", "currentId")
-      .build(),
-  },
-  rule__newWindow: {
-    db__schema: "schema__rule",
-    rule__query: q("id", "view")
-      .id("w")
-      .id("h")
-      .timestamp("ts")
-      .update(k("browser"), "browser__currentWindow", "w")
-      .update("w", "db__schema", k("schema__window"))
-      .update("w", "window__currentHistory", "h")
-      .update("h", "db__schema", k("schema__history"))
-      .update("h", "history__window", "w")
-      .update("h", "history__location", "id")
-      .update("h", "history__view", "view")
-      .update("h", "time__created", "ts")
-      .build(),
-  },
-  rule__selectWindow: {
-    db__schema: "schema__rule",
-    rule__query: q("windowId") //
-      .update(k("browser"), "browser__currentWindow", "windowId")
-      .build(),
-  },
-  rule__closeWindow: {
-    db__schema: "schema__rule",
-    rule__query: q("windowId") //
-      .insert("windowId", k(null))
-      .update(k("browser"), "browser__currentWindow", k(null))
-      .build(),
-  },
+function notFound(name: string): never {
+  throw new Error(`Not found: ${name}`);
+}
 
-  // Cards
-  home: {
-    db__schema: "schema__text",
-    file__name: "home",
-    file__description: "this is the home card",
-    text__content: new FormatTextBuilder()
-      .text("content that ")
-      .link({ id: "other" }, "links")
-      .text(" to another card.")
-      .build(),
-  },
-  other: {
-    file__name: "other",
-    file__description: "this is the other card",
-  },
-  example__folder: {
-    db__schema: "schema__folder",
-    file__name: "Example Folder",
-    file__description: "A folder with some items",
-    file__folderItems: ["home", "schema__text", "view__text"],
-  },
-  notFound: {
-    file__name: "not found",
-    file__description: "Card not found",
-  },
-  rootHistory: {
-    db__schema: "schema__history",
-    history__window: "rootWindow",
-    history__location: "home",
-  },
-  rootWindow: {
-    db__schema: "schema__window",
-    window__currentHistory: "rootHistory",
-  },
-  browser: {
-    db__schema: "schema__browser",
-    file__name: "Browser state",
-    browser__currentWindow: "rootWindow",
-  },
-  omnibox: {
-    db__schema: "schema__form",
-    file__name: "Omnibox",
-    view__query: q().build(),
-    view__primitive: "OmniboxView",
-  },
-} satisfies Record<string, Rec>;
-
-export const eventSource = new EventSource();
-export const db = new DB();
-export const runtime = new Runtime(db, eventSource);
-runtime.bulkInsert(initDB);
-
-declare global {
-  interface Window {
-    runtime: Runtime;
+export class State {
+  private constructor(
+    public db: DB<Rec>,
+    private scope: Record<Ident, Expr>,
+    private context: Record<Id, unknown>
+  ) {}
+  static root(db: DB<Rec>): State {
+    return new State(db, {}, {});
   }
-}
-
-window.runtime = runtime;
-
-// this triggers a re-render on every update
-export function useDB() {
-  const [, setData] = useState({});
-  useEffect(() => {
-    return eventSource.addEventListener(() => {
-      setData({});
-    });
-  }, []);
-  return QueryState.root();
-}
-
-export function useQueryView(
-  state: QueryState,
-  b: Query,
-  args: Record<string, unknown> = {}
-) {
-  return flatMap(function* (item) {
-    if (item.tag === "viewPrimitive") yield item;
-  }, runtime.query(state.update(b, args)));
-}
-
-export function useQueryResult<T>(
-  state: QueryState,
-  b: Query,
-  args: Record<string, unknown> = {}
-) {
-  return flatMap(function* (item) {
-    if (item.tag === "result") yield item.value as T;
-  }, runtime.query(state.update(b, args)));
-}
-
-export function useEventHandler(state: QueryState) {
-  return function (query: Query, args: Record<string, unknown> = {}) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const _ of runtime.query(state.eventHandler(query, args))) {
-      // empty
+  getScope() {
+    return { ...this.scope };
+  }
+  resolveAll(): Record<Ident, unknown> {
+    return Object.fromEntries(
+      Object.entries(this.scope).map(([key, value]) => [
+        key,
+        this.resolve(value),
+      ])
+    );
+  }
+  resolve<T>(expr: Expr): T | null {
+    switch (expr.tag) {
+      case "const":
+        return expr.value as T;
+      case "ident": {
+        const value = this.scope[expr.ident];
+        if (!value || value === expr) return null;
+        return this.resolve(value);
+      }
     }
-  };
+  }
+  unify(left: Expr, right: Expr): State | null {
+    switch (left.tag) {
+      case "ident": {
+        const res = this.scope[left.ident];
+        if (res) return this.unify(res, right);
+        return this.setScope(left.ident, right);
+      }
+      case "const":
+        if (right.tag === "ident") {
+          return this.setScope(right.ident, left);
+        }
+        if (deepEqual(left.value, right.value)) return this;
+        return null;
+    }
+  }
+  private setScope(ident: Ident, expr: Expr): State {
+    return new State(
+      this.db,
+      {
+        ...this.scope,
+        [ident]: expr,
+      },
+      this.context
+    );
+  }
+  getContext<T>(id: Id): T {
+    return this.context[id] as T;
+  }
+  setContext(id: Id, value: unknown): State {
+    return new State(this.db, this.scope, { ...this.context, [id]: value });
+  }
+  *runRule(rule: RuleRec, args: unknown[]): Generator<RuleOutput> {
+    const ruleState = this.ruleState(rule.rule__params, args.map(k));
+    yield* ruleState.runRuleBody(rule.rule__body!);
+  }
+  *runRuleBody(body: Clause[], index = 0): Generator<RuleOutput> {
+    const clause = body[index];
+    if (!clause) {
+      yield { tag: "result", state: this };
+      return;
+    }
+    const rule = (this.db.get(clause.name) as RuleRec) ?? notFound(clause.name);
+    for (const res of this.runClause(rule, clause.args)) {
+      switch (res.tag) {
+        case "view":
+          yield res;
+          break;
+        case "result":
+          yield* res.state.runRuleBody(body, index + 1);
+          break;
+      }
+    }
+  }
+  private ruleState(params: Param[], args: Expr[]): State {
+    if (params.length !== args.length) throw new Error("invalid arity");
+    const scope = Object.fromEntries(
+      params.map((p, i) => {
+        const val = this.resolve(args[i]);
+        if (val) return [p.ident, k(val)];
+        return [p.ident, args[i]];
+      })
+    );
+    return new State(this.db, scope, this.context);
+  }
+  private ruleDone(
+    ruleState: State,
+    params: Param[],
+    args: Expr[]
+  ): State | null {
+    const nextState = params.reduce<State>((state, param, i) => {
+      const val = ruleState.resolve(ruleState.scope[param.ident]);
+      if (!val) return state;
+      return state.unify(args[i], k(val)) ?? state;
+    }, this);
+
+    return nextState;
+  }
+  private *runClause(rule: RuleRec, args: Expr[]): Generator<RuleOutput> {
+    switch (rule.db__schema) {
+      case "schema__rulePrimitive": {
+        const fn = rulePrimitives[rule.rule__primitive];
+        yield* fn(this, args);
+        return;
+      }
+      case "schema__viewPrimitive": {
+        yield {
+          tag: "view",
+          state: this,
+          view: rule.view__primitive,
+          args: args.map((arg) => this.resolve(arg)),
+        };
+        yield { tag: "result", state: this };
+        return;
+      }
+      default: {
+        const ruleState = this.ruleState(rule.rule__params, args);
+        for (const res of ruleState.runRuleBody(rule.rule__body)) {
+          switch (res.tag) {
+            case "view":
+              yield res;
+              break;
+            case "result": {
+              const state = this.ruleDone(res.state, rule.rule__params, args);
+              if (state) yield { tag: "result", state };
+              break;
+            }
+          }
+        }
+        return;
+      }
+    }
+  }
 }

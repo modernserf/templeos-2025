@@ -1,4 +1,4 @@
-import { numberOrd, Ord, Tree } from "./index";
+import { Where, numberOrd, Ord, Tree } from "./index";
 
 type Id = string;
 type Field = string;
@@ -22,6 +22,15 @@ const indexOrd: Ord<RefIndex> = {
   },
 };
 
+export function whereValue(valueId: Id): Where<RefIndex> {
+  return {
+    cmp(item) {
+      return numberOrd.cmp(valueId, item.valueId);
+    },
+    order: "asc",
+  };
+}
+
 export class DB<Rec extends BaseRec> {
   private data = new Map<Id, Rec>();
   private index = new Map<Field, Index>();
@@ -34,6 +43,11 @@ export class DB<Rec extends BaseRec> {
   }
   *keys() {
     yield* this.data.keys();
+  }
+  bulkInsert(items: Record<Id, Rec>) {
+    for (const [id, rec] of Object.entries(items)) {
+      this.insert(id, rec);
+    }
   }
   insert(id: Id, rec: Rec) {
     const prev = this.data.get(id);

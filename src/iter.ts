@@ -1,5 +1,8 @@
 // TODO: put these into DB (filter -> "where", take -> "limit", etc)
-export function* filter<T>(f: (t: T) => boolean, iter: Iterable<T>) {
+export function* filter<T, U extends T>(
+  f: (t: T) => t is U,
+  iter: Iterable<T>
+): Iterable<U> {
   for (const item of iter) {
     if (f(item)) {
       yield item;

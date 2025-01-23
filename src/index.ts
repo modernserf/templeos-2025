@@ -74,7 +74,7 @@ export class Tree<K, V> {
   set(key: K, value: V): V | null {
     const res = this.setNode(this.root, key, value);
     this.root = res.node;
-    if (!res.prevValue) {
+    if (res.prevValue == null) {
       this._size += 1;
     }
     return res.prevValue;
@@ -110,7 +110,7 @@ export class Tree<K, V> {
   delete(key: K): V | null {
     const res = this.deleteNode(this.root, key);
     this.root = res.node;
-    if (res.prevValue) {
+    if (res.prevValue != null) {
       this._size -= 1;
     }
     return res.prevValue;
@@ -130,8 +130,8 @@ export class Tree<K, V> {
       case 0:
         if (node.prev && node.next) {
           // rebalance
-          // remove leftmost node
-          let parent = node;
+          // remove leftmost node of right tree
+          let parent = node.next;
           while (parent.prev && parent.prev.prev) {
             parent = parent.prev;
           }

@@ -1,26 +1,5 @@
-import { Expr, k, v } from "./expr";
-import { q } from "./query";
-import { Rec } from "./schema";
-import { BrowseParams } from "./state";
-
-export type FormatTextNode =
-  | { tag: "text"; text: string }
-  | { tag: "link"; text: string; params: BrowseParams };
-
-export class FormatTextBuilder {
-  private out: FormatTextNode[] = [];
-  build() {
-    return this.out;
-  }
-  text(text: string) {
-    this.out.push({ tag: "text", text });
-    return this;
-  }
-  link(params: BrowseParams, text: string) {
-    this.out.push({ tag: "link", params, text });
-    return this;
-  }
-}
+import { k, R, v } from "./rule_builder";
+import { Expr, Rec } from "./schema";
 
 export type ViewElement = {
   view: Expr;
@@ -28,211 +7,242 @@ export type ViewElement = {
   children?: ViewElement[];
 };
 
-type ViewRec = Rec & { db__schema: "schema__view" };
+type ViewRec = Rec;
 
 export const views = {
   // primitives
   view__string: {
-    db__schema: "schema__view",
+    db__schema: "schema__viewPrimitive",
     file__name: "String",
     view__primitive: "String",
   },
   view__button: {
-    db__schema: "schema__view",
+    db__schema: "schema__viewPrimitive",
     file__name: "Button",
     view__primitive: "Button",
   },
   view__input: {
-    db__schema: "schema__view",
+    db__schema: "schema__viewPrimitive",
     file__name: "Input",
     view__primitive: "Input",
   },
   view__select: {
-    db__schema: "schema__view",
+    db__schema: "schema__viewPrimitive",
     file__name: "Select",
     view__primitive: "Select",
   },
   view__option: {
-    db__schema: "schema__view",
+    db__schema: "schema__viewPrimitive",
     file__name: "Option",
     view__primitive: "Option",
   },
   view__link: {
-    db__schema: "schema__view",
+    db__schema: "schema__viewPrimitive",
     file__name: "Link",
     view__primitive: "Link",
   },
   view__anyData: {
-    db__schema: "schema__view",
+    db__schema: "schema__viewPrimitive",
     file__name: "AnyData",
     file__description: "JSON stringification of data",
     view__primitive: "AnyData",
   },
   view__icon: {
-    db__schema: "schema__view",
+    db__schema: "schema__viewPrimitive",
     file__name: "Icon",
     view__primitive: "IconView",
   },
   view__textContent: {
-    db__schema: "schema__view",
+    db__schema: "schema__viewPrimitive",
     file__name: "Text Content",
     view__primitive: "TextView",
   },
   view__row: {
-    db__schema: "schema__view",
+    db__schema: "schema__viewPrimitive",
     file__name: "Row layout",
     view__primitive: "Row",
   },
   view__column: {
-    db__schema: "schema__view",
+    db__schema: "schema__viewPrimitive",
     file__name: "Column layout",
     view__primitive: "Column",
   },
+  view__windowPrimitive: {
+    db__schema: "schema__viewPrimitive",
+    file__name: "Window",
+    view__primitive: "Window",
+  },
+  view__window: R("windowId")
+    .name("Window")
+    .setContext("windowId", "windowId")
+    .get("windowId", "window__currentHistory", "historyId")
+    .get(k("browser"), "browser__currentWindow", "currentWindowId")
+    .get("historyId", "history__location", "id")
+    .r("rule__cond", [
+      // view from params
+      k({
+        cond: R()
+          .get("historyId", "history__view", "view")
+          .r("rule__ground", [v("view")])
+          .body(),
+        body: [],
+      }),
+      // view from rule type
+      // TODO: limit 1
+      k({
+        cond: R()
+          .get("id", "db__schema", "schema")
+          .get("view", "view__schema", "schema")
+          .body(),
+        body: [],
+      }),
+      // view from any type
+      k({
+        cond: R().get("view", "view__schema", k("schema__anyType")).build()
+          .rule__body!,
+        body: [],
+      }),
+    ])
+    .r("view__windowPrimitive", [
+      v("id"),
+      v("view"),
+      v("windowId"),
+      v("currentWindowId"),
+    ])
+    .build(),
   // system components
-  view__appMenu: {
-    db__schema: "schema__view",
-    file__name: "App menu",
-    view__query: q()
-      .row((qq) =>
-        qq
-          .or((qq) =>
-            qq
-              .get(k("browser"), "browser__currentWindow", "windowId")
-              .get("windowId", "window__currentHistory", "currentHistory")
-              .get("currentHistory", "history__back", "back")
-              .get("currentHistory", "history__forward", "forward")
-              .button(
-                k("back"),
-                q().rule("rule__back", { windowId: "windowId" }).build()
-              )
-              .button(
-                k("forward"),
-                q().rule("rule__forward", { windowId: "windowId" }).build()
-              )
-          )
-          .link(k("home"), k("home"), k("new"))
-          .link(k("omnibox"), k("omnibox"), k("new"))
-      )
-      .build(),
-  },
-  view__fileLink: {
-    db__schema: "schema__view",
-    file__name: "File Link",
-    view__query: q("id")
-      .get("id", "file__name", "fileName")
-      .link("fileName", "id")
-      .build(),
-  },
-  view__fileInfo: {
-    db__schema: "schema__view",
-    file__name: "File Info",
-    view__query: q("id")
-      .get("id", "file__name", "name")
-      .get("id", "file__description", "description")
-      .string(k("id"))
-      .string("id")
-      .string(k("name"))
-      .string("name")
-      .string(k("description"))
-      .string("description")
-      .build(),
-  },
-  // built in root viewers
-  view__anyType: {
-    db__schema: "schema__view",
-    file__name: "Raw Data",
-    file__description: "default viewer for all data types",
-    view__schema: "schema__anyType",
-    view__query: q("id")
-      .string(k("fields"))
-      .or((q) =>
-        q
-          .get("id", v("fieldId"))
-          .get("id", v("fieldId"), "value")
-          .row((q) =>
-            q.view(k("view__fileLink"), { id: "fieldId" }).cond(
-              (q) => q.get("fieldId", "field__index", k("ref")),
-              (q) => q.view(k("view__fileLink"), { id: "value" }),
-              (q) => q.view(k("view__anyData"), { value: "value" })
+  view__appMenu: R()
+    .name("App menu")
+    .row(
+      R()
+        .or(
+          R()
+            .get(k("browser"), "browser__currentWindow", "windowId")
+            .get("windowId", "window__currentHistory", "currentHistory")
+            .get("currentHistory", "history__back", "back")
+            .get("currentHistory", "history__forward", "forward")
+            .button(
+              k("back"),
+              R()
+                .r("rule__back", [v("windowId")])
+                .build()
             )
-          )
-      )
-      .string(k("references"))
-      .or((q) =>
-        q
-          .get("fieldId", "field__index", k("ref"))
-          .get("refId", v("fieldId"), "id")
-          .row((q) =>
-            q
-              .view(k("view__fileLink"), { id: "fieldId" })
-              .view(k("view__fileLink"), { id: "refId" })
-          )
-      )
-      .or((q) =>
-        q
-          .get("fieldId", "field__index", k("multiRef"))
-          .get("refId", v("fieldId"), "id")
-          .row((q) =>
-            q
-              .view(k("view__fileLink"), { id: "fieldId" })
-              .view(k("view__fileLink"), { id: "refId" })
-          )
-      )
-      .build(),
-  },
-  view__text: {
-    db__schema: "schema__view",
-    file__name: "Text",
-    file__description: "viewer for text cards",
-    view__schema: "schema__text",
-    view__query: q("id") //
-      .get("id", "text__content", "content")
-      .view(k("view__textContent"), { text: "content" })
-      .build(),
-  },
-  view__folderList: {
-    db__schema: "schema__view",
-    file__name: "Folder - List",
-    file__description: "viewer for folders as list",
-    view__schema: "schema__folder",
-    view__query: q("id") //
-      .get("id", "file__folderItems", "items")
-      .members("item", "items")
-      .get("item", "file__name", "name")
-      .get("item", "file__description", "description")
-      .link("name", "item")
-      .string("description")
-      .build(),
-  },
-  view__folderIcon: {
-    db__schema: "schema__view",
-    file__name: "Folder - Icon",
-    file__description: "viewer for folders as icon grid",
-    view__schema: "schema__folder",
-    view__query: q("id") //
-      .get("id", "file__folderItems", "items")
-      .members("item", "items")
-      .get("item", "file__name", "name")
-      .view(k("view__icon"), {})
-      .link("name", "item")
-      .build(),
-  },
-  view__schemaDefinition: {
-    db__schema: "schema__view",
-    file__name: "Schema",
-    view__schema: "schema__schema",
-    view__query: q("id") //
-      .get("id", "file__name", "name")
-      .view(k("view__fileInfo"), { id: "id" })
-      .link(k("click me"), k("home"))
-      .build(),
-  },
-  view__form: {
-    db__schema: "schema__view",
-    file__name: "Form",
-    view__schema: "schema__form",
-    view__query: q("id") //
-      .view("id", { id: "id" })
-      .build(),
-  },
+            .button(
+              k("forward"),
+              R()
+                .r("rule__forward", [v("windowId")])
+                .build()
+            )
+            .body()
+        )
+        // TODO: these should be populated by a query
+        .link(k("home"), k("home"), k("new"))
+        .body()
+      // .link(k("omnibox"), k("omnibox"), k("new"))
+    )
+    .build(),
+  view__fileLink: R("id")
+    .name("File Link")
+    .get("id", "file__name", "fileName")
+    .link("fileName", "id")
+    .build(),
+  view__fileInfo: R("id")
+    .get("id", "file__name", "name")
+    .get("id", "file__description", "description")
+    .string(k("id"))
+    .string("id")
+    .string(k("name"))
+    .string("name")
+    .string(k("description"))
+    .string("description")
+    .build(),
+  // built in root viewers
+  view__anyType: R("id")
+    .viewFor("schema__anyType")
+    .name("Raw Data")
+    .desc("default viewer for all data types")
+    .or(
+      R()
+        .string(k("fields"))
+        .get("id", v("fieldId"), "value")
+        .row(
+          R()
+            .r("view__fileLink", [v("fieldId")])
+            .cond(
+              [
+                R().get("fieldId", "field__index", k("ref")).body(),
+                R()
+                  .r("view__fileLink", [v("value")])
+                  .body(),
+              ],
+              [
+                R().body(),
+                R()
+                  .r("view__anyData", [v("value")])
+                  .body(),
+              ]
+            )
+            .body()
+        )
+        .body(),
+      R()
+        .string(k("references"))
+        .or(
+          R()
+            .get("fieldId", "field__index", k("ref"))
+            .get("refId", v("fieldId"), "id")
+            .row(
+              R()
+                .r("view__fileLink", [v("fieldId")])
+                .r("view__fileLink", [v("refId")])
+                .body()
+            )
+            .body(),
+          R()
+            .get("fieldId", "field__index", k("multiRef"))
+            .get("refId", v("fieldId"), "id")
+            .row(
+              R()
+                .r("view__fileLink", [v("fieldId")])
+                .r("view__fileLink", [v("refId")])
+                .body()
+            )
+            .body()
+        )
+        .body()
+    )
+    .build(),
+  view__text: R("id")
+    .viewFor("schema__text")
+    .name("Text")
+    .desc("viewer for text cards")
+    .get("id", "text__content", "content")
+    .r("view__textContent", [v("content")])
+    .build(),
+  view__folderList: R("id")
+    .viewFor("schema__folder")
+    .name("Folder - List")
+    .desc("viewer for folders as list")
+    .get("id", "file__folderItems", "items")
+    .members("items", "item")
+    .get("item", "file__name", "name")
+    .get("item", "file__description", "description")
+    .link("name", "item")
+    .string("description")
+    .build(),
+  view__folderIcon: R("id")
+    .viewFor("schema__folder")
+    .name("Folder - Icon")
+    .desc("viewer for folders as icon grid")
+    .get("id", "file__folderItems", "items")
+    .members("items", "item")
+    .get("item", "file__name", "name")
+    .r("view__icon", [])
+    .link("name", "item")
+    .build(),
+  view__form: R("id")
+    .viewFor("schema__form")
+    .name("Form")
+    .r("rule__call", [v("id"), v("id")])
+    .build(),
 } satisfies Record<string, ViewRec>;

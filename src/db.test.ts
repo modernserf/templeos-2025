@@ -1,137 +1,74 @@
 import { expect, test } from "vitest";
-import { DB, q } from "./db";
-import { k, v } from "./expr";
+import { DB, whereValue } from "./db";
 
-test("basic queries", () => {
-  const db = new DB();
-  db.bulkInsert({
+type Id = string;
+type Rec = Record<string, unknown>;
+
+function init(data: Record<Id, Rec>): DB<Rec> {
+  const db = new DB<Rec>();
+  for (const [id, record] of Object.entries(data)) {
+    db.insert(id, record);
+  }
+  return db;
+}
+
+test("get", () => {
+  const db = init({
     foo: { value: 123 },
     bar: { baz: 456, quux: 789 },
   });
-  const query = q()
-    .get(k("foo"), "value", "value")
-    .get(k("bar"), "baz", "baz")
-    .get(k("bar"), "quux", "quux");
-  expect(db.query1(query)).toEqual({
-    value: 123,
-    baz: 456,
-    quux: 789,
-  });
+
+  expect(db.get("foo")).toEqual({ value: 123 });
+  expect(db.get("bar")).toEqual({ baz: 456, quux: 789 });
+  expect(db.get("baz")).toEqual(null);
 });
 
-test("indexes", () => {
-  const db = new DB();
-  db.bulkInsert({
-    foo: { value: 123, idx: "hello" },
-    bar: { value: 456, idx: "hello" },
-    baz: { value: 789, idx: "goodbye" },
+test("keys", () => {
+  const db = init({
+    foo: { value: 123 },
+    bar: { baz: 456, quux: 789 },
   });
-  db.createIndex("idx");
-  const query = q("key") //
-    .index("id", "idx", "key")
-    .get("id", "value", "value");
-  expect([...db.queryAll(query, { key: "hello" })]).toEqual([
-    { id: "bar", key: "hello", value: 456 },
-    { id: "foo", key: "hello", value: 123 },
-  ]);
-  expect([...db.queryAll(query, { key: "goodbye" })]).toEqual([
-    { id: "baz", key: "goodbye", value: 789 },
-  ]);
+
+  expect(Array.from(db.keys())).toEqual(["foo", "bar"]);
 });
 
 test("update", () => {
-  const db = new DB();
-  db.bulkInsert({
-    foo: { value: 123, idx: "hello" },
-    bar: { value: 456, idx: "hello" },
-    baz: { value: 789, idx: "goodbye" },
+  const db = init({
+    foo: { value: 123 },
+    bar: { baz: 456, quux: 789 },
   });
-  db.createIndex("idx");
-  let didChange = false;
-  db.addEventListener(() => {
-    didChange = true;
-  });
+  db.update("bar", "baz", 321);
+  db.update("bar", "xyzzy", 999);
 
-  expect(didChange).toBe(false);
-
-  const update = q("key") //
-    .update(k("foo"), "idx", "key");
-  db.update(update, { key: "goodbye" });
-
-  expect(didChange).toBe(true);
-
-  const query = q("key") //
-    .index("id", "idx", "key")
-    .get("id", "value", "value");
-  expect(new Set(db.queryAll(query, { key: "goodbye" }))).toEqual(
-    new Set([
-      { id: "foo", key: "goodbye", value: 123 },
-      { id: "baz", key: "goodbye", value: 789 },
-    ])
-  );
+  expect(db.get("bar")).toEqual({ baz: 321, quux: 789, xyzzy: 999 });
 });
 
-test("delete", () => {
-  const db = new DB();
-  db.bulkInsert({
-    foo: { value: 123, idx: "hello" },
-    bar: { value: 456, idx: "hello" },
-    baz: { value: 789, idx: "goodbye" },
+test("ref index", () => {
+  const db = init({
+    parent__id: {
+      db__schema: "schema__field",
+      field__index: "ref",
+    },
+    root: { value: 1 },
+    foo: { value: 123, parent__id: "root" },
+    bar: { value: 456, parent__id: "root" },
+    baz: { value: 789, parent__id: "foo" },
   });
-  db.createIndex("idx");
+  const idx = db.getIndex("parent__id")!;
+  expect(idx).not.toBe(null);
 
-  const update = q("key")
-    .insert(k("bar"), k(null))
-    .index("id", "idx", "key")
-    .get("id", "value", "value");
-
-  expect([...db.queryAll(update, { key: "hello" })]).toEqual([
-    { id: "foo", value: 123, key: "hello" },
+  expect(Array.from(idx.tree.where(whereValue("root")))).toEqual([
+    [{ entityId: "bar", valueId: "root" }, null],
+    [{ entityId: "foo", valueId: "root" }, null],
   ]);
-});
 
-test("insert", () => {
-  const db = new DB();
-  db.createIndex("idx");
+  db.update("bar", "parent__id", "foo");
 
-  const update = q("rec") //
-    .id("id")
-    .insert("id", "rec");
-  db.update(update, { rec: { value: 123, idx: "hello" } });
-
-  const query = q("key") //
-    .index("id", "idx", "key")
-    .get("id", "value", "value");
-  expect(db.query1(query, { key: "hello" })).toMatchObject({ value: 123 });
-});
-
-test("fields", () => {
-  const db = new DB();
-  db.bulkInsert({
-    foo: { value: 123, idx: "hello", deleted: null },
-  });
-
-  const query = q("id").fields("id", "field").get("id", v("field"), "value");
-
-  expect(new Set(db.queryAll(query, { id: "foo" }))).toEqual(
-    new Set([
-      { id: "foo", field: "value", value: 123 },
-      { id: "foo", field: "idx", value: "hello" },
-    ])
-  );
-});
-
-test("rollback", () => {
-  const db = new DB();
-  db.bulkInsert({
-    foo: { value: 123, idx: "hello" },
-  });
-
-  const update = q() //
-    .update(k("foo"), "value", k(456))
-    .rollback();
-  db.update(update);
-
-  const { value } = db.query1(q().get(k("foo"), "value", "value"))!;
-  expect(value).toEqual(123);
+  expect(Array.from(idx.tree.where(whereValue("root")))).toEqual([
+    [{ entityId: "foo", valueId: "root" }, null],
+  ]);
+  expect(Array.from(idx.tree.where(whereValue("foo")))).toEqual([
+    [{ entityId: "bar", valueId: "foo" }, null],
+    [{ entityId: "baz", valueId: "foo" }, null],
+  ]);
 });

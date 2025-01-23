@@ -20,6 +20,22 @@ test("set", () => {
   expect(tree.size()).toEqual(keys.length);
 });
 
+test("delete", () => {
+  const tree = new Tree(numberOrd);
+  const keys = [10, 5, 1, 25, 20, 3];
+
+  for (const [value, key] of keys.entries()) {
+    tree.set(key, value);
+  }
+
+  expect(tree.delete(69)).toBe(null);
+
+  for (const [value, key] of keys.entries()) {
+    expect(tree.size()).toBe(keys.length - value);
+    expect(tree.delete(key)).toBe(value);
+  }
+});
+
 test("complex keys", () => {
   type K = { a: number; b: number };
   const ord: Ord<K> = {
