@@ -7,6 +7,7 @@ import {
   Id,
   SchemaId,
   RuleRec,
+  Field,
 } from "./schema";
 
 export function v(ident: Ident) {
@@ -18,8 +19,10 @@ export function k(value: unknown) {
 
 type KArg = string | Expr;
 type VArg = Ident | Expr;
-const kExpr = (arg: KArg): Expr => (typeof arg === "string" ? k(arg) : arg);
-const vExpr = (arg: VArg): Expr => (typeof arg === "string" ? v(arg) : arg);
+const kExpr = (arg: string | Expr): Expr =>
+  typeof arg === "string" ? k(arg) : arg;
+const vExpr = (arg: string | Expr): Expr =>
+  typeof arg === "string" ? v(arg) : arg;
 
 export class RuleBuilder {
   constructor(
@@ -67,13 +70,13 @@ export class RuleBuilder {
   setContext(id: KArg, value: VArg) {
     return this.r("rule__setContext", [kExpr(id), vExpr(value)]);
   }
-  get(id: VArg, field: KArg, value: VArg) {
+  get(id: VArg, field: Field | Expr, value: VArg) {
     return this.r("rule__get", [vExpr(id), kExpr(field), vExpr(value)]);
   }
   insert(id: VArg, value: VArg) {
     return this.r("rule__insert", [vExpr(id), vExpr(value)]);
   }
-  update(id: VArg, field: KArg, value: VArg) {
+  update(id: VArg, field: Field | Expr, value: VArg) {
     return this.r("rule__update", [vExpr(id), kExpr(field), vExpr(value)]);
   }
   eq(left: VArg, right: VArg) {
