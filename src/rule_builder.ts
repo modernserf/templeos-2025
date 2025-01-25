@@ -100,6 +100,10 @@ export class RuleBuilder {
       clauses.map(([cond, body]) => k({ cond, body }))
     );
   }
+  limit(countArg: number | VArg, block: Clause[]) {
+    const count = typeof countArg === "number" ? k(countArg) : vExpr(countArg);
+    return this.r("rule__limit", [vExpr(count), k(block)]);
+  }
   // views
   string(value: VArg) {
     return this.r("view__string", [vExpr(value)]);

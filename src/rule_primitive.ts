@@ -137,6 +137,20 @@ export const rulePrimitives = {
       if (didSucceed) return;
     }
   },
+  *rule__limit(state, [qLimit, qBlock]) {
+    const limit = state.resolve<number>(qLimit);
+    if (!limit) throw new Error();
+    const block = state.resolve<Clause[]>(qBlock);
+    if (!block) throw new Error();
+    let count = 0;
+    for (const res of state.runRuleBody(block)) {
+      yield res;
+      if (res.tag === "result") {
+        count += 1;
+        if (count === limit) break;
+      }
+    }
+  },
 } satisfies Record<string, RulePrimitive>;
 
 export const rulePrimitiveRecs = Object.fromEntries(

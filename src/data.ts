@@ -139,30 +139,25 @@ export const initDB = {
     .get("windowId", "window__currentHistory", "historyId")
     .get(k("browser"), "browser__currentWindow", "currentWindowId")
     .get("historyId", "history__location", "id")
-    .cond(
-      // view from params
-      [
-        R()
-          .get("historyId", "history__view", "view")
-          .r("rule__ground", [v("view")])
-          .body(),
-        [],
-      ],
-      [
-        // view from rule type
-        // TODO: limit 1
-        R()
-          .get("id", "db__schema", "schema")
-          .get("view", "view__schema", "schema")
-          .body(),
-        [],
-      ],
-      // view from any type
-      [
-        R().get("view", "view__schema", k("schema__anyType")).build()
-          .rule__body!,
-        [],
-      ]
+    .limit(
+      1,
+      R()
+        .or(
+          // view from params
+          R()
+            .get("historyId", "history__view", "view")
+            .r("rule__ground", [v("view")])
+            .body(),
+
+          // view from rule type
+          R()
+            .get("id", "db__schema", "schema")
+            .get("view", "view__schema", "schema")
+            .body(),
+          // view from any type
+          R().get("view", "view__schema", k("schema__anyType")).body()
+        )
+        .body()
     )
     .r("view__windowPrimitive", [
       v("id"),
