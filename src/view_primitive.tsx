@@ -10,13 +10,13 @@ type View<Args extends unknown[]> = FC<{ state: State; args: Args }>;
 
 // TODO: want to do non-hierarchichal layout
 const Row: View<[Clause[]]> = ({ state, args: [children] }) => (
-  <div className="row">
+  <div className="Row">
     <Children state={state} ruleBody={children} />
   </div>
 );
 
 const Column: View<[Clause[]]> = ({ state, args: [children] }) => (
-  <div className="column">
+  <div className="Column">
     <Children state={state} ruleBody={children} />
   </div>
 );
@@ -121,7 +121,7 @@ const TextView: View<[FormatTextNode[]]> = ({ state, args: [text] }) => (
                 args={[
                   node.text,
                   node.params.id,
-                  node.params.view ?? "",
+                  // node.params.view ?? "",
                   "current",
                 ]}
               />
@@ -133,6 +133,7 @@ const TextView: View<[FormatTextNode[]]> = ({ state, args: [text] }) => (
 );
 
 const qRootView = R("id", "view") //
+  .r("rule__ground", [v("view")])
   .r("rule__call", [v("view"), v("id")])
   .build();
 const qSelectWindow = R("windowId")
@@ -242,8 +243,8 @@ function Children({ state, ruleBody }: { state: State; ruleBody: Clause[] }) {
   return (
     <>
       {views.map((view, i) => {
-        const View = viewPrimitives[view.view as ViewPrimitiveId];
-        return <View key={i} args={view.args as any} state={view.state} />;
+        const View = viewPrimitives[view.view] as View<unknown[]>;
+        return <View key={i} args={view.args} state={view.state} />;
       })}
     </>
   );
@@ -265,9 +266,8 @@ export function Query({
   return (
     <>
       {views.map((view, i) => {
-        const View = viewPrimitives[view.view as ViewPrimitiveId];
-
-        return <View key={i} args={view.args as any} state={view.state} />;
+        const View = viewPrimitives[view.view] as View<unknown[]>;
+        return <View key={i} args={view.args} state={view.state} />;
       })}
     </>
   );

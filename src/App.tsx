@@ -9,6 +9,7 @@ const db = new DB();
 db.bulkInsert(initDB);
 
 const qApp = R()
+  .r("view__appMenu", [])
   .get("windowId", "db__schema", k("schema__window"))
   .r("view__window", [v("windowId")])
   .build();

@@ -10,7 +10,7 @@ export const rulePrimitives = {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   *rule__fail(_state, _args) {},
   *rule__ground(state, [q]) {
-    if (state.resolve(q)) yield { tag: "result", state };
+    if (state.isGround(q)) yield { tag: "result", state };
   },
   *rule__id(state, [qId]) {
     const ns = state.unify(qId, k(crypto.randomUUID()));
@@ -21,8 +21,7 @@ export const rulePrimitives = {
     if (ns) yield { tag: "result", state: ns };
   },
   *rule__getContext(state, [qId, qValue]) {
-    const id = state.resolve<Id>(qId);
-    if (!id) return;
+    const id = state.mustResolve<Id>(qId);
     const value = state.getContext(id);
     if (!value) return;
     const ns = state.unify(qValue, k(value));
@@ -30,25 +29,25 @@ export const rulePrimitives = {
     yield { tag: "result", state: ns };
   },
   *rule__setContext(state, [qId, qValue]) {
-    const id = state.resolve<Id>(qId);
-    if (!id) return;
-    const value = state.resolve(qValue);
-    if (!value) return;
+    const id = state.mustResolve<Id>(qId);
+    const value = state.mustResolve(qValue);
     const ns = state.setContext(id, value);
     yield { tag: "result", state: ns };
   },
   *rule__get(state, [qId, qField, qValue]) {
-    const id = state.resolve<Ident>(qId);
-    if (id) {
+    if (state.isGround(qId)) {
+      const id = state.mustResolve<Ident>(qId);
       const rec = state.db.get(id);
       if (!rec) return;
-      const field = state.resolve<keyof Rec>(qField);
-      if (field) {
+      if (state.isGround(qField)) {
+        const field = state.mustResolve<keyof Rec>(qField);
         const value = rec[field];
+        if (value == null) return;
         const ns = state.unify(qValue, k(value));
         if (ns) yield { tag: "result", state: ns };
       } else {
         for (const [field, value] of Object.entries(rec)) {
+          if (value == null) continue;
           const ns = state.unify(qField, k(field));
           if (!ns) continue;
           const ns1 = ns.unify(qValue, k(value));
@@ -56,37 +55,29 @@ export const rulePrimitives = {
           yield { tag: "result", state: ns1 };
         }
       }
-      return;
-    }
-    const field = state.resolve<keyof Rec>(qField);
-    const value = state.resolve<Id>(qValue);
-    if (!field || !value) {
-      throw new Error("either id or field + value must be ground");
-    }
-    const index = state.db.getIndex(field);
-    if (!index) throw new Error("TODO: non-indexed");
-    for (const [{ entityId }] of index.tree.where(whereValue(value))) {
-      const ns = state.unify(qId, k(entityId));
-      if (!ns) continue;
-      yield { tag: "result", state: ns };
+    } else {
+      const field = state.mustResolve<Field>(qField);
+      const value = state.mustResolve<Id>(qValue);
+      const index = state.db.getIndex(field);
+      if (!index) throw new Error("TODO: non-indexed");
+      for (const [{ entityId }] of index.tree.where(whereValue(value))) {
+        const ns = state.unify(qId, k(entityId));
+        if (!ns) continue;
+        yield { tag: "result", state: ns };
+      }
     }
   },
   *rule__insert(state, [qId, qValue]) {
-    const id = state.resolve<Id>(qId);
-    if (!id) return;
-    const value = state.resolve<Rec>(qValue)!;
+    const id = state.mustResolve<Id>(qId);
+    const value = state.mustResolve<Rec>(qValue)!;
     // TODO: handle rollback
-    // TODO: distinguish between null value & no response?
     state.db.insert(id, value);
     yield { tag: "result", state };
   },
   *rule__update(state, [qId, qField, qValue]) {
-    const id = state.resolve<Id>(qId);
-    if (!id) return;
-    const field = state.resolve<Field>(qField);
-    if (!field) return;
-    const value = state.resolve(qValue)!;
-    // TODO: distinguish between null value & no response
+    const id = state.mustResolve<Id>(qId);
+    const field = state.mustResolve<Field>(qField);
+    const value = state.mustResolve(qValue);
     state.db.update(id, field, value);
     yield { tag: "result", state };
   },
@@ -95,38 +86,35 @@ export const rulePrimitives = {
     if (nextState) yield { tag: "result", state: nextState };
   },
   *rule__log(state, [qMsg]) {
-    const message = state.resolve<string>(qMsg);
+    const message = state.mustResolve<string>(qMsg);
     console.log(message, state.getScope());
     yield { tag: "result", state };
   },
   *rule__members(state, [qList, qItem]) {
-    const list = state.resolve<unknown[]>(qList);
-    if (!list) return;
+    const list = state.mustResolve<unknown[]>(qList);
     for (const item of list) {
       const ns = state.unify(qItem, k(item));
       if (ns) yield { tag: "result", state: ns };
     }
   },
   *rule__call(state, [qRule, ...qArgs]) {
-    const ruleId = state.resolve<Id>(qRule);
-    if (!ruleId) return;
+    const ruleId = state.mustResolve<Id>(qRule);
     const rule = state.db.get(ruleId) as RuleRec;
-    if (!rule) return;
+    // if (!rule) return;
+    if (!rule) throw new Error(`Unknown rule ${ruleId}`);
     // TODO: call should allow out params
-    const args = qArgs.map((arg) => state.resolve(arg)!);
+    const args = qArgs.map((arg) => state.mustResolve(arg)!);
     yield* state.runRule(rule, args);
   },
   *rule__or(state, items) {
     for (const qBody of items) {
-      const body = state.resolve<Clause[]>(qBody);
-      if (!body) throw new Error();
+      const body = state.mustResolve<Clause[]>(qBody);
       yield* state.runRuleBody(body);
     }
   },
   *rule__cond(state, groups) {
     for (const qPair of groups) {
-      const pair = state.resolve<{ cond: Clause[]; body: Clause[] }>(qPair);
-      if (!pair) throw new Error();
+      const pair = state.mustResolve<{ cond: Clause[]; body: Clause[] }>(qPair);
       let didSucceed = false;
       for (const res of state.runRuleBody(pair.cond)) {
         if (res.tag === "result") {
@@ -138,10 +126,8 @@ export const rulePrimitives = {
     }
   },
   *rule__limit(state, [qLimit, qBlock]) {
-    const limit = state.resolve<number>(qLimit);
-    if (!limit) throw new Error();
-    const block = state.resolve<Clause[]>(qBlock);
-    if (!block) throw new Error();
+    const limit = state.mustResolve<number>(qLimit);
+    const block = state.mustResolve<Clause[]>(qBlock);
     let count = 0;
     for (const res of state.runRuleBody(block)) {
       yield res;

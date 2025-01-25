@@ -144,10 +144,7 @@ export const initDB = {
       R()
         .or(
           // view from params
-          R()
-            .get("historyId", "history__view", "view")
-            .r("rule__ground", [v("view")])
-            .body(),
+          R().get("historyId", "history__view", "view").body(),
 
           // view from rule type
           R()
@@ -171,30 +168,22 @@ export const initDB = {
     .name("App menu")
     .row(
       R()
-        .or(
+        .button(
+          k("←"),
           R()
             .get(k("browser"), "browser__currentWindow", "windowId")
-            .get("windowId", "window__currentHistory", "currentHistory")
-            .get("currentHistory", "history__back", "back")
-            .get("currentHistory", "history__forward", "forward")
-            .button(
-              k("back"),
-              R()
-                .r("rule__back", [v("windowId")])
-                .build()
-            )
-            .button(
-              k("forward"),
-              R()
-                .r("rule__forward", [v("windowId")])
-                .build()
-            )
-            .body()
+            .r("rule__back", [v("windowId")])
+            .build()
         )
-        // TODO: these should be populated by a query
+        .button(
+          k("→"),
+          R()
+            .get(k("browser"), "browser__currentWindow", "windowId")
+            .r("rule__forward", [v("windowId")])
+            .build()
+        )
         .link(k("home"), k("home"), k("new"))
         .body()
-      // .link(k("omnibox"), k("omnibox"), k("new"))
     )
     .build(),
   view__fileLink: R("id")
