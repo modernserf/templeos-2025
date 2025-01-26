@@ -6,8 +6,8 @@ import {
   Rec,
   Id,
   SchemaId,
-  RuleRec,
   Field,
+  Rule,
 } from "./schema";
 
 export function v(ident: Ident) {
@@ -28,14 +28,14 @@ export class RuleBuilder {
   constructor(
     private params: Param[],
     private _body: Clause[] = [],
-    private props: Partial<RuleRec> = { db__schema: "schema__rule" }
+    private props: Partial<Rec> = { db__schema: "schema__rule" }
   ) {}
   build() {
     return {
       ...this.props,
       rule__params: this.params,
       rule__body: this._body,
-    } as RuleRec;
+    } as Rule & Rec;
   }
   body() {
     if (this.params.length) throw new Error("body cannot have params");

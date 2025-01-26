@@ -10,6 +10,7 @@ export type Expr =
 
 export type Clause = { name: Ident; args: Expr[] };
 export type Param = { ident: Ident };
+export type Rule = { rule__params: Param[]; rule__body: Clause[] };
 
 export type FieldSchema = { id: Field; defaultValue?: unknown };
 
@@ -47,25 +48,6 @@ export type Rec = {
   browser__currentWindow?: Id;
   data__omnibox?: string;
 };
-
-type RuleRecBase =
-  | {
-      db__schema: "schema__rule" | "schema__view";
-      rule__params: Param[];
-      rule__body: Clause[];
-    }
-  | {
-      db__schema: "schema__rulePrimitive";
-      rule__params: Param[];
-      rule__primitive: RulePrimitiveId;
-    }
-  | {
-      db__schema: "schema__viewPrimitive";
-      rule__params: Param[];
-      view__primitive: ViewPrimitiveId;
-    };
-
-export type RuleRec = Rec & RuleRecBase;
 
 export type SchemaId = keyof typeof schemas;
 export const schemas = {

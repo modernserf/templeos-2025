@@ -1,7 +1,7 @@
 import { whereValue } from "./db";
 import { k } from "./rule_builder";
 import { RuleOutput, State } from "./state";
-import { Clause, Expr, Field, Id, Ident, Rec, RuleRec } from "./schema";
+import { Clause, Expr, Field, Id, Ident, Rec, Rule } from "./schema";
 
 type RulePrimitive = (state: State, args: Expr[]) => Generator<RuleOutput>;
 
@@ -99,10 +99,10 @@ export const rulePrimitives = {
   },
   *rule__call(state, [qRule, ...qArgs]) {
     const ruleId = state.mustResolve<Id>(qRule);
-    const rule = state.db.get(ruleId) as RuleRec;
-    // if (!rule) return;
+    const rule = state.db.get(ruleId) as Rule;
     if (!rule) throw new Error(`Unknown rule ${ruleId}`);
     // TODO: call should allow out params
+    // TODO: this doesn't work with primitives
     const args = qArgs.map((arg) => state.mustResolve(arg)!);
     yield* state.runRule(rule, args);
   },

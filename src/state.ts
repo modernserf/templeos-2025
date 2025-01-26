@@ -1,9 +1,28 @@
 import { DB } from "./db";
-import { Rec, Id, Ident, Expr, Param, Clause, RuleRec } from "./schema";
+import { Rec, Id, Ident, Expr, Param, Clause, Rule } from "./schema";
 import { deepEqual } from "./util";
-import { k } from "./rule_builder";
-import { rulePrimitives } from "./rule_primitive";
+import { k, v } from "./rule_builder";
+import { RulePrimitiveId, rulePrimitives } from "./rule_primitive";
 import { ViewPrimitiveId } from "./view_primitive";
+
+type RuleRecBase =
+  | {
+      db__schema: "schema__rule" | "schema__view";
+      rule__params: Param[];
+      rule__body: Clause[];
+    }
+  | {
+      db__schema: "schema__rulePrimitive";
+      rule__params: Param[];
+      rule__primitive: RulePrimitiveId;
+    }
+  | {
+      db__schema: "schema__viewPrimitive";
+      rule__params: Param[];
+      view__primitive: ViewPrimitiveId;
+    };
+
+type RuleRec = Rec & RuleRecBase;
 
 export type RuleOutput =
   | { tag: "result"; state: State }
@@ -103,9 +122,22 @@ export class State {
   setContext(id: Id, value: unknown): State {
     return new State(this.db, this.scope, { ...this.context, [id]: value });
   }
-  *runRule(rule: RuleRec, args: unknown[]): Generator<RuleOutput> {
+  // params are bound to args and added to a new scope
+  *runRule(rule: Rule, args: unknown[]): Generator<RuleOutput> {
     const ruleState = this.ruleState(rule.rule__params, args.map(k));
     yield* ruleState.runRuleBody(rule.rule__body!);
+  }
+  // params are bound to args and added to current scope
+  *runClosure(
+    params: Param[],
+    body: Clause[],
+    args: unknown[]
+  ): Generator<RuleOutput> {
+    const state = params.reduce(
+      (s, param, i) => s.unify(v(param.ident), k(args[i])) ?? s,
+      this as State
+    );
+    yield* state.runRuleBody(body);
   }
   *runRuleBody(body: Clause[], index = 0): Generator<RuleOutput> {
     const clause = body[index];

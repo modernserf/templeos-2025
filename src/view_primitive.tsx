@@ -1,6 +1,6 @@
 import { FC } from "react";
 import { State } from "./state";
-import { Clause, FormatTextNode, Id, RuleRec } from "./schema";
+import { Clause, FormatTextNode, Id, Rule } from "./schema";
 import { filter } from "./iter";
 import { k, R, v } from "./rule_builder";
 import { useEventHandler } from "./event_source";
@@ -27,7 +27,7 @@ const AnyData: View<[unknown]> = ({ args: [value] }) => {
 
 const String: View<[string]> = ({ args: [value] }) => <div>{value}</div>;
 
-const Button: View<[string, RuleRec]> = ({ state, args: [label, rule] }) => {
+const Button: View<[string, Rule]> = ({ state, args: [label, rule] }) => {
   const handle = useEventHandler(state);
   return (
     <button
@@ -41,7 +41,7 @@ const Button: View<[string, RuleRec]> = ({ state, args: [label, rule] }) => {
   );
 };
 
-const Input: View<[string, RuleRec]> = ({ state, args: [value, rule] }) => {
+const Input: View<[string, Rule]> = ({ state, args: [value, rule] }) => {
   const handle = useEventHandler(state);
   return (
     <input
@@ -56,7 +56,7 @@ const Input: View<[string, RuleRec]> = ({ state, args: [value, rule] }) => {
 const Option: View<[Id, string]> = ({ args: [id, label] }) => (
   <option value={id}>{label}</option>
 );
-const Select: View<[Id, RuleRec, Clause[]]> = ({
+const Select: View<[Id, Rule, Clause[]]> = ({
   state,
   args: [value, rule, items],
 }) => {
@@ -107,6 +107,8 @@ const IconView: View<[]> = () => (
   <div style={{ textAlign: "center", fontSize: 32 }}>📄</div>
 );
 
+const qLink = R("label", "id").link("label", "id").build();
+
 const TextView: View<[FormatTextNode[]]> = ({ state, args: [text] }) => (
   <>
     {text.map((node, i) => {
@@ -116,14 +118,10 @@ const TextView: View<[FormatTextNode[]]> = ({ state, args: [text] }) => (
         case "link":
           return (
             <span key={i} className="TextView__Link">
-              <Link
+              <Query
                 state={state}
-                args={[
-                  node.text,
-                  node.params.id,
-                  // node.params.view ?? "",
-                  "current",
-                ]}
+                rule={qLink}
+                args={[node.text, node.params.id]}
               />
             </span>
           );
@@ -133,7 +131,6 @@ const TextView: View<[FormatTextNode[]]> = ({ state, args: [text] }) => (
 );
 
 const qRootView = R("id", "view") //
-  .r("rule__ground", [v("view")])
   .r("rule__call", [v("view"), v("id")])
   .build();
 const qSelectWindow = R("windowId")
@@ -149,16 +146,15 @@ const qCloseWindow = R("windowId")
   .r("rule__closeWindow", [v("windowId")])
   .build();
 
-const qUpdateView = R("nextView")
-  .getContext("windowId", "windowId")
-  .get("windowId", "window__currentHistory", "h")
-  .update("h", "history__view", "nextView")
-  .build();
-
 const qViewMenu = R("windowId", "id", "view")
   .r("view__select", [
     v("view"),
-    k(qUpdateView),
+    k(
+      R("nextView")
+        .get("windowId", "window__currentHistory", "h")
+        .update("h", "history__view", "nextView")
+        .build()
+    ),
     k(
       R()
         .or(
@@ -256,7 +252,7 @@ export function Query({
   args = [],
 }: {
   state: State;
-  rule: RuleRec;
+  rule: Rule;
   args?: unknown[];
 }) {
   if (!rule) throw new Error();

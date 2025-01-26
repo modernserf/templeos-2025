@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { RuleRec } from "./schema";
+import { Rule } from "./schema";
 import { State } from "./state";
 
 export class EventSource {
@@ -20,9 +20,13 @@ export class EventSource {
 const eventSource = new EventSource();
 
 export function useEventHandler(state: State) {
-  return (rule: RuleRec, args: unknown[]) => {
+  return (rule: Rule, args: unknown[]) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const _ of state.runRule(rule, args)) {
+    for (const _ of state.runClosure(
+      rule.rule__params,
+      rule.rule__body,
+      args
+    )) {
       // do nothing
     }
     eventSource.notifyEventListeners();
