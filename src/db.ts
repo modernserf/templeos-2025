@@ -1,4 +1,4 @@
-import { Where, numberOrd, Ord, Tree } from "./index";
+import { Where, numberOrd, Ord, Tree } from "./tree";
 
 type Id = string;
 type Field = string;

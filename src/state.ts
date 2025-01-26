@@ -53,7 +53,7 @@ export class State {
     return Object.fromEntries(
       Object.entries(this.scope).map(([key, value]) => [
         key,
-        this.mustResolve(value),
+        this.resolve(value),
       ])
     );
   }
@@ -68,26 +68,15 @@ export class State {
       }
     }
   }
-  mustResolve<T>(expr: Expr): T {
+  resolve<T>(expr: Expr): T {
     switch (expr.tag) {
       case "const":
         return expr.value as T;
       case "ident": {
         const value = this.scope[expr.ident];
         if (!value || value === expr)
-          throw new Error(`mustResolve ${expr.ident}`);
-        return this.mustResolve(value);
-      }
-    }
-  }
-  resolve_<T>(expr: Expr): T | null {
-    switch (expr.tag) {
-      case "const":
-        return expr.value as T;
-      case "ident": {
-        const value = this.scope[expr.ident];
-        if (!value || value === expr) return null;
-        return this.resolve_(value);
+          throw new Error(`cannot resolve ${expr.ident}`);
+        return this.resolve(value);
       }
     }
   }
@@ -161,11 +150,11 @@ export class State {
     if (params.length !== args.length) throw new Error("invalid arity");
     const scope = Object.fromEntries(
       params.map((p, i) => {
-        // if (this.isGround(args[i])) {
-        return [p.ident, k(this.mustResolve(args[i]))];
-        // } else {
-        // return [p.ident, args[i]];
-        // }
+        if (this.isGround(args[i])) {
+          return [p.ident, k(this.resolve(args[i]))];
+        } else {
+          return [p.ident, args[i]];
+        }
       })
     );
     return new State(this.db, scope, this.context);
@@ -176,7 +165,7 @@ export class State {
     args: Expr[]
   ): State | null {
     const nextState = params.reduce<State>((state, param, i) => {
-      const val = ruleState.mustResolve(ruleState.scope[param.ident]);
+      const val = ruleState.resolve(ruleState.scope[param.ident]);
       // if (!val) return state;
       return state.unify(args[i], k(val)) ?? state;
     }, this);
@@ -195,7 +184,7 @@ export class State {
           tag: "view",
           state: this,
           view: rule.view__primitive,
-          args: args.map((arg) => this.mustResolve(arg)),
+          args: args.map((arg) => this.resolve(arg)),
         };
         yield { tag: "result", state: this };
         return;

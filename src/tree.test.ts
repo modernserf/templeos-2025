@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { Ord, numberOrd, Tree } from "./index";
+import { Ord, numberOrd, Tree } from "./tree";
 
 test("set", () => {
   const tree = new Tree(numberOrd);

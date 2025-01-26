@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 
 import { DB } from "./db";
 import { State } from "./state";
-import { Rec } from "./schema";
+import { Rec, Rule } from "./schema";
 import { R, k, v } from "./rule_builder";
 import { flatMap } from "./iter";
 import { rulePrimitiveRecs } from "./rule_primitive";
@@ -15,6 +15,14 @@ function init(data: Record<string, Rec>) {
   return State.root(db);
 }
 
+function allResults(state: State, rule: Rule, args: unknown[] = []) {
+  return Array.from(
+    flatMap(function* (res) {
+      if (res.tag === "result") yield res.state.resolveAll();
+    }, state.runClosure(rule.rule__params, rule.rule__body, args))
+  );
+}
+
 test("get 1", () => {
   const state = init({
     foo: { file__name: "hello" },
@@ -25,11 +33,7 @@ test("get 1", () => {
     .get(k("foo"), k("file__name"), v("value"))
     .build();
 
-  const result = flatMap(function* (res) {
-    if (res.tag === "result") yield res.state.resolve(v("value"));
-  }, state.runRule(query, []));
-
-  expect(Array.from(result)).toEqual(["hello"]);
+  expect(allResults(state, query)).toEqual([{ value: "hello" }]);
 });
 
 test("get fields", () => {
@@ -42,15 +46,7 @@ test("get fields", () => {
     .get(k("foo"), v("field"), v("value"))
     .build();
 
-  const result = flatMap(function* (res) {
-    if (res.tag === "result")
-      yield {
-        field: res.state.resolve(v("field")),
-        value: res.state.resolve(v("value")),
-      };
-  }, state.runRule(query, []));
-
-  expect(Array.from(result)).toEqual([
+  expect(allResults(state, query)).toEqual([
     { field: "file__name", value: "hello" },
     { field: "file__description", value: "desc 1" },
   ]);
@@ -67,16 +63,9 @@ test("eq", () => {
     .eq(v("value"), k("hello"))
     .build();
 
-  const result = flatMap(function* (res) {
-    if (res.tag === "result") {
-      yield {
-        field: res.state.resolve(v("field")),
-        value: res.state.resolve(v("value")),
-      };
-    }
-  }, state.runRule(query, []));
-
-  expect(Array.from(result)).toEqual([{ field: "file__name", value: "hello" }]);
+  expect(allResults(state, query)).toEqual([
+    { field: "file__name", value: "hello" },
+  ]);
 });
 
 test("get index", () => {
@@ -87,9 +76,9 @@ test("get index", () => {
     },
     window_1: { file__name: "window 1" },
     window_2: { file__name: "window 2" },
-    foo: { file__name: "foo", history__window: "window_1" },
-    bar: { file__name: "bar", history__window: "window_1" },
-    baz: { file__name: "baz", history__window: "window_2" },
+    foo: { file__name: "Foo", history__window: "window_1" },
+    bar: { file__name: "Bar", history__window: "window_1" },
+    baz: { file__name: "Baz", history__window: "window_2" },
   });
 
   const query = R()
@@ -97,13 +86,10 @@ test("get index", () => {
     .get(v("id"), k("file__name"), v("name"))
     .build();
 
-  const result = flatMap(function* (res) {
-    if (res.tag === "result") {
-      yield res.state.resolve(v("name"));
-    }
-  }, state.runRule(query, []));
-
-  expect(Array.from(result)).toEqual(["bar", "foo"]);
+  expect(allResults(state, query)).toEqual([
+    { id: "bar", name: "Bar" },
+    { id: "foo", name: "Foo" },
+  ]);
 });
 
 test("db rule", () => {
@@ -119,11 +105,8 @@ test("db rule", () => {
     .r("get_description", [k("foo"), v("description")])
     .build();
 
-  const result = flatMap(function* (res) {
-    if (res.tag === "result") {
-      yield res.state.resolve(v("description"));
-    }
-  }, state.runRule(query, []));
-
-  expect(Array.from(result)).toEqual(["desc 1"]);
+  expect(allResults(state, query)).toEqual([
+    //
+    { description: "desc 1" },
+  ]);
 });
