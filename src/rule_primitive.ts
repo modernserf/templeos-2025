@@ -9,29 +9,27 @@ export type RulePrimitiveId = keyof typeof rulePrimitives;
 export const rulePrimitives = {
   *rule__fail() {},
   *rule__ground(state, [q]) {
-    if (state.isGround(q)) yield { tag: "result", state };
+    if (state.isGround(q)) yield state.result();
   },
   *rule__id(state, [qId]) {
     const ns = state.unify(qId, k(crypto.randomUUID()));
-    if (ns) yield { tag: "result", state: ns };
+    if (ns) yield ns.result();
   },
   *rule__timestamp(state, [qId]) {
     const ns = state.unify(qId, k(Date.now()));
-    if (ns) yield { tag: "result", state: ns };
+    if (ns) yield ns.result();
   },
   *rule__getContext(state, [qId, qValue]) {
     const id = state.resolve<Id>(qId);
     const value = state.getContext(id);
-    if (!value) return;
     const ns = state.unify(qValue, k(value));
-    if (!ns) return;
-    yield { tag: "result", state: ns };
+    if (ns) yield ns.result();
   },
   *rule__setContext(state, [qId, qValue]) {
     const id = state.resolve<Id>(qId);
     const value = state.resolve(qValue);
     const ns = state.setContext(id, value);
-    yield { tag: "result", state: ns };
+    yield ns.result();
   },
   *rule__get(state, [qId, qField, qValue]) {
     if (state.isGround(qId)) {
@@ -43,7 +41,7 @@ export const rulePrimitives = {
         const value = rec[field];
         if (value == null) return;
         const ns = state.unify(qValue, k(value));
-        if (ns) yield { tag: "result", state: ns };
+        if (ns) yield ns.result();
       } else {
         for (const [field, value] of Object.entries(rec)) {
           if (value == null) continue;
@@ -51,7 +49,7 @@ export const rulePrimitives = {
           if (!ns) continue;
           const ns1 = ns.unify(qValue, k(value));
           if (!ns1) continue;
-          yield { tag: "result", state: ns1 };
+          yield ns1.result();
         }
       }
     } else {
@@ -62,7 +60,7 @@ export const rulePrimitives = {
       for (const [{ entityId }] of index.tree.where(whereValue(value))) {
         const ns = state.unify(qId, k(entityId));
         if (!ns) continue;
-        yield { tag: "result", state: ns };
+        yield ns.result();
       }
     }
   },
@@ -71,29 +69,29 @@ export const rulePrimitives = {
     const value = state.resolve<Rec>(qValue)!;
     // TODO: handle rollback
     state.db.insert(id, value);
-    yield { tag: "result", state };
+    yield state.result();
   },
   *rule__update(state, [qId, qField, qValue]) {
     const id = state.resolve<Id>(qId);
     const field = state.resolve<Field>(qField);
     const value = state.resolve(qValue);
     state.db.update(id, field, value);
-    yield { tag: "result", state };
+    yield state.result();
   },
   *rule__eq(state, [exprL, exprR]) {
     const nextState = state.unify(exprL, exprR);
-    if (nextState) yield { tag: "result", state: nextState };
+    if (nextState) yield nextState.result();
   },
   *rule__log(state, [qMsg]) {
     const message = state.resolve<string>(qMsg);
     console.log(message, state.getScope());
-    yield { tag: "result", state };
+    yield state.result();
   },
   *rule__members(state, [qList, qItem]) {
     const list = state.resolve<unknown[]>(qList);
     for (const item of list) {
       const ns = state.unify(qItem, k(item));
-      if (ns) yield { tag: "result", state: ns };
+      if (ns) yield ns.result();
     }
   },
   *rule__call(state, [qRule, ...qArgs]) {

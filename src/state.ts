@@ -49,6 +49,9 @@ export class State {
   getScope() {
     return { ...this.scope };
   }
+  result() {
+    return { tag: "result", state: this } as const;
+  }
   resolveAll(): Record<Ident, unknown> {
     return Object.fromEntries(
       Object.entries(this.scope).map(([key, value]) => [
@@ -106,7 +109,7 @@ export class State {
     );
   }
   getContext<T>(id: Id): T {
-    return this.context[id] as T;
+    return (this.context[id] as T) ?? notFound(id);
   }
   setContext(id: Id, value: unknown): State {
     return new State(this.db, this.scope, { ...this.context, [id]: value });

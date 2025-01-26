@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/208</span>
+                <span class='fraction'>0/205</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/208</span>
+                <span class='fraction'>0/205</span>
             </div>
         
             
@@ -391,11 +391,7 @@
 <a name='L326'></a><a href='#L326'>326</a>
 <a name='L327'></a><a href='#L327'>327</a>
 <a name='L328'></a><a href='#L328'>328</a>
-<a name='L329'></a><a href='#L329'>329</a>
-<a name='L330'></a><a href='#L330'>330</a>
-<a name='L331'></a><a href='#L331'>331</a>
-<a name='L332'></a><a href='#L332'>332</a>
-<a name='L333'></a><a href='#L333'>333</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L329'></a><a href='#L329'>329</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -505,8 +501,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -520,7 +515,6 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -550,11 +544,10 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -663,7 +656,6 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -729,7 +721,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" >import { FC } from "react";</span></span></span>
 import { State } from "./state";
-import { Clause, FormatTextNode, Id, RuleRec } from "./schema";
+import { Clause, FormatTextNode, Id, Rule } from "./schema";
 import { filter } from "./iter";
 import { k, R, v } from "./rule_builder";
 import { useEventHandler } from "./event_source";
@@ -739,13 +731,13 @@ type View&lt;Args extends unknown[]&gt; = FC&lt;{ state: State; args: Args }&gt;
 &nbsp;
 <span class="cstat-no" title="statement not covered" >// TODO: want to do non-hierarchichal layout</span>
 <span class="cstat-no" title="statement not covered" >const Row: View&lt;[Clause[]]&gt; = ({ state, args: [children] }) =&gt; (</span>
-<span class="cstat-no" title="statement not covered" >  &lt;div className="row"&gt;</span>
+<span class="cstat-no" title="statement not covered" >  &lt;div className="Row"&gt;</span>
 <span class="cstat-no" title="statement not covered" >    &lt;Children state={state} ruleBody={children} /&gt;</span>
   &lt;/div&gt;
 );
 &nbsp;
 <span class="cstat-no" title="statement not covered" >const Column: View&lt;[Clause[]]&gt; = ({ state, args: [children] }) =&gt; (</span>
-<span class="cstat-no" title="statement not covered" >  &lt;div className="column"&gt;</span>
+<span class="cstat-no" title="statement not covered" >  &lt;div className="Column"&gt;</span>
 <span class="cstat-no" title="statement not covered" >    &lt;Children state={state} ruleBody={children} /&gt;</span>
   &lt;/div&gt;
 );
@@ -756,7 +748,7 @@ type View&lt;Args extends unknown[]&gt; = FC&lt;{ state: State; args: Args }&gt;
 &nbsp;
 <span class="cstat-no" title="statement not covered" >const String: View&lt;[string]&gt; = ({ args: [value] }) =&gt; &lt;div&gt;{value}&lt;/div&gt;;</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >const Button: View&lt;[string, RuleRec]&gt; = ({ state, args: [label, rule] }) =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >const Button: View&lt;[string, Rule]&gt; = ({ state, args: [label, rule] }) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  const handle = useEventHandler(state);</span>
 <span class="cstat-no" title="statement not covered" >  return (</span>
 <span class="cstat-no" title="statement not covered" >    &lt;button</span>
@@ -770,7 +762,7 @@ type View&lt;Args extends unknown[]&gt; = FC&lt;{ state: State; args: Args }&gt;
   );
 <span class="cstat-no" title="statement not covered" >};</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >const Input: View&lt;[string, RuleRec]&gt; = ({ state, args: [value, rule] }) =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >const Input: View&lt;[string, Rule]&gt; = ({ state, args: [value, rule] }) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  const handle = useEventHandler(state);</span>
 <span class="cstat-no" title="statement not covered" >  return (</span>
 <span class="cstat-no" title="statement not covered" >    &lt;input</span>
@@ -785,7 +777,7 @@ type View&lt;Args extends unknown[]&gt; = FC&lt;{ state: State; args: Args }&gt;
 <span class="cstat-no" title="statement not covered" >const Option: View&lt;[Id, string]&gt; = ({ args: [id, label] }) =&gt; (</span>
 <span class="cstat-no" title="statement not covered" >  &lt;option value={id}&gt;{label}&lt;/option&gt;</span>
 );
-<span class="cstat-no" title="statement not covered" >const Select: View&lt;[Id, RuleRec, Clause[]]&gt; = ({</span>
+<span class="cstat-no" title="statement not covered" >const Select: View&lt;[Id, Rule, Clause[]]&gt; = ({</span>
 <span class="cstat-no" title="statement not covered" >  state,</span>
 <span class="cstat-no" title="statement not covered" >  args: [value, rule, items],</span>
 <span class="cstat-no" title="statement not covered" >}) =&gt; {</span>
@@ -836,6 +828,8 @@ type View&lt;Args extends unknown[]&gt; = FC&lt;{ state: State; args: Args }&gt;
 <span class="cstat-no" title="statement not covered" >  &lt;div style={{ textAlign: "center", fontSize: 32 }}&gt;📄&lt;/div&gt;</span>
 );
 &nbsp;
+<span class="cstat-no" title="statement not covered" >const qLink = R("label", "id").link("label", "id").build();</span>
+&nbsp;
 <span class="cstat-no" title="statement not covered" >const TextView: View&lt;[FormatTextNode[]]&gt; = ({ state, args: [text] }) =&gt; (</span>
 <span class="cstat-no" title="statement not covered" >  &lt;&gt;</span>
 <span class="cstat-no" title="statement not covered" >    {text.map((node, i) =&gt; {</span>
@@ -845,14 +839,10 @@ type View&lt;Args extends unknown[]&gt; = FC&lt;{ state: State; args: Args }&gt;
 <span class="cstat-no" title="statement not covered" >        case "link":</span>
 <span class="cstat-no" title="statement not covered" >          return (</span>
 <span class="cstat-no" title="statement not covered" >            &lt;span key={i} className="TextView__Link"&gt;</span>
-<span class="cstat-no" title="statement not covered" >              &lt;Link</span>
+<span class="cstat-no" title="statement not covered" >              &lt;Query</span>
 <span class="cstat-no" title="statement not covered" >                state={state}</span>
-<span class="cstat-no" title="statement not covered" >                args={[</span>
-<span class="cstat-no" title="statement not covered" >                  node.text,</span>
-<span class="cstat-no" title="statement not covered" >                  node.params.id,</span>
-<span class="cstat-no" title="statement not covered" >                  node.params.view ?? "",</span>
-<span class="cstat-no" title="statement not covered" >                  "current",</span>
-                ]}
+<span class="cstat-no" title="statement not covered" >                rule={qLink}</span>
+<span class="cstat-no" title="statement not covered" >                args={[node.text, node.params.id]}</span>
               /&gt;
             &lt;/span&gt;
           );
@@ -877,16 +867,15 @@ type View&lt;Args extends unknown[]&gt; = FC&lt;{ state: State; args: Args }&gt;
 <span class="cstat-no" title="statement not covered" >  .r("rule__closeWindow", [v("windowId")])</span>
 <span class="cstat-no" title="statement not covered" >  .build();</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >const qUpdateView = R("nextView")</span>
-<span class="cstat-no" title="statement not covered" >  .getContext("windowId", "windowId")</span>
-<span class="cstat-no" title="statement not covered" >  .get("windowId", "window__currentHistory", "h")</span>
-<span class="cstat-no" title="statement not covered" >  .update("h", "history__view", "nextView")</span>
-<span class="cstat-no" title="statement not covered" >  .build();</span>
-&nbsp;
 <span class="cstat-no" title="statement not covered" >const qViewMenu = R("windowId", "id", "view")</span>
 <span class="cstat-no" title="statement not covered" >  .r("view__select", [</span>
 <span class="cstat-no" title="statement not covered" >    v("view"),</span>
-<span class="cstat-no" title="statement not covered" >    k(qUpdateView),</span>
+<span class="cstat-no" title="statement not covered" >    k(</span>
+<span class="cstat-no" title="statement not covered" >      R("nextView")</span>
+<span class="cstat-no" title="statement not covered" >        .get("windowId", "window__currentHistory", "h")</span>
+<span class="cstat-no" title="statement not covered" >        .update("h", "history__view", "nextView")</span>
+<span class="cstat-no" title="statement not covered" >        .build()</span>
+    ),
 <span class="cstat-no" title="statement not covered" >    k(</span>
 <span class="cstat-no" title="statement not covered" >      R()</span>
 <span class="cstat-no" title="statement not covered" >        .or(</span>
@@ -971,8 +960,8 @@ export type ViewPrimitiveId = keyof typeof viewPrimitives;
 <span class="cstat-no" title="statement not covered" >  return (</span>
 <span class="cstat-no" title="statement not covered" >    &lt;&gt;</span>
 <span class="cstat-no" title="statement not covered" >      {views.map((view, i) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >        const View = viewPrimitives[view.view as ViewPrimitiveId];</span>
-<span class="cstat-no" title="statement not covered" >        return &lt;View key={i} args={view.args as any} state={view.state} /&gt;;</span>
+<span class="cstat-no" title="statement not covered" >        const View = viewPrimitives[view.view] as View&lt;unknown[]&gt;;</span>
+<span class="cstat-no" title="statement not covered" >        return &lt;View key={i} args={view.args} state={view.state} /&gt;;</span>
 <span class="cstat-no" title="statement not covered" >      })}</span>
     &lt;/&gt;
   );
@@ -984,7 +973,7 @@ export type ViewPrimitiveId = keyof typeof viewPrimitives;
 <span class="cstat-no" title="statement not covered" >  args = [],</span>
 }: {
   state: State;
-  rule: RuleRec;
+  rule: Rule;
   args?: unknown[];
 <span class="cstat-no" title="statement not covered" >}) {</span>
 <span class="cstat-no" title="statement not covered" >  if (!rule) throw new Error();</span>
@@ -994,9 +983,8 @@ export type ViewPrimitiveId = keyof typeof viewPrimitives;
 <span class="cstat-no" title="statement not covered" >  return (</span>
 <span class="cstat-no" title="statement not covered" >    &lt;&gt;</span>
 <span class="cstat-no" title="statement not covered" >      {views.map((view, i) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >        const View = viewPrimitives[view.view as ViewPrimitiveId];</span>
-&nbsp;
-<span class="cstat-no" title="statement not covered" >        return &lt;View key={i} args={view.args as any} state={view.state} /&gt;;</span>
+<span class="cstat-no" title="statement not covered" >        const View = viewPrimitives[view.view] as View&lt;unknown[]&gt;;</span>
+<span class="cstat-no" title="statement not covered" >        return &lt;View key={i} args={view.args} state={view.state} /&gt;;</span>
 <span class="cstat-no" title="statement not covered" >      })}</span>
     &lt;/&gt;
   );
@@ -1066,7 +1054,7 @@ function OmniboxView({ state }: ViewProps) {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-01-25T18:13:56.113Z
+                at 2025-01-26T23:21:57.048Z
             </div>
         <script src="prettify.js"></script>
         <script>
