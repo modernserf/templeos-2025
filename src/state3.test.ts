@@ -145,12 +145,12 @@ test("type predicates", () => {
       s("=", v("quux"), s("pair", k(123), k(456))),
       // var
       s("var", v("foo")),
-      s("var", s("pair", v("foo"), k(123))),
       s("var", __),
       // nonvar
       s("nonvar", v("bar")),
       s("nonvar", k(456)),
       s("nonvar", s("pair", k(123), k(456))),
+      s("nonvar", s("pair", __, k(123))),
       // number
       s("number", v("bar")),
       s("number", k(456)),
@@ -162,7 +162,12 @@ test("type predicates", () => {
       s("struct", s("pair", __, k(456)))
     )
   ).toEqual([
-    { bar: 123, baz: "Hello", quux: { id: "pair", args: [123, 456] } },
+    {
+      foo: undefined,
+      bar: 123,
+      baz: "Hello",
+      quux: { id: "pair", args: [123, 456] },
+    },
   ]);
 });
 

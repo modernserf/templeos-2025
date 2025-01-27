@@ -8,14 +8,19 @@ export type Field = Id;
 export type Rec = Record<Field, Expr>;
 
 export type Ident = string;
-type ScopeId = symbol;
-const SCOPE_ID = Symbol("SCOPE_ID");
+type FactId = symbol;
 
 export type Expr =
   | { tag: "placeholder" }
   | { tag: "value"; value: SimpleValue }
-  | { tag: "ident"; ident: Ident; [SCOPE_ID]?: ScopeId }
+  | { tag: "ident"; ident: Ident }
   | { tag: "struct"; id: Id; args: Expr[] };
+
+type Fact =
+  | { tag: "unify"; id: FactId }
+  | { tag: "value"; value: SimpleValue }
+  | { tag: "struct"; id: Id; args: Fact[] };
+// TODO: constraints
 
 export const __ = { tag: "placeholder" } as const;
 export const k = (value: SimpleValue) => ({ tag: "value", value } as const);
@@ -23,21 +28,20 @@ export const v = (ident: Ident) => ({ tag: "ident", ident } as const);
 export const s = (id: Id, ...args: Expr[]) =>
   ({ tag: "struct", id, args } as const);
 
-function printExpr(expr: Expr): string {
-  switch (expr.tag) {
-    case "ident":
-      return expr[SCOPE_ID]?.description ?? expr.ident;
-    case "placeholder":
-      return `__`;
+function printFact(fact: Fact): string {
+  switch (fact.tag) {
+    case "unify":
+      return `${fact.id.description}`;
     case "value":
-      return JSON.stringify(expr.value);
+      return JSON.stringify(fact.value);
     case "struct":
-      return `${expr.id}(${expr.args.map(printExpr).join(",")})`;
+      return `${fact.id}(${fact.args.map(printFact).join(", ")})`;
   }
 }
 
-type Scope = Record<ScopeId, Expr>;
-type SymbolTable = Record<Ident, ScopeId>;
+type Facts = Record<FactId, Fact>;
+type SymbolTable = Record<Ident, FactId>;
+const PLACEHOLDER_ID = Symbol("__");
 
 export type StateNext = { tag: "state"; state: State };
 
@@ -139,7 +143,7 @@ class TransactDB extends DB<Rec> {
 export class State {
   private constructor(
     private db: TransactDB,
-    private scope: Scope,
+    private facts: Facts,
     private symbolTable: SymbolTable
   ) {}
   static root(): State {
@@ -147,47 +151,40 @@ export class State {
     db.bulkInsert(rules);
     return new State(db, {}, {});
   }
-  private getScope(expr: Expr): Expr | null {
-    if (expr.tag === "ident") return this.scope[expr[SCOPE_ID]!] ?? null;
-    return null;
+  private mapFact<T>(fact: Fact, f: (f: Fact, args?: T[]) => T): T {
+    switch (fact.tag) {
+      case "value":
+        return f(fact);
+      case "unify":
+        if (this.facts[fact.id]) {
+          return this.mapFact(this.facts[fact.id], f);
+        }
+        return f(fact);
+      case "struct":
+        return f(
+          fact,
+          fact.args.map((arg) => this.mapFact(arg, f))
+        );
+    }
   }
   private mapExpr<T>(expr: Expr, f: (e: Expr, args?: T[]) => T): T {
     switch (expr.tag) {
       case "placeholder":
       case "value":
+      case "ident":
         return f(expr);
-      case "ident": {
-        const next = this.getScope(expr);
-        if (next) return this.mapExpr(next, f);
-        return f(expr);
-      }
       case "struct":
         return f(
-          { tag: "struct", id: expr.id, args: [] },
+          expr,
           expr.args.map((arg) => this.mapExpr(arg, f))
         );
     }
   }
-  private canResolve(expr: Expr): boolean {
-    return this.mapExpr(expr, (e, args = []) => {
+  private resolve(fact: Fact): Value {
+    return this.mapFact(fact, (e, args = []) => {
       switch (e.tag) {
-        case "placeholder":
-        case "ident":
-          return false;
-        case "value":
-          return true;
-        case "struct":
-          return args.every(Boolean);
-      }
-    });
-  }
-  private resolve(expr: Expr): Value {
-    return this.mapExpr(expr, (e, args = []) => {
-      switch (e.tag) {
-        case "placeholder":
-          throw new Error("cannot resolve placeholder");
-        case "ident":
-          throw new Error(`cannot resolve ${e.ident}`);
+        case "unify":
+          throw new Error("unresolved var");
         case "value":
           return e.value;
         case "struct":
@@ -199,180 +196,186 @@ export class State {
     return Object.fromEntries(
       Object.entries(this.symbolTable).map(([key, sym]) => [
         key,
-        this.scope[sym] ? this.resolve(this.scope[sym]) : undefined,
+        this.facts[sym] ? this.resolve(this.facts[sym]) : undefined,
       ])
     );
   }
-  private unify(left: Expr, right: Expr): State | null {
-    if (left.tag === "placeholder" || right.tag === "placeholder") return this;
-    switch (left.tag) {
-      case "ident": {
-        // left is bound
-        const l = this.getScope(left);
-        if (l) return this.unify(l, right);
-        switch (right.tag) {
-          case "ident": {
-            // right is bound
-            const r = this.getScope(right);
-            if (r) return this.unify(left, r);
-            // same var
-            if (left[SCOPE_ID] === right[SCOPE_ID]) return this;
-            // left is unbound
-            return this.withBinding(left[SCOPE_ID]!, right);
-          }
-          case "value":
-          case "struct":
-            return this.withBinding(left[SCOPE_ID]!, right);
-        }
-      }
-      // eslint-disable-next-line no-fallthrough
-      case "value":
-        switch (right.tag) {
-          case "ident":
-            return this.unify(right, left);
-          case "value":
-            if (left.value === right.value) {
-              return this;
-            } else {
-              return null;
-            }
-          case "struct":
-            return null;
-        }
-      // eslint-disable-next-line no-fallthrough
-      case "struct":
-        switch (right.tag) {
-          case "ident":
-            return this.unify(right, left);
-          case "value":
-            return null;
-          case "struct": {
-            if (
-              left.id !== right.id ||
-              left.args.length !== right.args.length
-            ) {
-              return null;
-            }
-            // eslint-disable-next-line @typescript-eslint/no-this-alias
-            let state: State = this;
-            for (let i = 0; i < left.args.length; i++) {
-              const nextState = state.unify(left.args[i], right.args[i]);
-              if (!nextState) return null;
-              state = nextState;
-            }
-            return state;
-          }
-        }
-    }
-  }
-  private withBinding(scopeId: ScopeId, expr: Expr): State {
-    return new State(
-      this.db,
-      { ...this.scope, [scopeId]: expr },
-      this.symbolTable
-    );
-  }
-  private simplify(expr: Expr): Expr {
-    return this.mapExpr(expr, (e, args = []) => {
-      switch (e.tag) {
-        case "ident":
-        case "placeholder":
+  private factToExpr(fact: Fact): Expr {
+    return this.mapFact(fact, (f, args = []) => {
+      switch (f.tag) {
+        case "unify":
+          if (f.id === PLACEHOLDER_ID) return __;
+          return { tag: "ident", ident: f.id.description ?? "<anonymous>" };
         case "value":
-          return e;
+          return f;
         case "struct":
-          return { ...e, args };
+          return { ...f, args };
       }
     });
   }
-  private tryResolve(
-    expr: Expr
-  ): Exclude<Expr, { tag: "ident" } | { tag: "placeholder" }> | null {
-    const res: Expr = this.simplify(expr);
-    if (res.tag === "placeholder" || res.tag === "ident") return null;
-    return res;
-  }
-  private resolveSimple(expr: Expr): Expr & { tag: "value" } {
-    const res = this.simplify(expr);
-    if (res.tag !== "value") {
-      throw new Error(`Expected struct, received ${printExpr(res)}`);
-    }
-    return res;
-  }
-  private resolveStruct(expr: Expr): Expr & { tag: "struct" } {
-    const res = this.simplify(expr);
-    if (res.tag !== "struct")
-      throw new Error(`Expected struct, received ${printExpr(res)}`);
-    return res;
-  }
-  *run(expr: Expr): Generator<StateNext> {
-    try {
-      yield* this.runClauseDecorated(this.decorateExpr(expr));
-    } finally {
-      this.db.rollbackAll();
+  private expr(expr: Expr): Fact {
+    switch (expr.tag) {
+      case "placeholder":
+        return { tag: "unify", id: PLACEHOLDER_ID };
+      case "ident": {
+        const sym =
+          this.symbolTable[expr.ident] ??
+          Symbol(`${expr.ident}<${varCount++}>`);
+        this.symbolTable[expr.ident] = sym;
+        return { tag: "unify", id: sym };
+      }
+      case "value":
+        return expr;
+      case "struct": {
+        const res = {
+          ...expr,
+          args: expr.args.map((arg) => this.expr(arg)),
+        };
+        if (expr.args.length !== res.args.length) throw new Error();
+        // if (expr.id === "cons") console.log(expr, res);
+        return res;
+      }
     }
   }
-  private decorateExpr(expr: Expr): Expr {
-    return this.mapExpr(expr, (e, args = []) => {
+  private exprValue(expr: Expr): Fact {
+    switch (expr.tag) {
+      case "placeholder":
+      case "ident":
+        // TODO: I don't think I want to eval these in their current scope
+        return { tag: "unify", id: PLACEHOLDER_ID };
+      case "value":
+        return expr;
+      case "struct":
+        return {
+          ...expr,
+          args: expr.args.map((arg) => this.exprValue(arg)),
+        };
+    }
+  }
+  private addFact(id: FactId, fact: Fact): State {
+    // console.log("addFact", id, fact);
+    return new State(this.db, { ...this.facts, [id]: fact }, this.symbolTable);
+  }
+  private unify(left: Fact, right: Fact): State | null {
+    // handle placeholders
+    if (left.tag === "unify" && left.id === PLACEHOLDER_ID) return this;
+    if (right.tag === "unify" && right.id === PLACEHOLDER_ID) return this;
+    // follow unify chains
+    left = this.simplify(left);
+    right = this.simplify(right);
+
+    switch (left.tag) {
+      case "unify":
+        return this.addFact(left.id, right);
+      case "value":
+        switch (right.tag) {
+          case "unify":
+            return this.addFact(right.id, left);
+          case "struct":
+            return null;
+          case "value":
+            return left.value === right.value ? this : null;
+        }
+        break;
+      case "struct":
+        switch (right.tag) {
+          case "unify":
+            return this.addFact(right.id, left);
+          case "value":
+            return null;
+          case "struct": {
+            let nextState = this as State;
+            if (left.id !== right.id) return null;
+            if (left.args.length !== right.args.length) return null;
+            for (let i = 0; i < left.args.length; i++) {
+              const ns = nextState.unify(left.args[i], right.args[i]);
+              if (!ns) return null;
+              nextState = ns;
+            }
+            return nextState;
+          }
+        }
+    }
+  }
+  private simplify(fact: Fact): Fact {
+    return this.mapFact(fact, (e, args = []) => {
       switch (e.tag) {
-        case "placeholder":
+        case "unify":
         case "value":
           return e;
-        case "ident": {
-          const sym =
-            this.symbolTable[e.ident] ?? Symbol(`${e.ident}<${varCount++}>`);
-          this.symbolTable[e.ident] = sym;
-          // e[SCOPE_ID] = sym;
-          return { ...e, [SCOPE_ID]: sym };
-        }
         case "struct": {
           return { ...e, args };
         }
       }
     });
   }
-  private *runClauseDecorated(expr: Expr): Generator<StateNext> {
-    expr = this.simplify(expr);
-    if (expr.tag !== "struct") {
-      throw new Error(`Expected struct, received ${expr.tag}`);
+  private ensureSimple(fact: Fact): Fact & { tag: "value" } {
+    const res = this.simplify(fact);
+    if (res.tag !== "value") {
+      throw new Error(`Expected struct, received ${printFact(res)}`);
     }
-    switch (expr.id) {
+    return res;
+  }
+  private ensureStruct(fact: Fact): Fact & { tag: "struct" } {
+    const res = this.simplify(fact);
+    if (res.tag !== "struct") {
+      throw new Error(`Expected struct, received ${printFact(res)}`);
+    }
+    return res;
+  }
+  *run(expr: Expr): Generator<StateNext> {
+    try {
+      yield* this.runClause(this.expr(expr));
+    } finally {
+      this.db.rollbackAll();
+    }
+  }
+  log(facts: Fact[]) {
+    console.log(
+      ...facts.map((fact) => printFact(this.simplify(fact))),
+      Object.fromEntries(
+        Object.getOwnPropertySymbols(this.facts).map((sym) => [
+          sym.description,
+          printFact(this.simplify(this.facts[sym])),
+        ])
+      )
+    );
+  }
+  private *runClause(fact: Fact): Generator<StateNext> {
+    fact = this.simplify(fact);
+    if (fact.tag !== "struct") {
+      throw new Error(`Expected struct, received ${fact.tag}`);
+    }
+    switch (fact.id) {
       case "fail":
         return;
       case "ok":
         yield this.yield();
         return;
       case "log":
-        console.log(
-          ...expr.args.map(printExpr),
-          Object.fromEntries(
-            Object.getOwnPropertySymbols(this.scope).map((sym) => [
-              sym.description,
-              printExpr(this.scope[sym]),
-            ])
-          )
-        );
+        this.log(fact.args);
         yield this.yield();
         return;
       case "=": {
-        const [l, r] = expr.args;
+        const [l, r] = fact.args;
         const ns = this.unify(l, r);
         if (ns) yield ns.yield();
         return;
       }
       case ",": {
-        yield* this.runClauseSeq(expr.args);
+        yield* this.runClauseSeq(fact.args);
         return;
       }
       case ";": {
         yield* this.uniqueStates(function* () {
-          for (const arg of expr.args) {
-            yield* this.runClauseDecorated(arg);
+          for (const arg of fact.args) {
+            yield* this.runClause(arg);
           }
         });
         return;
       }
       case "¬": // option-L
-        for (const _ of this.runClauseDecorated(expr.args[0])) {
+        for (const _ of this.runClause(fact.args[0])) {
           // success -> failure
           return;
         }
@@ -380,161 +383,177 @@ export class State {
         yield this.yield();
         return;
       case "throw":
-        throw new Error(`failure at ${printExpr(expr.args[0])}`);
+        throw new Error(`failure at ${printFact(fact.args[0])}`);
       case "try_catch":
         try {
-          yield* this.runClauseDecorated(expr.args[0]);
+          yield* this.runClause(fact.args[0]);
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (e) {
           // console.error(e);
-          yield* this.runClauseDecorated(expr.args[1]);
+          yield* this.runClause(fact.args[1]);
         }
         return;
       case "if_then_else": {
-        const [cond, ifSuccess, ifFail] = expr.args;
+        const [cond, ifSuccess, ifFail] = fact.args;
         let didSucceed = false;
-        for (const res0 of this.runClauseDecorated(cond)) {
+        for (const res0 of this.runClause(cond)) {
           didSucceed = true;
-          yield* res0.state.runClauseDecorated(ifSuccess);
+          yield* res0.state.runClause(ifSuccess);
         }
         if (!didSucceed) {
-          yield* this.runClauseDecorated(ifFail);
+          yield* this.runClause(ifFail);
         }
         return;
       }
-      case "var":
-        if (!this.canResolve(expr.args[0])) {
+      case "var": {
+        const res = this.simplify(fact.args[0]);
+        if (res.tag === "unify") yield this.yield();
+        return;
+      }
+      case "nonvar": {
+        const res = this.simplify(fact.args[0]);
+        if (res.tag !== "unify") yield this.yield();
+        return;
+      }
+      case "number": {
+        const res = this.simplify(fact.args[0]);
+        if (res.tag === "value" && typeof res.value === "number")
           yield this.yield();
-        }
         return;
-      case "nonvar":
-        if (this.canResolve(expr.args[0])) {
+      }
+      case "string": {
+        const res = this.simplify(fact.args[0]);
+        if (res.tag === "value" && typeof res.value === "string")
           yield this.yield();
-        }
         return;
-      case "number":
-        if (this.canResolve(expr.args[0])) {
-          const val = this.resolve(expr.args[0]);
-          if (typeof val === "number") yield this.yield();
-        }
-        return;
-      case "string":
-        if (this.canResolve(expr.args[0])) {
-          const val = this.resolve(expr.args[0]);
-          if (typeof val === "string") yield this.yield();
-        }
-        return;
+      }
       case "struct": {
-        const res = this.tryResolve(expr.args[0]);
-        if (res?.tag === "struct") yield this.yield();
+        const res = this.simplify(fact.args[0]);
+        if (res.tag === "struct") yield this.yield();
         return;
       }
       case "struct_arity": {
-        const st = this.resolveStruct(expr.args[0]);
-        const ns = this.unify(expr.args[1], k(st.args.length));
+        const st = this.ensureStruct(fact.args[0]);
+        const ns = this.unify(fact.args[1], k(st.args.length));
         if (ns) yield ns.yield();
         return;
       }
       case "struct_id_args": {
-        const st = this.tryResolve(expr.args[0]);
-        if (st) {
-          if (st.tag !== "struct") throw new Error("expected struct");
-          const id = k(st.id);
-          const args = s("", ...st.args);
-          const ns = this.unify(expr.args[1], id)?.unify(expr.args[2], args);
-          if (ns) yield ns.yield();
-        } else {
-          const id = this.resolveSimple(expr.args[1]);
-          const args = this.resolveStruct(expr.args[2]);
-          if (args.id !== "") throw new Error("Expected list");
-          const ns = this.unify(expr.args[0], s(id.value as Id, ...args.args));
-          if (ns) yield ns.yield();
+        const st = this.simplify(fact.args[0]);
+        switch (st.tag) {
+          case "struct": {
+            const id = k(st.id);
+            const args = { ...st, id: "" };
+            const ns = this.unify(fact.args[1], id)?.unify(fact.args[2], args);
+            if (ns) yield ns.yield();
+            return;
+          }
+          case "unify": {
+            const id = this.ensureSimple(fact.args[1]);
+            const args = this.ensureStruct(fact.args[2]);
+            if (args.id !== "") throw new Error("Expected list");
+            const st = { ...args, id: id.value as string };
+            const ns = this.unify(fact.args[0], st);
+            if (ns) yield ns.yield();
+            return;
+          }
+          case "value":
+            throw new Error("expected struct");
         }
-        return;
+        break;
       }
       case "struct_id_index_arg": {
-        const st = this.resolveStruct(expr.args[0]);
+        const st = this.ensureStruct(fact.args[0]);
         const id = k(st.id);
-        const ns = this.unify(expr.args[1], id);
+        const ns = this.unify(fact.args[1], id);
         if (!ns) return;
-        // +struct, ?id, +index, ?arg
-        if (ns.canResolve(expr.args[2])) {
-          const i = ns.resolve(expr.args[2]);
-          if (typeof i !== "number") throw new Error("expected number");
-          if (i < 0 || i >= st.args.length) {
-            throw new Error("index out of range");
+        const idx = ns.simplify(fact.args[2]);
+        switch (idx.tag) {
+          // +struct, ?id, ?index, ?arg
+          case "unify": {
+            yield* this.uniqueStates(function* () {
+              for (let i = 0; i < st.args.length; i++) {
+                const ns1 = ns
+                  .unify(fact.args[2], k(i))
+                  ?.unify(fact.args[3], st.args[i]);
+                if (ns1) yield ns1.yield();
+              }
+            });
+            return;
           }
-          const ns1 = ns.unify(expr.args[3], st.args[i]);
-          if (ns1) yield ns1.yield();
-          // +struct, ?id, -index, ?arg
-        } else {
-          yield* this.uniqueStates(function* () {
-            for (let i = 0; i < st.args.length; i++) {
-              const ns1 = ns
-                .unify(expr.args[2], k(i))
-                ?.unify(expr.args[3], st.args[i]);
-              if (ns1) yield ns1.yield();
+          // +struct, ?id, +index, ?arg
+          case "value": {
+            const i = idx.value;
+            if (typeof i !== "number") throw new Error("expected number");
+            if (i < 0 || i >= st.args.length) {
+              throw new Error("index out of range");
             }
-          });
+            const ns1 = ns.unify(fact.args[3], st.args[i]);
+            if (ns1) yield ns1.yield();
+            return;
+          }
+          case "struct":
+            throw new Error("expected number");
         }
-        return;
+        break;
       }
       // db
       case "id": {
         const id = crypto.randomUUID();
-        const ns = this.unify(expr.args[0], k(id));
+        const ns = this.unify(fact.args[0], k(id));
         if (ns) yield ns.yield();
         return;
       }
       case "timestamp": {
         const id = Date.now();
-        const ns = this.unify(expr.args[0], k(id));
+        const ns = this.unify(fact.args[0], k(id));
         if (ns) yield ns.yield();
         return;
       }
       case "tx": {
         const tx = this.db.beginTx();
-        const ns = this.unify(expr.args[0], k(tx));
+        const ns = this.unify(fact.args[0], k(tx));
         if (ns) yield ns.yield();
         return;
       }
       case "commit": {
-        const tx = this.resolveSimple(expr.args[0]);
+        const tx = this.ensureSimple(fact.args[0]);
         this.db.commitTx(tx.value as Tx);
         yield this.yield();
         return;
       }
       case "rollback": {
-        const tx = this.resolveSimple(expr.args[0]);
+        const tx = this.ensureSimple(fact.args[0]);
         this.db.rollbackTx(tx.value as Tx);
         yield this.yield();
         return;
       }
       // TODO: handle rollback
       case "tx_update_field_value": {
-        const tx = this.resolveSimple(expr.args[0]);
-        const id = this.resolveSimple(expr.args[1]);
-        const field = this.resolveSimple(expr.args[2]);
-        const value = this.simplify(expr.args[3]);
+        const tx = this.ensureSimple(fact.args[0]);
+        const id = this.ensureSimple(fact.args[1]);
+        const field = this.ensureSimple(fact.args[2]);
+        const value = this.simplify(fact.args[3]);
         this.db.updateTx(
           tx.value as Tx,
           id.value as string,
           field.value as string,
-          value
+          this.factToExpr(value)
         );
         yield this.yield();
         return;
       }
       case "tx_delete_field_value": {
-        const tx = this.resolveSimple(expr.args[0]);
-        const id = this.resolveSimple(expr.args[1]);
-        const field = this.simplify(expr.args[2]);
+        const tx = this.ensureSimple(fact.args[0]);
+        const id = this.ensureSimple(fact.args[1]);
+        const field = this.simplify(fact.args[2]);
         const rec = this.db.get(id.value as string);
         if (!rec) return;
 
         // delete a field
         if (field.tag === "value") {
-          const ns = this.unify(rec[field.value], expr.args[3]);
+          const val = this.exprValue(rec[field.value]);
+          const ns = this.unify(val, fact.args[3]);
           if (!ns) return;
           this.db.updateTx(
             tx.value as Tx,
@@ -549,8 +568,9 @@ export class State {
           this.db.insertTx(tx.value as Tx, id.value as string, null);
           yield* this.uniqueStates(function* () {
             for (const f in rec) {
-              const ns = this.unify(k(f), expr.args[2]) //
-                ?.unify(rec[f], expr.args[3]);
+              const val = this.exprValue(rec[f]);
+              const ns = this.unify(k(f), fact.args[2]) //
+                ?.unify(val, fact.args[3]);
               if (!ns) return;
               yield ns.yield();
             }
@@ -559,30 +579,30 @@ export class State {
         }
       }
       case "get_field_value": {
-        const id = this.simplify(expr.args[0]);
-        const field = this.simplify(expr.args[1]);
+        const id = this.simplify(fact.args[0]);
+        const field = this.simplify(fact.args[1]);
         if (id.tag === "value") {
           const rec = this.db.get(id.value as string);
           if (!rec) return;
           if (field.tag === "value") {
             const val = rec[field.value as Field];
             if (!val) return;
-            const ns = this.unify(expr.args[2], val);
+            const ns = this.unify(fact.args[2], this.exprValue(val));
             if (ns) yield ns.yield();
           } else {
             yield* this.uniqueStates(function* () {
               for (const f in rec) {
                 const val = rec[f as Field];
                 if (!val) continue;
-                const ns = this.unify(expr.args[1], k(f)) //
-                  ?.unify(expr.args[2], val);
+                const ns = this.unify(fact.args[1], k(f)) //
+                  ?.unify(fact.args[2], this.exprValue(val));
                 if (ns) yield ns.yield();
               }
             });
           }
           return;
         }
-        const value = this.simplify(expr.args[2]);
+        const value = this.simplify(fact.args[2]);
         if (field.tag === "value" && value.tag === "value") {
           const idx = this.db.getIndex(field.value as string);
           if (idx) {
@@ -590,7 +610,7 @@ export class State {
               for (const [{ entityId }] of idx.tree.where(
                 whereValue(value.value as string)
               )) {
-                const ns = this.unify(expr.args[0], k(entityId));
+                const ns = this.unify(fact.args[0], k(entityId));
                 if (ns) yield ns.yield();
               }
             });
@@ -599,14 +619,14 @@ export class State {
         }
         yield* this.uniqueStates(function* () {
           for (const id of this.db.keys()) {
-            const ns = this.unify(expr.args[0], k(id))!;
+            const ns = this.unify(fact.args[0], k(id))!;
             const rec = this.db.get(id)!;
             for (const f in rec) {
               const val = rec[f as Field];
               if (!val) continue;
               const ns1 = ns
-                ?.unify(expr.args[1], k(f))
-                ?.unify(expr.args[2], val);
+                ?.unify(fact.args[1], k(f))
+                ?.unify(fact.args[2], this.exprValue(val));
               if (ns1) yield ns1.yield();
             }
           }
@@ -614,49 +634,51 @@ export class State {
         return;
       }
       default: {
-        const rule = this.db.get(expr.id);
-        if (!rule) throw new Error(`unknown rule ${expr.id}`);
-        if (!rule.rule__body || !rule.rule__params) {
-          throw new Error(`invalid rule ${expr.id}`);
+        const rule = this.db.get(fact.id);
+        if (!rule) throw new Error(`unknown rule ${fact.id}`);
+        if (
+          !rule.rule__body ||
+          !rule.rule__params ||
+          rule.rule__params.tag !== "struct" ||
+          rule.rule__params.id !== "params"
+        ) {
+          throw new Error(`invalid rule ${fact.id}`);
         }
 
-        const { args: params } = this.resolveStruct(rule.rule__params);
-        const ruleState = this.ruleState(params, expr.args);
-        if (!ruleState) return;
-
-        const body = ruleState.decorateExpr(rule.rule__body);
-        for (const res of ruleState.runClauseDecorated(body)) {
-          const ns = this.returnFrom(res.state);
-          if (ns) yield ns.yield();
-        }
+        yield* this.call(rule.rule__params.args, rule.rule__body, fact.args);
         return;
       }
     }
   }
-  private *runClauseSeq(items: Expr[], index = 0): Generator<StateNext> {
+  private *call(
+    params: Expr[],
+    body: Expr,
+    args: Fact[]
+  ): Generator<StateNext> {
+    if (params.length !== args.length) throw new Error("invalid arity");
+
+    let ruleState = new State(this.db, this.facts, {});
+    for (let i = 0; i < params.length; i++) {
+      const param = ruleState.expr(params[i]);
+      const arg = args[i];
+      const ns = ruleState.unify(param, arg);
+      if (!ns) return;
+      ruleState = ns;
+    }
+
+    for (const res of ruleState.runClause(ruleState.expr(body))) {
+      const ns = new State(this.db, res.state.facts, this.symbolTable);
+      if (ns) yield ns.yield();
+    }
+  }
+  private *runClauseSeq(items: Fact[], index = 0): Generator<StateNext> {
     if (index >= items.length) {
       yield this.yield();
       return;
     }
-    for (const res of this.runClauseDecorated(items[index])) {
+    for (const res of this.runClause(items[index])) {
       yield* res.state.runClauseSeq(items, index + 1);
     }
-  }
-  private ruleState(params: Expr[], args: Expr[]): State | null {
-    if (params.length !== args.length) throw new Error("invalid arity");
-
-    let ruleState = new State(this.db, this.scope, {});
-    for (let i = 0; i < params.length; i++) {
-      const param = ruleState.decorateExpr(params[i]);
-      const arg = args[i];
-      const ns = ruleState.unify(param, arg);
-      if (!ns) return null;
-      ruleState = ns;
-    }
-    return ruleState;
-  }
-  private returnFrom(ruleState: State): State | null {
-    return new State(this.db, ruleState.scope, this.symbolTable);
   }
   private yield() {
     return { tag: "state", state: this } as const;
