@@ -29,7 +29,7 @@ export const s = (id: Id, ...args: Expr[]) =>
 function printExpr(expr: Expr): string {
   switch (expr.tag) {
     case "ident":
-      return `${String(expr.ident)}`;
+      return expr[SCOPE_ID]?.description ?? expr.ident;
     case "placeholder":
       return `__`;
     case "value":
@@ -53,11 +53,8 @@ const rules = {
     rule__params: [v("list"), v("iter")],
     rule__body: s(
       ",",
-      s("log", k("log 1")),
       s("struct_arity", v("list"), v("len")),
-      s("log", k("log 2")),
-      s("=", v("iter"), s("list_index_len", v("list"), k(0), v("len"))),
-      s("log", k("log 3"))
+      s("=", v("iter"), s("list_index_len", v("list"), k(0), v("len")))
     ),
   },
   iter_value_next: {
@@ -80,6 +77,8 @@ const rules = {
     rule__body: s("=", v("iter"), s("list_index_len", __, v("i"), v("i"))),
   },
 } satisfies Record<string, Rec>;
+
+let varCount = 0;
 
 export class State {
   private constructor(
@@ -161,7 +160,7 @@ export class State {
             const r = this.getScope(right);
             if (r) return this.unify(left, r);
             // same var
-            if (left.ident === right.ident) return this;
+            if (left[SCOPE_ID] === right[SCOPE_ID]) return this;
             // left is unbound
             return this.withBinding(left[SCOPE_ID]!, right);
           }
@@ -254,13 +253,17 @@ export class State {
     return res;
   }
   *runClause(expr: Expr): Generator<StateNext> {
-    const decorated: Expr = this.mapExpr(expr, (e, args = []) => {
+    yield* this.runClauseDecorated(this.decorateExpr(expr));
+  }
+  private decorateExpr(expr: Expr): Expr {
+    return this.mapExpr(expr, (e, args = []) => {
       switch (e.tag) {
         case "placeholder":
         case "value":
           return e;
         case "ident": {
-          const sym = this.symbolTable[e.ident] ?? Symbol(e.ident);
+          const sym =
+            this.symbolTable[e.ident] ?? Symbol(`${e.ident}<${varCount++}>`);
           this.symbolTable[e.ident] = sym;
           e[SCOPE_ID] = sym;
           return e;
@@ -270,7 +273,6 @@ export class State {
         }
       }
     });
-    yield* this.runClauseDecorated(decorated);
   }
   private *runClauseDecorated(expr: Expr): Generator<StateNext> {
     if (expr.tag !== "struct") {
@@ -283,16 +285,16 @@ export class State {
         yield this.yield();
         return;
       case "log":
-        console.log(this.symbolTable, this.scope);
         console.log(
           ...expr.args.map(printExpr),
           Object.fromEntries(
-            Object.entries(this.symbolTable).map(([ident, sym]) => [
-              ident,
-              printExpr(this.scope[sym] ?? __),
+            Object.getOwnPropertySymbols(this.scope).map((sym) => [
+              sym.description,
+              printExpr(this.scope[sym]),
             ])
           )
         );
+        // console.dir(this.scope, { depth: 10 });
         yield this.yield();
         return;
       case "=": {
@@ -431,20 +433,19 @@ export class State {
         if (!ruleState) return;
 
         for (const res of ruleState.runClause(rule.rule__body)) {
-          const ns = this.returnFrom(res.state, rule.rule__params, expr.args);
+          const ns = this.returnFrom(res.state);
           if (ns) yield ns.yield();
         }
         return;
       }
     }
   }
-  //
   private ruleState(params: Expr[], args: Expr[]): State | null {
     if (params.length !== args.length) throw new Error("invalid arity");
 
-    let ruleState = new State(this.db, {}, {});
+    let ruleState = new State(this.db, this.scope, {});
     for (let i = 0; i < params.length; i++) {
-      const param = params[i];
+      const param = ruleState.decorateExpr(params[i]);
       const arg = args[i];
       const ns = ruleState.unify(param, arg);
       if (!ns) return null;
@@ -452,26 +453,9 @@ export class State {
     }
     return ruleState;
   }
-  // TODO: get the results from ruleState, but avoid conflict in var names
-  private returnFrom(
-    ruleState: State,
-    params: Expr[],
-    args: Expr[]
-  ): State | null {
-    let state = this as State;
-    for (let i = 0; i < params.length; i++) {
-      const param = params[i];
-      const arg = args[i];
-      const item = ruleState.partialResolve(param);
-      if (item) {
-        const ns = state.unify(arg, item);
-        if (!ns) return null;
-        state = ns;
-      }
-    }
-    return state;
+  private returnFrom(ruleState: State): State | null {
+    return new State(this.db, ruleState.scope, this.symbolTable);
   }
-
   private yield() {
     return { tag: "state", state: this } as const;
   }

@@ -250,13 +250,17 @@ test("list rules", () => {
     { l: { id: "", args: [] } },
   ]);
 
-  //   const prog3 = s("list_iter", s("", k(123), k(456)), v("iter"));
-  //   expect(runAll(prog3))).toEqual([
-  //     {
-  //       iter: {
-  //         id: "list_index_len",
-  //         args: [{ id: "", args: [123, 456] }, 0, 2],
-  //       },
-  //     },
-  //   ]);
+  expect(
+    runAll(
+      //
+      s("list_iter", s("", k(123), k(456)), v("iter"))
+    )
+  ).toEqual([
+    {
+      iter: {
+        id: "list_index_len",
+        args: [{ id: "", args: [123, 456] }, 0, 2],
+      },
+    },
+  ]);
 });
