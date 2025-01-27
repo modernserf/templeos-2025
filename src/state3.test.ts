@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { k, v, s, State, StateNext, __, Expr, Value } from "./state3";
+import { k, v, s, State, StateNext, __, Expr, Value, rules } from "./state3";
 
 function allResults(xs: Generator<StateNext>) {
   return Array.from(xs).map((x) => x.state.resolveAll());
@@ -87,6 +87,19 @@ test(";", () => {
       )
     )
   ).toEqual([{ foo: 123 }]);
+
+  // coalesce states
+  expect(
+    runAll(
+      s(
+        //
+        ";",
+        s("ok"),
+        s("ok"),
+        s("ok")
+      )
+    )
+  ).toEqual([{}]);
 });
 
 test("if_then_else", () => {
@@ -230,6 +243,20 @@ test("struct_atom_index_arg", () => {
       )
     )
   ).toEqual([{ index: 1 }]);
+
+  // coalesce duplicate states
+  expect(
+    runAll(
+      s(
+        //
+        "struct_atom_index_arg",
+        s("pair", k(123), k(456)),
+        v("atom"),
+        __,
+        __
+      )
+    )
+  ).toEqual([{ atom: { id: "pair", args: [] } }]);
 });
 
 test("error handlers", () => {
@@ -324,4 +351,19 @@ test("db get", () => {
       s("get_field_value", k("test1"), v("field"), v("val"))
     )
   ).toEqual([{ field: "field2", val: 456 }]);
+
+  expect(
+    runAll(
+      s("update_field_value", k("test1"), k("field1"), k(123)),
+      s("update_field_value", k("test1"), k("field2"), k(456)),
+      s("update_field_value", k("test2"), k("field1"), k(789)),
+
+      s("get_field_value", v("id"), __, __)
+    )
+  ).toEqual([
+    ...Object.keys(rules).map((id) => ({ id })),
+    //
+    { id: "test1" },
+    { id: "test2" },
+  ]);
 });

@@ -41,7 +41,7 @@ type SymbolTable = Record<Ident, ScopeId>;
 
 export type StateNext = { tag: "state"; state: State };
 
-const rules = {
+export const rules = {
   list_list_append: {
     rule__params: s("params", v("left"), v("right"), v("append")),
     rule__body: s(
@@ -295,9 +295,11 @@ export class State {
         return;
       }
       case ";": {
-        for (const arg of expr.args) {
-          yield* this.runClauseDecorated(arg);
-        }
+        yield* this.uniqueStates(function* () {
+          for (const arg of expr.args) {
+            yield* this.runClauseDecorated(arg);
+          }
+        });
         return;
       }
       case "¬": // option-L
@@ -398,12 +400,14 @@ export class State {
           if (ns1) yield ns1.yield();
           // +struct, ?atom, -index, ?arg
         } else {
-          for (let i = 0; i < st.args.length; i++) {
-            const ns1 = ns
-              .unify(expr.args[2], k(i))
-              ?.unify(expr.args[3], st.args[i]);
-            if (ns1) yield ns1.yield();
-          }
+          yield* this.uniqueStates(function* () {
+            for (let i = 0; i < st.args.length; i++) {
+              const ns1 = ns
+                .unify(expr.args[2], k(i))
+                ?.unify(expr.args[3], st.args[i]);
+              if (ns1) yield ns1.yield();
+            }
+          });
         }
         return;
       }
@@ -445,12 +449,14 @@ export class State {
         } else {
           // delete whole record
           this.db.insert(id.value as string, null);
-          for (const f in rec) {
-            const ns = this.unify(k(f), expr.args[1]) //
-              ?.unify(rec[f], expr.args[2]);
-            if (!ns) return;
-            yield ns.yield();
-          }
+          yield* this.uniqueStates(function* () {
+            for (const f in rec) {
+              const ns = this.unify(k(f), expr.args[1]) //
+                ?.unify(rec[f], expr.args[2]);
+              if (!ns) return;
+              yield ns.yield();
+            }
+          });
           return;
         }
       }
@@ -466,13 +472,15 @@ export class State {
             const ns = this.unify(expr.args[2], val);
             if (ns) yield ns.yield();
           } else {
-            for (const f in rec) {
-              const val = rec[f as Field];
-              if (!val) continue;
-              const ns = this.unify(expr.args[1], k(f)) //
-                ?.unify(expr.args[2], val);
-              if (ns) yield ns.yield();
-            }
+            yield* this.uniqueStates(function* () {
+              for (const f in rec) {
+                const val = rec[f as Field];
+                if (!val) continue;
+                const ns = this.unify(expr.args[1], k(f)) //
+                  ?.unify(expr.args[2], val);
+                if (ns) yield ns.yield();
+              }
+            });
           }
           return;
         }
@@ -480,26 +488,31 @@ export class State {
         if (field.tag === "value" && value.tag === "value") {
           const idx = this.db.getIndex(field.value as string);
           if (idx) {
-            for (const [{ entityId }] of idx.tree.where(
-              whereValue(value.value as string)
-            )) {
-              const ns = this.unify(expr.args[0], k(entityId));
-              if (ns) yield ns.yield();
-            }
+            yield* this.uniqueStates(function* () {
+              for (const [{ entityId }] of idx.tree.where(
+                whereValue(value.value as string)
+              )) {
+                const ns = this.unify(expr.args[0], k(entityId));
+                if (ns) yield ns.yield();
+              }
+            });
             return;
           }
         }
-        for (const id of this.db.keys()) {
-          const rec = this.db.get(id)!;
-          for (const f in rec) {
-            const val = rec[f as Field];
-            if (!val) continue;
-            const ns = this.unify(expr.args[0], k(id))
-              ?.unify(expr.args[1], k(f))
-              ?.unify(expr.args[2], val);
-            if (ns) yield ns.yield();
+        yield* this.uniqueStates(function* () {
+          for (const id of this.db.keys()) {
+            const ns = this.unify(expr.args[0], k(id))!;
+            const rec = this.db.get(id)!;
+            for (const f in rec) {
+              const val = rec[f as Field];
+              if (!val) continue;
+              const ns1 = ns
+                ?.unify(expr.args[1], k(f))
+                ?.unify(expr.args[2], val);
+              if (ns1) yield ns1.yield();
+            }
           }
-        }
+        });
         return;
       }
       default: {
@@ -539,5 +552,14 @@ export class State {
   }
   private yield() {
     return { tag: "state", state: this } as const;
+  }
+  private *uniqueStates(gen: (this: this) => Generator<StateNext>) {
+    const visited = new WeakSet<State>();
+    for (const res of gen.call(this)) {
+      if (!visited.has(res.state)) {
+        visited.add(res.state);
+        yield res;
+      }
+    }
   }
 }
