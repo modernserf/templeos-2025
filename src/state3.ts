@@ -1,14 +1,11 @@
-import { DB } from "./db";
+import { DB, whereValue } from "./db";
 
 export type Id = string;
 export type SimpleValue = string | number;
 export type Value = SimpleValue | { id: Id; args: Value[] };
 
-export type Rec = {
-  rule__params?: Expr[];
-  rule__body?: Expr;
-};
-export type Field = keyof Rec;
+export type Field = Id;
+export type Rec = Record<Field, Expr>;
 
 export type Ident = string;
 type ScopeId = symbol;
@@ -46,54 +43,21 @@ export type StateNext = { tag: "state"; state: State };
 
 const rules = {
   list_list_append: {
-    rule__params: [v("left"), v("right"), v("append")],
+    rule__params: s("params", v("left"), v("right"), v("append")),
     rule__body: s(
       ";",
       s(
-        ",", //
+        ",", // []
         s("=", v("left"), s("nil")),
         s("=", v("right"), v("append"))
       ),
       s(
-        ",", //
+        ",", // [head | tail]
         s("=", v("left"), s("cons", v("head"), v("tail"))),
         s("=", s("cons", v("head"), v("append_tail")), v("append")),
         s("list_list_append", v("tail"), v("right"), v("append_tail"))
       )
     ),
-  },
-
-  //
-  empty_list: {
-    rule__params: [s("")],
-    rule__body: s("ok"),
-  },
-  list_iter: {
-    rule__params: [v("list"), v("iter")],
-    rule__body: s(
-      ",",
-      s("struct_arity", v("list"), v("len")),
-      s("=", v("iter"), s("list_index_len", v("list"), k(0), v("len")))
-    ),
-  },
-  iter_value_next: {
-    rule__params: [v("iter"), v("value"), v("next")],
-    rule__body: s(
-      ",",
-      s("=", v("iter"), s("list_index_len", v("list"), v("index"), v("len"))),
-      s("<", v("index"), v("len")),
-      s("struct_atom_index_value", v("list"), __, v("index"), v("value")),
-      s("+1", v("index"), v("next_index")),
-      s(
-        "=",
-        v("next"),
-        s("list_index_len", v("list"), v("next_index"), v("len"))
-      )
-    ),
-  },
-  iter_done: {
-    rule__params: [v("iter")],
-    rule__body: s("=", v("iter"), s("list_index_len", __, v("i"), v("i"))),
   },
 } satisfies Record<string, Rec>;
 
@@ -106,7 +70,7 @@ export class State {
     private symbolTable: SymbolTable
   ) {}
   static root(): State {
-    const db = new DB();
+    const db = new DB<Rec>();
     db.bulkInsert(rules);
     return new State(db, {}, {});
   }
@@ -187,8 +151,8 @@ export class State {
           case "struct":
             return this.withBinding(left[SCOPE_ID]!, right);
         }
-        break;
       }
+      // eslint-disable-next-line no-fallthrough
       case "value":
         switch (right.tag) {
           case "ident":
@@ -202,7 +166,7 @@ export class State {
           case "struct":
             return null;
         }
-        break;
+      // eslint-disable-next-line no-fallthrough
       case "struct":
         switch (right.tag) {
           case "ident":
@@ -313,7 +277,6 @@ export class State {
             ])
           )
         );
-        // console.dir(this.scope, { depth: 10 });
         yield this.yield();
         return;
       case "=": {
@@ -437,10 +400,80 @@ export class State {
             if (ns1) yield ns1.yield();
           }
         }
-
         return;
       }
-
+      // db
+      case "id": {
+        const id = crypto.randomUUID();
+        const ns = this.unify(expr.args[0], k(id));
+        if (ns) yield ns.yield();
+        return;
+      }
+      case "timestamp": {
+        const id = Date.now();
+        const ns = this.unify(expr.args[0], k(id));
+        if (ns) yield ns.yield();
+        return;
+      }
+      case "update": {
+        const id = this.simplify(expr.args[0]);
+        const field = this.simplify(expr.args[1]);
+        const value = this.simplify(expr.args[2]);
+        if (id.tag !== "value" || field.tag !== "value") {
+          throw new Error("update must be ground");
+        }
+        this.db.update(id.value as string, field.value as string, value);
+        yield this.yield();
+        return;
+      }
+      case "entity_field_value": {
+        const id = this.simplify(expr.args[0]);
+        const field = this.simplify(expr.args[1]);
+        if (id.tag === "value") {
+          const rec = this.db.get(id.value as string);
+          if (!rec) return;
+          if (field.tag === "value") {
+            const val = rec[field.value as Field];
+            if (!val) return;
+            const ns = this.unify(expr.args[2], val);
+            if (ns) yield ns.yield();
+          } else {
+            for (const f in rec) {
+              const val = rec[f as Field];
+              if (!val) continue;
+              const ns = this.unify(expr.args[1], k(f)) //
+                ?.unify(expr.args[2], val);
+              if (ns) yield ns.yield();
+            }
+          }
+          return;
+        }
+        const value = this.simplify(expr.args[2]);
+        if (field.tag === "value" && value.tag === "value") {
+          const idx = this.db.getIndex(field.value as string);
+          if (idx) {
+            for (const [{ entityId }] of idx.tree.where(
+              whereValue(value.value as string)
+            )) {
+              const ns = this.unify(expr.args[0], k(entityId));
+              if (ns) yield ns.yield();
+            }
+            return;
+          }
+        }
+        for (const id of this.db.keys()) {
+          const rec = this.db.get(id)!;
+          for (const f in rec) {
+            const val = rec[f as Field];
+            if (!val) continue;
+            const ns = this.unify(expr.args[0], k(id))
+              ?.unify(expr.args[1], k(f))
+              ?.unify(expr.args[2], val);
+            if (ns) yield ns.yield();
+          }
+        }
+        return;
+      }
       default: {
         const rule = this.db.get(expr.id);
         if (!rule) throw new Error(`unknown rule ${expr.id}`);
@@ -448,7 +481,8 @@ export class State {
           throw new Error(`invalid rule ${expr.id}`);
         }
 
-        const ruleState = this.ruleState(rule.rule__params, expr.args);
+        const { args: params } = this.resolveStruct(rule.rule__params);
+        const ruleState = this.ruleState(params, expr.args);
         if (!ruleState) return;
 
         for (const res of ruleState.runClause(rule.rule__body)) {
@@ -467,10 +501,7 @@ export class State {
       const param = ruleState.decorateExpr(params[i]);
       const arg = args[i];
       const ns = ruleState.unify(param, arg);
-      if (!ns) {
-        console.log("failed", param, arg);
-        return null;
-      }
+      if (!ns) return null;
       ruleState = ns;
     }
     return ruleState;

@@ -244,27 +244,6 @@ test("error handlers", () => {
   ).toEqual([{ foo: 123 }]);
 });
 
-test("list rules", () => {
-  expect(runAll(s("empty_list", s("")))).toEqual([{}]);
-  expect(runAll(s("empty_list", v("l")))).toEqual([
-    { l: { id: "", args: [] } },
-  ]);
-
-  expect(
-    runAll(
-      //
-      s("list_iter", s("", k(123), k(456)), v("iter"))
-    )
-  ).toEqual([
-    {
-      iter: {
-        id: "list_index_len",
-        args: [{ id: "", args: [123, 456] }, 0, 2],
-      },
-    },
-  ]);
-});
-
 function ll(...xs: Value[]): Value {
   let list: Value = { id: "nil", args: [] };
   for (let i = xs.length - 1; i >= 0; i--) {
@@ -295,4 +274,42 @@ test("list_list_append", () => {
       )
     )
   ).toEqual([{ right: ll(456, 789) }]);
+});
+
+test("db get", () => {
+  expect(
+    runAll(
+      s("update", k("test1"), k("field1"), k(123)),
+      s("update", k("test1"), k("field2"), k(456)),
+      s("update", k("test2"), k("field1"), k(789)),
+
+      s("entity_field_value", k("test1"), k("field1"), v("val"))
+    )
+  ).toEqual([{ val: 123 }]);
+
+  expect(
+    runAll(
+      s("update", k("test1"), k("field1"), k(123)),
+      s("update", k("test1"), k("field2"), k(456)),
+      s("update", k("test2"), k("field1"), k(789)),
+
+      s("entity_field_value", k("test1"), v("field"), v("val"))
+    )
+  ).toEqual([
+    { field: "field1", val: 123 },
+    { field: "field2", val: 456 },
+  ]);
+
+  expect(
+    runAll(
+      s("update", k("test1"), k("field1"), k(123)),
+      s("update", k("test1"), k("field2"), k(456)),
+      s("update", k("test2"), k("field1"), k(789)),
+
+      s("entity_field_value", v("id"), k("field1"), v("val"))
+    )
+  ).toEqual([
+    { id: "test1", val: 123 },
+    { id: "test2", val: 789 },
+  ]);
 });
