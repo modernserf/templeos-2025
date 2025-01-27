@@ -327,6 +327,43 @@ test("struct_atom_args", () => {
   ]);
 });
 
+test("struct_atom_index_arg", () => {
+  const state = State.root();
+
+  // get
+  const prog = s(
+    "struct_atom_index_arg", //
+    s("pair", k(123), k(456)),
+    __,
+    k(0),
+    v("value")
+  );
+  expect(allResults(state.runClause(prog))).toEqual([{ value: 123 }]);
+
+  // iter
+  const prog2 = s(
+    "struct_atom_index_arg", //
+    s("pair", k(123), k(456)),
+    __,
+    v("index"),
+    v("value")
+  );
+  expect(allResults(state.runClause(prog2))).toEqual([
+    { index: 0, value: 123 },
+    { index: 1, value: 456 },
+  ]);
+
+  // find
+  const prog3 = s(
+    "struct_atom_index_arg", //
+    s("pair", k(123), k(456)),
+    __,
+    v("index"),
+    k(456)
+  );
+  expect(allResults(state.runClause(prog3))).toEqual([{ index: 1 }]);
+});
+
 test("error handlers", () => {
   const state = State.root();
   const prog = s(

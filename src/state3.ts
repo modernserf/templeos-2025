@@ -253,6 +253,32 @@ export class State {
         }
         return;
       }
+      case "struct_atom_index_arg": {
+        const st = this.resolveStruct(expr.args[0]);
+        const atom = s(st.id);
+        const ns = this.unify(expr.args[1], atom);
+        if (!ns) return;
+        // +struct, ?atom, +index, ?arg
+        if (ns.canResolve(expr.args[2])) {
+          const i = ns.resolve(expr.args[2]);
+          if (typeof i !== "number") throw new Error("expected number");
+          if (i < 0 || i >= st.args.length) {
+            throw new Error("index out of range");
+          }
+          const ns1 = ns.unify(expr.args[3], st.args[i]);
+          if (ns1) yield ns1.yield();
+          // +struct, ?atom, -index, ?arg
+        } else {
+          for (let i = 0; i < st.args.length; i++) {
+            const ns1 = ns
+              .unify(expr.args[2], k(i))
+              ?.unify(expr.args[3], st.args[i]);
+            if (ns1) yield ns1.yield();
+          }
+        }
+
+        return;
+      }
 
       default:
         throw new Error(`unknown rule ${expr.id}`);
