@@ -49,12 +49,16 @@ export class DB<Rec extends BaseRec> {
       this.insert(id, rec);
     }
   }
-  insert(id: Id, rec: Rec) {
+  insert(id: Id, rec: Rec | null) {
     const prev = this.data.get(id);
     if (prev) {
       for (const [field, value] of Object.entries(prev)) {
         this.removeFromIndex(id, field, value as Id);
       }
+    }
+    if (!rec) {
+      this.data.delete(id);
+      return;
     }
     this.data.set(id, rec);
     for (const [field, value] of Object.entries(rec)) {

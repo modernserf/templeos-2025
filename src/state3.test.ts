@@ -279,21 +279,21 @@ test("list_list_append", () => {
 test("db get", () => {
   expect(
     runAll(
-      s("update", k("test1"), k("field1"), k(123)),
-      s("update", k("test1"), k("field2"), k(456)),
-      s("update", k("test2"), k("field1"), k(789)),
+      s("update_field_value", k("test1"), k("field1"), k(123)),
+      s("update_field_value", k("test1"), k("field2"), k(456)),
+      s("update_field_value", k("test2"), k("field1"), k(789)),
 
-      s("entity_field_value", k("test1"), k("field1"), v("val"))
+      s("get_field_value", k("test1"), k("field1"), v("val"))
     )
   ).toEqual([{ val: 123 }]);
 
   expect(
     runAll(
-      s("update", k("test1"), k("field1"), k(123)),
-      s("update", k("test1"), k("field2"), k(456)),
-      s("update", k("test2"), k("field1"), k(789)),
+      s("update_field_value", k("test1"), k("field1"), k(123)),
+      s("update_field_value", k("test1"), k("field2"), k(456)),
+      s("update_field_value", k("test2"), k("field1"), k(789)),
 
-      s("entity_field_value", k("test1"), v("field"), v("val"))
+      s("get_field_value", k("test1"), v("field"), v("val"))
     )
   ).toEqual([
     { field: "field1", val: 123 },
@@ -302,14 +302,26 @@ test("db get", () => {
 
   expect(
     runAll(
-      s("update", k("test1"), k("field1"), k(123)),
-      s("update", k("test1"), k("field2"), k(456)),
-      s("update", k("test2"), k("field1"), k(789)),
+      s("update_field_value", k("test1"), k("field1"), k(123)),
+      s("update_field_value", k("test1"), k("field2"), k(456)),
+      s("update_field_value", k("test2"), k("field1"), k(789)),
 
-      s("entity_field_value", v("id"), k("field1"), v("val"))
+      s("get_field_value", v("id"), k("field1"), v("val"))
     )
   ).toEqual([
     { id: "test1", val: 123 },
     { id: "test2", val: 789 },
   ]);
+
+  expect(
+    runAll(
+      s("update_field_value", k("test1"), k("field1"), k(123)),
+      s("update_field_value", k("test1"), k("field2"), k(456)),
+      s("update_field_value", k("test2"), k("field1"), k(789)),
+
+      s("delete_field_value", k("test1"), k("field1"), __),
+
+      s("get_field_value", k("test1"), v("field"), v("val"))
+    )
+  ).toEqual([{ field: "field2", val: 456 }]);
 });

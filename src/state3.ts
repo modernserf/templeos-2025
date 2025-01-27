@@ -220,19 +220,24 @@ export class State {
       }
     });
   }
-  private partialResolve(
+  private tryResolve(
     expr: Expr
   ): Exclude<Expr, { tag: "ident" } | { tag: "placeholder" }> | null {
     const res: Expr = this.simplify(expr);
     if (res.tag === "placeholder" || res.tag === "ident") return null;
     return res;
   }
+  private resolveSimple(expr: Expr): Expr & { tag: "value" } {
+    const res = this.simplify(expr);
+    if (res.tag !== "value") {
+      throw new Error(`Expected struct, received ${printExpr(res)}`);
+    }
+    return res;
+  }
   private resolveStruct(expr: Expr): Expr & { tag: "struct" } {
-    const res: Expr = this.simplify(expr);
+    const res = this.simplify(expr);
     if (res.tag !== "struct")
-      throw new Error(
-        `Expected struct, received ${res ? res.tag : "free variable"}`
-      );
+      throw new Error(`Expected struct, received ${printExpr(res)}`);
     return res;
   }
   *runClause(expr: Expr): Generator<StateNext> {
@@ -349,7 +354,7 @@ export class State {
         }
         return;
       case "struct": {
-        const res = this.partialResolve(expr.args[0]);
+        const res = this.tryResolve(expr.args[0]);
         if (res?.tag === "struct") yield this.yield();
         return;
       }
@@ -360,7 +365,7 @@ export class State {
         return;
       }
       case "struct_atom_args": {
-        const st = this.partialResolve(expr.args[0]);
+        const st = this.tryResolve(expr.args[0]);
         if (st) {
           if (st.tag !== "struct") throw new Error("expected struct");
           const atom = s(st.id);
@@ -415,18 +420,41 @@ export class State {
         if (ns) yield ns.yield();
         return;
       }
-      case "update": {
-        const id = this.simplify(expr.args[0]);
-        const field = this.simplify(expr.args[1]);
+      // TODO: handle rollback
+      case "update_field_value": {
+        const id = this.resolveSimple(expr.args[0]);
+        const field = this.resolveSimple(expr.args[1]);
         const value = this.simplify(expr.args[2]);
-        if (id.tag !== "value" || field.tag !== "value") {
-          throw new Error("update must be ground");
-        }
         this.db.update(id.value as string, field.value as string, value);
         yield this.yield();
         return;
       }
-      case "entity_field_value": {
+      case "delete_field_value": {
+        const id = this.resolveSimple(expr.args[0]);
+        const field = this.simplify(expr.args[1]);
+        const rec = this.db.get(id.value as string);
+        if (!rec) return;
+
+        // delete a field
+        if (field.tag === "value") {
+          const ns = this.unify(rec[field.value], expr.args[2]);
+          if (!ns) return;
+          this.db.update(id.value as string, field.value as string, null);
+          yield ns.yield();
+          return;
+        } else {
+          // delete whole record
+          this.db.insert(id.value as string, null);
+          for (const f in rec) {
+            const ns = this.unify(k(f), expr.args[1]) //
+              ?.unify(rec[f], expr.args[2]);
+            if (!ns) return;
+            yield ns.yield();
+          }
+          return;
+        }
+      }
+      case "get_field_value": {
         const id = this.simplify(expr.args[0]);
         const field = this.simplify(expr.args[1]);
         if (id.tag === "value") {
