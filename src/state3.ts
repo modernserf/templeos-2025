@@ -45,6 +45,25 @@ type SymbolTable = Record<Ident, ScopeId>;
 export type StateNext = { tag: "state"; state: State };
 
 const rules = {
+  list_list_append: {
+    rule__params: [v("left"), v("right"), v("append")],
+    rule__body: s(
+      ";",
+      s(
+        ",", //
+        s("=", v("left"), s("nil")),
+        s("=", v("right"), v("append"))
+      ),
+      s(
+        ",", //
+        s("=", v("left"), s("cons", v("head"), v("tail"))),
+        s("=", s("cons", v("head"), v("append_tail")), v("append")),
+        s("list_list_append", v("tail"), v("right"), v("append_tail"))
+      )
+    ),
+  },
+
+  //
   empty_list: {
     rule__params: [s("")],
     rule__body: s("ok"),
@@ -265,8 +284,8 @@ export class State {
           const sym =
             this.symbolTable[e.ident] ?? Symbol(`${e.ident}<${varCount++}>`);
           this.symbolTable[e.ident] = sym;
-          e[SCOPE_ID] = sym;
-          return e;
+          // e[SCOPE_ID] = sym;
+          return { ...e, [SCOPE_ID]: sym };
         }
         case "struct": {
           return { ...e, args };
@@ -448,7 +467,10 @@ export class State {
       const param = ruleState.decorateExpr(params[i]);
       const arg = args[i];
       const ns = ruleState.unify(param, arg);
-      if (!ns) return null;
+      if (!ns) {
+        console.log("failed", param, arg);
+        return null;
+      }
       ruleState = ns;
     }
     return ruleState;

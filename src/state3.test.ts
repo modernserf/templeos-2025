@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { k, v, s, State, StateNext, __, Expr } from "./state3";
+import { k, v, s, State, StateNext, __, Expr, Value } from "./state3";
 
 function allResults(xs: Generator<StateNext>) {
   return Array.from(xs).map((x) => x.state.resolveAll());
@@ -263,4 +263,36 @@ test("list rules", () => {
       },
     },
   ]);
+});
+
+function ll(...xs: Value[]): Value {
+  let list: Value = { id: "nil", args: [] };
+  for (let i = xs.length - 1; i >= 0; i--) {
+    list = { id: "cons", args: [xs[i], list] };
+  }
+  return list;
+}
+
+test("list_list_append", () => {
+  expect(
+    runAll(
+      s(
+        "list_list_append",
+        s("cons", k(123), s("nil")),
+        s("cons", k(456), s("cons", k(789), s("nil"))),
+        v("joined")
+      )
+    )
+  ).toEqual([{ joined: ll(123, 456, 789) }]);
+
+  expect(
+    runAll(
+      s(
+        "list_list_append",
+        s("cons", k(123), s("nil")),
+        v("right"),
+        s("cons", k(123), s("cons", k(456), s("cons", k(789), s("nil"))))
+      )
+    )
+  ).toEqual([{ right: ll(456, 789) }]);
 });
