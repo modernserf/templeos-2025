@@ -59,18 +59,91 @@ export const rules = {
       )
     ),
   },
+  update_field_value: {
+    rule__params: s("params", v("id"), v("field"), v("value")),
+    rule__body: s(
+      ",",
+      s("tx", v("tx")),
+      s("tx_update_field_value", v("tx"), v("id"), v("field"), v("value")),
+      s("commit", v("tx"))
+    ),
+  },
+  delete_field_value: {
+    rule__params: s("params", v("id"), v("field"), v("value")),
+    rule__body: s(
+      ",",
+      s("tx", v("tx")),
+      s("tx_delete_field_value", v("tx"), v("id"), v("field"), v("value")),
+      s("commit", v("tx"))
+    ),
+  },
+  with_tx: {
+    rule__params: s("params", v("tx"), v("goal")),
+    rule__body: s(
+      ",",
+      s("tx", v("tx")),
+      s("if_then_else", v("goal"), s("commit", v("tx")), s("rollback", v("tx")))
+    ),
+  },
 } satisfies Record<string, Rec>;
 
 let varCount = 0;
 
+type Tx = number;
+
+class TransactDB extends DB<Rec> {
+  private txs = new Map<Tx, Map<Id, Rec>>();
+  private getTx(tx: Tx): Map<Id, Rec> {
+    const changes = this.txs.get(tx);
+    if (!changes) throw new Error("invalid tx");
+    return changes;
+  }
+  beginTx(): Tx {
+    const tx = varCount++;
+    this.txs.set(tx, new Map());
+    return tx;
+  }
+  commitTx(tx: Tx) {
+    if (!this.txs.delete(tx)) throw new Error("invalid tx");
+  }
+  rollbackAll() {
+    for (const tx of this.txs.keys()) {
+      this.rollbackTx(tx);
+    }
+  }
+  rollbackTx(tx: Tx) {
+    const changes = this.getTx(tx);
+    for (const [id, rec] of changes) {
+      this.insert(id, rec);
+    }
+    this.txs.delete(tx);
+  }
+  updateTx(tx: Tx, id: Id, field: Field, value: Expr | null) {
+    const changes = this.getTx(tx);
+    if (!changes.has(id)) {
+      const prev = this.get(id) ?? null;
+      changes.set(id, { ...prev });
+    }
+    this.update(id, field, value);
+  }
+  insertTx(tx: Tx, id: Id, rec: Rec | null) {
+    const changes = this.getTx(tx);
+    if (!changes.has(id)) {
+      const prev = this.get(id) ?? null;
+      changes.set(id, { ...prev });
+    }
+    this.insert(id, rec);
+  }
+}
+
 export class State {
   private constructor(
-    private db: DB<Rec>,
+    private db: TransactDB,
     private scope: Scope,
     private symbolTable: SymbolTable
   ) {}
   static root(): State {
-    const db = new DB<Rec>();
+    const db = new TransactDB();
     db.bulkInsert(rules);
     return new State(db, {}, {});
   }
@@ -192,15 +265,6 @@ export class State {
         }
     }
   }
-  private *runClauseSeq(items: Expr[], index = 0): Generator<StateNext> {
-    if (index >= items.length) {
-      yield this.yield();
-      return;
-    }
-    for (const res of this.runClauseDecorated(items[index])) {
-      yield* res.state.runClauseSeq(items, index + 1);
-    }
-  }
   private withBinding(scopeId: ScopeId, expr: Expr): State {
     return new State(
       this.db,
@@ -240,8 +304,12 @@ export class State {
       throw new Error(`Expected struct, received ${printExpr(res)}`);
     return res;
   }
-  *runClause(expr: Expr): Generator<StateNext> {
-    yield* this.runClauseDecorated(this.decorateExpr(expr));
+  *run(expr: Expr): Generator<StateNext> {
+    try {
+      yield* this.runClauseDecorated(this.decorateExpr(expr));
+    } finally {
+      this.db.rollbackAll();
+    }
   }
   private decorateExpr(expr: Expr): Expr {
     return this.mapExpr(expr, (e, args = []) => {
@@ -263,6 +331,7 @@ export class State {
     });
   }
   private *runClauseDecorated(expr: Expr): Generator<StateNext> {
+    expr = this.simplify(expr);
     if (expr.tag !== "struct") {
       throw new Error(`Expected struct, received ${expr.tag}`);
     }
@@ -423,35 +492,65 @@ export class State {
         if (ns) yield ns.yield();
         return;
       }
-      // TODO: handle rollback
-      case "update_field_value": {
-        const id = this.resolveSimple(expr.args[0]);
-        const field = this.resolveSimple(expr.args[1]);
-        const value = this.simplify(expr.args[2]);
-        this.db.update(id.value as string, field.value as string, value);
+      case "tx": {
+        const tx = this.db.beginTx();
+        const ns = this.unify(expr.args[0], k(tx));
+        if (ns) yield ns.yield();
+        return;
+      }
+      case "commit": {
+        const tx = this.resolveSimple(expr.args[0]);
+        this.db.commitTx(tx.value as Tx);
         yield this.yield();
         return;
       }
-      case "delete_field_value": {
-        const id = this.resolveSimple(expr.args[0]);
-        const field = this.simplify(expr.args[1]);
+      case "rollback": {
+        const tx = this.resolveSimple(expr.args[0]);
+        this.db.rollbackTx(tx.value as Tx);
+        yield this.yield();
+        return;
+      }
+      // TODO: handle rollback
+      case "tx_update_field_value": {
+        const tx = this.resolveSimple(expr.args[0]);
+        const id = this.resolveSimple(expr.args[1]);
+        const field = this.resolveSimple(expr.args[2]);
+        const value = this.simplify(expr.args[3]);
+        this.db.updateTx(
+          tx.value as Tx,
+          id.value as string,
+          field.value as string,
+          value
+        );
+        yield this.yield();
+        return;
+      }
+      case "tx_delete_field_value": {
+        const tx = this.resolveSimple(expr.args[0]);
+        const id = this.resolveSimple(expr.args[1]);
+        const field = this.simplify(expr.args[2]);
         const rec = this.db.get(id.value as string);
         if (!rec) return;
 
         // delete a field
         if (field.tag === "value") {
-          const ns = this.unify(rec[field.value], expr.args[2]);
+          const ns = this.unify(rec[field.value], expr.args[3]);
           if (!ns) return;
-          this.db.update(id.value as string, field.value as string, null);
+          this.db.updateTx(
+            tx.value as Tx,
+            id.value as string,
+            field.value as string,
+            null
+          );
           yield ns.yield();
           return;
         } else {
           // delete whole record
-          this.db.insert(id.value as string, null);
+          this.db.insertTx(tx.value as Tx, id.value as string, null);
           yield* this.uniqueStates(function* () {
             for (const f in rec) {
-              const ns = this.unify(k(f), expr.args[1]) //
-                ?.unify(rec[f], expr.args[2]);
+              const ns = this.unify(k(f), expr.args[2]) //
+                ?.unify(rec[f], expr.args[3]);
               if (!ns) return;
               yield ns.yield();
             }
@@ -525,12 +624,22 @@ export class State {
         const ruleState = this.ruleState(params, expr.args);
         if (!ruleState) return;
 
-        for (const res of ruleState.runClause(rule.rule__body)) {
+        const body = ruleState.decorateExpr(rule.rule__body);
+        for (const res of ruleState.runClauseDecorated(body)) {
           const ns = this.returnFrom(res.state);
           if (ns) yield ns.yield();
         }
         return;
       }
+    }
+  }
+  private *runClauseSeq(items: Expr[], index = 0): Generator<StateNext> {
+    if (index >= items.length) {
+      yield this.yield();
+      return;
+    }
+    for (const res of this.runClauseDecorated(items[index])) {
+      yield* res.state.runClauseSeq(items, index + 1);
     }
   }
   private ruleState(params: Expr[], args: Expr[]): State | null {

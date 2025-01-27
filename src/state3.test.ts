@@ -7,7 +7,7 @@ function allResults(xs: Generator<StateNext>) {
 
 function runAll(...clauses: Expr[]) {
   const state = State.root();
-  return allResults(state.runClause(s(",", ...clauses)));
+  return allResults(state.run(s(",", ...clauses)));
 }
 
 test("unknown rule", () => {
@@ -358,4 +358,80 @@ test("db get", () => {
     { id: "test1" },
     { id: "test2" },
   ]);
+});
+
+test("db transact", () => {
+  expect(
+    runAll(
+      s(
+        ";",
+        // setup
+        s(
+          ",",
+          s("update_field_value", k("test1"), k("field1"), k(123)),
+          s("fail") // suppress results
+        ),
+        // change
+        s(
+          ",",
+          s(
+            "with_tx",
+            v("tx"),
+            s(
+              ",",
+              s(
+                "tx_update_field_value",
+                v("tx"),
+                k("test1"),
+                k("field1"),
+                k(456)
+              )
+              // tx succeeds
+            )
+          ),
+          s("fail") // suppress results (but keep tx committed)
+        ),
+
+        // verify
+        s("get_field_value", k("test1"), k("field1"), v("value"))
+      )
+    )
+  ).toEqual([{ value: 456 }]);
+
+  expect(
+    runAll(
+      s(
+        ";",
+        // setup
+        s(
+          ",",
+          s("update_field_value", k("test1"), k("field1"), k(123)),
+          s("fail") // suppress results
+        ),
+        // change
+        s(
+          ",",
+          s(
+            "with_tx",
+            v("tx"),
+            s(
+              ",",
+              s(
+                "tx_update_field_value",
+                v("tx"),
+                k("test1"),
+                k("field1"),
+                k(456)
+              ),
+              s("fail") // tx fails
+            )
+          ),
+          s("fail") // suppress results (but keep tx committed)
+        ),
+
+        // verify
+        s("get_field_value", k("test1"), k("field1"), v("value"))
+      )
+    )
+  ).toEqual([{ value: 123 }]);
 });
