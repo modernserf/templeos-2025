@@ -180,20 +180,18 @@ test("struct_arity", () => {
   ).toEqual([{ arity: 2 }]);
 });
 
-test("struct_atom_args", () => {
+test("struct_id_args", () => {
   expect(
-    runAll(
-      s("struct_atom_args", s("pair", k(123), k(456)), v("atom"), v("args"))
-    )
+    runAll(s("struct_id_args", s("pair", k(123), k(456)), v("id"), v("args")))
   ).toEqual([
     {
-      atom: { id: "pair", args: [] },
+      id: "pair",
       args: { id: "", args: [123, 456] },
     },
   ]);
 
   expect(
-    runAll(s("struct_atom_args", v("struct"), s("pair"), s("", k(123), k(456))))
+    runAll(s("struct_id_args", v("struct"), k("pair"), s("", k(123), k(456))))
   ).toEqual([
     {
       struct: { id: "pair", args: [123, 456] },
@@ -201,17 +199,11 @@ test("struct_atom_args", () => {
   ]);
 });
 
-test("struct_atom_index_arg", () => {
+test("struct_id_index_arg", () => {
   // get
   expect(
     runAll(
-      s(
-        "struct_atom_index_arg",
-        s("pair", k(123), k(456)),
-        __,
-        k(0),
-        v("value")
-      )
+      s("struct_id_index_arg", s("pair", k(123), k(456)), __, k(0), v("value"))
     )
   ).toEqual([{ value: 123 }]);
 
@@ -219,7 +211,7 @@ test("struct_atom_index_arg", () => {
   expect(
     runAll(
       s(
-        "struct_atom_index_arg",
+        "struct_id_index_arg",
         s("pair", k(123), k(456)),
         __,
         v("index"),
@@ -235,7 +227,7 @@ test("struct_atom_index_arg", () => {
   expect(
     runAll(
       s(
-        "struct_atom_index_arg",
+        "struct_id_index_arg",
         s("pair", k(123), k(456)),
         __,
         v("index"),
@@ -249,14 +241,14 @@ test("struct_atom_index_arg", () => {
     runAll(
       s(
         //
-        "struct_atom_index_arg",
+        "struct_id_index_arg",
         s("pair", k(123), k(456)),
-        v("atom"),
+        v("id"),
         __,
         __
       )
     )
-  ).toEqual([{ atom: { id: "pair", args: [] } }]);
+  ).toEqual([{ id: "pair" }]);
 });
 
 test("error handlers", () => {

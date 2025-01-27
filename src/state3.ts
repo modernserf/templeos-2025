@@ -366,30 +366,29 @@ export class State {
         if (ns) yield ns.yield();
         return;
       }
-      case "struct_atom_args": {
+      case "struct_id_args": {
         const st = this.tryResolve(expr.args[0]);
         if (st) {
           if (st.tag !== "struct") throw new Error("expected struct");
-          const atom = s(st.id);
+          const id = k(st.id);
           const args = s("", ...st.args);
-          const ns = this.unify(expr.args[1], atom)?.unify(expr.args[2], args);
+          const ns = this.unify(expr.args[1], id)?.unify(expr.args[2], args);
           if (ns) yield ns.yield();
         } else {
-          const atom = this.resolveStruct(expr.args[1]);
-          if (atom.args.length !== 0) throw new Error("expected atom");
+          const id = this.resolveSimple(expr.args[1]);
           const args = this.resolveStruct(expr.args[2]);
           if (args.id !== "") throw new Error("Expected list");
-          const ns = this.unify(expr.args[0], s(atom.id, ...args.args));
+          const ns = this.unify(expr.args[0], s(id.value as Id, ...args.args));
           if (ns) yield ns.yield();
         }
         return;
       }
-      case "struct_atom_index_arg": {
+      case "struct_id_index_arg": {
         const st = this.resolveStruct(expr.args[0]);
-        const atom = s(st.id);
-        const ns = this.unify(expr.args[1], atom);
+        const id = k(st.id);
+        const ns = this.unify(expr.args[1], id);
         if (!ns) return;
-        // +struct, ?atom, +index, ?arg
+        // +struct, ?id, +index, ?arg
         if (ns.canResolve(expr.args[2])) {
           const i = ns.resolve(expr.args[2]);
           if (typeof i !== "number") throw new Error("expected number");
@@ -398,7 +397,7 @@ export class State {
           }
           const ns1 = ns.unify(expr.args[3], st.args[i]);
           if (ns1) yield ns1.yield();
-          // +struct, ?atom, -index, ?arg
+          // +struct, ?id, -index, ?arg
         } else {
           yield* this.uniqueStates(function* () {
             for (let i = 0; i < st.args.length; i++) {
