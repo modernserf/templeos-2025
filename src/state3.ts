@@ -23,6 +23,19 @@ export const v = (ident: Ident) => ({ tag: "ident", ident } as const);
 export const s = (id: Id, ...args: Expr[]) =>
   ({ tag: "struct", id, args } as const);
 
+function printExpr(expr: Expr): string {
+  switch (expr.tag) {
+    case "ident":
+      return `${expr.ident}`;
+    case "placeholder":
+      return `__`;
+    case "value":
+      return JSON.stringify(expr.value);
+    case "struct":
+      return `${expr.id}(${expr.args.map(printExpr).join(",")})`;
+  }
+}
+
 type Scope = Record<Ident, Expr>;
 
 export type StateNext = { tag: "state"; state: State };
@@ -166,7 +179,17 @@ export class State {
         // failure -> success
         yield this.yield();
         return;
-
+      case "throw":
+        throw new Error(`failure at ${printExpr(expr.args[0])}`);
+      case "try_catch":
+        try {
+          yield* this.runClause(expr.args[0]);
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (e) {
+          // console.error(e);
+          yield* this.runClause(expr.args[1]);
+        }
+        return;
       case "if_then_else": {
         const [cond, ifSuccess, ifFail] = expr.args;
         let didSucceed = false;

@@ -326,3 +326,14 @@ test("struct_atom_args", () => {
     },
   ]);
 });
+
+test("error handlers", () => {
+  const state = State.root();
+  const prog = s(
+    "try_catch", //
+    s("throw", s("error", s("out_of_memory"))),
+    s("=", v("foo"), k(123))
+  );
+
+  expect(allResults(state.runClause(prog))).toEqual([{ foo: 123 }]);
+});
