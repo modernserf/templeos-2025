@@ -1,20 +1,23 @@
+import { DB } from "./db";
+
 export type Id = string;
-export type Field = string;
 export type SimpleValue = string | number;
 export type Value = SimpleValue | { id: Id; args: Value[] };
 
-export type Rec = Record<Field, Value>;
-export type DB = {
-  get(id: Id): Rec | null;
-  set(id: Id, rec: Rec): void;
+export type Rec = {
+  rule__params?: Expr[];
+  rule__body?: Expr;
 };
+export type Field = keyof Rec;
 
 export type Ident = string;
+type ScopeId = symbol;
+const SCOPE_ID = Symbol("SCOPE_ID");
 
 export type Expr =
   | { tag: "placeholder" }
   | { tag: "value"; value: SimpleValue }
-  | { tag: "ident"; ident: Ident }
+  | { tag: "ident"; ident: Ident; [SCOPE_ID]?: ScopeId }
   | { tag: "struct"; id: Id; args: Expr[] };
 
 export const __ = { tag: "placeholder" } as const;
@@ -26,7 +29,7 @@ export const s = (id: Id, ...args: Expr[]) =>
 function printExpr(expr: Expr): string {
   switch (expr.tag) {
     case "ident":
-      return `${expr.ident}`;
+      return `${String(expr.ident)}`;
     case "placeholder":
       return `__`;
     case "value":
@@ -36,76 +39,138 @@ function printExpr(expr: Expr): string {
   }
 }
 
-type Scope = Record<Ident, Expr>;
+type Scope = Record<ScopeId, Expr>;
+type SymbolTable = Record<Ident, ScopeId>;
 
 export type StateNext = { tag: "state"; state: State };
 
+const rules = {
+  empty_list: {
+    rule__params: [s("")],
+    rule__body: s("ok"),
+  },
+  list_iter: {
+    rule__params: [v("list"), v("iter")],
+    rule__body: s(
+      ",",
+      s("log", k("log 1")),
+      s("struct_arity", v("list"), v("len")),
+      s("log", k("log 2")),
+      s("=", v("iter"), s("list_index_len", v("list"), k(0), v("len"))),
+      s("log", k("log 3"))
+    ),
+  },
+  iter_value_next: {
+    rule__params: [v("iter"), v("value"), v("next")],
+    rule__body: s(
+      ",",
+      s("=", v("iter"), s("list_index_len", v("list"), v("index"), v("len"))),
+      s("<", v("index"), v("len")),
+      s("struct_atom_index_value", v("list"), __, v("index"), v("value")),
+      s("+1", v("index"), v("next_index")),
+      s(
+        "=",
+        v("next"),
+        s("list_index_len", v("list"), v("next_index"), v("len"))
+      )
+    ),
+  },
+  iter_done: {
+    rule__params: [v("iter")],
+    rule__body: s("=", v("iter"), s("list_index_len", __, v("i"), v("i"))),
+  },
+} satisfies Record<string, Rec>;
+
 export class State {
-  private constructor(private scope: Scope) {}
+  private constructor(
+    private db: DB<Rec>,
+    private scope: Scope,
+    private symbolTable: SymbolTable
+  ) {}
   static root(): State {
-    return new State({});
+    const db = new DB();
+    db.bulkInsert(rules);
+    return new State(db, {}, {});
   }
-  canResolve(expr: Expr): boolean {
+  private getScope(expr: Expr): Expr | null {
+    if (expr.tag === "ident") return this.scope[expr[SCOPE_ID]!] ?? null;
+    return null;
+  }
+  private mapExpr<T>(expr: Expr, f: (e: Expr, args?: T[]) => T): T {
     switch (expr.tag) {
       case "placeholder":
-        return false;
-      case "ident":
-        if (expr.ident in this.scope) {
-          return this.canResolve(this.scope[expr.ident]);
-        } else {
+      case "value":
+        return f(expr);
+      case "ident": {
+        const next = this.getScope(expr);
+        if (next) return this.mapExpr(next, f);
+        return f(expr);
+      }
+      case "struct":
+        return f(
+          { tag: "struct", id: expr.id, args: [] },
+          expr.args.map((arg) => this.mapExpr(arg, f))
+        );
+    }
+  }
+  private canResolve(expr: Expr): boolean {
+    return this.mapExpr(expr, (e, args = []) => {
+      switch (e.tag) {
+        case "placeholder":
+        case "ident":
           return false;
-        }
-      case "value":
-        return true;
-      case "struct":
-        return expr.args.every((arg) => this.canResolve(arg));
-    }
+        case "value":
+          return true;
+        case "struct":
+          return args.every(Boolean);
+      }
+    });
   }
-  resolve(expr: Expr): Value {
-    switch (expr.tag) {
-      case "placeholder":
-        throw new Error("cannot resolve placeholder");
-      case "ident":
-        if (expr.ident in this.scope) {
-          return this.resolve(this.scope[expr.ident]);
-        } else {
-          throw new Error(`cannot resolve ${expr.ident}`);
-        }
-      case "value":
-        return expr.value;
-      case "struct":
-        return { id: expr.id, args: expr.args.map((arg) => this.resolve(arg)) };
-    }
+  private resolve(expr: Expr): Value {
+    return this.mapExpr(expr, (e, args = []) => {
+      switch (e.tag) {
+        case "placeholder":
+          throw new Error("cannot resolve placeholder");
+        case "ident":
+          throw new Error(`cannot resolve ${e.ident}`);
+        case "value":
+          return e.value;
+        case "struct":
+          return { id: e.id, args };
+      }
+    });
   }
-  resolveAll(): Record<Ident, Value> {
+  resolveAll(): Record<Ident, Value | undefined> {
     return Object.fromEntries(
-      Object.entries(this.scope).map(([key, expr]) => [key, this.resolve(expr)])
+      Object.entries(this.symbolTable).map(([key, sym]) => [
+        key,
+        this.scope[sym] ? this.resolve(this.scope[sym]) : undefined,
+      ])
     );
   }
-  unify(left: Expr, right: Expr): State | null {
+  private unify(left: Expr, right: Expr): State | null {
     if (left.tag === "placeholder" || right.tag === "placeholder") return this;
     switch (left.tag) {
-      case "ident":
+      case "ident": {
         // left is bound
-        if (left.ident in this.scope) {
-          return this.unify(this.scope[left.ident], right);
-        }
+        const l = this.getScope(left);
+        if (l) return this.unify(l, right);
         switch (right.tag) {
           case "ident": {
             // right is bound
-            if (right.ident in this.scope) {
-              return this.unify(left, this.scope[right.ident]);
-            }
+            const r = this.getScope(right);
+            if (r) return this.unify(left, r);
             // same var
             if (left.ident === right.ident) return this;
             // left is unbound
-            return this.withBinding(left.ident, right);
+            return this.withBinding(left[SCOPE_ID]!, right);
           }
           case "value":
           case "struct":
-            return this.withBinding(left.ident, right);
+            return this.withBinding(left[SCOPE_ID]!, right);
         }
         break;
+      }
       case "value":
         switch (right.tag) {
           case "ident":
@@ -145,7 +210,69 @@ export class State {
         }
     }
   }
+  private *runClauseSeq(items: Expr[], index = 0): Generator<StateNext> {
+    if (index >= items.length) {
+      yield this.yield();
+      return;
+    }
+    for (const res of this.runClauseDecorated(items[index])) {
+      yield* res.state.runClauseSeq(items, index + 1);
+    }
+  }
+  private withBinding(scopeId: ScopeId, expr: Expr): State {
+    return new State(
+      this.db,
+      { ...this.scope, [scopeId]: expr },
+      this.symbolTable
+    );
+  }
+  private simplify(expr: Expr): Expr {
+    return this.mapExpr(expr, (e, args = []) => {
+      switch (e.tag) {
+        case "ident":
+        case "placeholder":
+        case "value":
+          return e;
+        case "struct":
+          return { ...e, args };
+      }
+    });
+  }
+  private partialResolve(
+    expr: Expr
+  ): Exclude<Expr, { tag: "ident" } | { tag: "placeholder" }> | null {
+    const res: Expr = this.simplify(expr);
+    if (res.tag === "placeholder" || res.tag === "ident") return null;
+    return res;
+  }
+  private resolveStruct(expr: Expr): Expr & { tag: "struct" } {
+    const res: Expr = this.simplify(expr);
+    if (res.tag !== "struct")
+      throw new Error(
+        `Expected struct, received ${res ? res.tag : "free variable"}`
+      );
+    return res;
+  }
   *runClause(expr: Expr): Generator<StateNext> {
+    const decorated: Expr = this.mapExpr(expr, (e, args = []) => {
+      switch (e.tag) {
+        case "placeholder":
+        case "value":
+          return e;
+        case "ident": {
+          const sym = this.symbolTable[e.ident] ?? Symbol(e.ident);
+          this.symbolTable[e.ident] = sym;
+          e[SCOPE_ID] = sym;
+          return e;
+        }
+        case "struct": {
+          return { ...e, args };
+        }
+      }
+    });
+    yield* this.runClauseDecorated(decorated);
+  }
+  private *runClauseDecorated(expr: Expr): Generator<StateNext> {
     if (expr.tag !== "struct") {
       throw new Error(`Expected struct, received ${expr.tag}`);
     }
@@ -153,6 +280,19 @@ export class State {
       case "fail":
         return;
       case "ok":
+        yield this.yield();
+        return;
+      case "log":
+        console.log(this.symbolTable, this.scope);
+        console.log(
+          ...expr.args.map(printExpr),
+          Object.fromEntries(
+            Object.entries(this.symbolTable).map(([ident, sym]) => [
+              ident,
+              printExpr(this.scope[sym] ?? __),
+            ])
+          )
+        );
         yield this.yield();
         return;
       case "=": {
@@ -167,12 +307,12 @@ export class State {
       }
       case ";": {
         for (const arg of expr.args) {
-          yield* this.runClause(arg);
+          yield* this.runClauseDecorated(arg);
         }
         return;
       }
       case "¬": // option-L
-        for (const _ of this.runClause(expr.args[0])) {
+        for (const _ of this.runClauseDecorated(expr.args[0])) {
           // success -> failure
           return;
         }
@@ -183,22 +323,22 @@ export class State {
         throw new Error(`failure at ${printExpr(expr.args[0])}`);
       case "try_catch":
         try {
-          yield* this.runClause(expr.args[0]);
+          yield* this.runClauseDecorated(expr.args[0]);
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (e) {
           // console.error(e);
-          yield* this.runClause(expr.args[1]);
+          yield* this.runClauseDecorated(expr.args[1]);
         }
         return;
       case "if_then_else": {
         const [cond, ifSuccess, ifFail] = expr.args;
         let didSucceed = false;
-        for (const res0 of this.runClause(cond)) {
+        for (const res0 of this.runClauseDecorated(cond)) {
           didSucceed = true;
-          yield* res0.state.runClause(ifSuccess);
+          yield* res0.state.runClauseDecorated(ifSuccess);
         }
         if (!didSucceed) {
-          yield* this.runClause(ifFail);
+          yield* this.runClauseDecorated(ifFail);
         }
         return;
       }
@@ -280,39 +420,58 @@ export class State {
         return;
       }
 
-      default:
-        throw new Error(`unknown rule ${expr.id}`);
+      default: {
+        const rule = this.db.get(expr.id);
+        if (!rule) throw new Error(`unknown rule ${expr.id}`);
+        if (!rule.rule__body || !rule.rule__params) {
+          throw new Error(`invalid rule ${expr.id}`);
+        }
+
+        const ruleState = this.ruleState(rule.rule__params, expr.args);
+        if (!ruleState) return;
+
+        for (const res of ruleState.runClause(rule.rule__body)) {
+          const ns = this.returnFrom(res.state, rule.rule__params, expr.args);
+          if (ns) yield ns.yield();
+        }
+        return;
+      }
     }
   }
-  private partialResolve(
-    expr: Expr
-  ): Exclude<Expr, { tag: "ident" } | { tag: "placeholder" }> | null {
-    while (expr?.tag === "ident") {
-      expr = this.scope[expr.ident];
+  //
+  private ruleState(params: Expr[], args: Expr[]): State | null {
+    if (params.length !== args.length) throw new Error("invalid arity");
+
+    let ruleState = new State(this.db, {}, {});
+    for (let i = 0; i < params.length; i++) {
+      const param = params[i];
+      const arg = args[i];
+      const ns = ruleState.unify(param, arg);
+      if (!ns) return null;
+      ruleState = ns;
     }
-    if (!expr || expr.tag === "placeholder") return null;
-    return expr;
+    return ruleState;
   }
-  private resolveStruct(expr: Expr): Expr & { tag: "struct" } {
-    const res = this.partialResolve(expr);
-    if (!res || res.tag !== "struct")
-      throw new Error(
-        `Expected struct, received ${res ? res.tag : "free variable"}`
-      );
-    return res;
-  }
-  private *runClauseSeq(items: Expr[], index = 0): Generator<StateNext> {
-    if (index >= items.length) {
-      yield this.yield();
-      return;
+  // TODO: get the results from ruleState, but avoid conflict in var names
+  private returnFrom(
+    ruleState: State,
+    params: Expr[],
+    args: Expr[]
+  ): State | null {
+    let state = this as State;
+    for (let i = 0; i < params.length; i++) {
+      const param = params[i];
+      const arg = args[i];
+      const item = ruleState.partialResolve(param);
+      if (item) {
+        const ns = state.unify(arg, item);
+        if (!ns) return null;
+        state = ns;
+      }
     }
-    for (const res of this.runClause(items[index])) {
-      yield* res.state.runClauseSeq(items, index + 1);
-    }
+    return state;
   }
-  private withBinding(ident: Ident, expr: Expr): State {
-    return new State({ ...this.scope, [ident]: expr });
-  }
+
   private yield() {
     return { tag: "state", state: this } as const;
   }
