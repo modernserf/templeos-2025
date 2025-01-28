@@ -1,20 +1,77 @@
+import { Field, SchemaId } from "./data3";
 import { DB, whereValue } from "./db";
 
 export type Id = string;
 export type SimpleValue = string | number;
-export type Value = SimpleValue | { id: Id; args: Value[] };
-
-export type Field = Id;
-export type Rec = Record<Field, Expr>;
 
 export type Ident = string;
-type FactId = symbol;
+
+export type Struct<Id, Args extends Expr[]> = {
+  tag: "struct";
+  id: Id;
+  args: Args;
+};
+export type List<T extends Expr> = Struct<"", T[]>;
+export type AnyStruct = Struct<string, Expr[]>;
+
+type FormatText = string | Struct<"link", [string, Id]>;
+
+type SchemaField =
+  | Struct<"field", [Field]>
+  | Struct<"field_optional", [Field]>
+  | Struct<"field_default", [Field, Expr]>;
+
+type IndexType = "ref" | "multiRef" | "sorted" | "unique";
+
+export type Rec = Record<string, Expr> & {
+  time__created?: number;
+  db__schema?: SchemaId;
+  db__fields?: List<SchemaField>;
+  db__refType?: SchemaId;
+  db__index?: IndexType;
+
+  rule__params?: Struct<"params", Expr[]>;
+  rule__body?: AnyStruct;
+  view__schema?: SchemaId;
+
+  file__name?: string;
+  file__description?: List<FormatText>;
+
+  folder__items?: List<Id>;
+
+  history__location?: Id;
+  history__view?: Id;
+  history__back?: Id;
+  history__forward?: Id;
+  window__currentHistory?: Id;
+  browser__currentWindow?: Id;
+
+  text__content?: List<FormatText>;
+};
 
 export type Expr =
+  | SimpleValue
   | { tag: "placeholder" }
-  | { tag: "value"; value: SimpleValue }
   | { tag: "ident"; ident: Ident }
   | { tag: "struct"; id: Id; args: Expr[] };
+
+export const __ = { tag: "placeholder" } as const;
+export const k = (value: SimpleValue) => ({ tag: "value", value } as const);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const v: any = new Proxy(
+  function v(ident: string) {
+    return { tag: "ident", ident };
+  },
+  {
+    get(_, ident) {
+      return { tag: "ident", ident };
+    },
+  }
+);
+
+export const s = <T extends Id, Args extends Expr[]>(id: T, ...args: Args) =>
+  ({ tag: "struct", id, args } as const);
 
 type Fact =
   | { tag: "unify"; id: FactId }
@@ -22,11 +79,10 @@ type Fact =
   | { tag: "struct"; id: Id; args: Fact[] };
 // TODO: constraints
 
-export const __ = { tag: "placeholder" } as const;
-export const k = (value: SimpleValue) => ({ tag: "value", value } as const);
-export const v = (ident: Ident) => ({ tag: "ident", ident } as const);
-export const s = (id: Id, ...args: Expr[]) =>
-  ({ tag: "struct", id, args } as const);
+type FactId = symbol;
+type Facts = Record<FactId, Fact>;
+type SymbolTable = Record<Ident, FactId>;
+const PLACEHOLDER_ID = Symbol("__");
 
 function printFact(fact: Fact): string {
   switch (fact.tag) {
@@ -39,57 +95,7 @@ function printFact(fact: Fact): string {
   }
 }
 
-type Facts = Record<FactId, Fact>;
-type SymbolTable = Record<Ident, FactId>;
-const PLACEHOLDER_ID = Symbol("__");
-
 export type StateNext = { tag: "state"; state: State };
-
-export const rules = {
-  list_list_append: {
-    rule__params: s("params", v("left"), v("right"), v("append")),
-    rule__body: s(
-      ";",
-      s(
-        ",", // []
-        s("=", v("left"), s("nil")),
-        s("=", v("right"), v("append"))
-      ),
-      s(
-        ",", // [head | tail]
-        s("=", v("left"), s("cons", v("head"), v("tail"))),
-        s("=", s("cons", v("head"), v("append_tail")), v("append")),
-        s("list_list_append", v("tail"), v("right"), v("append_tail"))
-      )
-    ),
-  },
-  update_field_value: {
-    rule__params: s("params", v("id"), v("field"), v("value")),
-    rule__body: s(
-      ",",
-      s("tx", v("tx")),
-      s("tx_update_field_value", v("tx"), v("id"), v("field"), v("value")),
-      s("commit", v("tx"))
-    ),
-  },
-  delete_field_value: {
-    rule__params: s("params", v("id"), v("field"), v("value")),
-    rule__body: s(
-      ",",
-      s("tx", v("tx")),
-      s("tx_delete_field_value", v("tx"), v("id"), v("field"), v("value")),
-      s("commit", v("tx"))
-    ),
-  },
-  with_tx: {
-    rule__params: s("params", v("tx"), v("goal")),
-    rule__body: s(
-      ",",
-      s("tx", v("tx")),
-      s("if_then_else", v("goal"), s("commit", v("tx")), s("rollback", v("tx")))
-    ),
-  },
-} satisfies Record<string, Rec>;
 
 let varCount = 0;
 
@@ -146,7 +152,7 @@ export class State {
     private facts: Facts,
     private symbolTable: SymbolTable
   ) {}
-  static root(): State {
+  static root(rules: Record<Id, Rec>): State {
     const db = new TransactDB();
     db.bulkInsert(rules);
     return new State(db, {}, {});
@@ -168,9 +174,11 @@ export class State {
     }
   }
   private mapExpr<T>(expr: Expr, f: (e: Expr, args?: T[]) => T): T {
+    if (typeof expr !== "object") {
+      return f(expr);
+    }
     switch (expr.tag) {
       case "placeholder":
-      case "value":
       case "ident":
         return f(expr);
       case "struct":
@@ -180,23 +188,11 @@ export class State {
         );
     }
   }
-  private resolve(fact: Fact): Value {
-    return this.mapFact(fact, (e, args = []) => {
-      switch (e.tag) {
-        case "unify":
-          throw new Error("unresolved var");
-        case "value":
-          return e.value;
-        case "struct":
-          return { id: e.id, args };
-      }
-    });
-  }
-  resolveAll(): Record<Ident, Value | undefined> {
+  resolveAll(): Record<Ident, Expr | undefined> {
     return Object.fromEntries(
       Object.entries(this.symbolTable).map(([key, sym]) => [
         key,
-        this.facts[sym] ? this.resolve(this.facts[sym]) : undefined,
+        this.facts[sym] ? this.factToExpr(this.facts[sym]) : undefined,
       ])
     );
   }
@@ -207,13 +203,16 @@ export class State {
           if (f.id === PLACEHOLDER_ID) return __;
           return { tag: "ident", ident: f.id.description ?? "<anonymous>" };
         case "value":
-          return f;
+          return f.value;
         case "struct":
           return { ...f, args };
       }
     });
   }
   private expr(expr: Expr): Fact {
+    if (typeof expr !== "object") {
+      return { tag: "value", value: expr };
+    }
     switch (expr.tag) {
       case "placeholder":
         return { tag: "unify", id: PLACEHOLDER_ID };
@@ -224,8 +223,6 @@ export class State {
         this.symbolTable[expr.ident] = sym;
         return { tag: "unify", id: sym };
       }
-      case "value":
-        return expr;
       case "struct": {
         const res = {
           ...expr,
@@ -237,18 +234,25 @@ export class State {
       }
     }
   }
-  private exprValue(expr: Expr): Fact {
+  private exprValue(expr: Expr, localSymbols: SymbolTable = {}): Fact {
+    if (typeof expr !== "object") {
+      return { tag: "value", value: expr };
+    }
     switch (expr.tag) {
       case "placeholder":
-      case "ident":
-        // TODO: I don't think I want to eval these in their current scope
         return { tag: "unify", id: PLACEHOLDER_ID };
-      case "value":
-        return expr;
+      case "ident": {
+        // vars should bind to each other,
+        // but not to similarly named vars in scope
+        const sym =
+          localSymbols[expr.ident] ?? Symbol(`${expr.ident}<${varCount++}>`);
+        localSymbols[expr.ident] = sym;
+        return { tag: "unify", id: sym };
+      }
       case "struct":
         return {
           ...expr,
-          args: expr.args.map((arg) => this.exprValue(arg)),
+          args: expr.args.map((arg) => this.exprValue(arg, localSymbols)),
         };
     }
   }
@@ -537,7 +541,7 @@ export class State {
         this.db.updateTx(
           tx.value as Tx,
           id.value as string,
-          field.value as string,
+          field.value as Field,
           this.factToExpr(value)
         );
         yield this.yield();
@@ -558,7 +562,7 @@ export class State {
           this.db.updateTx(
             tx.value as Tx,
             id.value as string,
-            field.value as string,
+            field.value as Field,
             null
           );
           yield ns.yield();
@@ -639,6 +643,7 @@ export class State {
         if (
           !rule.rule__body ||
           !rule.rule__params ||
+          typeof rule.rule__params !== "object" ||
           rule.rule__params.tag !== "struct" ||
           rule.rule__params.id !== "params"
         ) {

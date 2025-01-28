@@ -1,12 +1,13 @@
 import { expect, test } from "vitest";
-import { k, v, s, State, StateNext, __, Expr, Value, rules } from "./state3";
+import { v, s, State, StateNext, __, Expr, AnyStruct } from "./state3";
+import { data } from "./data3";
 
 function allResults(xs: Generator<StateNext>) {
   return Array.from(xs).map((x) => x.state.resolveAll());
 }
 
 function runAll(...clauses: Expr[]) {
-  const state = State.root();
+  const state = State.root(data);
   return allResults(state.run(s(",", ...clauses)));
 }
 
@@ -18,7 +19,7 @@ test("unknown rule", () => {
 
 test("invalid clause", () => {
   expect(() => {
-    runAll(v("id"));
+    runAll(v.id);
   }).toThrow();
 });
 
@@ -31,7 +32,7 @@ test("ok", () => {
 });
 
 test("=", () => {
-  expect(runAll(s("=", k(123), v("foo")))).toEqual([{ foo: 123 }]);
+  expect(runAll(s("=", 123, v.foo))).toEqual([{ foo: 123 }]);
 });
 
 test(",", () => {
@@ -42,15 +43,15 @@ test(",", () => {
   expect(
     runAll(
       //
-      s("=", k(123), v("foo")),
-      s("=", v("bar"), k(456))
+      s("=", 123, v.foo),
+      s("=", v.bar, 456)
     )
   ).toEqual([{ foo: 123, bar: 456 }]);
 
   expect(
     runAll(
       //
-      s("=", k(123), v("foo")),
+      s("=", 123, v.foo),
       s("fail")
     )
   ).toEqual([]);
@@ -59,7 +60,7 @@ test(",", () => {
     runAll(
       //
       s("fail"),
-      s("=", k(123), v("foo"))
+      s("=", 123, v.foo)
     )
   ).toEqual([]);
 });
@@ -72,8 +73,8 @@ test(";", () => {
     runAll(
       s(
         ";", //
-        s("=", k(123), v("foo")),
-        s("=", v("foo"), k(456))
+        s("=", 123, v.foo),
+        s("=", v.foo, 456)
       )
     )
   ).toEqual([{ foo: 123 }, { foo: 456 }]);
@@ -82,7 +83,7 @@ test(";", () => {
     runAll(
       s(
         ";", //
-        s("=", k(123), v("foo")),
+        s("=", 123, v.foo),
         s("fail")
       )
     )
@@ -107,66 +108,52 @@ test("if_then_else", () => {
     runAll(
       s(
         "if_then_else",
-        s("=", k(123), v("foo")),
-        s("=", k(456), v("bar")),
-        s("=", k(789), v("bar"))
+        s("=", 123, v.foo),
+        s("=", 456, v.bar),
+        s("=", 789, v.bar)
       )
     )
   ).toEqual([{ foo: 123, bar: 456 }]);
 
   expect(
-    runAll(
-      s(
-        "if_then_else",
-        s("fail"),
-        s("=", k(456), v("bar")),
-        s("=", k(789), v("bar"))
-      )
-    )
+    runAll(s("if_then_else", s("fail"), s("=", 456, v.bar), s("=", 789, v.bar)))
   ).toEqual([{ bar: 789 }]);
 
   expect(
-    runAll(
-      s(
-        "if_then_else",
-        s("=", k(123), v("foo")),
-        s("fail"),
-        s("=", k(789), v("bar"))
-      )
-    )
+    runAll(s("if_then_else", s("=", 123, v.foo), s("fail"), s("=", 789, v.bar)))
   ).toEqual([]);
 });
 
 test("type predicates", () => {
   expect(
     runAll(
-      s("=", v("bar"), k(123)),
-      s("=", v("baz"), k("Hello")),
-      s("=", v("quux"), s("pair", k(123), k(456))),
+      s("=", v.bar, 123),
+      s("=", v.baz, "Hello"),
+      s("=", v.quux, s("pair", 123, 456)),
       // var
-      s("var", v("foo")),
+      s("var", v.foo),
       s("var", __),
       // nonvar
-      s("nonvar", v("bar")),
-      s("nonvar", k(456)),
-      s("nonvar", s("pair", k(123), k(456))),
-      s("nonvar", s("pair", __, k(123))),
+      s("nonvar", v.bar),
+      s("nonvar", 456),
+      s("nonvar", s("pair", 123, 456)),
+      s("nonvar", s("pair", __, 123)),
       // number
-      s("number", v("bar")),
-      s("number", k(456)),
+      s("number", v.bar),
+      s("number", 456),
       // string
-      s("string", v("baz")),
-      s("string", k("Goodbye")),
+      s("string", v.baz),
+      s("string", "Goodbye"),
       // struct
-      s("struct", v("quux")),
-      s("struct", s("pair", __, k(456)))
+      s("struct", v.quux),
+      s("struct", s("pair", __, 456))
     )
   ).toEqual([
     {
       foo: undefined,
       bar: 123,
       baz: "Hello",
-      quux: { id: "pair", args: [123, 456] },
+      quux: s("pair", 123, 456),
     },
   ]);
 });
@@ -180,26 +167,26 @@ test("struct_arity", () => {
   expect(
     runAll(
       //
-      s("struct_arity", s("pair", k(123), __), v("arity"))
+      s("struct_arity", s("pair", 123, __), v.arity)
     )
   ).toEqual([{ arity: 2 }]);
 });
 
 test("struct_id_args", () => {
   expect(
-    runAll(s("struct_id_args", s("pair", k(123), k(456)), v("id"), v("args")))
+    runAll(s("struct_id_args", s("pair", 123, 456), v.id, v.args))
   ).toEqual([
     {
       id: "pair",
-      args: { id: "", args: [123, 456] },
+      args: s("", 123, 456),
     },
   ]);
 
   expect(
-    runAll(s("struct_id_args", v("struct"), k("pair"), s("", k(123), k(456))))
+    runAll(s("struct_id_args", v.struct, "pair", s("", 123, 456)))
   ).toEqual([
     {
-      struct: { id: "pair", args: [123, 456] },
+      struct: s("pair", 123, 456),
     },
   ]);
 });
@@ -207,22 +194,12 @@ test("struct_id_args", () => {
 test("struct_id_index_arg", () => {
   // get
   expect(
-    runAll(
-      s("struct_id_index_arg", s("pair", k(123), k(456)), __, k(0), v("value"))
-    )
+    runAll(s("struct_id_index_arg", s("pair", 123, 456), __, 0, v.value))
   ).toEqual([{ value: 123 }]);
 
   // iter
   expect(
-    runAll(
-      s(
-        "struct_id_index_arg",
-        s("pair", k(123), k(456)),
-        __,
-        v("index"),
-        v("value")
-      )
-    )
+    runAll(s("struct_id_index_arg", s("pair", 123, 456), __, v.index, v.value))
   ).toEqual([
     { index: 0, value: 123 },
     { index: 1, value: 456 },
@@ -230,15 +207,7 @@ test("struct_id_index_arg", () => {
 
   // find
   expect(
-    runAll(
-      s(
-        "struct_id_index_arg",
-        s("pair", k(123), k(456)),
-        __,
-        v("index"),
-        k(456)
-      )
-    )
+    runAll(s("struct_id_index_arg", s("pair", 123, 456), __, v.index, 456))
   ).toEqual([{ index: 1 }]);
 
   // coalesce duplicate states
@@ -247,8 +216,8 @@ test("struct_id_index_arg", () => {
       s(
         //
         "struct_id_index_arg",
-        s("pair", k(123), k(456)),
-        v("id"),
+        s("pair", 123, 456),
+        v.id,
         __,
         __
       )
@@ -262,16 +231,16 @@ test("error handlers", () => {
       s(
         "try_catch",
         s("throw", s("error", s("out_of_memory"))),
-        s("=", v("foo"), k(123))
+        s("=", v.foo, 123)
       )
     )
   ).toEqual([{ foo: 123 }]);
 });
 
-function ll(...xs: Value[]): Value {
-  let list: Value = { id: "nil", args: [] };
+function ll(...xs: Expr[]): Expr {
+  let list: AnyStruct = s("nil");
   for (let i = xs.length - 1; i >= 0; i--) {
-    list = { id: "cons", args: [xs[i], list] };
+    list = s("cons", xs[i], list);
   }
   return list;
 }
@@ -281,9 +250,9 @@ test("list_list_append", () => {
     runAll(
       s(
         "list_list_append",
-        s("cons", k(123), s("nil")),
-        s("cons", k(456), s("cons", k(789), s("nil"))),
-        v("joined")
+        s("cons", 123, s("nil")),
+        s("cons", 456, s("cons", 789, s("nil"))),
+        v.joined
       )
     )
   ).toEqual([{ joined: ll(123, 456, 789) }]);
@@ -292,9 +261,9 @@ test("list_list_append", () => {
     runAll(
       s(
         "list_list_append",
-        s("cons", k(123), s("nil")),
-        v("right"),
-        s("cons", k(123), s("cons", k(456), s("cons", k(789), s("nil"))))
+        s("cons", 123, s("nil")),
+        v.right,
+        s("cons", 123, s("cons", 456, s("cons", 789, s("nil"))))
       )
     )
   ).toEqual([{ right: ll(456, 789) }]);
@@ -303,21 +272,21 @@ test("list_list_append", () => {
 test("db get", () => {
   expect(
     runAll(
-      s("update_field_value", k("test1"), k("field1"), k(123)),
-      s("update_field_value", k("test1"), k("field2"), k(456)),
-      s("update_field_value", k("test2"), k("field1"), k(789)),
+      s("update_field_value", "test1", "field1", 123),
+      s("update_field_value", "test1", "field2", 456),
+      s("update_field_value", "test2", "field1", 789),
 
-      s("get_field_value", k("test1"), k("field1"), v("val"))
+      s("get_field_value", "test1", "field1", v.val)
     )
   ).toEqual([{ val: 123 }]);
 
   expect(
     runAll(
-      s("update_field_value", k("test1"), k("field1"), k(123)),
-      s("update_field_value", k("test1"), k("field2"), k(456)),
-      s("update_field_value", k("test2"), k("field1"), k(789)),
+      s("update_field_value", "test1", "field1", 123),
+      s("update_field_value", "test1", "field2", 456),
+      s("update_field_value", "test2", "field1", 789),
 
-      s("get_field_value", k("test1"), v("field"), v("val"))
+      s("get_field_value", "test1", v.field, v.val)
     )
   ).toEqual([
     { field: "field1", val: 123 },
@@ -326,11 +295,11 @@ test("db get", () => {
 
   expect(
     runAll(
-      s("update_field_value", k("test1"), k("field1"), k(123)),
-      s("update_field_value", k("test1"), k("field2"), k(456)),
-      s("update_field_value", k("test2"), k("field1"), k(789)),
+      s("update_field_value", "test1", "field1", 123),
+      s("update_field_value", "test1", "field2", 456),
+      s("update_field_value", "test2", "field1", 789),
 
-      s("get_field_value", v("id"), k("field1"), v("val"))
+      s("get_field_value", v.id, "field1", v.val)
     )
   ).toEqual([
     { id: "test1", val: 123 },
@@ -339,26 +308,26 @@ test("db get", () => {
 
   expect(
     runAll(
-      s("update_field_value", k("test1"), k("field1"), k(123)),
-      s("update_field_value", k("test1"), k("field2"), k(456)),
-      s("update_field_value", k("test2"), k("field1"), k(789)),
+      s("update_field_value", "test1", "field1", 123),
+      s("update_field_value", "test1", "field2", 456),
+      s("update_field_value", "test2", "field1", 789),
 
-      s("delete_field_value", k("test1"), k("field1"), __),
+      s("delete_field_value", "test1", "field1", __),
 
-      s("get_field_value", k("test1"), v("field"), v("val"))
+      s("get_field_value", "test1", v.field, v.val)
     )
   ).toEqual([{ field: "field2", val: 456 }]);
 
   expect(
     runAll(
-      s("update_field_value", k("test1"), k("field1"), k(123)),
-      s("update_field_value", k("test1"), k("field2"), k(456)),
-      s("update_field_value", k("test2"), k("field1"), k(789)),
+      s("update_field_value", "test1", "field1", 123),
+      s("update_field_value", "test1", "field2", 456),
+      s("update_field_value", "test2", "field1", 789),
 
-      s("get_field_value", v("id"), __, __)
+      s("get_field_value", v.id, __, __)
     )
   ).toEqual([
-    ...Object.keys(rules).map((id) => ({ id })),
+    ...Object.keys(data).map((id) => ({ id })),
     //
     { id: "test1" },
     { id: "test2" },
@@ -373,7 +342,7 @@ test("db transact", () => {
         // setup
         s(
           ",",
-          s("update_field_value", k("test1"), k("field1"), k(123)),
+          s("update_field_value", "test1", "field1", 123),
           s("fail") // suppress results
         ),
         // change
@@ -381,16 +350,10 @@ test("db transact", () => {
           ",",
           s(
             "with_tx",
-            v("tx"),
+            v.tx,
             s(
               ",",
-              s(
-                "tx_update_field_value",
-                v("tx"),
-                k("test1"),
-                k("field1"),
-                k(456)
-              )
+              s("tx_update_field_value", v.tx, "test1", "field1", 456)
               // tx succeeds
             )
           ),
@@ -398,7 +361,7 @@ test("db transact", () => {
         ),
 
         // verify
-        s("get_field_value", k("test1"), k("field1"), v("value"))
+        s("get_field_value", "test1", "field1", v.value)
       )
     )
   ).toEqual([{ value: 456 }]);
@@ -410,7 +373,7 @@ test("db transact", () => {
         // setup
         s(
           ",",
-          s("update_field_value", k("test1"), k("field1"), k(123)),
+          s("update_field_value", "test1", "field1", 123),
           s("fail") // suppress results
         ),
         // change
@@ -418,16 +381,10 @@ test("db transact", () => {
           ",",
           s(
             "with_tx",
-            v("tx"),
+            v.tx,
             s(
               ",",
-              s(
-                "tx_update_field_value",
-                v("tx"),
-                k("test1"),
-                k("field1"),
-                k(456)
-              ),
+              s("tx_update_field_value", v.tx, "test1", "field1", 456),
               s("fail") // tx fails
             )
           ),
@@ -435,7 +392,7 @@ test("db transact", () => {
         ),
 
         // verify
-        s("get_field_value", k("test1"), k("field1"), v("value"))
+        s("get_field_value", "test1", "field1", v.value)
       )
     )
   ).toEqual([{ value: 123 }]);
