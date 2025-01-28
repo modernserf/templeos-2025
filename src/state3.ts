@@ -691,13 +691,27 @@ export class State {
       if (ns) yield ns.yield();
     }
   }
-  private *runClauseSeq(items: Fact[], index = 0): Generator<StateNext> {
-    if (index >= items.length) {
+  private *runClauseSeq(items: Fact[]): Generator<StateNext> {
+    if (items.length === 0) {
       yield this.yield();
       return;
     }
-    for (const res of this.runClause(items[index])) {
-      yield* res.state.runClauseSeq(items, index + 1);
+
+    const stack = [this.runClause(items[0])];
+    while (stack.length) {
+      const frame = stack.at(-1)!;
+      const res = frame.next();
+      if (res.done) {
+        stack.pop();
+        continue;
+      }
+      const nextClause = items[stack.length];
+
+      if (nextClause) {
+        stack.push(res.value.state.runClause(nextClause));
+      } else {
+        yield res.value;
+      }
     }
   }
   private yield() {
