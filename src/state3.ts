@@ -21,16 +21,31 @@ type SchemaField =
   | Struct<"field_optional", [Field]>
   | Struct<"field_default", [Field, Expr]>;
 
-type IndexType = "ref" | "multiRef" | "sorted" | "unique";
+type IndexType =
+  | Struct<"ref", []> // TODO: what does this mean now?
+  | Struct<"multiRef", []>
+  | Struct<"sorted", []>
+  | Struct<"unique", []>;
+
+type DBType =
+  | Struct<"any", []>
+  | Struct<"string", []>
+  | Struct<"number", []>
+  | Struct<"ref", []>
+  | Struct<"ref", [SchemaId]>
+  | Struct<"list", [DBType]>
+  | Struct<"struct", []>
+  | Struct<"struct", [string, ...DBType[]]>
+  | Struct<"oneof", DBType[]>;
 
 export type Rec = Record<string, Expr> & {
   time__created?: number;
   db__schema?: SchemaId;
   db__fields?: List<SchemaField>;
-  db__refType?: SchemaId;
+  db__type?: DBType;
   db__index?: IndexType;
 
-  rule__params?: Struct<"params", Expr[]>;
+  rule__params?: List<Expr>;
   rule__body?: AnyStruct;
   view__schema?: SchemaId;
 
@@ -645,7 +660,7 @@ export class State {
           !rule.rule__params ||
           typeof rule.rule__params !== "object" ||
           rule.rule__params.tag !== "struct" ||
-          rule.rule__params.id !== "params"
+          rule.rule__params.id !== ""
         ) {
           throw new Error(`invalid rule ${fact.id}`);
         }

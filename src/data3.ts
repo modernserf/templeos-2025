@@ -100,33 +100,46 @@ const schemas = {
   },
 } satisfies Record<string, Omit<Rec, "db__schema">>;
 
+const fieldRef = s("ref", "schema__field" as const);
+const formatText = s(
+  "oneof",
+  s("string"),
+  s("struct", "link", s("string"), s("ref"))
+);
+
 export type Field = keyof typeof fields;
 const fields = {
   time__created: {
     db__schema: "schema__field",
     file__name: "Time created",
-    db__index: "sorted",
+    db__type: s("number"),
+    db__index: s("sorted"),
   },
   db__schema: {
     db__schema: "schema__field",
     file__name: "DB Schema",
     file__description: s("", "schema used to validate & render this record"),
-    db__refType: "schema__schema",
-    db__index: "ref",
+    db__type: s("ref", "schema__schema" as const),
+    db__index: s("ref"),
   },
   db__fields: {
     db__schema: "schema__field",
     file__name: "DB Fields",
-  },
-  db__refType: {
-    db__schema: "schema__field",
-    file__name: "Field refType",
-    file__description: s(
-      "",
-      "if this is set, the value of this field is a ref to a record with this schema"
+    db__type: s(
+      "list",
+      s(
+        "oneof",
+        s("struct", "field", fieldRef),
+        s("struct", "field__optional", fieldRef),
+        s("struct", "field__default", fieldRef, s("any"))
+      )
     ),
-    db__refType: "schema__schema",
-    db__index: "ref",
+  },
+  db__type: {
+    db__schema: "schema__field",
+    file__name: "Field type",
+    db__type: s("ref", "schema__schema" as const),
+    db__index: s("ref"),
   },
   db__index: {
     db__schema: "schema__field",
@@ -135,24 +148,32 @@ const fields = {
       "",
       "If set, the field is indexed using an index of this type."
     ),
-    db__refType: "schema__indexType",
-    db__index: "ref",
+    db__type: s(
+      "oneof",
+      s("struct", "ref"),
+      s("struct", "multiRef"),
+      s("struct", "sorted"),
+      s("struct", "unique")
+    ),
+    db__index: s("sorted"),
   },
   // TODO: rule primitive / view primitive?
   rule__params: {
     db__schema: "schema__field",
     file__name: "Rule params",
+    db__type: s("list", s("any")),
   },
   rule__body: {
     db__schema: "schema__field",
     file__name: "Rule body",
+    db__type: s("struct"),
   },
   view__schema: {
     db__schema: "schema__field",
     file__name: "View schema",
     file__description: s("", "the schema that this view is supposed to render"),
-    db__refType: "schema__schema",
-    db__index: "ref",
+    db__type: s("ref", "schema__schema" as const),
+    db__index: s("ref"),
   },
   file__name: {
     db__schema: "schema__field",
@@ -161,68 +182,73 @@ const fields = {
       "",
       "field used for name in tab header & file explorer"
     ),
+    db__type: s("string"),
   },
   file__description: {
     db__schema: "schema__field",
     file__name: "File description",
     file__description: s("", "describes the content of the record"),
+    db__type: formatText,
   },
   folder__items: {
     db__schema: "schema__field",
     file__name: "File folder items",
     file__description: s("", "ids of files in folder"),
-    db__index: "multiRef",
+    db__type: s("list", s("ref")),
+    db__index: s("multiRef"),
   },
   // Browser
   history__location: {
     db__schema: "schema__field",
     file__name: "History location ref",
-    db__refType: "schema__anyType",
+    db__type: s("ref"),
   },
   history__view: {
     db__schema: "schema__field",
     file__name: "History view ref",
-    db__refType: "schema__view",
+    db__type: s("ref", "schema__view" as const),
   },
   history__back: {
     db__schema: "schema__field",
     file__name: "History back ref",
-    db__refType: "schema__history",
+    db__type: s("ref", "schema__history" as const),
   },
   history__forward: {
     db__schema: "schema__field",
     file__name: "History forward ref",
-    db__refType: "schema__history",
+    db__type: s("ref", "schema__history" as const),
   },
   history__window: {
     db__schema: "schema__field",
     file__name: "History window ref",
-    db__refType: "schema__window",
+    db__type: s("ref", "schema__window" as const),
   },
   window__currentHistory: {
     db__schema: "schema__field",
     file__name: "Window current history ref",
-    db__refType: "schema__history",
+    db__type: s("ref", "schema__history" as const),
   },
   browser__currentWindow: {
     db__schema: "schema__field",
     file__name: "Focused window in browser",
-    db__refType: "schema__window",
+    db__type: s("ref", "schema__window" as const),
   },
   text__content: {
     db__schema: "schema__field",
     file__name: "Text content",
     file__description: s("", "a list of text nodes used in text schema"),
+    db__type: formatText,
   },
   data__omnibox: {
     db__schema: "schema__field",
     file__name: "Omnibox search string",
+    db__type: s("string"),
   },
 } satisfies Record<string, Rec>;
 
 const rules = {
   list_list_append: {
-    rule__params: s("params", v.left, v.right, v.append),
+    rule__params: s("", v.left, v.right, v.append),
     rule__body: s(
       ";",
       s(
@@ -239,7 +265,7 @@ const rules = {
     ),
   },
   update_field_value: {
-    rule__params: s("params", v.id, v.field, v.value),
+    rule__params: s("", v.id, v.field, v.value),
     rule__body: s(
       ",",
       s("tx", v.tx),
@@ -248,7 +274,7 @@ const rules = {
     ),
   },
   delete_field_value: {
-    rule__params: s("params", v.id, v.field, v.value),
+    rule__params: s("", v.id, v.field, v.value),
     rule__body: s(
       ",",
       s("tx", v.tx),
@@ -257,7 +283,7 @@ const rules = {
     ),
   },
   with_tx: {
-    rule__params: s("params", v.tx, v.goal),
+    rule__params: s("", v.tx, v.goal),
     rule__body: s(
       ",",
       s("tx", v.tx),
@@ -297,7 +323,7 @@ const startupItems = {
     db__schema: "schema__folder",
     file__name: "Example Folder",
     file__description: s("", "A folder with some items"),
-    file__folderItems: s("", "home", "schema__text", "view__text"),
+    folder__items: s("", "home", "schema__text", "view__text"),
   },
 } satisfies Record<string, Rec>;
 
