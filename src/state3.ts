@@ -2,8 +2,6 @@ import { Field, SchemaId } from "./data3";
 import { DB, whereValue } from "./db";
 
 export type Id = string;
-export type SimpleValue = string | number;
-
 export type Ident = string;
 
 export type Struct<Id, Args extends Expr[]> = {
@@ -65,13 +63,17 @@ export type Rec = Record<string, Expr> & {
 };
 
 export type Expr =
-  | SimpleValue
+  | string
+  | number
   | { tag: "placeholder" }
   | { tag: "ident"; ident: Ident }
   | { tag: "struct"; id: Id; args: Expr[] };
 
 export const __ = { tag: "placeholder" } as const;
-export const k = (value: SimpleValue) => ({ tag: "value", value } as const);
+export const k = (value: string | number) =>
+  typeof value === "string"
+    ? ({ tag: "string", value } as const)
+    : ({ tag: "number", value } as const);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const v: any = new Proxy(
@@ -90,7 +92,8 @@ export const s = <T extends Id, Args extends Expr[]>(id: T, ...args: Args) =>
 
 type Fact =
   | { tag: "unify"; id: FactId }
-  | { tag: "value"; value: SimpleValue }
+  | { tag: "string"; value: string }
+  | { tag: "number"; value: number }
   | { tag: "struct"; id: Id; args: Fact[] };
 // TODO: constraints
 
@@ -103,7 +106,8 @@ function printFact(fact: Fact): string {
   switch (fact.tag) {
     case "unify":
       return `${fact.id.description}`;
-    case "value":
+    case "string":
+    case "number":
       return JSON.stringify(fact.value);
     case "struct":
       return `${fact.id}(${fact.args.map(printFact).join(", ")})`;
@@ -174,7 +178,8 @@ export class State {
   }
   private mapFact<T>(fact: Fact, f: (f: Fact, args?: T[]) => T): T {
     switch (fact.tag) {
-      case "value":
+      case "string":
+      case "number":
         return f(fact);
       case "unify":
         if (this.facts[fact.id]) {
@@ -217,7 +222,8 @@ export class State {
         case "unify":
           if (f.id === PLACEHOLDER_ID) return __;
           return { tag: "ident", ident: f.id.description ?? "<anonymous>" };
-        case "value":
+        case "string":
+        case "number":
           return f.value;
         case "struct":
           return { ...f, args };
@@ -226,7 +232,7 @@ export class State {
   }
   private expr(expr: Expr): Fact {
     if (typeof expr !== "object") {
-      return { tag: "value", value: expr };
+      return k(expr);
     }
     switch (expr.tag) {
       case "placeholder":
@@ -251,7 +257,7 @@ export class State {
   }
   private exprValue(expr: Expr, localSymbols: SymbolTable = {}): Fact {
     if (typeof expr !== "object") {
-      return { tag: "value", value: expr };
+      return k(expr);
     }
     switch (expr.tag) {
       case "placeholder":
@@ -286,13 +292,15 @@ export class State {
     switch (left.tag) {
       case "unify":
         return this.addFact(left.id, right);
-      case "value":
+      case "string":
+      case "number":
         switch (right.tag) {
           case "unify":
             return this.addFact(right.id, left);
           case "struct":
             return null;
-          case "value":
+          case "string":
+          case "number":
             return left.value === right.value ? this : null;
         }
         break;
@@ -300,7 +308,8 @@ export class State {
         switch (right.tag) {
           case "unify":
             return this.addFact(right.id, left);
-          case "value":
+          case "string":
+          case "number":
             return null;
           case "struct": {
             let nextState = this as State;
@@ -320,7 +329,8 @@ export class State {
     return this.mapFact(fact, (e, args = []) => {
       switch (e.tag) {
         case "unify":
-        case "value":
+        case "string":
+        case "number":
           return e;
         case "struct": {
           return { ...e, args };
@@ -328,19 +338,12 @@ export class State {
       }
     });
   }
-  private ensureSimple(fact: Fact): Fact & { tag: "value" } {
+  private ensure<T extends Fact["tag"]>(fact: Fact, tag: T): Fact & { tag: T } {
     const res = this.simplify(fact);
-    if (res.tag !== "value") {
-      throw new Error(`Expected struct, received ${printFact(res)}`);
+    if (res.tag !== tag) {
+      throw new Error(`Expected ${tag}, received ${printFact(res)}`);
     }
-    return res;
-  }
-  private ensureStruct(fact: Fact): Fact & { tag: "struct" } {
-    const res = this.simplify(fact);
-    if (res.tag !== "struct") {
-      throw new Error(`Expected struct, received ${printFact(res)}`);
-    }
-    return res;
+    return res as Fact & { tag: T };
   }
   *run(expr: Expr): Generator<StateNext> {
     try {
@@ -436,14 +439,12 @@ export class State {
       }
       case "number": {
         const res = this.simplify(fact.args[0]);
-        if (res.tag === "value" && typeof res.value === "number")
-          yield this.yield();
+        if (res.tag === "number") yield this.yield();
         return;
       }
       case "string": {
         const res = this.simplify(fact.args[0]);
-        if (res.tag === "value" && typeof res.value === "string")
-          yield this.yield();
+        if (res.tag === "string") yield this.yield();
         return;
       }
       case "struct": {
@@ -452,7 +453,7 @@ export class State {
         return;
       }
       case "struct_arity": {
-        const st = this.ensureStruct(fact.args[0]);
+        const st = this.ensure(fact.args[0], "struct");
         const ns = this.unify(fact.args[1], k(st.args.length));
         if (ns) yield ns.yield();
         return;
@@ -468,21 +469,21 @@ export class State {
             return;
           }
           case "unify": {
-            const id = this.ensureSimple(fact.args[1]);
-            const args = this.ensureStruct(fact.args[2]);
+            const id = this.ensure(fact.args[1], "string");
+            const args = this.ensure(fact.args[2], "struct");
             if (args.id !== "") throw new Error("Expected list");
-            const st = { ...args, id: id.value as string };
+            const st = { ...args, id: id.value };
             const ns = this.unify(fact.args[0], st);
             if (ns) yield ns.yield();
             return;
           }
-          case "value":
+          default:
             throw new Error("expected struct");
         }
         break;
       }
       case "struct_id_index_arg": {
-        const st = this.ensureStruct(fact.args[0]);
+        const st = this.ensure(fact.args[0], "struct");
         const id = k(st.id);
         const ns = this.unify(fact.args[1], id);
         if (!ns) return;
@@ -501,7 +502,7 @@ export class State {
             return;
           }
           // +struct, ?id, +index, ?arg
-          case "value": {
+          case "number": {
             const i = idx.value;
             if (typeof i !== "number") throw new Error("expected number");
             if (i < 0 || i >= st.args.length) {
@@ -511,7 +512,7 @@ export class State {
             if (ns1) yield ns1.yield();
             return;
           }
-          case "struct":
+          default:
             throw new Error("expected number");
         }
         break;
@@ -536,26 +537,26 @@ export class State {
         return;
       }
       case "commit": {
-        const tx = this.ensureSimple(fact.args[0]);
-        this.db.commitTx(tx.value as Tx);
+        const tx = this.ensure(fact.args[0], "number");
+        this.db.commitTx(tx.value);
         yield this.yield();
         return;
       }
       case "rollback": {
-        const tx = this.ensureSimple(fact.args[0]);
-        this.db.rollbackTx(tx.value as Tx);
+        const tx = this.ensure(fact.args[0], "number");
+        this.db.rollbackTx(tx.value);
         yield this.yield();
         return;
       }
       // TODO: handle rollback
       case "tx_update_field_value": {
-        const tx = this.ensureSimple(fact.args[0]);
-        const id = this.ensureSimple(fact.args[1]);
-        const field = this.ensureSimple(fact.args[2]);
+        const tx = this.ensure(fact.args[0], "number");
+        const id = this.ensure(fact.args[1], "string");
+        const field = this.ensure(fact.args[2], "string");
         const value = this.simplify(fact.args[3]);
         this.db.updateTx(
-          tx.value as Tx,
-          id.value as string,
+          tx.value,
+          id.value,
           field.value as Field,
           this.factToExpr(value)
         );
@@ -563,28 +564,23 @@ export class State {
         return;
       }
       case "tx_delete_field_value": {
-        const tx = this.ensureSimple(fact.args[0]);
-        const id = this.ensureSimple(fact.args[1]);
+        const tx = this.ensure(fact.args[0], "number");
+        const id = this.ensure(fact.args[1], "string");
         const field = this.simplify(fact.args[2]);
-        const rec = this.db.get(id.value as string);
+        const rec = this.db.get(id.value);
         if (!rec) return;
 
         // delete a field
-        if (field.tag === "value") {
+        if (field.tag === "string") {
           const val = this.exprValue(rec[field.value]);
           const ns = this.unify(val, fact.args[3]);
           if (!ns) return;
-          this.db.updateTx(
-            tx.value as Tx,
-            id.value as string,
-            field.value as Field,
-            null
-          );
+          this.db.updateTx(tx.value, id.value, field.value as Field, null);
           yield ns.yield();
           return;
         } else {
           // delete whole record
-          this.db.insertTx(tx.value as Tx, id.value as string, null);
+          this.db.insertTx(tx.value, id.value, null);
           yield* this.uniqueStates(function* () {
             for (const f in rec) {
               const val = this.exprValue(rec[f]);
@@ -600,10 +596,10 @@ export class State {
       case "get_field_value": {
         const id = this.simplify(fact.args[0]);
         const field = this.simplify(fact.args[1]);
-        if (id.tag === "value") {
-          const rec = this.db.get(id.value as string);
+        if (id.tag === "string") {
+          const rec = this.db.get(id.value);
           if (!rec) return;
-          if (field.tag === "value") {
+          if (field.tag === "string") {
             const val = rec[field.value as Field];
             if (!val) return;
             const ns = this.unify(fact.args[2], this.exprValue(val));
@@ -622,12 +618,12 @@ export class State {
           return;
         }
         const value = this.simplify(fact.args[2]);
-        if (field.tag === "value" && value.tag === "value") {
-          const idx = this.db.getIndex(field.value as string);
+        if (field.tag === "string" && value.tag === "string") {
+          const idx = this.db.getIndex(field.value);
           if (idx) {
             yield* this.uniqueStates(function* () {
               for (const [{ entityId }] of idx.tree.where(
-                whereValue(value.value as string)
+                whereValue(value.value)
               )) {
                 const ns = this.unify(fact.args[0], k(entityId));
                 if (ns) yield ns.yield();
@@ -655,13 +651,7 @@ export class State {
       default: {
         const rule = this.db.get(fact.id);
         if (!rule) throw new Error(`unknown rule ${fact.id}`);
-        if (
-          !rule.rule__body ||
-          !rule.rule__params ||
-          typeof rule.rule__params !== "object" ||
-          rule.rule__params.tag !== "struct" ||
-          rule.rule__params.id !== ""
-        ) {
+        if (!rule.rule__body || !rule.rule__params) {
           throw new Error(`invalid rule ${fact.id}`);
         }
 
