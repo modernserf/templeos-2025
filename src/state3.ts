@@ -89,13 +89,18 @@ export const v: any = new Proxy(
 
 export const s = <T extends Id, Args extends Expr[]>(id: T, ...args: Args) =>
   ({ tag: "struct", id, args } as const);
+const sv = <T extends Id, Args extends Value[]>(id: T, ...args: Args) =>
+  ({ tag: "struct", id, args } as const);
 
-type Fact =
-  | { tag: "unify"; id: FactId }
+type Value =
+  | { tag: "var"; id: FactId }
   | { tag: "string"; value: string }
   | { tag: "number"; value: number }
-  | { tag: "struct"; id: Id; args: Fact[] };
+  | { tag: "struct"; id: Id; args: Value[] };
 // TODO: constraints
+type Constraint = { tag: "constraint"; predicate: Value };
+
+type Fact = Value | Constraint;
 
 type FactId = symbol;
 type Facts = Record<FactId, Fact>;
@@ -104,7 +109,9 @@ const PLACEHOLDER_ID = Symbol("__");
 
 function printFact(fact: Fact): string {
   switch (fact.tag) {
-    case "unify":
+    case "constraint":
+      return `{${printFact(fact.predicate)}}`;
+    case "var":
       return `${fact.id.description}`;
     case "string":
     case "number":
@@ -176,20 +183,23 @@ export class State {
     db.bulkInsert(rules);
     return new State(db, {}, {});
   }
-  private mapFact<T>(fact: Fact, f: (f: Fact, args?: T[]) => T): T {
+  private mapValue<T>(fact: Value, f: (f: Value, args?: T[]) => T): T {
     switch (fact.tag) {
       case "string":
       case "number":
         return f(fact);
-      case "unify":
-        if (this.facts[fact.id]) {
-          return this.mapFact(this.facts[fact.id], f);
+      case "var": {
+        const next = this.facts[fact.id];
+        if (next && next.tag !== "constraint") {
+          return this.mapValue(next, f);
+        } else {
+          return f(fact);
         }
-        return f(fact);
+      }
       case "struct":
         return f(
           fact,
-          fact.args.map((arg) => this.mapFact(arg, f))
+          fact.args.map((arg) => this.mapValue(arg, f))
         );
     }
   }
@@ -212,14 +222,14 @@ export class State {
     return Object.fromEntries(
       Object.entries(this.symbolTable).map(([key, sym]) => [
         key,
-        this.facts[sym] ? this.factToExpr(this.facts[sym]) : undefined,
+        this.facts[sym] ? this.factToExpr(this.facts[sym] as Value) : undefined,
       ])
     );
   }
-  private factToExpr(fact: Fact): Expr {
-    return this.mapFact(fact, (f, args = []) => {
+  private factToExpr(fact: Value): Expr {
+    return this.mapValue(fact, (f, args = []) => {
       switch (f.tag) {
-        case "unify":
+        case "var":
           if (f.id === PLACEHOLDER_ID) return __;
           return { tag: "ident", ident: f.id.description ?? "<anonymous>" };
         case "string":
@@ -230,19 +240,19 @@ export class State {
       }
     });
   }
-  private expr(expr: Expr): Fact {
+  private expr(expr: Expr): Value {
     if (typeof expr !== "object") {
       return k(expr);
     }
     switch (expr.tag) {
       case "placeholder":
-        return { tag: "unify", id: PLACEHOLDER_ID };
+        return { tag: "var", id: PLACEHOLDER_ID };
       case "ident": {
         const sym =
           this.symbolTable[expr.ident] ??
           Symbol(`${expr.ident}<${varCount++}>`);
         this.symbolTable[expr.ident] = sym;
-        return { tag: "unify", id: sym };
+        return { tag: "var", id: sym };
       }
       case "struct": {
         const res = {
@@ -255,20 +265,20 @@ export class State {
       }
     }
   }
-  private exprValue(expr: Expr, localSymbols: SymbolTable = {}): Fact {
+  private exprValue(expr: Expr, localSymbols: SymbolTable = {}): Value {
     if (typeof expr !== "object") {
       return k(expr);
     }
     switch (expr.tag) {
       case "placeholder":
-        return { tag: "unify", id: PLACEHOLDER_ID };
+        return { tag: "var", id: PLACEHOLDER_ID };
       case "ident": {
         // vars should bind to each other,
         // but not to similarly named vars in scope
         const sym =
           localSymbols[expr.ident] ?? Symbol(`${expr.ident}<${varCount++}>`);
         localSymbols[expr.ident] = sym;
-        return { tag: "unify", id: sym };
+        return { tag: "var", id: sym };
       }
       case "struct":
         return {
@@ -277,26 +287,52 @@ export class State {
         };
     }
   }
-  private addFact(id: FactId, fact: Fact): State {
-    // console.log("addFact", id, fact);
-    return new State(this.db, { ...this.facts, [id]: fact }, this.symbolTable);
+  private addValue(id: FactId, value: Value): State {
+    return new State(this.db, { ...this.facts, [id]: value }, this.symbolTable);
   }
-  private unify(left: Fact, right: Fact): State | null {
+  private addConstraint(id: FactId, constraint: Constraint) {
+    const prev = this.facts[id];
+    if (prev?.tag === "constraint") {
+      constraint = {
+        tag: "constraint",
+        predicate: sv(",", prev.predicate, constraint.predicate),
+      };
+    }
+    return new State(
+      this.db,
+      { ...this.facts, [id]: constraint },
+      this.symbolTable
+    );
+  }
+  private unifyVar(left: Value & { tag: "var" }, right: Value): State | null {
+    const constraint = this.facts[left.id];
+    const ns = this.addValue(left.id, right);
+    if (!ns) return null;
+    if (constraint?.tag === "constraint") {
+      for (const res of ns.runClause(constraint.predicate)) {
+        return res.state;
+      }
+      return null;
+    }
+    return ns;
+  }
+  private unify(left: Value, right: Value): State | null {
     // handle placeholders
-    if (left.tag === "unify" && left.id === PLACEHOLDER_ID) return this;
-    if (right.tag === "unify" && right.id === PLACEHOLDER_ID) return this;
+    if (left.tag === "var" && left.id === PLACEHOLDER_ID) return this;
+    if (right.tag === "var" && right.id === PLACEHOLDER_ID) return this;
     // follow unify chains
     left = this.simplify(left);
     right = this.simplify(right);
 
     switch (left.tag) {
-      case "unify":
-        return this.addFact(left.id, right);
+      case "var": {
+        return this.unifyVar(left, right);
+      }
       case "string":
       case "number":
         switch (right.tag) {
-          case "unify":
-            return this.addFact(right.id, left);
+          case "var":
+            return this.unifyVar(right, left);
           case "struct":
             return null;
           case "string":
@@ -306,8 +342,8 @@ export class State {
         break;
       case "struct":
         switch (right.tag) {
-          case "unify":
-            return this.addFact(right.id, left);
+          case "var":
+            return this.unifyVar(right, left);
           case "string":
           case "number":
             return null;
@@ -325,10 +361,10 @@ export class State {
         }
     }
   }
-  private simplify(fact: Fact): Fact {
-    return this.mapFact(fact, (e, args = []) => {
+  private simplify(fact: Value): Value {
+    return this.mapValue(fact, (e, args = []) => {
       switch (e.tag) {
-        case "unify":
+        case "var":
         case "string":
         case "number":
           return e;
@@ -338,12 +374,15 @@ export class State {
       }
     });
   }
-  private ensure<T extends Fact["tag"]>(fact: Fact, tag: T): Fact & { tag: T } {
+  private ensure<T extends Value["tag"]>(
+    fact: Value,
+    tag: T
+  ): Value & { tag: T } {
     const res = this.simplify(fact);
     if (res.tag !== tag) {
       throw new Error(`Expected ${tag}, received ${printFact(res)}`);
     }
-    return res as Fact & { tag: T };
+    return res as Value & { tag: T };
   }
   *run(expr: Expr): Generator<StateNext> {
     try {
@@ -352,18 +391,18 @@ export class State {
       this.db.rollbackAll();
     }
   }
-  log(facts: Fact[]) {
+  log(facts: Value[]) {
     console.log(
       ...facts.map((fact) => printFact(this.simplify(fact))),
       Object.fromEntries(
         Object.getOwnPropertySymbols(this.facts).map((sym) => [
           sym.description,
-          printFact(this.simplify(this.facts[sym])),
+          printFact(this.facts[sym]),
         ])
       )
     );
   }
-  private *runClause(fact: Fact): Generator<StateNext> {
+  private *runClause(fact: Value): Generator<StateNext> {
     fact = this.simplify(fact);
     if (fact.tag !== "struct") {
       throw new Error(`Expected struct, received ${fact.tag}`);
@@ -382,6 +421,31 @@ export class State {
         const [l, r] = fact.args;
         const ns = this.unify(l, r);
         if (ns) yield ns.yield();
+        return;
+      }
+      case "/=": {
+        const [l, r] = fact.args;
+        if (l.tag === "var" || r.tag === "var") {
+          let ns = this as State;
+          if (l.tag === "var") {
+            ns = ns.addConstraint(l.id, {
+              tag: "constraint",
+              predicate: sv("/=", l, r),
+            });
+          }
+          if (r.tag === "var") {
+            ns = ns.addConstraint(r.id, {
+              tag: "constraint",
+              predicate: sv("/=", l, r),
+            });
+          }
+          yield ns.yield();
+          return;
+        }
+
+        // TODO: recursively apply to structs
+        const ns = this.unify(l, r);
+        if (!ns) yield this.yield();
         return;
       }
       case ",": {
@@ -429,22 +493,34 @@ export class State {
       }
       case "var": {
         const res = this.simplify(fact.args[0]);
-        if (res.tag === "unify") yield this.yield();
+        if (res.tag === "var") yield this.yield();
         return;
       }
       case "nonvar": {
         const res = this.simplify(fact.args[0]);
-        if (res.tag !== "unify") yield this.yield();
+        if (res.tag !== "var") yield this.yield();
         return;
       }
       case "number": {
         const res = this.simplify(fact.args[0]);
         if (res.tag === "number") yield this.yield();
+        if (res.tag === "var") {
+          yield this.addConstraint(res.id, {
+            tag: "constraint",
+            predicate: sv("number", res),
+          }).yield();
+        }
         return;
       }
       case "string": {
         const res = this.simplify(fact.args[0]);
         if (res.tag === "string") yield this.yield();
+        if (res.tag === "var") {
+          yield this.addConstraint(res.id, {
+            tag: "constraint",
+            predicate: sv("string", res),
+          }).yield();
+        }
         return;
       }
       case "struct": {
@@ -468,7 +544,7 @@ export class State {
             if (ns) yield ns.yield();
             return;
           }
-          case "unify": {
+          case "var": {
             const id = this.ensure(fact.args[1], "string");
             const args = this.ensure(fact.args[2], "struct");
             if (args.id !== "") throw new Error("Expected list");
@@ -490,7 +566,7 @@ export class State {
         const idx = ns.simplify(fact.args[2]);
         switch (idx.tag) {
           // +struct, ?id, ?index, ?arg
-          case "unify": {
+          case "var": {
             yield* this.uniqueStates(function* () {
               for (let i = 0; i < st.args.length; i++) {
                 const ns1 = ns
@@ -663,7 +739,7 @@ export class State {
   private *call(
     params: Expr[],
     body: Expr,
-    args: Fact[]
+    args: Value[]
   ): Generator<StateNext> {
     if (params.length !== args.length) throw new Error("invalid arity");
 
@@ -681,7 +757,7 @@ export class State {
       if (ns) yield ns.yield();
     }
   }
-  private *runClauseSeq(items: Fact[]): Generator<StateNext> {
+  private *runClauseSeq(items: Value[]): Generator<StateNext> {
     if (items.length === 0) {
       yield this.yield();
       return;

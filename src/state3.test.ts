@@ -163,6 +163,133 @@ test("negation as failure", () => {
   expect(runAll(s("¬", s("ok")))).toEqual([]);
 });
 
+test("constraints", () => {
+  expect(
+    runAll(
+      s("string", v.x) //
+    )
+  ).toEqual([{}]);
+
+  expect(
+    runAll(
+      s("string", v.x), //
+      s("=", v.x, "hello")
+    )
+  ).toEqual([{ x: "hello" }]);
+
+  expect(
+    runAll(
+      s("string", v.x), //
+      s("=", "hello", v.x)
+    )
+  ).toEqual([{ x: "hello" }]);
+
+  expect(
+    runAll(
+      s("string", v.x), //
+      s("=", v.x, 1)
+    )
+  ).toEqual([]);
+
+  expect(
+    runAll(
+      s("string", v.x), //
+      s("=", 1, v.x)
+    )
+  ).toEqual([]);
+
+  expect(
+    runAll(
+      s("string", v.x), //
+      s("=", v.x, v.y),
+      s("=", v.y, "hello")
+    )
+  ).toEqual([{ x: "hello", y: "hello" }]);
+});
+
+test("conflicting constraints", () => {
+  expect(
+    runAll(
+      //
+      s("string", v.x),
+      s("number", v.x)
+    )
+  ).toEqual([{}]);
+  expect(
+    runAll(
+      //
+      s("number", v.x),
+      s("string", v.x),
+      s("=", v.x, 1)
+    )
+  ).toEqual([]);
+
+  expect(
+    runAll(
+      //
+      s("string", v.x),
+      s("number", v.x),
+      s("=", v.x, 1)
+    )
+  ).toEqual([]);
+
+  expect(
+    runAll(
+      //
+      s("string", v.x),
+      s("number", v.y),
+      s("=", v.x, v.y),
+      s("=", v.y, 1)
+    )
+  ).toEqual([]);
+});
+
+test("/=", () => {
+  expect(runAll(s("/=", 1, 2))).toEqual([{}]);
+  expect(runAll(s("/=", 1, "foo"))).toEqual([{}]);
+  expect(runAll(s("/=", 1, 1))).toEqual([]);
+
+  expect(
+    runAll(
+      //
+      s("/=", 1, v.x)
+    )
+  ).toEqual([{}]);
+
+  expect(
+    runAll(
+      //
+      s("/=", 1, v.x),
+      s("=", v.x, 2)
+    )
+  ).toEqual([{ x: 2 }]);
+
+  expect(
+    runAll(
+      //
+      s("/=", 1, v.x),
+      s("=", v.x, 1)
+    )
+  ).toEqual([]);
+
+  expect(
+    runAll(
+      //
+      s("/=", 1, v.x),
+      s("=", v.y, 1),
+      s("=", v.x, v.y)
+    )
+  ).toEqual([]);
+
+  // TODO
+  expect(
+    runAll(
+      //
+      s("/=", s("foo", 1), s("foo", v.x))
+    )
+  ).toEqual([{}]);
+});
+
 test("struct_arity", () => {
   expect(
     runAll(
