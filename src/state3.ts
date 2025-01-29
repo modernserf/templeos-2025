@@ -97,7 +97,7 @@ type Value =
   | { tag: "string"; value: string }
   | { tag: "number"; value: number }
   | { tag: "struct"; id: Id; args: Value[] };
-// TODO: constraints
+
 type Constraint = { tag: "constraint"; predicate: Value };
 
 type Fact = Value | Constraint;
@@ -402,6 +402,44 @@ export class State {
       )
     );
   }
+  private dif(l: Value, r: Value): State | null {
+    if (l.tag === "var" || r.tag === "var") {
+      let ns = this as State;
+      if (l.tag === "var") {
+        ns = ns.addConstraint(l.id, {
+          tag: "constraint",
+          predicate: sv("/=", l, r),
+        });
+      }
+      if (r.tag === "var") {
+        ns = ns.addConstraint(r.id, {
+          tag: "constraint",
+          predicate: sv("/=", l, r),
+        });
+      }
+      return ns;
+    }
+
+    if (l.tag !== r.tag) return this;
+
+    switch (l.tag) {
+      case "string":
+      case "number":
+        if (l.value === (r as typeof l).value) return null;
+        return this;
+      case "struct": {
+        const { id, args } = r as typeof l;
+        if (l.id !== id || l.args.length !== args.length) return this;
+        let ns = this as State;
+        for (let i = 0; i < args.length; i++) {
+          const next = ns.dif(l.args[i], args[i]);
+          if (!next) return null;
+          ns = next;
+        }
+        return ns;
+      }
+    }
+  }
   private *runClause(fact: Value): Generator<StateNext> {
     fact = this.simplify(fact);
     if (fact.tag !== "struct") {
@@ -418,34 +456,12 @@ export class State {
         yield this.yield();
         return;
       case "=": {
-        const [l, r] = fact.args;
-        const ns = this.unify(l, r);
-        if (ns) yield ns.yield();
+        yield* semidet(this.unify(fact.args[0], fact.args[1]));
         return;
       }
       case "/=": {
-        const [l, r] = fact.args;
-        if (l.tag === "var" || r.tag === "var") {
-          let ns = this as State;
-          if (l.tag === "var") {
-            ns = ns.addConstraint(l.id, {
-              tag: "constraint",
-              predicate: sv("/=", l, r),
-            });
-          }
-          if (r.tag === "var") {
-            ns = ns.addConstraint(r.id, {
-              tag: "constraint",
-              predicate: sv("/=", l, r),
-            });
-          }
-          yield ns.yield();
-          return;
-        }
-
-        // TODO: recursively apply to structs
-        const ns = this.unify(l, r);
-        if (!ns) yield this.yield();
+        const ns = this.dif(fact.args[0], fact.args[1]);
+        if (ns) yield ns.yield();
         return;
       }
       case ",": {
@@ -596,20 +612,17 @@ export class State {
       // db
       case "id": {
         const id = crypto.randomUUID();
-        const ns = this.unify(fact.args[0], k(id));
-        if (ns) yield ns.yield();
+        yield* semidet(this.unify(fact.args[0], k(id)));
         return;
       }
       case "timestamp": {
         const id = Date.now();
-        const ns = this.unify(fact.args[0], k(id));
-        if (ns) yield ns.yield();
+        yield* semidet(this.unify(fact.args[0], k(id)));
         return;
       }
       case "tx": {
         const tx = this.db.beginTx();
-        const ns = this.unify(fact.args[0], k(tx));
-        if (ns) yield ns.yield();
+        yield* semidet(this.unify(fact.args[0], k(tx)));
         return;
       }
       case "commit": {
@@ -651,7 +664,7 @@ export class State {
           const val = this.exprValue(rec[field.value]);
           const ns = this.unify(val, fact.args[3]);
           if (!ns) return;
-          this.db.updateTx(tx.value, id.value, field.value as Field, null);
+          ns.db.updateTx(tx.value, id.value, field.value as Field, null);
           yield ns.yield();
           return;
         } else {
@@ -678,16 +691,16 @@ export class State {
           if (field.tag === "string") {
             const val = rec[field.value as Field];
             if (!val) return;
-            const ns = this.unify(fact.args[2], this.exprValue(val));
-            if (ns) yield ns.yield();
+            yield* semidet(this.unify(fact.args[2], this.exprValue(val)));
           } else {
             yield* this.uniqueStates(function* () {
               for (const f in rec) {
                 const val = rec[f as Field];
                 if (!val) continue;
-                const ns = this.unify(fact.args[1], k(f)) //
-                  ?.unify(fact.args[2], this.exprValue(val));
-                if (ns) yield ns.yield();
+                yield* semidet(
+                  this.unify(fact.args[1], k(f)) //
+                    ?.unify(fact.args[2], this.exprValue(val))
+                );
               }
             });
           }
@@ -701,8 +714,7 @@ export class State {
               for (const [{ entityId }] of idx.tree.where(
                 whereValue(value.value)
               )) {
-                const ns = this.unify(fact.args[0], k(entityId));
-                if (ns) yield ns.yield();
+                yield* semidet(this.unify(fact.args[0], k(entityId)));
               }
             });
             return;
@@ -715,10 +727,11 @@ export class State {
             for (const f in rec) {
               const val = rec[f as Field];
               if (!val) continue;
-              const ns1 = ns
-                ?.unify(fact.args[1], k(f))
-                ?.unify(fact.args[2], this.exprValue(val));
-              if (ns1) yield ns1.yield();
+              yield* semidet(
+                ns
+                  ?.unify(fact.args[1], k(f))
+                  ?.unify(fact.args[2], this.exprValue(val))
+              );
             }
           }
         });
@@ -753,8 +766,7 @@ export class State {
     }
 
     for (const res of ruleState.runClause(ruleState.expr(body))) {
-      const ns = new State(this.db, res.state.facts, this.symbolTable);
-      if (ns) yield ns.yield();
+      yield new State(this.db, res.state.facts, this.symbolTable).yield();
     }
   }
   private *runClauseSeq(items: Value[]): Generator<StateNext> {
@@ -780,7 +792,7 @@ export class State {
       }
     }
   }
-  private yield() {
+  yield() {
     return { tag: "state", state: this } as const;
   }
   private *uniqueStates(gen: (this: this) => Generator<StateNext>) {
@@ -792,4 +804,8 @@ export class State {
       }
     }
   }
+}
+
+function* semidet(state: State | null | undefined) {
+  if (state) yield state.yield();
 }

@@ -281,13 +281,28 @@ test("/=", () => {
     )
   ).toEqual([]);
 
-  // TODO
   expect(
     runAll(
       //
       s("/=", s("foo", 1), s("foo", v.x))
     )
   ).toEqual([{}]);
+
+  expect(
+    runAll(
+      //
+      s("/=", s("foo", 1), s("foo", v.x)),
+      s("=", v.x, 2)
+    )
+  ).toEqual([{ x: 2 }]);
+
+  expect(
+    runAll(
+      //
+      s("/=", s("foo", 1), s("foo", v.x)),
+      s("=", v.x, 1)
+    )
+  ).toEqual([]);
 });
 
 test("struct_arity", () => {
