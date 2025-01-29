@@ -1,5 +1,5 @@
 import { Field, SchemaId } from "./data3";
-import { DB, whereValue } from "./db";
+import { TransactDB, whereValue } from "./db";
 
 export type Id = string;
 export type Ident = string;
@@ -121,67 +121,39 @@ function printFact(fact: Fact): string {
   }
 }
 
+function* semidet(state: State | null | undefined) {
+  if (state) yield state.yield();
+}
+
 export type StateNext = { tag: "state"; state: State };
 
 let varCount = 0;
 
-type Tx = number;
-
-class TransactDB extends DB<Rec> {
-  private txs = new Map<Tx, Map<Id, Rec>>();
-  private getTx(tx: Tx): Map<Id, Rec> {
-    const changes = this.txs.get(tx);
-    if (!changes) throw new Error("invalid tx");
-    return changes;
-  }
-  beginTx(): Tx {
-    const tx = varCount++;
-    this.txs.set(tx, new Map());
-    return tx;
-  }
-  commitTx(tx: Tx) {
-    if (!this.txs.delete(tx)) throw new Error("invalid tx");
-  }
-  rollbackAll() {
-    for (const tx of this.txs.keys()) {
-      this.rollbackTx(tx);
-    }
-  }
-  rollbackTx(tx: Tx) {
-    const changes = this.getTx(tx);
-    for (const [id, rec] of changes) {
-      this.insert(id, rec);
-    }
-    this.txs.delete(tx);
-  }
-  updateTx(tx: Tx, id: Id, field: Field, value: Expr | null) {
-    const changes = this.getTx(tx);
-    if (!changes.has(id)) {
-      const prev = this.get(id) ?? null;
-      changes.set(id, { ...prev });
-    }
-    this.update(id, field, value);
-  }
-  insertTx(tx: Tx, id: Id, rec: Rec | null) {
-    const changes = this.getTx(tx);
-    if (!changes.has(id)) {
-      const prev = this.get(id) ?? null;
-      changes.set(id, { ...prev });
-    }
-    this.insert(id, rec);
-  }
-}
-
 export class State {
   private constructor(
-    private db: TransactDB,
+    private db: TransactDB<Rec>,
     private facts: Facts,
     private symbolTable: SymbolTable
   ) {}
   static root(rules: Record<Id, Rec>): State {
-    const db = new TransactDB();
+    const db = new TransactDB<Rec>();
     db.bulkInsert(rules);
     return new State(db, {}, {});
+  }
+  *run(expr: Expr): Generator<StateNext> {
+    try {
+      yield* this.runClause(this.expr(expr));
+    } finally {
+      this.db.rollbackAll();
+    }
+  }
+  resolveAll(): Record<Ident, Expr | undefined> {
+    return Object.fromEntries(
+      Object.entries(this.symbolTable).map(([key, sym]) => [
+        key,
+        this.facts[sym] ? this.factToExpr(this.facts[sym] as Value) : undefined,
+      ])
+    );
   }
   private mapValue<T>(fact: Value, f: (f: Value, args?: T[]) => T): T {
     switch (fact.tag) {
@@ -218,14 +190,6 @@ export class State {
         );
     }
   }
-  resolveAll(): Record<Ident, Expr | undefined> {
-    return Object.fromEntries(
-      Object.entries(this.symbolTable).map(([key, sym]) => [
-        key,
-        this.facts[sym] ? this.factToExpr(this.facts[sym] as Value) : undefined,
-      ])
-    );
-  }
   private factToExpr(fact: Value): Expr {
     return this.mapValue(fact, (f, args = []) => {
       switch (f.tag) {
@@ -260,7 +224,6 @@ export class State {
           args: expr.args.map((arg) => this.expr(arg)),
         };
         if (expr.args.length !== res.args.length) throw new Error();
-        // if (expr.id === "cons") console.log(expr, res);
         return res;
       }
     }
@@ -290,17 +253,14 @@ export class State {
   private addValue(id: FactId, value: Value): State {
     return new State(this.db, { ...this.facts, [id]: value }, this.symbolTable);
   }
-  private addConstraint(id: FactId, constraint: Constraint) {
+  private addConstraint(id: FactId, predicate: Value) {
     const prev = this.facts[id];
     if (prev?.tag === "constraint") {
-      constraint = {
-        tag: "constraint",
-        predicate: sv(",", prev.predicate, constraint.predicate),
-      };
+      predicate = sv(",", prev.predicate, predicate);
     }
     return new State(
       this.db,
-      { ...this.facts, [id]: constraint },
+      { ...this.facts, [id]: { tag: "constraint", predicate } },
       this.symbolTable
     );
   }
@@ -320,9 +280,6 @@ export class State {
     // handle placeholders
     if (left.tag === "var" && left.id === PLACEHOLDER_ID) return this;
     if (right.tag === "var" && right.id === PLACEHOLDER_ID) return this;
-    // follow unify chains
-    left = this.simplify(left);
-    right = this.simplify(right);
 
     switch (left.tag) {
       case "var": {
@@ -361,39 +318,27 @@ export class State {
         }
     }
   }
-  private simplify(fact: Value): Value {
-    return this.mapValue(fact, (e, args = []) => {
-      switch (e.tag) {
-        case "var":
-        case "string":
-        case "number":
-          return e;
-        case "struct": {
-          return { ...e, args };
-        }
-      }
-    });
-  }
   private ensure<T extends Value["tag"]>(
-    fact: Value,
+    res: Value,
     tag: T
   ): Value & { tag: T } {
-    const res = this.simplify(fact);
     if (res.tag !== tag) {
       throw new Error(`Expected ${tag}, received ${printFact(res)}`);
     }
     return res as Value & { tag: T };
   }
-  *run(expr: Expr): Generator<StateNext> {
-    try {
-      yield* this.runClause(this.expr(expr));
-    } finally {
-      this.db.rollbackAll();
+  private ensureVar<T extends Value["tag"]>(
+    res: Value,
+    tag: T
+  ): Value & { tag: T | "var" } {
+    if (res.tag !== tag && res.tag !== "var") {
+      throw new Error(`Expected ${tag}, received ${printFact(res)}`);
     }
+    return res as Value & { tag: T | "var" };
   }
-  log(facts: Value[]) {
+  private log(facts: Value[]) {
     console.log(
-      ...facts.map((fact) => printFact(this.simplify(fact))),
+      ...facts.map(printFact),
       Object.fromEntries(
         Object.getOwnPropertySymbols(this.facts).map((sym) => [
           sym.description,
@@ -402,20 +347,26 @@ export class State {
       )
     );
   }
+  yield() {
+    return { tag: "state", state: this } as const;
+  }
+  private *uniqueStates(gen: (this: this) => Generator<StateNext>) {
+    const visited = new WeakSet<State>();
+    for (const res of gen.call(this)) {
+      if (!visited.has(res.state)) {
+        visited.add(res.state);
+        yield res;
+      }
+    }
+  }
   private dif(l: Value, r: Value): State | null {
     if (l.tag === "var" || r.tag === "var") {
       let ns = this as State;
       if (l.tag === "var") {
-        ns = ns.addConstraint(l.id, {
-          tag: "constraint",
-          predicate: sv("/=", l, r),
-        });
+        ns = ns.addConstraint(l.id, sv("/=", l, r));
       }
       if (r.tag === "var") {
-        ns = ns.addConstraint(r.id, {
-          tag: "constraint",
-          predicate: sv("/=", l, r),
-        });
+        ns = ns.addConstraint(r.id, sv("/=", l, r));
       }
       return ns;
     }
@@ -440,11 +391,20 @@ export class State {
       }
     }
   }
-  private *runClause(fact: Value): Generator<StateNext> {
-    fact = this.simplify(fact);
-    if (fact.tag !== "struct") {
-      throw new Error(`Expected struct, received ${fact.tag}`);
-    }
+  private *runClause(fact_: Value): Generator<StateNext> {
+    // simplify
+    fact_ = this.mapValue(fact_, (e, args = []) => {
+      switch (e.tag) {
+        case "var":
+        case "string":
+        case "number":
+          return e;
+        case "struct": {
+          return { ...e, args };
+        }
+      }
+    });
+    const fact = this.ensure(fact_, "struct");
     switch (fact.id) {
       case "fail":
         return;
@@ -455,27 +415,22 @@ export class State {
         this.log(fact.args);
         yield this.yield();
         return;
-      case "=": {
+      case "=":
         yield* semidet(this.unify(fact.args[0], fact.args[1]));
         return;
-      }
-      case "/=": {
-        const ns = this.dif(fact.args[0], fact.args[1]);
-        if (ns) yield ns.yield();
+      case "/=":
+        yield* semidet(this.dif(fact.args[0], fact.args[1]));
         return;
-      }
-      case ",": {
-        yield* this.runClauseSeq(fact.args);
+      case ",":
+        yield* this.seq(fact.args);
         return;
-      }
-      case ";": {
+      case ";":
         yield* this.uniqueStates(function* () {
           for (const arg of fact.args) {
             yield* this.runClause(arg);
           }
         });
         return;
-      }
       case "¬": // option-L
         for (const _ of this.runClause(fact.args[0])) {
           // success -> failure
@@ -507,107 +462,63 @@ export class State {
         }
         return;
       }
-      case "var": {
-        const res = this.simplify(fact.args[0]);
-        if (res.tag === "var") yield this.yield();
+      case "var":
+        if (fact.args[0].tag === "var") yield this.yield();
         return;
-      }
-      case "nonvar": {
-        const res = this.simplify(fact.args[0]);
-        if (res.tag !== "var") yield this.yield();
+      case "nonvar":
+        if (fact.args[0].tag !== "var") yield this.yield();
         return;
-      }
-      case "number": {
-        const res = this.simplify(fact.args[0]);
-        if (res.tag === "number") yield this.yield();
-        if (res.tag === "var") {
-          yield this.addConstraint(res.id, {
-            tag: "constraint",
-            predicate: sv("number", res),
-          }).yield();
-        }
+      case "number":
+        yield* this.test(fact.args[0], "number");
         return;
-      }
-      case "string": {
-        const res = this.simplify(fact.args[0]);
-        if (res.tag === "string") yield this.yield();
-        if (res.tag === "var") {
-          yield this.addConstraint(res.id, {
-            tag: "constraint",
-            predicate: sv("string", res),
-          }).yield();
-        }
+      case "string":
+        yield* this.test(fact.args[0], "string");
         return;
-      }
-      case "struct": {
-        const res = this.simplify(fact.args[0]);
-        if (res.tag === "struct") yield this.yield();
+      case "struct":
+        yield* this.test(fact.args[0], "struct");
         return;
-      }
       case "struct_arity": {
         const st = this.ensure(fact.args[0], "struct");
-        const ns = this.unify(fact.args[1], k(st.args.length));
-        if (ns) yield ns.yield();
+        yield* semidet(this.unify(fact.args[1], k(st.args.length)));
         return;
       }
       case "struct_id_args": {
-        const st = this.simplify(fact.args[0]);
-        switch (st.tag) {
-          case "struct": {
-            const id = k(st.id);
-            const args = { ...st, id: "" };
-            const ns = this.unify(fact.args[1], id)?.unify(fact.args[2], args);
-            if (ns) yield ns.yield();
-            return;
-          }
-          case "var": {
-            const id = this.ensure(fact.args[1], "string");
-            const args = this.ensure(fact.args[2], "struct");
-            if (args.id !== "") throw new Error("Expected list");
-            const st = { ...args, id: id.value };
-            const ns = this.unify(fact.args[0], st);
-            if (ns) yield ns.yield();
-            return;
-          }
-          default:
-            throw new Error("expected struct");
+        const st = this.ensureVar(fact.args[0], "struct");
+        const id = this.ensureVar(fact.args[1], "string");
+        const args = this.ensureVar(fact.args[2], "struct");
+        if (args.tag === "struct" && args.id !== "") {
+          throw new Error("Expected list");
         }
-        break;
+        if (st.tag === "struct") {
+          yield* semidet(
+            this.unify(k(st.id), id)?.unify({ ...st, id: "" }, args)
+          );
+        } else if (id.tag === "string" && args.tag === "struct") {
+          yield* semidet(this.unify({ ...args, id: id.value }, st));
+        }
+        return;
       }
       case "struct_id_index_arg": {
         const st = this.ensure(fact.args[0], "struct");
-        const id = k(st.id);
-        const ns = this.unify(fact.args[1], id);
+        const id = this.ensureVar(fact.args[1], "string");
+        const idx = this.ensureVar(fact.args[2], "number");
+        const arg = fact.args[3];
+
+        const ns = this.unify(k(st.id), id);
         if (!ns) return;
-        const idx = ns.simplify(fact.args[2]);
-        switch (idx.tag) {
-          // +struct, ?id, ?index, ?arg
-          case "var": {
-            yield* this.uniqueStates(function* () {
-              for (let i = 0; i < st.args.length; i++) {
-                const ns1 = ns
-                  .unify(fact.args[2], k(i))
-                  ?.unify(fact.args[3], st.args[i]);
-                if (ns1) yield ns1.yield();
-              }
-            });
-            return;
-          }
-          // +struct, ?id, +index, ?arg
-          case "number": {
-            const i = idx.value;
-            if (typeof i !== "number") throw new Error("expected number");
-            if (i < 0 || i >= st.args.length) {
-              throw new Error("index out of range");
+
+        if (idx.tag === "number") {
+          const i = idx.value;
+          if (i < 0 || i >= st.args.length) return;
+          yield* semidet(ns.unify(arg, st.args[i]));
+        } else {
+          yield* this.uniqueStates(function* () {
+            for (let i = 0; i < st.args.length; i++) {
+              yield* semidet(ns.unify(idx, k(i))?.unify(arg, st.args[i]));
             }
-            const ns1 = ns.unify(fact.args[3], st.args[i]);
-            if (ns1) yield ns1.yield();
-            return;
-          }
-          default:
-            throw new Error("expected number");
+          });
         }
-        break;
+        return;
       }
       // db
       case "id": {
@@ -642,7 +553,7 @@ export class State {
         const tx = this.ensure(fact.args[0], "number");
         const id = this.ensure(fact.args[1], "string");
         const field = this.ensure(fact.args[2], "string");
-        const value = this.simplify(fact.args[3]);
+        const value = fact.args[3];
         this.db.updateTx(
           tx.value,
           id.value,
@@ -652,91 +563,17 @@ export class State {
         yield this.yield();
         return;
       }
-      case "tx_delete_field_value": {
-        const tx = this.ensure(fact.args[0], "number");
-        const id = this.ensure(fact.args[1], "string");
-        const field = this.simplify(fact.args[2]);
-        const rec = this.db.get(id.value);
-        if (!rec) return;
-
-        // delete a field
-        if (field.tag === "string") {
-          const val = this.exprValue(rec[field.value]);
-          const ns = this.unify(val, fact.args[3]);
-          if (!ns) return;
-          ns.db.updateTx(tx.value, id.value, field.value as Field, null);
-          yield ns.yield();
-          return;
-        } else {
-          // delete whole record
-          this.db.insertTx(tx.value, id.value, null);
-          yield* this.uniqueStates(function* () {
-            for (const f in rec) {
-              const val = this.exprValue(rec[f]);
-              const ns = this.unify(k(f), fact.args[2]) //
-                ?.unify(val, fact.args[3]);
-              if (!ns) return;
-              yield ns.yield();
-            }
-          });
-          return;
-        }
-      }
-      case "get_field_value": {
-        const id = this.simplify(fact.args[0]);
-        const field = this.simplify(fact.args[1]);
-        if (id.tag === "string") {
-          const rec = this.db.get(id.value);
-          if (!rec) return;
-          if (field.tag === "string") {
-            const val = rec[field.value as Field];
-            if (!val) return;
-            yield* semidet(this.unify(fact.args[2], this.exprValue(val)));
-          } else {
-            yield* this.uniqueStates(function* () {
-              for (const f in rec) {
-                const val = rec[f as Field];
-                if (!val) continue;
-                yield* semidet(
-                  this.unify(fact.args[1], k(f)) //
-                    ?.unify(fact.args[2], this.exprValue(val))
-                );
-              }
-            });
-          }
-          return;
-        }
-        const value = this.simplify(fact.args[2]);
-        if (field.tag === "string" && value.tag === "string") {
-          const idx = this.db.getIndex(field.value);
-          if (idx) {
-            yield* this.uniqueStates(function* () {
-              for (const [{ entityId }] of idx.tree.where(
-                whereValue(value.value)
-              )) {
-                yield* semidet(this.unify(fact.args[0], k(entityId)));
-              }
-            });
-            return;
-          }
-        }
-        yield* this.uniqueStates(function* () {
-          for (const id of this.db.keys()) {
-            const ns = this.unify(fact.args[0], k(id))!;
-            const rec = this.db.get(id)!;
-            for (const f in rec) {
-              const val = rec[f as Field];
-              if (!val) continue;
-              yield* semidet(
-                ns
-                  ?.unify(fact.args[1], k(f))
-                  ?.unify(fact.args[2], this.exprValue(val))
-              );
-            }
-          }
-        });
+      case "tx_delete_field_value":
+        yield* this.delete(
+          fact.args[0],
+          fact.args[1],
+          fact.args[2],
+          fact.args[3]
+        );
         return;
-      }
+      case "get_field_value":
+        yield* this.get(fact.args[0], fact.args[1], fact.args[2]);
+        return;
       default: {
         const rule = this.db.get(fact.id);
         if (!rule) throw new Error(`unknown rule ${fact.id}`);
@@ -747,6 +584,92 @@ export class State {
         yield* this.call(rule.rule__params.args, rule.rule__body, fact.args);
         return;
       }
+    }
+  }
+  private *test(value: Value, tag: Value["tag"]) {
+    if (value.tag === tag) yield this.yield();
+    if (value.tag === "var") {
+      yield this.addConstraint(value.id, sv(tag, value)).yield();
+    }
+    return;
+  }
+  private *get(id: Value, field: Value, value: Value) {
+    id = this.ensureVar(id, "string");
+    field = this.ensureVar(field, "string");
+
+    if (id.tag === "string") {
+      const rec = this.db.get(id.value);
+      if (!rec) return;
+      if (field.tag === "string") {
+        const val = rec[field.value as Field];
+        if (!val) return;
+        yield* semidet(this.unify(value, this.exprValue(val)));
+      } else {
+        yield* this.uniqueStates(function* () {
+          for (const f in rec) {
+            const val = rec[f as Field];
+            if (!val) continue;
+            yield* semidet(
+              this.unify(field, k(f))?.unify(value, this.exprValue(val))
+            );
+          }
+        });
+      }
+      return;
+    }
+    if (field.tag === "string" && value.tag === "string") {
+      const idx = this.db.getIndex(field.value);
+      if (idx) {
+        yield* this.uniqueStates(function* () {
+          for (const [{ entityId }] of idx.tree.where(
+            whereValue(value.value)
+          )) {
+            yield* semidet(this.unify(id, k(entityId)));
+          }
+        });
+        return;
+      }
+    }
+    yield* this.uniqueStates(function* () {
+      for (const key of this.db.keys()) {
+        const ns = this.unify(id, k(key))!;
+        const rec = this.db.get(key)!;
+        for (const f in rec) {
+          const val = rec[f as Field];
+          if (!val) continue;
+          yield* semidet(
+            ns?.unify(field, k(f))?.unify(value, this.exprValue(val))
+          );
+        }
+      }
+    });
+    return;
+  }
+  private *delete(tx_: Value, id_: Value, field: Value, value: Value) {
+    const tx = this.ensure(tx_, "number");
+    const id = this.ensure(id_, "string");
+    const rec = this.db.get(id.value);
+    if (!rec) return;
+
+    // delete a field
+    if (field.tag === "string") {
+      const val = this.exprValue(rec[field.value]);
+      const ns = this.unify(val, value);
+      if (!ns) return;
+      ns.db.updateTx(tx.value, id.value, field.value as Field, null);
+      yield ns.yield();
+    } else {
+      // delete whole record
+      this.db.insertTx(tx.value, id.value, null);
+      yield* this.uniqueStates(function* () {
+        for (const f in rec) {
+          const val = this.exprValue(rec[f]);
+          const ns = this.unify(k(f), field) //
+            ?.unify(val, value);
+          if (!ns) return;
+          yield ns.yield();
+        }
+      });
     }
   }
   private *call(
@@ -769,7 +692,7 @@ export class State {
       yield new State(this.db, res.state.facts, this.symbolTable).yield();
     }
   }
-  private *runClauseSeq(items: Value[]): Generator<StateNext> {
+  private *seq(items: Value[]): Generator<StateNext> {
     if (items.length === 0) {
       yield this.yield();
       return;
@@ -792,20 +715,4 @@ export class State {
       }
     }
   }
-  yield() {
-    return { tag: "state", state: this } as const;
-  }
-  private *uniqueStates(gen: (this: this) => Generator<StateNext>) {
-    const visited = new WeakSet<State>();
-    for (const res of gen.call(this)) {
-      if (!visited.has(res.state)) {
-        visited.add(res.state);
-        yield res;
-      }
-    }
-  }
-}
-
-function* semidet(state: State | null | undefined) {
-  if (state) yield state.yield();
 }
