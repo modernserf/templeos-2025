@@ -1,6 +1,6 @@
-import { s, v, Expr, Struct, Id, List, AnyStruct } from "./expr";
+import { s, v, Expr, Struct, Id, List, AnyStruct, __ } from "./expr";
 
-type FormatText = string | Struct<"link", [string, Id]>;
+export type FormatText = string | Struct<"link", [string, Id]>;
 
 type SchemaField =
   | Struct<"field", [Field]>
@@ -48,6 +48,40 @@ export type Rec = Record<string, Expr> & {
   browser__currentWindow?: Id;
 
   text__content?: List<FormatText>;
+};
+
+export function r<Args extends Expr[]>(...args: Args) {
+  return s(",", ...args);
+}
+
+r.or = <Args extends Expr[]>(...args: Args) => s(";", ...args);
+r.list = <Args extends Expr[]>(...args: Args) => s("", ...args);
+r.cond = (if_: Expr, then_: Expr, else_: Expr) =>
+  s("if_then_else", if_, then_, else_);
+
+export const db = {
+  get: (id: Expr, field: Expr, value: Expr) =>
+    s("get_field_value", id, field, value),
+  update: (tx: Expr, id: Expr, field: Expr, value: Expr) =>
+    s("tx_update_field_value", tx, id, field, value),
+};
+
+export const view = {
+  row: (children: Expr) => s("view_children", s("Row"), children),
+  column: (children: Expr) => s("view_children", s("Column"), children),
+  data: (data: Expr) => s("view", s("AnyData", data)),
+  string: (str: string) => s("view", s("String", str)),
+  button: (str: string, onClick: Expr) => s("view", s("Button", str, onClick)),
+  input: (value: string, onChange: Expr) =>
+    s("view", s("Input", value, onChange)),
+  select: (value: string, onChange: Expr, children: Expr) =>
+    s("view_children", s("Select", value, onChange), children),
+  option: (id: string, label: string) => s("view", s("Option", id, label)),
+  link: (label: string, id: string, target: string = "current") =>
+    s("view", s("Link", label, id, target)),
+  fileLink: (id: string) => s("view__fileLink", id),
+  icon: () => s("view", s("Icon")),
+  text: (text: FormatText[]) => s("view", s("Text", ...text)),
 };
 
 export type SchemaId = keyof typeof schemas;
@@ -297,6 +331,56 @@ const fields = {
 } satisfies Record<string, Rec>;
 
 const rules = {
+  tx_insert: {
+    file__description: r.list("insert a property list into the db"),
+    rule__params: r.list(v.tx, v.id, v.params),
+    rule__body: s(
+      "group",
+      r(
+        // s("log", "tx_insert", v.params),
+        s("struct_id_index_arg", v.params, __, __, v.pair),
+        s("struct_id_index_arg", v.pair, v.field, 0, v.value),
+        // s("log", "update", v.tx, __, v.field, v.value),
+        db.update(v.tx, v.id, v.field, v.value)
+      )
+    ),
+  },
+
+  rule__newWindow: {
+    rule__params: r.list(v.id),
+    rule__body: r(
+      s("id", v.h),
+      s("id", v.w),
+      s("timestamp", v.ts),
+      s(
+        "with_tx",
+        v.tx,
+        r(
+          s(
+            "tx_insert",
+            v.tx,
+            v.w,
+            r.list(
+              s("db__schema", "schema__window"),
+              s("window__currentHistory", v.h)
+            )
+          ),
+          s(
+            "tx_insert",
+            v.tx,
+            v.h,
+            r.list(
+              s("db__schema", "schema__history"),
+              s("history__window", v.w),
+              s("history__location", v.id),
+              s("time__created", v.ts)
+            )
+          )
+        )
+      )
+    ),
+  },
+
   list_list_append: {
     rule__params: s("", v.left, v.right, v.append),
     rule__body: s(
@@ -334,10 +418,113 @@ const rules = {
   },
   with_tx: {
     rule__params: s("", v.tx, v.goal),
-    rule__body: s(
-      ",",
+    rule__body: r(
       s("tx", v.tx),
       s("if_then_else", v.goal, s("commit", v.tx), s("rollback", v.tx))
+    ),
+  },
+} satisfies Record<string, Rec>;
+
+const views = {
+  view__fileLink: {
+    rule__params: r.list(v.id),
+    rule__body: r(db.get(v.id, "file__name", v.name), view.link(v.name, v.id)),
+  },
+  view__anyType: {
+    file__name: "Default viewer",
+    view__schema: "schema__anyType",
+    rule__params: r.list(v.id),
+    rule__body: r.or(
+      r(
+        view.string("Fields"),
+        db.get(v.id, v.field, v.value),
+        view.row(r(view.fileLink(v.field), view.data(v.value)))
+      ),
+      r(
+        view.string("References"),
+        r.or(
+          db.get(v.f, "db__index", s("ref")),
+          db.get(v.f, "db__index", s("multiRef"))
+        ),
+        r(
+          db.get(v.ref, v.f, v.id),
+          view.row(r(view.fileLink(v.f), view.fileLink(v.ref)))
+        )
+      )
+    ),
+  },
+  rule__id_view: {
+    rule__params: r.list(v.id, v.view),
+    rule__body: r.or(
+      // view from rule type
+      r(
+        db.get(v.id, "db__schema", v.schema),
+        db.get(v.view, "view__schema", v.schema)
+      ),
+      // view from any type
+      db.get(v.view, "view__schema", "schema__anyType")
+    ),
+  },
+  view__viewMenu: {
+    file__name: "View menu",
+    file__description: s("", "the view selection menu on window chrome"),
+    rule__params: s("", v.window, v.id, v.selectedView),
+    rule__body: r(
+      view.select(
+        v.selectedView,
+        r(s("log", "todo: view select")),
+        r(
+          s("rule__id_view", v.id, v.view),
+          db.get(v.view, "file__name", v.name),
+          view.option(v.view, v.name)
+        )
+      )
+    ),
+  },
+  view__window: {
+    file__name: "Window",
+    rule__params: s("", v.w),
+    rule__body: r(
+      s("log", 1, v.w),
+      // s("set_context", "window_id", v.w),
+      db.get(v.w, "window__currentHistory", v.history),
+      s("log", 2, v.w, v.history),
+      db.get("browser", "browser__currentWindow", v.currentWindow),
+      db.get(v.history, "history__location", v.id),
+      s(
+        "limit",
+        1,
+        r.or(
+          // view from params
+          db.get(v.history, "history__view", v.view),
+          // view from id
+          s("rule__id_view", v.id, v.view)
+        )
+      ),
+      s("log", 10, s("Window", v.id, v.view, v.w, v.currentWindow)),
+      s("view", s("Window", v.id, v.view, v.w, v.currentWindow))
+    ),
+  },
+  view__appMenu: {
+    file__name: "App menu",
+    rule__params: s(""),
+    rule__body: view.row(
+      r(
+        view.button(
+          "←",
+          r(
+            db.get("browser", "browser__currentWindow", v.window),
+            s("rule__back", v.window)
+          )
+        ),
+        view.button(
+          "→",
+          r(
+            db.get("browser", "browser__currentWindow", v.window),
+            s("rule_forward", v.window)
+          )
+        )
+      )
     ),
   },
 } satisfies Record<string, Rec>;
@@ -357,7 +544,6 @@ const startupItems = {
     file__name: "Browser state",
     browser__currentWindow: "rootWindow",
   },
-
   home: {
     db__schema: "schema__text",
     file__name: "home",
@@ -381,5 +567,6 @@ export const data = {
   ...(schemas as Record<string, Rec>),
   ...fields,
   ...rules,
+  ...views,
   ...startupItems,
 };

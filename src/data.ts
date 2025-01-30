@@ -310,7 +310,7 @@ export const initDB = {
     db__schema: "schema__folder",
     file__name: "Example Folder",
     file__description: "A folder with some items",
-    file__folderItems: ["home", "schema__text", "view__text"],
+    file__folderItems: { args: ["home", "schema__text", "view__text"] },
   },
   notFound: {
     file__name: "not found",

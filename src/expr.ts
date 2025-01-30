@@ -9,6 +9,14 @@ export type Expr =
   | { tag: "ident"; ident: Ident }
   | { tag: "struct"; id: Id; args: Expr[] };
 
+export type Struct<Id, Args extends Expr[]> = {
+  tag: "struct";
+  id: Id;
+  args: Args;
+};
+export type List<T extends Expr> = Struct<"", T[]>;
+export type AnyStruct = Struct<string, Expr[]>;
+
 export const s = <T extends Id, Args extends Expr[]>(id: T, ...args: Args) =>
   ({ tag: "struct", id, args } as const);
 export const __ = { tag: "placeholder" } as const;
@@ -23,14 +31,6 @@ export const v: any = new Proxy(
     },
   }
 );
-
-export type Struct<Id, Args extends Expr[]> = {
-  tag: "struct";
-  id: Id;
-  args: Args;
-};
-export type List<T extends Expr> = Struct<"", T[]>;
-export type AnyStruct = Struct<string, Expr[]>;
 
 function sameTypeExpr<T extends Expr>(l: T, r: Expr): r is T {
   if (typeof l === "object" && typeof r === "object") {
@@ -94,3 +94,21 @@ export const exprOrd: Ord<Expr> = {
     return defaultOrd.cmp(exprTypeOrd(l), exprTypeOrd(r));
   },
 };
+
+export function printExpr(expr: Expr): string {
+  switch (typeof expr) {
+    case "string":
+      return `"${expr}"`;
+    case "number":
+      return String(expr);
+    case "object":
+      switch (expr.tag) {
+        case "placeholder":
+          return "__";
+        case "ident":
+          return expr.ident;
+        case "struct":
+          return `${expr.id}(${expr.args.map(printExpr).join(", ")})`;
+      }
+  }
+}

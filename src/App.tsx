@@ -1,21 +1,18 @@
-import { DB } from "./db";
-import { initDB } from "./data";
-import { State } from "./state";
-import { k, R, v } from "./rule_builder";
-import { Query } from "./view_primitive";
+import { State } from "./state3";
+import { data } from "./data3";
+import { Query } from "./view_primitive3";
 import { useEventSource } from "./event_source";
+import { s, v } from "./expr";
 
-const db = new DB();
-db.bulkInsert(initDB);
+const qApp = s(
+  ",",
+  s("view__appMenu"),
+  s("get_field_value", v.w, "db__schema", "schema__window"),
+  s("view__window", v.w)
+);
 
-const qApp = R()
-  .r("view__appMenu", [])
-  .get("windowId", "db__schema", k("schema__window"))
-  .r("view__window", [v("windowId")])
-  .build();
-
+const state = State.root(data);
 export function App() {
   useEventSource();
-  const state = State.root(db);
-  return <Query state={state} rule={qApp} />;
+  return <Query state={state} clause={qApp} />;
 }

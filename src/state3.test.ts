@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { State, view } from "./state3";
+import { State } from "./state3";
 import { Expr, AnyStruct, s, v, __ } from "./expr";
 import { data } from "./data3";
 
@@ -8,9 +8,16 @@ function runAll(...clauses: Expr[]) {
   return Array.from(state.runAll(s(",", ...clauses)));
 }
 
+function view(id: string, args: Expr[], children?: unknown[]) {
+  return { tag: "view", id, args, children };
+}
+
 function renderAll(...clauses: Expr[]) {
   const state = State.root(data);
-  return Array.from(state.render(s(",", ...clauses)));
+  return Array.from(state.render(s(",", ...clauses))).map((res) => ({
+    ...res,
+    state: undefined,
+  }));
 }
 
 test("unknown rule", () => {
@@ -569,7 +576,7 @@ test("views", () => {
     view("text", ["World"]),
   ]);
 
-  // backtracking
+  // backtracking;
   expect(
     renderAll(
       s(
@@ -591,7 +598,7 @@ test("views", () => {
     view("text", ["World"]),
   ]);
 
-  // children
+  // // children
   expect(
     renderAll(
       //

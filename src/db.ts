@@ -1,4 +1,4 @@
-import { exprOrd, Expr } from "./expr";
+import { exprOrd, Expr, List } from "./expr";
 import { Where, defaultOrd, Ord, Tree } from "./tree";
 
 type Id = string;
@@ -87,7 +87,7 @@ export class DB<Rec extends BaseRec> {
       }
     }
   }
-  private addToIndex(entityId: Id, field: Field, value: Expr | Expr[]) {
+  private addToIndex(entityId: Id, field: Field, value: Expr) {
     const idx = this.index.get(field);
     if (!idx) return;
     switch (idx.indexType) {
@@ -96,13 +96,13 @@ export class DB<Rec extends BaseRec> {
         idx.tree.set({ entityId, value: value as Expr }, null);
         return;
       case "multiRef":
-        for (const v of value as Expr[]) {
+        for (const v of (value as List<Expr>).args) {
           idx.tree.set({ entityId, value: v }, null);
         }
         return;
     }
   }
-  private removeFromIndex(entityId: Id, field: Field, value: Expr | Expr[]) {
+  private removeFromIndex(entityId: Id, field: Field, value: Expr) {
     const idx = this.index.get(field);
     if (!idx) return;
     switch (idx.indexType) {
@@ -111,7 +111,7 @@ export class DB<Rec extends BaseRec> {
         idx.tree.delete({ entityId, value: value as Expr });
         return;
       case "multiRef":
-        for (const v of value as Expr[]) {
+        for (const v of (value as List<Expr>).args) {
           idx.tree.delete({ entityId, value: v });
         }
         return;
