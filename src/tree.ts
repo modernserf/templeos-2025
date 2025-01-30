@@ -5,7 +5,7 @@ export interface Ord<T> {
   cmp(left: T, right: T): Cmp;
 }
 
-export const numberOrd = {
+export const defaultOrd = {
   cmp<T>(a: T, b: T) {
     if (a < b) return -1;
     if (a > b) return 1;

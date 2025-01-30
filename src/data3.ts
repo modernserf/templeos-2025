@@ -1,4 +1,54 @@
-import { s, v, Rec } from "./state3";
+import { s, v, Expr, Struct, Id, List, AnyStruct } from "./expr";
+
+type FormatText = string | Struct<"link", [string, Id]>;
+
+type SchemaField =
+  | Struct<"field", [Field]>
+  | Struct<"field_optional", [Field]>
+  | Struct<"field_default", [Field, Expr]>;
+
+type IndexType =
+  | Struct<"ref", []> // TODO: what does this mean now?
+  | Struct<"multiRef", []>
+  | Struct<"sorted", []>
+  | Struct<"unique", []>;
+
+type DBType =
+  | Struct<"any", []>
+  | Struct<"string", []>
+  | Struct<"number", []>
+  | Struct<"ref", []>
+  | Struct<"ref", [SchemaId]>
+  | Struct<"list", [DBType]>
+  | Struct<"struct", []>
+  | Struct<"struct", [string, ...DBType[]]>
+  | Struct<"oneof", DBType[]>;
+
+export type Rec = Record<string, Expr> & {
+  time__created?: number;
+  db__schema?: SchemaId;
+  db__fields?: List<SchemaField>;
+  db__type?: DBType;
+  db__index?: IndexType;
+
+  rule__params?: List<Expr>;
+  rule__body?: AnyStruct;
+  view__schema?: SchemaId;
+
+  file__name?: string;
+  file__description?: List<FormatText>;
+
+  folder__items?: List<Id>;
+
+  history__location?: Id;
+  history__view?: Id;
+  history__back?: Id;
+  history__forward?: Id;
+  window__currentHistory?: Id;
+  browser__currentWindow?: Id;
+
+  text__content?: List<FormatText>;
+};
 
 export type SchemaId = keyof typeof schemas;
 const schemas = {

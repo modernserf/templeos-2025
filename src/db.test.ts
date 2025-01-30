@@ -58,17 +58,17 @@ test("ref index", () => {
   expect(idx).not.toBe(null);
 
   expect(Array.from(idx.tree.where(whereValue("root")))).toEqual([
-    [{ entityId: "bar", valueId: "root" }, null],
-    [{ entityId: "foo", valueId: "root" }, null],
+    [{ entityId: "bar", value: "root" }, null],
+    [{ entityId: "foo", value: "root" }, null],
   ]);
 
   db.update("bar", "parent__id", "foo");
 
   expect(Array.from(idx.tree.where(whereValue("root")))).toEqual([
-    [{ entityId: "foo", valueId: "root" }, null],
+    [{ entityId: "foo", value: "root" }, null],
   ]);
   expect(Array.from(idx.tree.where(whereValue("foo")))).toEqual([
-    [{ entityId: "bar", valueId: "foo" }, null],
-    [{ entityId: "baz", valueId: "foo" }, null],
+    [{ entityId: "bar", value: "foo" }, null],
+    [{ entityId: "baz", value: "foo" }, null],
   ]);
 });

@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
-import { v, s, State, __, Expr, AnyStruct, view } from "./state3";
+import { State, view } from "./state3";
+import { Expr, AnyStruct, s, v, __ } from "./expr";
 import { data } from "./data3";
 
 function runAll(...clauses: Expr[]) {

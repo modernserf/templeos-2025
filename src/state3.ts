@@ -1,95 +1,13 @@
-import { Field, SchemaId } from "./data3";
+import { Field, Rec } from "./data3";
 import { TransactDB, whereValue } from "./db";
 import { reduce } from "./iter";
+import { Expr, Id, Ident, __ } from "./expr";
 
-export type Id = string;
-export type Ident = string;
-
-export type Struct<Id, Args extends Expr[]> = {
-  tag: "struct";
-  id: Id;
-  args: Args;
-};
-export type List<T extends Expr> = Struct<"", T[]>;
-export type AnyStruct = Struct<string, Expr[]>;
-
-type FormatText = string | Struct<"link", [string, Id]>;
-
-type SchemaField =
-  | Struct<"field", [Field]>
-  | Struct<"field_optional", [Field]>
-  | Struct<"field_default", [Field, Expr]>;
-
-type IndexType =
-  | Struct<"ref", []> // TODO: what does this mean now?
-  | Struct<"multiRef", []>
-  | Struct<"sorted", []>
-  | Struct<"unique", []>;
-
-type DBType =
-  | Struct<"any", []>
-  | Struct<"string", []>
-  | Struct<"number", []>
-  | Struct<"ref", []>
-  | Struct<"ref", [SchemaId]>
-  | Struct<"list", [DBType]>
-  | Struct<"struct", []>
-  | Struct<"struct", [string, ...DBType[]]>
-  | Struct<"oneof", DBType[]>;
-
-export type Rec = Record<string, Expr> & {
-  time__created?: number;
-  db__schema?: SchemaId;
-  db__fields?: List<SchemaField>;
-  db__type?: DBType;
-  db__index?: IndexType;
-
-  rule__params?: List<Expr>;
-  rule__body?: AnyStruct;
-  view__schema?: SchemaId;
-
-  file__name?: string;
-  file__description?: List<FormatText>;
-
-  folder__items?: List<Id>;
-
-  history__location?: Id;
-  history__view?: Id;
-  history__back?: Id;
-  history__forward?: Id;
-  window__currentHistory?: Id;
-  browser__currentWindow?: Id;
-
-  text__content?: List<FormatText>;
-};
-
-export type Expr =
-  | string
-  | number
-  | { tag: "placeholder" }
-  | { tag: "ident"; ident: Ident }
-  | { tag: "struct"; id: Id; args: Expr[] };
-
-export const __ = { tag: "placeholder" } as const;
 export const k = (value: string | number) =>
   typeof value === "string"
     ? ({ tag: "string", value } as const)
     : ({ tag: "number", value } as const);
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const v: any = new Proxy(
-  function v(ident: string) {
-    return { tag: "ident", ident };
-  },
-  {
-    get(_, ident) {
-      return { tag: "ident", ident };
-    },
-  }
-);
-
-export const s = <T extends Id, Args extends Expr[]>(id: T, ...args: Args) =>
-  ({ tag: "struct", id, args } as const);
 const sv = <T extends Id, Args extends Value[]>(id: T, ...args: Args) =>
   ({ tag: "struct", id, args } as const);
 export const view = (id: string, args: Expr[], children?: View[]): View => ({
@@ -555,7 +473,6 @@ export class State {
         yield this.yield();
         return;
       }
-      // TODO: handle rollback
       case "tx_update_field_value": {
         const tx = this.ensure(fact.args[0], "number");
         const id = this.ensure(fact.args[1], "string");
@@ -586,7 +503,10 @@ export class State {
 
         yield new State(this.db, this.facts, [
           ...this.output,
-          { tag: "view", id, args: args.map((arg) => this.factToExpr(arg)) },
+          view(
+            id,
+            args.map((arg) => this.factToExpr(arg))
+          ),
         ]).yield();
         return;
       }
@@ -595,16 +515,15 @@ export class State {
         const body = this.ensure(fact.args[1], "struct");
         yield new State(this.db, this.facts, [
           ...this.output,
-          {
-            tag: "view",
+          view(
             id,
-            args: args.map((arg) => this.factToExpr(arg)),
-            children: reduce<View[], StateNext>(
+            args.map((arg) => this.factToExpr(arg)),
+            reduce<View[], StateNext>(
               [],
               (vs, res) => vs.concat(res.state.output),
               this.runClause(body)
-            ),
-          },
+            )
+          ),
         ]).yield();
         return;
       }

@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
-import { Ord, numberOrd, Tree } from "./tree";
+import { Ord, defaultOrd, Tree } from "./tree";
 
 test("set", () => {
-  const tree = new Tree(numberOrd);
+  const tree = new Tree(defaultOrd);
   const keys = [10, 5, 1, 25, 20, 3];
 
   for (const [value, key] of keys.entries()) {
@@ -21,7 +21,7 @@ test("set", () => {
 });
 
 test("delete", () => {
-  const tree = new Tree(numberOrd);
+  const tree = new Tree(defaultOrd);
   const keys = [10, 5, 1, 25, 20, 3];
 
   for (const [value, key] of keys.entries()) {
@@ -40,7 +40,7 @@ test("complex keys", () => {
   type K = { a: number; b: number };
   const ord: Ord<K> = {
     cmp(left, right) {
-      return numberOrd.cmp(left.a, right.a) || numberOrd.cmp(left.b, right.b);
+      return defaultOrd.cmp(left.a, right.a) || defaultOrd.cmp(left.b, right.b);
     },
   };
   const tree = new Tree<K, null>(ord);
@@ -61,7 +61,7 @@ test("complex keys", () => {
   const a1s = tree.where({
     order: "desc",
     cmp(item) {
-      return numberOrd.cmp(1, item.a);
+      return defaultOrd.cmp(1, item.a);
     },
   });
 

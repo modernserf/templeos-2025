@@ -1,4 +1,5 @@
-import { Where, numberOrd, Ord, Tree } from "./tree";
+import { exprOrd, Expr } from "./expr";
+import { Where, defaultOrd, Ord, Tree } from "./tree";
 
 type Id = string;
 type Field = string;
@@ -7,25 +8,24 @@ type BaseRec = Record<Field, unknown>;
 type IndexType = "ref" | "multiRef" | "sorted";
 
 type Index = {
-  tree: Tree<RefIndex, null>;
+  tree: Tree<ExprIndex, null>;
   indexType: IndexType;
 };
 
-type RefIndex = { entityId: Id; valueId: Id };
+type ExprIndex = { entityId: Id; value: Expr };
 
-const indexOrd: Ord<RefIndex> = {
-  cmp(l: RefIndex, r: RefIndex) {
+const indexOrd: Ord<ExprIndex> = {
+  cmp(l: ExprIndex, r: ExprIndex) {
     return (
-      numberOrd.cmp(l.valueId, r.valueId) ||
-      numberOrd.cmp(l.entityId, r.entityId)
+      exprOrd.cmp(l.value, r.value) || defaultOrd.cmp(l.entityId, r.entityId)
     );
   },
 };
 
-export function whereValue(valueId: Id): Where<RefIndex> {
+export function whereValue(value: Expr): Where<ExprIndex> {
   return {
     cmp(item) {
-      return numberOrd.cmp(valueId, item.valueId);
+      return exprOrd.cmp(value, item.value);
     },
     order: "asc",
   };
@@ -87,32 +87,32 @@ export class DB<Rec extends BaseRec> {
       }
     }
   }
-  private addToIndex<T>(entityId: Id, field: Field, value: T) {
+  private addToIndex(entityId: Id, field: Field, value: Expr | Expr[]) {
     const idx = this.index.get(field);
     if (!idx) return;
     switch (idx.indexType) {
       case "ref":
       case "sorted":
-        idx.tree.set({ entityId, valueId: value as Id }, null);
+        idx.tree.set({ entityId, value: value as Expr }, null);
         return;
       case "multiRef":
-        for (const valueId of value as Id[]) {
-          idx.tree.set({ entityId, valueId }, null);
+        for (const v of value as Expr[]) {
+          idx.tree.set({ entityId, value: v }, null);
         }
         return;
     }
   }
-  private removeFromIndex<T>(entityId: Id, field: Field, value: T) {
+  private removeFromIndex(entityId: Id, field: Field, value: Expr | Expr[]) {
     const idx = this.index.get(field);
     if (!idx) return;
     switch (idx.indexType) {
       case "ref":
       case "sorted":
-        idx.tree.delete({ entityId, valueId: value as Id });
+        idx.tree.delete({ entityId, value: value as Expr });
         return;
       case "multiRef":
-        for (const valueId of value as Id[]) {
-          idx.tree.delete({ entityId, valueId });
+        for (const v of value as Expr[]) {
+          idx.tree.delete({ entityId, value: v });
         }
         return;
     }
