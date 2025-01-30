@@ -1,14 +1,10 @@
 import { expect, test } from "vitest";
-import { v, s, State, StateNext, __, Expr, AnyStruct } from "./state3";
+import { v, s, State, __, Expr, AnyStruct } from "./state3";
 import { data } from "./data3";
-
-function allResults(xs: Generator<StateNext>) {
-  return Array.from(xs).map((x) => x.state.resolveAll());
-}
 
 function runAll(...clauses: Expr[]) {
   const state = State.root(data);
-  return allResults(state.run(s(",", ...clauses)));
+  return Array.from(state.runAll(s(",", ...clauses)));
 }
 
 test("unknown rule", () => {

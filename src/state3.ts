@@ -93,6 +93,7 @@ const sv = <T extends Id, Args extends Value[]>(id: T, ...args: Args) =>
   ({ tag: "struct", id, args } as const);
 
 type Value =
+  | { tag: "placeholder" }
   | { tag: "var"; id: FactId }
   | { tag: "string"; value: string }
   | { tag: "number"; value: number }
@@ -105,10 +106,11 @@ type Fact = Value | Constraint;
 type FactId = symbol;
 type Facts = Record<FactId, Fact>;
 type SymbolTable = Record<Ident, FactId>;
-const PLACEHOLDER_ID = Symbol("__");
 
 function printFact(fact: Fact): string {
   switch (fact.tag) {
+    case "placeholder":
+      return "__";
     case "constraint":
       return `{${printFact(fact.predicate)}}`;
     case "var":
@@ -127,38 +129,46 @@ function* semidet(state: State | null | undefined) {
 
 export type StateNext = { tag: "state"; state: State };
 
+type ViewPrimitive = string;
+type Output = { tag: "view"; id: ViewPrimitive; args: Expr[] };
+
 let varCount = 0;
 
 export class State {
   private constructor(
     private db: TransactDB<Rec>,
     private facts: Facts,
-    private symbolTable: SymbolTable
+    private output: Output[]
   ) {}
   static root(rules: Record<Id, Rec>): State {
     const db = new TransactDB<Rec>();
     db.bulkInsert(rules);
-    return new State(db, {}, {});
+    return new State(db, {}, []);
   }
-  *run(expr: Expr): Generator<StateNext> {
+  *runAll(expr: Expr): Generator<Record<Ident, Expr | undefined>> {
+    const rootSymbolTable: SymbolTable = {};
     try {
-      yield* this.runClause(this.expr(expr));
+      for (const { state } of this.runClause(
+        this.exprValue(expr, rootSymbolTable)
+      )) {
+        yield Object.fromEntries(
+          Object.entries(rootSymbolTable).map(([key, sym]) => [
+            key,
+            state.facts[sym]
+              ? state.factToExpr(state.facts[sym] as Value)
+              : undefined,
+          ])
+        );
+      }
     } finally {
       this.db.rollbackAll();
     }
-  }
-  resolveAll(): Record<Ident, Expr | undefined> {
-    return Object.fromEntries(
-      Object.entries(this.symbolTable).map(([key, sym]) => [
-        key,
-        this.facts[sym] ? this.factToExpr(this.facts[sym] as Value) : undefined,
-      ])
-    );
   }
   private mapValue<T>(fact: Value, f: (f: Value, args?: T[]) => T): T {
     switch (fact.tag) {
       case "string":
       case "number":
+      case "placeholder":
         return f(fact);
       case "var": {
         const next = this.facts[fact.id];
@@ -193,8 +203,9 @@ export class State {
   private factToExpr(fact: Value): Expr {
     return this.mapValue(fact, (f, args = []) => {
       switch (f.tag) {
+        case "placeholder":
+          return __;
         case "var":
-          if (f.id === PLACEHOLDER_ID) return __;
           return { tag: "ident", ident: f.id.description ?? "<anonymous>" };
         case "string":
         case "number":
@@ -204,37 +215,13 @@ export class State {
       }
     });
   }
-  private expr(expr: Expr): Value {
+  private exprValue(expr: Expr, localSymbols: SymbolTable): Value {
     if (typeof expr !== "object") {
       return k(expr);
     }
     switch (expr.tag) {
       case "placeholder":
-        return { tag: "var", id: PLACEHOLDER_ID };
-      case "ident": {
-        const sym =
-          this.symbolTable[expr.ident] ??
-          Symbol(`${expr.ident}<${varCount++}>`);
-        this.symbolTable[expr.ident] = sym;
-        return { tag: "var", id: sym };
-      }
-      case "struct": {
-        const res = {
-          ...expr,
-          args: expr.args.map((arg) => this.expr(arg)),
-        };
-        if (expr.args.length !== res.args.length) throw new Error();
-        return res;
-      }
-    }
-  }
-  private exprValue(expr: Expr, localSymbols: SymbolTable = {}): Value {
-    if (typeof expr !== "object") {
-      return k(expr);
-    }
-    switch (expr.tag) {
-      case "placeholder":
-        return { tag: "var", id: PLACEHOLDER_ID };
+        return __;
       case "ident": {
         // vars should bind to each other,
         // but not to similarly named vars in scope
@@ -251,7 +238,7 @@ export class State {
     }
   }
   private addValue(id: FactId, value: Value): State {
-    return new State(this.db, { ...this.facts, [id]: value }, this.symbolTable);
+    return new State(this.db, { ...this.facts, [id]: value }, this.output);
   }
   private addConstraint(id: FactId, predicate: Value) {
     const prev = this.facts[id];
@@ -261,7 +248,7 @@ export class State {
     return new State(
       this.db,
       { ...this.facts, [id]: { tag: "constraint", predicate } },
-      this.symbolTable
+      this.output
     );
   }
   private unifyVar(left: Value & { tag: "var" }, right: Value): State | null {
@@ -278,13 +265,11 @@ export class State {
   }
   private unify(left: Value, right: Value): State | null {
     // handle placeholders
-    if (left.tag === "var" && left.id === PLACEHOLDER_ID) return this;
-    if (right.tag === "var" && right.id === PLACEHOLDER_ID) return this;
+    if (left.tag == "placeholder" || right.tag === "placeholder") return this;
 
     switch (left.tag) {
-      case "var": {
+      case "var":
         return this.unifyVar(left, right);
-      }
       case "string":
       case "number":
         switch (right.tag) {
@@ -330,11 +315,12 @@ export class State {
   private ensureVar<T extends Value["tag"]>(
     res: Value,
     tag: T
-  ): Value & { tag: T | "var" } {
-    if (res.tag !== tag && res.tag !== "var") {
+  ): Value & { tag: T | "var" | "placeholder" } {
+    if (res.tag === "var" || res.tag == "placeholder") return res;
+    if (res.tag !== tag) {
       throw new Error(`Expected ${tag}, received ${printFact(res)}`);
     }
-    return res as Value & { tag: T | "var" };
+    return res as Value & { tag: T };
   }
   private log(facts: Value[]) {
     console.log(
@@ -371,7 +357,8 @@ export class State {
       return ns;
     }
 
-    if (l.tag !== r.tag) return this;
+    if (l.tag !== r.tag || l.tag === "placeholder" || r.tag === "placeholder")
+      return this;
 
     switch (l.tag) {
       case "string":
@@ -398,6 +385,7 @@ export class State {
         case "var":
         case "string":
         case "number":
+        case "placeholder":
           return e;
         case "struct": {
           return { ...e, args };
@@ -463,10 +451,12 @@ export class State {
         return;
       }
       case "var":
-        if (fact.args[0].tag === "var") yield this.yield();
+        if (fact.args[0].tag === "var" || fact.args[0].tag === "placeholder")
+          yield this.yield();
         return;
       case "nonvar":
-        if (fact.args[0].tag !== "var") yield this.yield();
+        if (fact.args[0].tag !== "var" && fact.args[0].tag !== "placeholder")
+          yield this.yield();
         return;
       case "number":
         yield* this.test(fact.args[0], "number");
@@ -603,14 +593,14 @@ export class State {
       if (field.tag === "string") {
         const val = rec[field.value as Field];
         if (!val) return;
-        yield* semidet(this.unify(value, this.exprValue(val)));
+        yield* semidet(this.unify(value, this.exprValue(val, {})));
       } else {
         yield* this.uniqueStates(function* () {
           for (const f in rec) {
             const val = rec[f as Field];
             if (!val) continue;
             yield* semidet(
-              this.unify(field, k(f))?.unify(value, this.exprValue(val))
+              this.unify(field, k(f))?.unify(value, this.exprValue(val, {}))
             );
           }
         });
@@ -638,7 +628,7 @@ export class State {
           const val = rec[f as Field];
           if (!val) continue;
           yield* semidet(
-            ns?.unify(field, k(f))?.unify(value, this.exprValue(val))
+            ns?.unify(field, k(f))?.unify(value, ns.exprValue(val, {}))
           );
         }
       }
@@ -653,7 +643,7 @@ export class State {
 
     // delete a field
     if (field.tag === "string") {
-      const val = this.exprValue(rec[field.value]);
+      const val = this.exprValue(rec[field.value], {});
       const ns = this.unify(val, value);
       if (!ns) return;
       ns.db.updateTx(tx.value, id.value, field.value as Field, null);
@@ -663,7 +653,7 @@ export class State {
       this.db.insertTx(tx.value, id.value, null);
       yield* this.uniqueStates(function* () {
         for (const f in rec) {
-          const val = this.exprValue(rec[f]);
+          const val = this.exprValue(rec[f], {});
           const ns = this.unify(k(f), field) //
             ?.unify(val, value);
           if (!ns) return;
@@ -679,17 +669,20 @@ export class State {
   ): Generator<StateNext> {
     if (params.length !== args.length) throw new Error("invalid arity");
 
-    let ruleState = new State(this.db, this.facts, {});
+    let ruleState = new State(this.db, this.facts, this.output);
+    const symbolTable = {};
     for (let i = 0; i < params.length; i++) {
-      const param = ruleState.expr(params[i]);
+      const param = ruleState.exprValue(params[i], symbolTable);
       const arg = args[i];
       const ns = ruleState.unify(param, arg);
       if (!ns) return;
       ruleState = ns;
     }
 
-    for (const res of ruleState.runClause(ruleState.expr(body))) {
-      yield new State(this.db, res.state.facts, this.symbolTable).yield();
+    for (const res of ruleState.runClause(
+      ruleState.exprValue(body, symbolTable)
+    )) {
+      yield new State(this.db, res.state.facts, res.state.output).yield();
     }
   }
   private *seq(items: Value[]): Generator<StateNext> {
