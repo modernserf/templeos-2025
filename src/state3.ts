@@ -1,5 +1,6 @@
 import { Field, SchemaId } from "./data3";
 import { TransactDB, whereValue } from "./db";
+import { reduce } from "./iter";
 
 export type Id = string;
 export type Ident = string;
@@ -91,6 +92,12 @@ export const s = <T extends Id, Args extends Expr[]>(id: T, ...args: Args) =>
   ({ tag: "struct", id, args } as const);
 const sv = <T extends Id, Args extends Value[]>(id: T, ...args: Args) =>
   ({ tag: "struct", id, args } as const);
+export const view = (id: string, args: Expr[], children?: View[]): View => ({
+  tag: "view",
+  id,
+  args,
+  children,
+});
 
 type Value =
   | { tag: "placeholder" }
@@ -130,7 +137,12 @@ function* semidet(state: State | null | undefined) {
 export type StateNext = { tag: "state"; state: State };
 
 type ViewPrimitive = string;
-type Output = { tag: "view"; id: ViewPrimitive; args: Expr[] };
+type View = {
+  tag: "view";
+  id: ViewPrimitive;
+  args: Expr[];
+  children?: View[];
+};
 
 let varCount = 0;
 
@@ -138,12 +150,17 @@ export class State {
   private constructor(
     private db: TransactDB<Rec>,
     private facts: Facts,
-    private output: Output[]
+    private output: View[]
   ) {}
   static root(rules: Record<Id, Rec>): State {
     const db = new TransactDB<Rec>();
     db.bulkInsert(rules);
     return new State(db, {}, []);
+  }
+  *render(expr: Expr): Generator<View> {
+    for (const { state } of this.runClause(this.exprValue(expr, {}))) {
+      yield* state.output;
+    }
   }
   *runAll(expr: Expr): Generator<Record<Ident, Expr | undefined>> {
     const rootSymbolTable: SymbolTable = {};
@@ -564,6 +581,33 @@ export class State {
       case "get_field_value":
         yield* this.get(fact.args[0], fact.args[1], fact.args[2]);
         return;
+      case "view": {
+        const { id, args } = this.ensure(fact.args[0], "struct");
+
+        yield new State(this.db, this.facts, [
+          ...this.output,
+          { tag: "view", id, args: args.map((arg) => this.factToExpr(arg)) },
+        ]).yield();
+        return;
+      }
+      case "view_children": {
+        const { id, args } = this.ensure(fact.args[0], "struct");
+        const body = this.ensure(fact.args[1], "struct");
+        yield new State(this.db, this.facts, [
+          ...this.output,
+          {
+            tag: "view",
+            id,
+            args: args.map((arg) => this.factToExpr(arg)),
+            children: reduce<View[], StateNext>(
+              [],
+              (vs, res) => vs.concat(res.state.output),
+              this.runClause(body)
+            ),
+          },
+        ]).yield();
+        return;
+      }
       default: {
         const rule = this.db.get(fact.id);
         if (!rule) throw new Error(`unknown rule ${fact.id}`);

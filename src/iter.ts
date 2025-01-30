@@ -36,3 +36,15 @@ export function* flatMap<T, U, R>(
     yield* f(next.value);
   }
 }
+
+export function reduce<State, Item>(
+  initState: State,
+  f: (state: State, item: Item) => State,
+  gen: Generator<Item>
+): State {
+  let state = initState;
+  for (const item of gen) {
+    state = f(state, item);
+  }
+  return state;
+}

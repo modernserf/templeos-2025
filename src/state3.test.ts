@@ -1,10 +1,15 @@
 import { expect, test } from "vitest";
-import { v, s, State, __, Expr, AnyStruct } from "./state3";
+import { v, s, State, __, Expr, AnyStruct, view } from "./state3";
 import { data } from "./data3";
 
 function runAll(...clauses: Expr[]) {
   const state = State.root(data);
   return Array.from(state.runAll(s(",", ...clauses)));
+}
+
+function renderAll(...clauses: Expr[]) {
+  const state = State.root(data);
+  return Array.from(state.render(s(",", ...clauses)));
 }
 
 test("unknown rule", () => {
@@ -534,4 +539,80 @@ test("db transact", () => {
       )
     )
   ).toEqual([{ value: 123 }]);
+});
+
+test("views", () => {
+  // sequence
+  expect(
+    renderAll(
+      //
+      s("view", s("text", "Hello")),
+      s("view", s("text", "World"))
+    )
+  ).toEqual([
+    //
+    view("text", ["Hello"]),
+    view("text", ["World"]),
+  ]);
+
+  // iteration
+  expect(
+    renderAll(
+      //
+      s("struct_id_index_arg", s("", "Hello", "World"), __, __, v.x),
+      s("view", s("text", v.x))
+    )
+  ).toEqual([
+    //
+    view("text", ["Hello"]),
+    view("text", ["World"]),
+  ]);
+
+  // backtracking
+  expect(
+    renderAll(
+      s(
+        ";", //
+        s(
+          ",", //
+          s("view", s("text", "Hello")),
+          s("fail")
+        ),
+        s(
+          ",", //
+          s("view", s("text", "World")),
+          s("ok")
+        )
+      )
+    )
+  ).toEqual([
+    //
+    view("text", ["World"]),
+  ]);
+
+  // children
+  expect(
+    renderAll(
+      //
+      s(
+        "view_children",
+        s("row"),
+        s(
+          ",",
+          s("struct_id_index_arg", s("", "Hello", "World"), __, __, v.x),
+          s("view", s("text", v.x))
+        )
+      )
+    )
+  ).toEqual([
+    view(
+      "row",
+      [],
+      [
+        //
+        view("text", ["Hello"]),
+        view("text", ["World"]),
+      ]
+    ),
+  ]);
 });
