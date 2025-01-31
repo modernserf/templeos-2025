@@ -50,23 +50,25 @@ export type Rec = Record<string, Expr> & {
   text__content?: List<FormatText>;
 };
 
+export function l<Args extends Expr[]>(...args: Args) {
+  return s("", ...args);
+}
 export function r<Args extends Expr[]>(...args: Args) {
   return s(",", ...args);
 }
 
 r.or = <Args extends Expr[]>(...args: Args) => s(";", ...args);
-r.list = <Args extends Expr[]>(...args: Args) => s("", ...args);
 r.cond = (if_: Expr, then_: Expr, else_: Expr) =>
   s("if_then_else", if_, then_, else_);
 r.log = (...args: Expr[]) => s("log", ...args);
 
 export const db = {
-  get: (id: Expr, field: Expr, value: Expr) =>
+  get: (id: Expr, field: Field, value: Expr) =>
     s("get_field_value", id, field, value),
-  update: (tx: Expr, id: Expr, field: Expr, value: Expr) =>
+  update: (tx: Expr, id: Expr, field: Field, value: Expr) =>
     s("tx_update_field_value", tx, id, field, value),
-  delete: (tx: Expr, id: Expr, field: Expr = __, value: Expr = __) =>
-    s("tx_delete_field_value", tx, id, field, value),
+  delete: (tx: Expr, id: Expr, field?: Field, value?: Expr) =>
+    s("tx_delete_field_value", tx, id, field ?? __, value ?? __),
   with_tx: (tx: Expr, ...body: Expr[]) => s("with_tx", tx, s(",", ...body)),
 };
 
@@ -85,7 +87,7 @@ export const view = {
     s("view", s("Link", label, id, target)),
   fileLink: (id: string) => s("view__fileLink", id),
   icon: () => s("view", s("Icon")),
-  text: (text: FormatText[]) => s("view", s("Text", ...text)),
+  text: (text: Expr) => s("view", s("Text", text)),
 };
 
 export type SchemaId = keyof typeof schemas;
@@ -94,21 +96,20 @@ const schemas = {
   schema__anyType: {
     db__schema: "schema__schema",
     file__name: "any Type",
-    file__description: s("", "Fallback schema for any type of record"),
-    db__fields: s(""),
+    file__description: l("Fallback schema for any type of record"),
+    db__fields: l(),
   },
   schema__schema: {
     db__schema: "schema__schema",
     file__name: "Schema",
-    file__description: s("", "Schema for schema definitions"),
-    db__fields: s("", s("field", "db__fields")),
+    file__description: l("Schema for schema definitions"),
+    db__fields: l(s("field", "db__fields")),
   },
   schema__field: {
     db__schema: "schema__schema",
     file__name: "Field",
-    file__description: s("", "Schema for field definitions"),
-    db__fields: s(
-      "",
+    file__description: l("Schema for field definitions"),
+    db__fields: l(
       s("field_optional", "db__refType"),
       s("field_optional", "db__index")
     ),
@@ -116,28 +117,25 @@ const schemas = {
   schema__indexType: {
     db__schema: "schema__schema",
     file__name: "Index type",
-    file__description: s(
-      "",
+    file__description: l(
       "Schema for index type definitions (e.g. ref, unique, sorted etc)"
     ),
-    db__fields: s(""),
+    db__fields: l(),
   },
   // TODO: rule primitive / view primitive?
   schema__rule: {
     db__schema: "schema__schema",
     file__name: "Rule",
-    file__description: s("", "Schema for rule definitions"),
-    db__fields: s("", s("field", "rule__params"), s("field", "rule__body")),
+    file__description: l("Schema for rule definitions"),
+    db__fields: l(s("field", "rule__params"), s("field", "rule__body")),
   },
   schema__view: {
     db__schema: "schema__schema",
     file__name: "View",
-    file__description: s(
-      "",
+    file__description: l(
       "a top-level view that can render records with a given schema"
     ),
-    db__fields: s(
-      "",
+    db__fields: l(
       s("field", "view__schema"),
       s("field", "rule__params"),
       s("field", "rule__body")
@@ -146,27 +144,26 @@ const schemas = {
   schema__text: {
     db__schema: "schema__schema",
     file__name: "Form",
-    file__description: s("", "A text document"),
-    db__fields: s("", s("field", "text__content")),
+    file__description: l("A text document"),
+    db__fields: l(s("field", "text__content")),
   },
   schema__form: {
     db__schema: "schema__schema",
     file__name: "Form",
-    file__description: s("", "A self rendering form UI"),
-    db__fields: s("", s("field", "rule__params"), s("field", "rule__body")),
+    file__description: l("A self rendering form UI"),
+    db__fields: l(s("field", "rule__params"), s("field", "rule__body")),
   },
   schema__folder: {
     db__schema: "schema__schema",
     file__name: "Folder",
-    file__description: s("", "A collection of records"),
-    db__fields: s("", s("field", "rule__params"), s("field", "rule__body")),
+    file__description: l("A collection of records"),
+    db__fields: l(s("field", "rule__params"), s("field", "rule__body")),
   },
   schema__history: {
     db__schema: "schema__schema",
     file__name: "History",
-    file__description: s("", "A history entry"),
-    db__fields: s(
-      "",
+    file__description: l("A history entry"),
+    db__fields: l(
       s("field", "history__window"),
       s("field", "history__location"),
       s("field_optional", "history__view"),
@@ -177,14 +174,14 @@ const schemas = {
   schema__window: {
     db__schema: "schema__schema",
     file__name: "Window",
-    file__description: s("", "A window"),
-    db__fields: s("", s("field", "window__currentHistory")),
+    file__description: l("A window"),
+    db__fields: l(s("field", "window__currentHistory")),
   },
   schema__browser: {
     db__schema: "schema__schema",
     file__name: "Browser",
-    file__description: s("", "Root state for browser"),
-    db__fields: s("", s("field", "browser__currentWindow")),
+    file__description: l("Root state for browser"),
+    db__fields: l(s("field", "browser__currentWindow")),
   },
 } satisfies Record<string, Omit<Rec, "db__schema">>;
 
@@ -206,7 +203,7 @@ const fields = {
   db__schema: {
     db__schema: "schema__field",
     file__name: "DB Schema",
-    file__description: s("", "schema used to validate & render this record"),
+    file__description: l("schema used to validate & render this record"),
     db__type: s("ref", "schema__schema" as const),
     db__index: s("ref"),
   },
@@ -232,8 +229,7 @@ const fields = {
   db__index: {
     db__schema: "schema__field",
     file__name: "Field index",
-    file__description: s(
-      "",
+    file__description: l(
       "If set, the field is indexed using an index of this type."
     ),
     db__type: s(
@@ -259,29 +255,26 @@ const fields = {
   view__schema: {
     db__schema: "schema__field",
     file__name: "View schema",
-    file__description: s("", "the schema that this view is supposed to render"),
+    file__description: l("the schema that this view is supposed to render"),
     db__type: s("ref", "schema__schema" as const),
     db__index: s("ref"),
   },
   file__name: {
     db__schema: "schema__field",
     file__name: "File name",
-    file__description: s(
-      "",
-      "field used for name in tab header & file explorer"
-    ),
+    file__description: l("field used for name in tab header & file explorer"),
     db__type: s("string"),
   },
   file__description: {
     db__schema: "schema__field",
     file__name: "File description",
-    file__description: s("", "describes the content of the record"),
+    file__description: l("describes the content of the record"),
     db__type: formatText,
   },
   folder__items: {
     db__schema: "schema__field",
     file__name: "File folder items",
-    file__description: s("", "ids of files in folder"),
+    file__description: l("ids of files in folder"),
     db__type: s("list", s("ref")),
     db__index: s("multiRef"),
   },
@@ -324,7 +317,7 @@ const fields = {
   text__content: {
     db__schema: "schema__field",
     file__name: "Text content",
-    file__description: s("", "a list of text nodes used in text schema"),
+    file__description: l("a list of text nodes used in text schema"),
     db__type: formatText,
   },
   data__omnibox: {
@@ -336,17 +329,17 @@ const fields = {
 
 const rules = {
   list_item: {
-    rule__params: r.list(v.list, v.item),
+    rule__params: l(v.list, v.item),
     rule__body: s("struct_id_index_arg", v.list, "", __, v.item),
   },
   if_var: {
-    file__description: r.list("if arg is var, run body"),
-    rule__params: r.list(v.arg, v.body),
+    file__description: l("if arg is var, run body"),
+    rule__params: l(v.arg, v.body),
     rule__body: s("if_then_else", s("var", v.arg), v.body, r()),
   },
   tx_insert: {
-    file__description: r.list("insert a property list into the db"),
-    rule__params: r.list(v.tx, v.id, v.params),
+    file__description: l("insert a property list into the db"),
+    rule__params: l(v.tx, v.id, v.params),
     rule__body: r(
       s("struct_id_index_arg", v.params, __, __, v.pair),
       s("struct_id_index_arg", v.pair, v.field, 0, v.value),
@@ -354,22 +347,22 @@ const rules = {
     ),
   },
   rule__selectWindow: {
-    rule__params: r.list(v.window),
+    rule__params: l(v.window),
     rule__body: db.with_tx(
       v.tx,
       db.update(v.tx, "browser", "browser__currentWindow", v.window)
     ),
   },
   rule__newWindow: {
-    rule__params: r.list(v.location, v.params),
+    rule__params: l(v.location, v.params),
     rule__body: db.with_tx(v.tx, s("new__window", v.tx, __, v.location, __)),
   },
   rule__closeWindow: {
-    rule__params: r.list(v.window),
+    rule__params: l(v.window),
     rule__body: db.with_tx(v.tx, db.delete(v.tx, v.window)),
   },
   rule__push: {
-    rule__params: r.list(v.window, v.location, v.params),
+    rule__params: l(v.window, v.location, v.params),
     rule__body: db.with_tx(
       v.tx,
       db.get(v.window, "window__currentHistory", v.prev),
@@ -380,7 +373,7 @@ const rules = {
     ),
   },
   rule__back: {
-    rule__params: r.list(v.window),
+    rule__params: l(v.window),
     rule__body: db.with_tx(
       v.tx,
       db.get(v.window, "window__currentHistory", v.forward),
@@ -391,7 +384,7 @@ const rules = {
     ),
   },
   rule__forward: {
-    rule__params: r.list(v.window),
+    rule__params: l(v.window),
     rule__body: db.with_tx(
       v.tx,
       db.get(v.window, "window__currentHistory", v.back),
@@ -402,9 +395,15 @@ const rules = {
       db.delete(v.tx, v.back, "history__forward")
     ),
   },
-
+  new__rule: {
+    rule__params: l(v.tx, v.id, v.params, v.body),
+    rule__body: r(
+      db.update(v.tx, v.id, "rule__params", v.params),
+      db.update(v.tx, v.id, "rule__body", v.body)
+    ),
+  },
   new__window: {
-    rule__params: r.list(v.tx, v.window, v.location, v.params),
+    rule__params: l(v.tx, v.window, v.location, v.params),
     rule__body: r(
       s("if_var", v.window, s("id", v.window)),
       s("new__history", v.tx, v.history, v.window, v.location, v.params),
@@ -413,7 +412,7 @@ const rules = {
     ),
   },
   new__history: {
-    rule__params: r.list(v.tx, v.history, v.window, v.location, v.params),
+    rule__params: l(v.tx, v.history, v.window, v.location, v.params),
     rule__body: r(
       s("if_var", v.history, s("id", v.history)),
       s("timestamp", v.ts),
@@ -428,44 +427,8 @@ const rules = {
       )
     ),
   },
-
-  cons_cons_append: {
-    rule__params: s("", v.left, v.right, v.append),
-    rule__body: s(
-      ";",
-      s(
-        ",", // []
-        s("=", v.left, s("nil")),
-        s("=", v.right, v.append)
-      ),
-      s(
-        ",", // [head | tail]
-        s("=", v.left, s("cons", v.head, v.tail)),
-        s("=", s("cons", v.head, v.append_tail), v.append),
-        s("cons_cons_append", v.tail, v.right, v.append_tail)
-      )
-    ),
-  },
-  update_field_value: {
-    rule__params: s("", v.id, v.field, v.value),
-    rule__body: s(
-      ",",
-      s("tx", v.tx),
-      s("tx_update_field_value", v.tx, v.id, v.field, v.value),
-      s("commit", v.tx)
-    ),
-  },
-  delete_field_value: {
-    rule__params: s("", v.id, v.field, v.value),
-    rule__body: s(
-      ",",
-      s("tx", v.tx),
-      s("tx_delete_field_value", v.tx, v.id, v.field, v.value),
-      s("commit", v.tx)
-    ),
-  },
   with_tx: {
-    rule__params: s("", v.tx, v.goal),
+    rule__params: l(v.tx, v.goal),
     rule__body: r(
       s("tx", v.tx),
       s(
@@ -480,18 +443,18 @@ const rules = {
 
 const views = {
   view__fileLink: {
-    rule__params: r.list(v.id),
+    rule__params: l(v.id),
     rule__body: r(db.get(v.id, "file__name", v.name), view.link(v.name, v.id)),
   },
   view__fileInfo: {
-    rule__params: r.list(v.id),
+    rule__params: l(v.id),
     rule__body: r(
       db.get(v.id, "file__name", v.name),
       view.link(v.name, v.id),
       r.or(
         r(
           db.get(v.id, "file__description", v.description),
-          s("view", s("Text", v.description))
+          view.text(v.description)
         ),
         r()
       )
@@ -500,7 +463,7 @@ const views = {
   view__anyType: {
     file__name: "Default viewer",
     view__schema: "schema__anyType",
-    rule__params: r.list(v.id),
+    rule__params: l(v.id),
     rule__body: r.or(
       r(
         view.string("Fields"),
@@ -523,7 +486,7 @@ const views = {
   view__text: {
     file__name: "Text viewer",
     view__schema: "schema__text",
-    rule__params: r.list(v.id),
+    rule__params: l(v.id),
     rule__body: r(
       db.get(v.id, "text__content", v.text),
       s("view", s("Text", v.text))
@@ -532,7 +495,7 @@ const views = {
   view__folder_list: {
     file__name: "Folder - List",
     view__schema: "schema__folder",
-    rule__params: r.list(v.id),
+    rule__params: l(v.id),
     rule__body: r(
       db.get(v.id, "folder__items", v.folder),
       s("list_item", v.folder, v.item),
@@ -542,7 +505,7 @@ const views = {
   view__folder_icon: {
     file__name: "Folder - Icon",
     view__schema: "schema__folder",
-    rule__params: r.list(v.id),
+    rule__params: l(v.id),
     rule__body: r(
       view.row(
         r(
@@ -556,15 +519,15 @@ const views = {
   view__form: {
     file__name: "Form",
     view__schema: "schema__form",
-    rule__params: r.list(v.id),
+    rule__params: l(v.id),
     rule__body: r(
       //
-      s("struct_id_args", v.call, v.id, r.list(v.id)),
+      s("struct_id_args", v.call, v.id, l(v.id)),
       v.call
     ),
   },
   rule__id_view: {
-    rule__params: r.list(v.id, v.view),
+    rule__params: l(v.id, v.view),
     rule__body: r.or(
       // view from rule type
       r(
@@ -577,8 +540,8 @@ const views = {
   },
   view__viewMenu: {
     file__name: "View menu",
-    file__description: s("", "the view selection menu on window chrome"),
-    rule__params: s("", v.window, v.id, v.selectedView),
+    file__description: l("the view selection menu on window chrome"),
+    rule__params: l(v.window, v.id, v.selectedView),
     rule__body: r(
       view.select(
         v.selectedView,
@@ -598,7 +561,7 @@ const views = {
   },
   view__window: {
     file__name: "Window",
-    rule__params: s("", v.w),
+    rule__params: l(v.w),
     rule__body: r(
       s("set_context", "window_id", v.w),
       db.get(v.w, "window__currentHistory", v.history),
@@ -620,7 +583,7 @@ const views = {
   },
   view__appMenu: {
     file__name: "App menu",
-    rule__params: s(""),
+    rule__params: l(),
     rule__body: view.row(
       r(
         view.button(
@@ -660,9 +623,8 @@ const startupItems = {
   home: {
     db__schema: "schema__text",
     file__name: "home",
-    file__description: s("", "this is the home card"),
-    text__content: s(
-      "",
+    file__description: l("this is the home card"),
+    text__content: l(
       "content that ",
       s("link", "links", "example__folder"),
       " to another record."
@@ -671,8 +633,8 @@ const startupItems = {
   example__folder: {
     db__schema: "schema__folder",
     file__name: "Example Folder",
-    file__description: s("", "A folder with some items"),
-    folder__items: s("", "home", "schema__text", "view__text"),
+    file__description: l("A folder with some items"),
+    folder__items: l("home", "schema__text", "view__text"),
   },
 } satisfies Record<string, Rec>;
 
