@@ -263,13 +263,13 @@ export class State {
   }
   private log(facts: Value[]) {
     console.log(
-      ...facts.map(printFact),
-      Object.fromEntries(
-        Object.getOwnPropertySymbols(this.facts).map((sym) => [
-          sym.description,
-          printFact(this.facts[sym]),
-        ])
-      )
+      ...facts.map(printFact)
+      // Object.fromEntries(
+      //   Object.getOwnPropertySymbols(this.facts).map((sym) => [
+      //     sym.description,
+      //     printFact(this.facts[sym]),
+      //   ])
+      // )
     );
   }
   yield() {
@@ -288,7 +288,7 @@ export class State {
       }
     }
   }
-  private dif(l: Value, r: Value): State | null {
+  private *dif(l: Value, r: Value): Generator<StateNext> {
     if (l.tag === "var" || r.tag === "var") {
       let ns = this as State;
       if (l.tag === "var") {
@@ -297,27 +297,31 @@ export class State {
       if (r.tag === "var") {
         ns = ns.addConstraint(r.id, sv("/=", l, r));
       }
-      return ns;
+      yield ns.yield();
+      return;
     }
 
-    if (l.tag !== r.tag || l.tag === "placeholder" || r.tag === "placeholder")
+    if (l.tag !== r.tag || l.tag === "placeholder" || r.tag === "placeholder") {
+      yield this.yield();
       return this;
+    }
 
     switch (l.tag) {
       case "string":
       case "number":
-        if (l.value === (r as typeof l).value) return null;
-        return this;
+        if (l.value !== (r as typeof l).value) yield this.yield();
+        return;
       case "struct": {
         const { id, args } = r as typeof l;
-        if (l.id !== id || l.args.length !== args.length) return this;
-        let ns = this as State;
-        for (let i = 0; i < args.length; i++) {
-          const next = ns.dif(l.args[i], args[i]);
-          if (!next) return null;
-          ns = next;
+        if (l.id !== id || l.args.length !== args.length) {
+          yield this.yield();
+          return;
         }
-        return ns;
+        yield* this.uniqueStates(function* () {
+          for (let i = 0; i < args.length; i++) {
+            yield* this.dif(l.args[i], args[i]);
+          }
+        });
       }
     }
   }
@@ -350,7 +354,7 @@ export class State {
         yield* semidet(this.unify(args[0], args[1]));
         return;
       case "/=":
-        yield* semidet(this.dif(args[0], args[1]));
+        yield* this.dif(args[0], args[1]);
         return;
       case ",":
         yield* this.seq(args);
@@ -661,6 +665,11 @@ export class State {
         };
 
         yield state.yield();
+        return;
+      }
+      case "call": {
+        const id = this.ensure(args[0], "string");
+        yield* this.call(id.value, args.slice(1));
         return;
       }
       default: {

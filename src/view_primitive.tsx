@@ -1,9 +1,8 @@
 import { FC, ReactNode } from "react";
-import { __, AnyStruct, Expr, List, printExpr, s, v } from "./expr";
+import { __, AnyStruct, Expr, printExpr, s } from "./expr";
 import { State, View } from "./state";
 import "./view_primitive.css";
 import { useEventHandler } from "./event_source";
-import { FormatText } from "./data";
 
 type VC<Args extends Expr[]> = FC<{
   state: State;
@@ -17,10 +16,6 @@ const Row: VC<[]> = ({ children }) => <div className="Row">{children}</div>;
 const Column: VC<[]> = ({ children }) => (
   <div className="Column">{children}</div>
 );
-
-const AnyData: VC<[Expr]> = ({ args: [value] }) => {
-  return <pre>{printExpr(value)}</pre>;
-};
 
 const String: VC<[string]> = ({ args: [value] }) => <div>{value}</div>;
 
@@ -85,15 +80,9 @@ const Link: VC<[string, string, string]> = ({
       className="Link"
       onClick={(e) => {
         if (e.metaKey || target === "new") {
-          handle(s("rule__newWindow", id, __));
+          handle(s("on__newWindow", id, __));
         } else {
-          handle(
-            s(
-              ",",
-              s("get_context", "window_id", v.window),
-              s("rule__push", v.window, id, __)
-            )
-          );
+          handle(s("on__push", __, id, __));
         }
       }}
     >
@@ -104,26 +93,6 @@ const Link: VC<[string, string, string]> = ({
 
 const Icon: VC<[]> = () => (
   <div style={{ textAlign: "center", fontSize: 32 }}>📄</div>
-);
-
-const Text: VC<[List<FormatText>]> = ({ state, args: [text] }) => (
-  <>
-    {text.args.map((node, i) => {
-      switch (typeof node) {
-        case "string":
-          return <span key={i}>{node}</span>;
-        case "object":
-          return (
-            <span key={i} className="TextView__Link">
-              <Query
-                state={state}
-                clause={s("view", s("Link", ...node.args))}
-              />
-            </span>
-          );
-      }
-    })}
-  </>
 );
 
 const Window: VC<[string, string, string, string, string]> = ({
@@ -139,16 +108,16 @@ const Window: VC<[string, string, string, string, string]> = ({
         .filter(Boolean)
         .join(" ")}
       onMouseDownCapture={() => {
-        handle(s("rule__selectWindow", windowId));
+        handle(s("on__selectWindow", windowId));
       }}
       onKeyDownCapture={(e) => {
         if (e.key == "[" && e.metaKey) {
           e.preventDefault();
-          handle(s("rule__back", windowId));
+          handle(s("on__back", windowId));
         }
         if (e.key == "]" && e.metaKey) {
           e.preventDefault();
-          handle(s("rule__forward", windowId));
+          handle(s("on__forward", windowId));
         }
       }}
     >
@@ -157,7 +126,7 @@ const Window: VC<[string, string, string, string, string]> = ({
           className="AppWindow__closeButton"
           type="button"
           onClick={() => {
-            handle(s("rule__closeWindow", windowId));
+            handle(s("on__closeWindow", windowId));
           }}
         ></button>
         <h1 className="AppWindow__title">{fileName}</h1>
@@ -169,16 +138,15 @@ const Window: VC<[string, string, string, string, string]> = ({
   );
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const viewPrimitives: Record<string, VC<any>> = {
   Row,
   Column,
-  AnyData,
   String,
   Button,
   Option,
   Select,
   Link,
-  Text,
   Icon,
   Input,
   Window,
