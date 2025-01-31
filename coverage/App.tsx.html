@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/13</span>
+                <span class='fraction'>0/11</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/13</span>
+                <span class='fraction'>0/11</span>
             </div>
         
             
@@ -81,18 +81,11 @@
 <a name='L16'></a><a href='#L16'>16</a>
 <a name='L17'></a><a href='#L17'>17</a>
 <a name='L18'></a><a href='#L18'>18</a>
-<a name='L19'></a><a href='#L19'>19</a>
-<a name='L20'></a><a href='#L20'>20</a>
-<a name='L21'></a><a href='#L21'>21</a>
-<a name='L22'></a><a href='#L22'>22</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L19'></a><a href='#L19'>19</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -100,31 +93,29 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { DB } from "./db";<span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" ></span></span></span>
-import { initDB } from "./data";
-import { State } from "./state";
-import { k, R, v } from "./rule_builder";
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { State } from "./state";<span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" ></span></span></span>
+import { data } from "./data";
 import { Query } from "./view_primitive";
 import { useEventSource } from "./event_source";
+import { s, v } from "./expr";
 &nbsp;
-<span class="cstat-no" title="statement not covered" >const db = new DB();</span>
-<span class="cstat-no" title="statement not covered" >db.bulkInsert(initDB);</span>
+<span class="cstat-no" title="statement not covered" >const qApp = s(</span>
+<span class="cstat-no" title="statement not covered" >  ",",</span>
+<span class="cstat-no" title="statement not covered" >  s("view__appMenu"),</span>
+<span class="cstat-no" title="statement not covered" >  s("get_field_value", v.w, "db__schema", "schema__window"),</span>
+<span class="cstat-no" title="statement not covered" >  s("view__window", v.w)</span>
+);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >const qApp = R()</span>
-<span class="cstat-no" title="statement not covered" >  .r("view__appMenu", [])</span>
-<span class="cstat-no" title="statement not covered" >  .get("windowId", "db__schema", k("schema__window"))</span>
-<span class="cstat-no" title="statement not covered" >  .r("view__window", [v("windowId")])</span>
-<span class="cstat-no" title="statement not covered" >  .build();</span>
-&nbsp;
+<span class="cstat-no" title="statement not covered" >const state = State.root(data);</span>
 <span class="cstat-no" title="statement not covered" >export function App() {</span>
 <span class="cstat-no" title="statement not covered" >  useEventSource();</span>
-<span class="cstat-no" title="statement not covered" >  const state = State.root(db);</span>
-<span class="cstat-no" title="statement not covered" >  return &lt;Query state={state} rule={qApp} /&gt;;</span>
+<span class="cstat-no" title="statement not covered" >  return &lt;Query state={state} clause={qApp} /&gt;;</span>
 <span class="cstat-no" title="statement not covered" >}</span>
 &nbsp;</pre></td></tr></table></pre>
 
@@ -133,7 +124,7 @@ import { useEventSource } from "./event_source";
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-01-30T15:34:13.821Z
+                at 2025-01-31T02:03:18.555Z
             </div>
         <script src="prettify.js"></script>
         <script>

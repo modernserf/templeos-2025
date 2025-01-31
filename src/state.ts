@@ -246,6 +246,11 @@ export class State {
     }
     return res as Value & { tag: T };
   }
+  private ensureList(res: Value): Value & { tag: "struct"; id: "" } {
+    const res_ = this.ensure(res, "struct");
+    if (res_.id) throw new Error(`Expected list, received ${printFact(res)}`);
+    return res_ as Value & { tag: "struct"; id: "" };
+  }
   private ensureVar<T extends Value["tag"]>(
     res: Value,
     tag: T
@@ -460,6 +465,73 @@ export class State {
         }
         return;
       }
+      case "list_from_to_slice": {
+        const list = this.ensureList(args[0]);
+        const from = this.ensureVar(args[1], "number");
+        const to = this.ensureVar(args[2], "number");
+
+        const fromVal = from.tag === "number" ? from.value : 0;
+        const toVal = to.tag === "number" ? to.value : list.args.length;
+        const slice = {
+          tag: "struct",
+          id: "",
+          args: list.args.slice(fromVal, toVal),
+        } as const;
+        yield* semidet(
+          this.unify(k(fromVal), from)
+            ?.unify(k(toVal), to)
+            ?.unify(slice, args[3])
+        );
+        return;
+      }
+      case "list_list_append": {
+        const left = this.ensureVar(args[0], "struct");
+        const right = this.ensureVar(args[1], "struct");
+        const append = this.ensureVar(args[2], "struct");
+        if (left.tag === "struct" && right.tag === "struct") {
+          yield* semidet(
+            this.unify(append, {
+              tag: "struct",
+              id: "",
+              args: left.args.concat(right.args),
+            })
+          );
+          return;
+        }
+
+        if (append.tag === "struct") {
+          const unifySplit = (state: State, split: number) =>
+            state
+              .unify(left, {
+                tag: "struct",
+                id: "",
+                args: append.args.slice(0, split),
+              })
+              ?.unify(right, {
+                tag: "struct",
+                id: "",
+                args: append.args.slice(split),
+              });
+
+          if (left.tag === "struct") {
+            yield* semidet(unifySplit(this, left.args.length));
+            return;
+          } else if (right.tag === "struct") {
+            yield* semidet(
+              unifySplit(this, append.args.length - right.args.length)
+            );
+            return;
+          } else {
+            yield* this.uniqueStates(function* () {
+              for (let i = 0; i <= append.args.length; i++) {
+                yield* semidet(unifySplit(this, i));
+              }
+            });
+          }
+        }
+        return;
+      }
+
       // do a block for side effects
       case "group": {
         let state = this as State;

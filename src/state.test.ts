@@ -382,6 +382,42 @@ test("struct_id_index_arg", () => {
   ).toEqual([{ id: "pair" }]);
 });
 
+test("list_from_to_slice", () => {
+  // all outputs
+  expect(
+    runAll(s("list_from_to_slice", s("", "a", "b", "c"), v.from, v.to, v.slice))
+  ).toEqual([{ from: 0, to: 3, slice: s("", "a", "b", "c") }]);
+  // subset
+  expect(
+    runAll(s("list_from_to_slice", s("", "a", "b", "c"), 1, __, v.slice))
+  ).toEqual([{ slice: s("", "b", "c") }]);
+});
+
+test("list_list_append", () => {
+  // concat
+  expect(
+    runAll(s("list_list_append", s("", "a"), s("", "b", "c"), v.append))
+  ).toEqual([{ append: s("", "a", "b", "c") }]);
+  // cons
+  expect(
+    runAll(s("list_list_append", s("", v.head), v.tail, s("", "a", "b", "c")))
+  ).toEqual([{ head: "a", tail: s("", "b", "c") }]);
+  // stack
+  expect(
+    runAll(s("list_list_append", v.stack, s("", v.pop), s("", "a", "b", "c")))
+  ).toEqual([{ stack: s("", "a", "b"), pop: "c" }]);
+  // scan
+  expect(
+    runAll(s("list_list_append", v.left, __, s("", "a", "b", "c")))
+  ).toEqual([
+    //
+    { left: s("") },
+    { left: s("", "a") },
+    { left: s("", "a", "b") },
+    { left: s("", "a", "b", "c") },
+  ]);
+});
+
 test("error handlers", () => {
   expect(
     runAll(
@@ -402,11 +438,11 @@ function ll(...xs: Expr[]): Expr {
   return list;
 }
 
-test("list_list_append", () => {
+test("cons_cons_append", () => {
   expect(
     runAll(
       s(
-        "list_list_append",
+        "cons_cons_append",
         s("cons", 123, s("nil")),
         s("cons", 456, s("cons", 789, s("nil"))),
         v.joined
@@ -417,7 +453,7 @@ test("list_list_append", () => {
   expect(
     runAll(
       s(
-        "list_list_append",
+        "cons_cons_append",
         s("cons", 123, s("nil")),
         v.right,
         s("cons", 123, s("cons", 456, s("cons", 789, s("nil"))))

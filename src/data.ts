@@ -429,7 +429,7 @@ const rules = {
     ),
   },
 
-  list_list_append: {
+  cons_cons_append: {
     rule__params: s("", v.left, v.right, v.append),
     rule__body: s(
       ";",
@@ -442,7 +442,7 @@ const rules = {
         ",", // [head | tail]
         s("=", v.left, s("cons", v.head, v.tail)),
         s("=", s("cons", v.head, v.append_tail), v.append),
-        s("list_list_append", v.tail, v.right, v.append_tail)
+        s("cons_cons_append", v.tail, v.right, v.append_tail)
       )
     ),
   },
