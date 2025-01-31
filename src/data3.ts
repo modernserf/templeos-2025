@@ -58,12 +58,16 @@ r.or = <Args extends Expr[]>(...args: Args) => s(";", ...args);
 r.list = <Args extends Expr[]>(...args: Args) => s("", ...args);
 r.cond = (if_: Expr, then_: Expr, else_: Expr) =>
   s("if_then_else", if_, then_, else_);
+r.log = (...args: Expr[]) => s("log", ...args);
 
 export const db = {
   get: (id: Expr, field: Expr, value: Expr) =>
     s("get_field_value", id, field, value),
   update: (tx: Expr, id: Expr, field: Expr, value: Expr) =>
     s("tx_update_field_value", tx, id, field, value),
+  delete: (tx: Expr, id: Expr, field: Expr = __, value: Expr = __) =>
+    s("tx_delete_field_value", tx, id, field, value),
+  with_tx: (tx: Expr, ...body: Expr[]) => s("with_tx", tx, s(",", ...body)),
 };
 
 export const view = {
@@ -74,8 +78,8 @@ export const view = {
   button: (str: string, onClick: Expr) => s("view", s("Button", str, onClick)),
   input: (value: string, onChange: Expr) =>
     s("view", s("Input", value, onChange)),
-  select: (value: string, onChange: Expr, children: Expr) =>
-    s("view_children", s("Select", value, onChange), children),
+  select: (value: string, event: Expr, onChange: Expr, children: Expr) =>
+    s("view_children", s("Select", value, event, onChange), children),
   option: (id: string, label: string) => s("view", s("Option", id, label)),
   link: (label: string, id: string, target: string = "current") =>
     s("view", s("Link", label, id, target)),
@@ -331,52 +335,92 @@ const fields = {
 } satisfies Record<string, Rec>;
 
 const rules = {
+  if_var: {
+    file__description: r.list("if arg is var, run body"),
+    rule__params: r.list(v.arg, v.body),
+    rule__body: s("if_then_else", s("var", v.arg), v.body, r()),
+  },
   tx_insert: {
     file__description: r.list("insert a property list into the db"),
     rule__params: r.list(v.tx, v.id, v.params),
-    rule__body: s(
-      "group",
-      r(
-        // s("log", "tx_insert", v.params),
-        s("struct_id_index_arg", v.params, __, __, v.pair),
-        s("struct_id_index_arg", v.pair, v.field, 0, v.value),
-        // s("log", "update", v.tx, __, v.field, v.value),
-        db.update(v.tx, v.id, v.field, v.value)
-      )
+    rule__body: r(
+      s("struct_id_index_arg", v.params, __, __, v.pair),
+      s("struct_id_index_arg", v.pair, v.field, 0, v.value),
+      db.update(v.tx, v.id, v.field, v.value)
+    ),
+  },
+  rule__selectWindow: {
+    rule__params: r.list(v.window),
+    rule__body: db.with_tx(
+      v.tx,
+      db.update(v.tx, "browser", "browser__currentWindow", v.window)
+    ),
+  },
+  rule__newWindow: {
+    rule__params: r.list(v.location, v.params),
+    rule__body: db.with_tx(v.tx, s("new__window", v.tx, __, v.location, __)),
+  },
+  rule__closeWindow: {
+    rule__params: r.list(v.window),
+    rule__body: db.with_tx(v.tx, db.delete(v.tx, v.window)),
+  },
+  rule__push: {
+    rule__params: r.list(v.window, v.location, v.params),
+    rule__body: db.with_tx(
+      v.tx,
+      db.get(v.window, "window__currentHistory", v.prev),
+      s("new__history", v.tx, v.next, v.window, v.location, v.params),
+      db.update(v.tx, v.next, "history__back", v.prev),
+      db.update(v.tx, v.prev, "history__forward", v.next),
+      db.update(v.tx, v.window, "window__currentHistory", v.next)
+    ),
+  },
+  rule__back: {
+    rule__params: r.list(v.window),
+    rule__body: db.with_tx(
+      v.tx,
+      db.get(v.window, "window__currentHistory", v.forward),
+      db.get(v.forward, "history__back", v.back),
+      db.update(v.tx, v.window, "window__currentHistory", v.back),
+      db.update(v.tx, v.back, "history__forward", v.forward),
+      db.delete(v.tx, v.forward, "history__back")
+    ),
+  },
+  rule__forward: {
+    rule__params: r.list(v.window),
+    rule__body: db.with_tx(
+      v.tx,
+      db.get(v.window, "window__currentHistory", v.back),
+      db.get(v.back, "history__forward", v.forward),
+
+      db.update(v.tx, v.window, "window__currentHistory", v.forward),
+      db.update(v.tx, v.forward, "history__back", v.back),
+      db.delete(v.tx, v.back, "history__forward")
     ),
   },
 
-  rule__newWindow: {
-    rule__params: r.list(v.id),
+  new__window: {
+    rule__params: r.list(v.tx, v.window, v.location, v.params),
     rule__body: r(
-      s("id", v.h),
-      s("id", v.w),
+      s("if_var", v.window, s("id", v.window)),
+      s("new__history", v.tx, v.history, v.window, v.location, v.params),
+      db.update(v.tx, v.window, "db__schema", "schema__window"),
+      db.update(v.tx, v.window, "window__currentHistory", v.history)
+    ),
+  },
+  new__history: {
+    rule__params: r.list(v.tx, v.history, v.window, v.location, v.params),
+    rule__body: r(
+      s("if_var", v.history, s("id", v.history)),
       s("timestamp", v.ts),
-      s(
-        "with_tx",
-        v.tx,
-        r(
-          s(
-            "tx_insert",
-            v.tx,
-            v.w,
-            r.list(
-              s("db__schema", "schema__window"),
-              s("window__currentHistory", v.h)
-            )
-          ),
-          s(
-            "tx_insert",
-            v.tx,
-            v.h,
-            r.list(
-              s("db__schema", "schema__history"),
-              s("history__window", v.w),
-              s("history__location", v.id),
-              s("time__created", v.ts)
-            )
-          )
-        )
+      db.update(v.tx, v.history, "db__schema", "schema__history"),
+      db.update(v.tx, v.history, "time__created", v.ts),
+      db.update(v.tx, v.history, "history__window", v.window),
+      db.update(v.tx, v.history, "history__location", v.location),
+      r.or(
+        //
+        r(s("nonvar", v.params), s("tx_insert", v.tx, v.history, v.params)),
+        r()
       )
     ),
   },
@@ -420,7 +464,12 @@ const rules = {
     rule__params: s("", v.tx, v.goal),
     rule__body: r(
       s("tx", v.tx),
-      s("if_then_else", v.goal, s("commit", v.tx), s("rollback", v.tx))
+      s(
+        "if_then_else",
+        s("group", v.goal),
+        s("commit", v.tx),
+        s("rollback", v.tx)
+      )
     ),
   },
 } satisfies Record<string, Rec>;
@@ -453,6 +502,15 @@ const views = {
       )
     ),
   },
+  view__text: {
+    file__name: "Text viewer",
+    view__schema: "schema__text",
+    rule__params: r.list(v.id),
+    rule__body: r(
+      db.get(v.id, "text__content", v.text),
+      s("view", s("Text", v.text))
+    ),
+  },
   rule__id_view: {
     rule__params: r.list(v.id, v.view),
     rule__body: r.or(
@@ -472,7 +530,12 @@ const views = {
     rule__body: r(
       view.select(
         v.selectedView,
-        r(s("log", "todo: view select")),
+        v.nextView,
+        db.with_tx(
+          v.tx,
+          db.get(v.window, "window__currentHistory", v.history),
+          db.update(v.tx, v.history, "history__view", v.nextView)
+        ),
         r(
           s("rule__id_view", v.id, v.view),
           db.get(v.view, "file__name", v.name),
@@ -485,12 +548,11 @@ const views = {
     file__name: "Window",
     rule__params: s("", v.w),
     rule__body: r(
-      s("log", 1, v.w),
-      // s("set_context", "window_id", v.w),
+      s("set_context", "window_id", v.w),
       db.get(v.w, "window__currentHistory", v.history),
-      s("log", 2, v.w, v.history),
       db.get("browser", "browser__currentWindow", v.currentWindow),
       db.get(v.history, "history__location", v.id),
+      r.cond(db.get(v.id, "file__name", v.name), r(), s("=", v.id, v.name)),
       s(
         "limit",
         1,
@@ -501,8 +563,7 @@ const views = {
           s("rule__id_view", v.id, v.view)
         )
       ),
-      s("log", 10, s("Window", v.id, v.view, v.w, v.currentWindow)),
-      s("view", s("Window", v.id, v.view, v.w, v.currentWindow))
+      s("view", s("Window", v.id, v.view, v.w, v.currentWindow, v.name))
     ),
   },
   view__appMenu: {
@@ -521,7 +582,7 @@ const views = {
           "→",
           r(
             db.get("browser", "browser__currentWindow", v.window),
-            s("rule_forward", v.window)
+            s("rule__forward", v.window)
           )
         )
       )

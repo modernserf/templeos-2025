@@ -1,6 +1,6 @@
 import { Field, Rec } from "./data3";
 import { TransactDB, whereValue } from "./db";
-import { Expr, Id, Ident, __ } from "./expr";
+import { Expr, Id, Ident, __, printExpr, s } from "./expr";
 
 export const k = (value: string | number) =>
   typeof value === "string"
@@ -51,7 +51,7 @@ export type View = {
   id: ViewPrimitive;
   args: Expr[];
   children?: View[];
-  // state: State;
+  state: State;
 };
 
 export type StateNext = { tag: "state"; state: State } | View;
@@ -59,11 +59,16 @@ export type StateNext = { tag: "state"; state: State } | View;
 let varCount = 0;
 
 export class State {
-  private constructor(private db: TransactDB<Rec>, private facts: Facts) {}
+  private constructor(
+    //
+    private db: TransactDB<Rec>,
+    private facts: Facts,
+    private context: Record<string, Value>
+  ) {}
   static root(rules: Record<Id, Rec>): State {
     const db = new TransactDB<Rec>();
     db.bulkInsert(rules);
-    return new State(db, {});
+    return new State(db, {}, {});
   }
   *render(expr: Expr): Generator<View> {
     for (const res of this.runClause(this.exprValue(expr, {}))) {
@@ -163,17 +168,21 @@ export class State {
     }
   }
   private addValue(id: FactId, value: Value): State {
-    return new State(this.db, { ...this.facts, [id]: value });
+    return new State(this.db, { ...this.facts, [id]: value }, this.context);
   }
   private addConstraint(id: FactId, predicate: Value) {
     const prev = this.facts[id];
     if (prev?.tag === "constraint") {
       predicate = sv(",", prev.predicate, predicate);
     }
-    return new State(this.db, {
-      ...this.facts,
-      [id]: { tag: "constraint", predicate },
-    });
+    return new State(
+      this.db,
+      {
+        ...this.facts,
+        [id]: { tag: "constraint", predicate },
+      },
+      this.context
+    );
   }
   private unifyVar(left: Value & { tag: "var" }, right: Value): State | null {
     const constraint = this.facts[left.id];
@@ -454,11 +463,13 @@ export class State {
       // do a block for side effects
       case "group": {
         let state = this as State;
+        let didSucceed = false;
         for (const res of this.runClause(args[0])) {
           if (res.tag === "view") throw "todo";
+          didSucceed = true;
           state = res.state;
         }
-        yield state.yield();
+        if (didSucceed) yield state.yield();
         return;
       }
       case "limit": {
@@ -471,7 +482,28 @@ export class State {
         }
         return;
       }
-
+      // context
+      case "has_context": {
+        const key = this.ensure(args[0], "string");
+        const value = this.context[key.value];
+        if (value) yield this.yield();
+        return;
+      }
+      case "get_context": {
+        const key = this.ensure(args[0], "string");
+        const value = this.context[key.value];
+        if (!value) throw new Error(`Unknown context: ${key.value}`);
+        yield* semidet(this.unify(args[1], value));
+        return;
+      }
+      case "set_context": {
+        const key = this.ensure(args[0], "string");
+        yield new State(this.db, this.facts, {
+          ...this.context,
+          [key.value]: args[1],
+        }).yield();
+        return;
+      }
       // db
       case "id": {
         const id = crypto.randomUUID();
@@ -527,6 +559,7 @@ export class State {
           tag: "view",
           id,
           args: xs.map((arg) => this.factToExpr(arg)),
+          state: this,
         };
         yield this.yield();
         return;
@@ -552,19 +585,14 @@ export class State {
           id,
           args: xs.map((arg) => state.factToExpr(arg)),
           children,
+          state,
         };
 
         yield state.yield();
         return;
       }
       default: {
-        const rule = this.db.get(id);
-        if (!rule) throw new Error(`unknown rule ${id}`);
-        if (!rule.rule__body || !rule.rule__params) {
-          throw new Error(`invalid rule ${id}`);
-        }
-
-        yield* this.call(rule.rule__params.args, rule.rule__body, args);
+        yield* this.call(id, args);
         return;
       }
     }
@@ -655,14 +683,20 @@ export class State {
       });
     }
   }
-  private *call(
-    params: Expr[],
-    body: Expr,
-    args: Value[]
-  ): Generator<StateNext> {
-    if (params.length !== args.length) throw new Error("invalid arity");
+  private *call(id: string, args: Value[]): Generator<StateNext> {
+    const rule = this.db.get(id);
+    if (!rule) throw new Error(`unknown rule ${id}`);
 
-    let ruleState = new State(this.db, this.facts);
+    if (!rule.rule__body || !rule.rule__params) {
+      throw new Error(`invalid rule ${rule.id}`);
+    }
+    const params = rule.rule__params.args;
+    const body = rule.rule__body;
+    if (params.length !== args.length) {
+      throw new Error(`Expected ${printExpr(s(id, ...params))}`);
+    }
+
+    let ruleState = new State(this.db, this.facts, this.context);
     const symbolTable = {};
     for (let i = 0; i < params.length; i++) {
       const param = ruleState.exprValue(params[i], symbolTable);
@@ -679,7 +713,7 @@ export class State {
         yield res;
         continue;
       }
-      yield new State(this.db, res.state.facts).yield();
+      yield new State(this.db, res.state.facts, this.context).yield();
     }
   }
   private *seq(items: Value[]): Generator<StateNext> {

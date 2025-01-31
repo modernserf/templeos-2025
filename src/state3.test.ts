@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { State } from "./state3";
+import { State, View } from "./state3";
 import { Expr, AnyStruct, s, v, __ } from "./expr";
 import { data } from "./data3";
 
@@ -12,12 +12,18 @@ function view(id: string, args: Expr[], children?: unknown[]) {
   return { tag: "view", id, args, children };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function stripState(view: View): any {
+  return {
+    ...view,
+    state: undefined,
+    children: view.children?.map(stripState),
+  };
+}
+
 function renderAll(...clauses: Expr[]) {
   const state = State.root(data);
-  return Array.from(state.render(s(",", ...clauses))).map((res) => ({
-    ...res,
-    state: undefined,
-  }));
+  return Array.from(state.render(s(",", ...clauses))).map(stripState);
 }
 
 test("unknown rule", () => {
