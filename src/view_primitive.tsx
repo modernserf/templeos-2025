@@ -1,39 +1,36 @@
-import { FC } from "react";
-import { State } from "./state";
-import { Clause, FormatTextNode, Id, Rule } from "./schema";
-import { filter } from "./iter";
-import { k, R, v } from "./rule_builder";
-import { useEventHandler } from "./event_source";
+import { FC, ReactNode } from "react";
+import { __, AnyStruct, Expr, List, printExpr, s, v } from "./expr";
+import { State, View } from "./state";
 import "./view_primitive.css";
+import { useEventHandler } from "./event_source";
+import { FormatText } from "./data";
 
-type View<Args extends unknown[]> = FC<{ state: State; args: Args }>;
+type VC<Args extends Expr[]> = FC<{
+  state: State;
+  id: string;
+  args: Args;
+  children: ReactNode;
+}>;
 
 // TODO: want to do non-hierarchichal layout
-const Row: View<[Clause[]]> = ({ state, args: [children] }) => (
-  <div className="Row">
-    <Children state={state} ruleBody={children} />
-  </div>
+const Row: VC<[]> = ({ children }) => <div className="Row">{children}</div>;
+const Column: VC<[]> = ({ children }) => (
+  <div className="Column">{children}</div>
 );
 
-const Column: View<[Clause[]]> = ({ state, args: [children] }) => (
-  <div className="Column">
-    <Children state={state} ruleBody={children} />
-  </div>
-);
-
-const AnyData: View<[unknown]> = ({ args: [value] }) => {
-  return <pre>{JSON.stringify(value, null, 2)}</pre>;
+const AnyData: VC<[Expr]> = ({ args: [value] }) => {
+  return <pre>{printExpr(value)}</pre>;
 };
 
-const String: View<[string]> = ({ args: [value] }) => <div>{value}</div>;
+const String: VC<[string]> = ({ args: [value] }) => <div>{value}</div>;
 
-const Button: View<[string, Rule]> = ({ state, args: [label, rule] }) => {
+const Button: VC<[string, Expr]> = ({ state, args: [label, onClick] }) => {
   const handle = useEventHandler(state);
   return (
     <button
       type="button"
       onClick={() => {
-        handle(rule, []);
+        handle(onClick);
       }}
     >
       {label}
@@ -41,50 +38,46 @@ const Button: View<[string, Rule]> = ({ state, args: [label, rule] }) => {
   );
 };
 
-const Input: View<[string, Rule]> = ({ state, args: [value, rule] }) => {
+const Input: VC<[string, Expr, Expr]> = ({
+  state,
+  args: [value, event, onChange],
+}) => {
   const handle = useEventHandler(state);
   return (
     <input
       value={value}
       onChange={(e) => {
-        handle(rule, [e.target.value]);
+        handle(s(",", s("=", event, e.target.value), onChange));
       }}
     />
   );
 };
 
-const Option: View<[Id, string]> = ({ args: [id, label] }) => (
+const Option: VC<[string, string]> = ({ args: [id, label] }) => (
   <option value={id}>{label}</option>
 );
-const Select: View<[Id, Rule, Clause[]]> = ({
+const Select: VC<[string, Expr, Expr]> = ({
   state,
-  args: [value, rule, items],
+  args: [value, event, onChange],
+  children,
 }) => {
   const handle = useEventHandler(state);
   return (
     <select
       value={value}
       onChange={(e) => {
-        handle(rule, [e.target.value]);
+        handle(s(",", s("=", event, e.target.value), onChange));
       }}
     >
-      <Children state={state} ruleBody={items} />
+      {children}
     </select>
   );
 };
 
-const qNewWindow = R("id", "view")
-  .r("rule__newWindow", [v("id"), v("view")])
-  .build();
-const qPush = R("id", "view")
-  .getContext("windowId", "windowId")
-  .r("rule__push", [v("windowId"), v("id"), v("view")])
-  .build();
-const Link: View<[string, string, string]> = ({
+const Link: VC<[string, string, string]> = ({
   state,
   args: [label, id, target],
 }) => {
-  const view = null;
   const handle = useEventHandler(state);
   return (
     <button
@@ -92,9 +85,15 @@ const Link: View<[string, string, string]> = ({
       className="Link"
       onClick={(e) => {
         if (e.metaKey || target === "new") {
-          handle(qNewWindow, [id, view]);
+          handle(s("rule__newWindow", id, __));
         } else {
-          handle(qPush, [id, view]);
+          handle(
+            s(
+              ",",
+              s("get_context", "window_id", v.window),
+              s("rule__push", v.window, id, __)
+            )
+          );
         }
       }}
     >
@@ -103,25 +102,22 @@ const Link: View<[string, string, string]> = ({
   );
 };
 
-const IconView: View<[]> = () => (
+const Icon: VC<[]> = () => (
   <div style={{ textAlign: "center", fontSize: 32 }}>📄</div>
 );
 
-const qLink = R("label", "id").link("label", "id").build();
-
-const TextView: View<[FormatTextNode[]]> = ({ state, args: [text] }) => (
+const Text: VC<[List<FormatText>]> = ({ state, args: [text] }) => (
   <>
-    {text.map((node, i) => {
-      switch (node.tag) {
-        case "text":
-          return <span key={i}>{node.text}</span>;
-        case "link":
+    {text.args.map((node, i) => {
+      switch (typeof node) {
+        case "string":
+          return <span key={i}>{node}</span>;
+        case "object":
           return (
             <span key={i} className="TextView__Link">
               <Query
                 state={state}
-                rule={qLink}
-                args={[node.text, node.params.id]}
+                clause={s("view", s("Link", ...node.args))}
               />
             </span>
           );
@@ -130,55 +126,11 @@ const TextView: View<[FormatTextNode[]]> = ({ state, args: [text] }) => (
   </>
 );
 
-const qRootView = R("id", "view") //
-  .r("rule__call", [v("view"), v("id")])
-  .build();
-const qSelectWindow = R("windowId")
-  .r("rule__selectWindow", [v("windowId")])
-  .build();
-const qBack = R("windowId")
-  .r("rule__back", [v("windowId")])
-  .build();
-const qForward = R("windowId")
-  .r("rule__forward", [v("windowId")])
-  .build();
-const qCloseWindow = R("windowId")
-  .r("rule__closeWindow", [v("windowId")])
-  .build();
-
-const qViewMenu = R("windowId", "id", "view")
-  .r("view__select", [
-    v("view"),
-    k(
-      R("nextView")
-        .get("windowId", "window__currentHistory", "h")
-        .update("h", "history__view", "nextView")
-        .build()
-    ),
-    k(
-      R()
-        .or(
-          // views for type
-          R()
-            .get("id", "db__schema", "schema")
-            .get("viewOption", "view__schema", "schema")
-            .body(),
-          // views for any type
-          R().get("viewOption", "view__schema", k("schema__anyType")).body()
-        )
-        .get("viewOption", "file__name", "viewName")
-        .r("view__option", [v("viewOption"), v("viewName")])
-        .build().rule__body
-    ),
-  ])
-  .build();
-
-const Window: View<[string, string, string, string]> = ({
+const Window: VC<[string, string, string, string, string]> = ({
   state,
-  args: [id, view, windowId, currentWindowId],
+  args: [id, view, windowId, currentWindowId, fileName],
 }) => {
   const handle = useEventHandler(state);
-  const fileName = id;
   const isCurrent = windowId === currentWindowId;
   return (
     <div
@@ -187,16 +139,16 @@ const Window: View<[string, string, string, string]> = ({
         .filter(Boolean)
         .join(" ")}
       onMouseDownCapture={() => {
-        handle(qSelectWindow, [windowId]);
+        handle(s("rule__selectWindow", windowId));
       }}
       onKeyDownCapture={(e) => {
         if (e.key == "[" && e.metaKey) {
           e.preventDefault();
-          handle(qBack, [windowId]);
+          handle(s("rule__back", windowId));
         }
         if (e.key == "]" && e.metaKey) {
           e.preventDefault();
-          handle(qForward, [windowId]);
+          handle(s("rule__forward", windowId));
         }
       }}
     >
@@ -205,66 +157,70 @@ const Window: View<[string, string, string, string]> = ({
           className="AppWindow__closeButton"
           type="button"
           onClick={() => {
-            handle(qCloseWindow, [windowId]);
+            handle(s("rule__closeWindow", windowId));
           }}
         ></button>
         <h1 className="AppWindow__title">{fileName}</h1>
-        <Query state={state} rule={qViewMenu} args={[windowId, id, view]} />
+
+        <Query state={state} clause={s("view__viewMenu", windowId, id, view)} />
       </header>
-      <Query state={state} rule={qRootView} args={[id, view]} />
+      <Query state={state} clause={s(view, id)} />
     </div>
   );
 };
 
-export type ViewPrimitiveId = keyof typeof viewPrimitives;
-const viewPrimitives = {
+const viewPrimitives: Record<string, VC<any>> = {
   Row,
   Column,
   AnyData,
   String,
   Button,
-  Input,
-  Select,
   Option,
+  Select,
   Link,
-  IconView,
-  TextView,
+  Text,
+  Icon,
+  Input,
   Window,
 };
 
-function Children({ state, ruleBody }: { state: State; ruleBody: Clause[] }) {
-  const views = Array.from(
-    filter((res) => res.tag === "view", state.runRuleBody(ruleBody))
-  );
+const DefaultRenderer: VC<Expr[]> = ({ id, args, children }) => {
   return (
-    <>
-      {views.map((view, i) => {
-        const View = viewPrimitives[view.view] as View<unknown[]>;
-        return <View key={i} args={view.args} state={view.state} />;
-      })}
-    </>
+    <div style={{ backgroundColor: "pink" }}>
+      <pre>{printExpr(s(id, ...args))}</pre>
+      <div style={{ marginLeft: "1rem" }}>{children}</div>
+    </div>
+  );
+};
+
+function Primitive({
+  state,
+  id,
+  args,
+  children,
+}: {
+  state: State;
+  id: string;
+  args: Expr[];
+  children?: View[];
+}) {
+  const View = viewPrimitives[id] ?? DefaultRenderer;
+  return (
+    <View state={state} id={id} args={args}>
+      {(children ?? []).map((child, i) => (
+        <Primitive key={i} {...child} />
+      ))}
+    </View>
   );
 }
 
-export function Query({
-  state,
-  rule,
-  args = [],
-}: {
-  state: State;
-  rule: Rule;
-  args?: unknown[];
-}) {
-  if (!rule) throw new Error();
-  const views = Array.from(
-    filter((res) => res.tag === "view", state.runRule(rule, args))
-  );
+export function Query({ state, clause }: { state: State; clause: AnyStruct }) {
+  const res = Array.from(state.render(clause));
   return (
     <>
-      {views.map((view, i) => {
-        const View = viewPrimitives[view.view] as View<unknown[]>;
-        return <View key={i} args={view.args} state={view.state} />;
-      })}
+      {res.map((view, i) => (
+        <Primitive key={i} {...view} />
+      ))}
     </>
   );
 }

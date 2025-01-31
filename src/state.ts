@@ -1,212 +1,747 @@
-import { DB } from "./db";
-import { Rec, Id, Ident, Expr, Param, Clause, Rule } from "./schema";
-import { deepEqual } from "./util";
-import { k, v } from "./rule_builder";
-import { RulePrimitiveId, rulePrimitives } from "./rule_primitive";
-import { ViewPrimitiveId } from "./view_primitive";
+import { Field, Rec } from "./data";
+import { TransactDB, whereValue } from "./db";
+import { Expr, Id, Ident, __, printExpr, s } from "./expr";
 
-type RuleRecBase =
-  | {
-      db__schema: "schema__rule" | "schema__view";
-      rule__params: Param[];
-      rule__body: Clause[];
-    }
-  | {
-      db__schema: "schema__rulePrimitive";
-      rule__params: Param[];
-      rule__primitive: RulePrimitiveId;
-    }
-  | {
-      db__schema: "schema__viewPrimitive";
-      rule__params: Param[];
-      view__primitive: ViewPrimitiveId;
-    };
+export const k = (value: string | number) =>
+  typeof value === "string"
+    ? ({ tag: "string", value } as const)
+    : ({ tag: "number", value } as const);
 
-type RuleRec = Rec & RuleRecBase;
+const sv = <T extends Id, Args extends Value[]>(id: T, ...args: Args) =>
+  ({ tag: "struct", id, args } as const);
 
-export type RuleOutput =
-  | { tag: "result"; state: State }
-  | {
-      tag: "view";
-      state: State;
-      view: ViewPrimitiveId;
-      args: unknown[];
-    };
+type Value =
+  | { tag: "placeholder" }
+  | { tag: "var"; id: FactId }
+  | { tag: "string"; value: string }
+  | { tag: "number"; value: number }
+  | { tag: "struct"; id: Id; args: Value[] };
 
-function notFound(name: string): never {
-  throw new Error(`Not found: ${name}`);
+type Constraint = { tag: "constraint"; predicate: Value };
+
+type Fact = Value | Constraint;
+
+type FactId = symbol;
+type Facts = Record<FactId, Fact>;
+type SymbolTable = Record<Ident, FactId>;
+
+function printFact(fact: Fact): string {
+  switch (fact.tag) {
+    case "placeholder":
+      return "__";
+    case "constraint":
+      return `{${printFact(fact.predicate)}}`;
+    case "var":
+      return `${fact.id.description}`;
+    case "string":
+    case "number":
+      return JSON.stringify(fact.value);
+    case "struct":
+      return `${fact.id}(${fact.args.map(printFact).join(", ")})`;
+  }
 }
+
+function* semidet(state: State | null | undefined) {
+  if (state) yield state.yield();
+}
+
+type ViewPrimitive = string;
+export type View = {
+  tag: "view";
+  id: ViewPrimitive;
+  args: Expr[];
+  children?: View[];
+  state: State;
+};
+
+export type StateNext = { tag: "state"; state: State } | View;
+
+let varCount = 0;
 
 export class State {
   private constructor(
-    public db: DB<Rec>,
-    private scope: Record<Ident, Expr>,
-    private context: Record<Id, unknown>
+    //
+    private db: TransactDB<Rec>,
+    private facts: Facts,
+    private context: Record<string, Value>
   ) {}
-  static root(db: DB<Rec>): State {
+  static root(rules: Record<Id, Rec>): State {
+    const db = new TransactDB<Rec>();
+    db.bulkInsert(rules);
     return new State(db, {}, {});
   }
-  getScope() {
-    return { ...this.scope };
-  }
-  result() {
-    return { tag: "result", state: this } as const;
-  }
-  resolveAll(): Record<Ident, unknown> {
-    return Object.fromEntries(
-      Object.entries(this.scope).map(([key, value]) => [
-        key,
-        this.resolve(value),
-      ])
-    );
-  }
-  isGround(expr: Expr): boolean {
-    switch (expr.tag) {
-      case "const":
-        return true;
-      case "ident": {
-        const value = this.scope[expr.ident];
-        if (!value || value === expr) return false;
-        return this.isGround(value);
-      }
+  *render(expr: Expr): Generator<View> {
+    for (const res of this.runClause(this.exprValue(expr, {}))) {
+      if (res.tag === "view") yield res;
     }
   }
-  resolve<T>(expr: Expr): T {
-    switch (expr.tag) {
-      case "const":
-        return expr.value as T;
-      case "ident": {
-        const value = this.scope[expr.ident];
-        if (!value || value === expr)
-          throw new Error(`cannot resolve ${expr.ident}`);
-        return this.resolve(value);
+  *runAll(expr: Expr): Generator<Record<Ident, Expr | undefined>> {
+    const rootSymbolTable: SymbolTable = {};
+    try {
+      for (const res of this.runClause(this.exprValue(expr, rootSymbolTable))) {
+        if (res.tag !== "state") continue;
+        const { state } = res;
+        yield Object.fromEntries(
+          Object.entries(rootSymbolTable).map(([key, sym]) => [
+            key,
+            state.facts[sym]
+              ? state.factToExpr(state.facts[sym] as Value)
+              : undefined,
+          ])
+        );
       }
+    } finally {
+      this.db.rollbackAll();
     }
   }
-  unify(left: Expr, right: Expr): State | null {
-    switch (left.tag) {
-      case "ident": {
-        const res = this.scope[left.ident];
-        if (res) return this.unify(res, right);
-        return this.setScope(left.ident, right);
-      }
-      case "const":
-        if (right.tag === "ident") {
-          return this.setScope(right.ident, left);
+  private mapValue<T>(fact: Value, f: (f: Value, args?: T[]) => T): T {
+    switch (fact.tag) {
+      case "string":
+      case "number":
+      case "placeholder":
+        return f(fact);
+      case "var": {
+        const next = this.facts[fact.id];
+        if (next && next.tag !== "constraint") {
+          return this.mapValue(next, f);
+        } else {
+          return f(fact);
         }
-        if (deepEqual(left.value, right.value)) return this;
-        return null;
+      }
+      case "struct":
+        return f(
+          fact,
+          fact.args.map((arg) => this.mapValue(arg, f))
+        );
     }
   }
-  private setScope(ident: Ident, expr: Expr): State {
+  private mapExpr<T>(expr: Expr, f: (e: Expr, args?: T[]) => T): T {
+    if (typeof expr !== "object") {
+      return f(expr);
+    }
+    switch (expr.tag) {
+      case "placeholder":
+      case "ident":
+        return f(expr);
+      case "struct":
+        return f(
+          expr,
+          expr.args.map((arg) => this.mapExpr(arg, f))
+        );
+    }
+  }
+  private factToExpr(fact: Value): Expr {
+    return this.mapValue(fact, (f, args = []) => {
+      switch (f.tag) {
+        case "placeholder":
+          return __;
+        case "var":
+          return { tag: "ident", ident: f.id.description ?? "<anonymous>" };
+        case "string":
+        case "number":
+          return f.value;
+        case "struct":
+          return { ...f, args };
+      }
+    });
+  }
+  private exprValue(expr: Expr, localSymbols: SymbolTable): Value {
+    if (typeof expr !== "object") {
+      return k(expr);
+    }
+    switch (expr.tag) {
+      case "placeholder":
+        return __;
+      case "ident": {
+        // vars should bind to each other,
+        // but not to similarly named vars in scope
+        const sym =
+          localSymbols[expr.ident] ?? Symbol(`${expr.ident}<${varCount++}>`);
+        localSymbols[expr.ident] = sym;
+        return { tag: "var", id: sym };
+      }
+      case "struct":
+        return {
+          ...expr,
+          args: expr.args.map((arg) => this.exprValue(arg, localSymbols)),
+        };
+    }
+  }
+  private addValue(id: FactId, value: Value): State {
+    return new State(this.db, { ...this.facts, [id]: value }, this.context);
+  }
+  private addConstraint(id: FactId, predicate: Value) {
+    const prev = this.facts[id];
+    if (prev?.tag === "constraint") {
+      predicate = sv(",", prev.predicate, predicate);
+    }
     return new State(
       this.db,
       {
-        ...this.scope,
-        [ident]: expr,
+        ...this.facts,
+        [id]: { tag: "constraint", predicate },
       },
       this.context
     );
   }
-  getContext<T>(id: Id): T {
-    return (this.context[id] as T) ?? notFound(id);
-  }
-  setContext(id: Id, value: unknown): State {
-    return new State(this.db, this.scope, { ...this.context, [id]: value });
-  }
-  // params are bound to args and added to a new scope
-  *runRule(rule: Rule, args: unknown[]): Generator<RuleOutput> {
-    const ruleState = this.ruleState(rule.rule__params, args.map(k));
-    yield* ruleState.runRuleBody(rule.rule__body!);
-  }
-  // params are bound to args and added to current scope
-  *runClosure(
-    params: Param[],
-    body: Clause[],
-    args: unknown[]
-  ): Generator<RuleOutput> {
-    const state = params.reduce(
-      (s, param, i) => s.unify(v(param.ident), k(args[i])) ?? s,
-      this as State
-    );
-    yield* state.runRuleBody(body);
-  }
-  *runRuleBody(body: Clause[], index = 0): Generator<RuleOutput> {
-    const clause = body[index];
-    if (!clause) {
-      yield { tag: "result", state: this };
-      return;
+  private unifyVar(left: Value & { tag: "var" }, right: Value): State | null {
+    const constraint = this.facts[left.id];
+    const ns = this.addValue(left.id, right);
+    if (!ns) return null;
+    if (constraint?.tag === "constraint") {
+      for (const res of ns.runClause(constraint.predicate)) {
+        if (res.tag === "view") throw new Error();
+        return res.state;
+      }
+      return null;
     }
-    const rule = (this.db.get(clause.name) as RuleRec) ?? notFound(clause.name);
-    for (const res of this.runClause(rule, clause.args)) {
-      switch (res.tag) {
-        case "view":
-          yield res;
-          break;
-        case "result":
-          yield* res.state.runRuleBody(body, index + 1);
-          break;
+    return ns;
+  }
+  private unify(left: Value, right: Value): State | null {
+    // handle placeholders
+    if (left.tag == "placeholder" || right.tag === "placeholder") return this;
+
+    switch (left.tag) {
+      case "var":
+        return this.unifyVar(left, right);
+      case "string":
+      case "number":
+        switch (right.tag) {
+          case "var":
+            return this.unifyVar(right, left);
+          case "struct":
+            return null;
+          case "string":
+          case "number":
+            return left.value === right.value ? this : null;
+        }
+        break;
+      case "struct":
+        switch (right.tag) {
+          case "var":
+            return this.unifyVar(right, left);
+          case "string":
+          case "number":
+            return null;
+          case "struct": {
+            let nextState = this as State;
+            if (left.id !== right.id) return null;
+            if (left.args.length !== right.args.length) return null;
+            for (let i = 0; i < left.args.length; i++) {
+              const ns = nextState.unify(left.args[i], right.args[i]);
+              if (!ns) return null;
+              nextState = ns;
+            }
+            return nextState;
+          }
+        }
+    }
+  }
+  private ensure<T extends Value["tag"]>(
+    res: Value,
+    tag: T
+  ): Value & { tag: T } {
+    if (res.tag !== tag) {
+      throw new Error(`Expected ${tag}, received ${printFact(res)}`);
+    }
+    return res as Value & { tag: T };
+  }
+  private ensureVar<T extends Value["tag"]>(
+    res: Value,
+    tag: T
+  ): Value & { tag: T | "var" | "placeholder" } {
+    if (res.tag === "var" || res.tag == "placeholder") return res;
+    if (res.tag !== tag) {
+      throw new Error(`Expected ${tag}, received ${printFact(res)}`);
+    }
+    return res as Value & { tag: T };
+  }
+  private log(facts: Value[]) {
+    console.log(
+      ...facts.map(printFact),
+      Object.fromEntries(
+        Object.getOwnPropertySymbols(this.facts).map((sym) => [
+          sym.description,
+          printFact(this.facts[sym]),
+        ])
+      )
+    );
+  }
+  yield() {
+    return { tag: "state", state: this } as const;
+  }
+  private *uniqueStates(gen: (this: this) => Generator<StateNext>) {
+    const visited = new WeakSet<State>();
+    for (const res of gen.call(this)) {
+      if (res.tag === "view") {
+        yield res;
+        continue;
+      }
+      if (!visited.has(res.state)) {
+        visited.add(res.state);
+        yield res;
       }
     }
   }
-  private ruleState(params: Param[], args: Expr[]): State {
-    if (params.length !== args.length) throw new Error("invalid arity");
-    const scope = Object.fromEntries(
-      params.map((p, i) => {
-        if (this.isGround(args[i])) {
-          return [p.ident, k(this.resolve(args[i]))];
-        } else {
-          return [p.ident, args[i]];
-        }
-      })
-    );
-    return new State(this.db, scope, this.context);
-  }
-  private ruleDone(
-    ruleState: State,
-    params: Param[],
-    args: Expr[]
-  ): State | null {
-    const nextState = params.reduce<State>((state, param, i) => {
-      const val = ruleState.resolve(ruleState.scope[param.ident]);
-      // if (!val) return state;
-      return state.unify(args[i], k(val)) ?? state;
-    }, this);
+  private dif(l: Value, r: Value): State | null {
+    if (l.tag === "var" || r.tag === "var") {
+      let ns = this as State;
+      if (l.tag === "var") {
+        ns = ns.addConstraint(l.id, sv("/=", l, r));
+      }
+      if (r.tag === "var") {
+        ns = ns.addConstraint(r.id, sv("/=", l, r));
+      }
+      return ns;
+    }
 
-    return nextState;
+    if (l.tag !== r.tag || l.tag === "placeholder" || r.tag === "placeholder")
+      return this;
+
+    switch (l.tag) {
+      case "string":
+      case "number":
+        if (l.value === (r as typeof l).value) return null;
+        return this;
+      case "struct": {
+        const { id, args } = r as typeof l;
+        if (l.id !== id || l.args.length !== args.length) return this;
+        let ns = this as State;
+        for (let i = 0; i < args.length; i++) {
+          const next = ns.dif(l.args[i], args[i]);
+          if (!next) return null;
+          ns = next;
+        }
+        return ns;
+      }
+    }
   }
-  private *runClause(rule: RuleRec, args: Expr[]): Generator<RuleOutput> {
-    switch (rule.db__schema) {
-      case "schema__rulePrimitive": {
-        const fn = rulePrimitives[rule.rule__primitive];
-        yield* fn(this, args);
+  private *runClause(fact_: Value): Generator<StateNext> {
+    // simplify
+    fact_ = this.mapValue(fact_, (e, args = []) => {
+      switch (e.tag) {
+        case "var":
+        case "string":
+        case "number":
+        case "placeholder":
+          return e;
+        case "struct": {
+          return { ...e, args };
+        }
+      }
+    });
+    const { id, args } = this.ensure(fact_, "struct");
+    switch (id) {
+      case "fail":
+        return;
+      case "ok":
+        yield this.yield();
+        return;
+      case "log":
+        this.log(args);
+        yield this.yield();
+        return;
+      case "=":
+        yield* semidet(this.unify(args[0], args[1]));
+        return;
+      case "/=":
+        yield* semidet(this.dif(args[0], args[1]));
+        return;
+      case ",":
+        yield* this.seq(args);
+        return;
+      case ";":
+        yield* this.uniqueStates(function* () {
+          for (const arg of args) {
+            // buffer views until there's a result
+            let views = [];
+            for (const res of this.runClause(arg)) {
+              switch (res.tag) {
+                case "view":
+                  views.push(res);
+                  continue;
+                case "state":
+                  yield* views;
+                  views = [];
+                  yield res;
+              }
+            }
+          }
+        });
+        return;
+      case "¬": // option-L
+        for (const _ of this.runClause(args[0])) {
+          // success -> failure
+          return;
+        }
+        // failure -> success
+        yield this.yield();
+        return;
+      case "throw":
+        throw new Error(`failure at ${printFact(args[0])}`);
+      case "try_catch":
+        try {
+          yield* this.runClause(args[0]);
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (e) {
+          // console.error(e);
+          yield* this.runClause(args[1]);
+        }
+        return;
+      case "if_then_else": {
+        const [cond, ifSuccess, ifFail] = args;
+        let didSucceed = false;
+        for (const res0 of this.runClause(cond)) {
+          if (res0.tag === "view") throw "todo";
+          didSucceed = true;
+          yield* res0.state.runClause(ifSuccess);
+        }
+        if (!didSucceed) {
+          yield* this.runClause(ifFail);
+        }
         return;
       }
-      case "schema__viewPrimitive": {
+      case "var":
+        if (args[0].tag === "var" || args[0].tag === "placeholder")
+          yield this.yield();
+        return;
+      case "nonvar":
+        if (args[0].tag !== "var" && args[0].tag !== "placeholder")
+          yield this.yield();
+        return;
+      case "number":
+        yield* this.test(args[0], "number");
+        return;
+      case "string":
+        yield* this.test(args[0], "string");
+        return;
+      case "struct":
+        yield* this.test(args[0], "struct");
+        return;
+      case "struct_arity": {
+        const st = this.ensure(args[0], "struct");
+        yield* semidet(this.unify(args[1], k(st.args.length)));
+        return;
+      }
+      case "struct_id_args": {
+        const st = this.ensureVar(args[0], "struct");
+        const id = this.ensureVar(args[1], "string");
+        const xs = this.ensureVar(args[2], "struct");
+        if (xs.tag === "struct" && xs.id !== "") {
+          throw new Error("Expected list");
+        }
+        if (st.tag === "struct") {
+          yield* semidet(
+            this.unify(k(st.id), id)?.unify({ ...st, id: "" }, xs)
+          );
+        } else if (id.tag === "string" && xs.tag === "struct") {
+          yield* semidet(this.unify({ ...xs, id: id.value }, st));
+        }
+        return;
+      }
+      case "struct_id_index_arg": {
+        const st = this.ensure(args[0], "struct");
+        const id = this.ensureVar(args[1], "string");
+        const idx = this.ensureVar(args[2], "number");
+        const arg = args[3];
+        const ns = this.unify(k(st.id), id);
+        if (!ns) return;
+
+        if (idx.tag === "number") {
+          const i = idx.value;
+          if (i < 0 || i >= st.args.length) return;
+          yield* semidet(ns.unify(arg, st.args[i]));
+        } else {
+          yield* this.uniqueStates(function* () {
+            for (let i = 0; i < st.args.length; i++) {
+              yield* semidet(ns.unify(idx, k(i))?.unify(arg, st.args[i]));
+            }
+          });
+        }
+        return;
+      }
+      // do a block for side effects
+      case "group": {
+        let state = this as State;
+        let didSucceed = false;
+        for (const res of this.runClause(args[0])) {
+          if (res.tag === "view") throw "todo";
+          didSucceed = true;
+          state = res.state;
+        }
+        if (didSucceed) yield state.yield();
+        return;
+      }
+      case "limit": {
+        const limit = this.ensure(args[0], "number");
+        let count = 0;
+        for (const res of this.runClause(args[1])) {
+          if (count >= limit.value) return;
+          yield res;
+          count++;
+        }
+        return;
+      }
+      // context
+      case "has_context": {
+        const key = this.ensure(args[0], "string");
+        const value = this.context[key.value];
+        if (value) yield this.yield();
+        return;
+      }
+      case "get_context": {
+        const key = this.ensure(args[0], "string");
+        const value = this.context[key.value];
+        if (!value) throw new Error(`Unknown context: ${key.value}`);
+        yield* semidet(this.unify(args[1], value));
+        return;
+      }
+      case "set_context": {
+        const key = this.ensure(args[0], "string");
+        yield new State(this.db, this.facts, {
+          ...this.context,
+          [key.value]: args[1],
+        }).yield();
+        return;
+      }
+      // db
+      case "id": {
+        const id = crypto.randomUUID();
+        yield* semidet(this.unify(args[0], k(id)));
+        return;
+      }
+      case "timestamp": {
+        const id = Date.now();
+        yield* semidet(this.unify(args[0], k(id)));
+        return;
+      }
+      case "tx": {
+        const tx = this.db.beginTx();
+        yield* semidet(this.unify(args[0], k(tx)));
+        return;
+      }
+      case "commit": {
+        const tx = this.ensure(args[0], "number");
+        this.db.commitTx(tx.value);
+        yield this.yield();
+        return;
+      }
+      case "rollback": {
+        const tx = this.ensure(args[0], "number");
+        this.db.rollbackTx(tx.value);
+        yield this.yield();
+        return;
+      }
+      case "tx_update_field_value": {
+        const tx = this.ensure(args[0], "number");
+        const id = this.ensure(args[1], "string");
+        const field = this.ensure(args[2], "string");
+        const value = args[3];
+        this.db.updateTx(
+          tx.value,
+          id.value,
+          field.value as Field,
+          this.factToExpr(value)
+        );
+        yield this.yield();
+        return;
+      }
+      case "tx_delete_field_value":
+        yield* this.delete(args[0], args[1], args[2], args[3]);
+        return;
+      case "get_field_value":
+        yield* this.get(args[0], args[1], args[2]);
+        return;
+      case "view": {
+        const { id, args: xs } = this.ensure(args[0], "struct");
+
         yield {
           tag: "view",
+          id,
+          args: xs.map((arg) => this.factToExpr(arg)),
           state: this,
-          view: rule.view__primitive,
-          args: args.map((arg) => this.resolve(arg)),
         };
-        yield { tag: "result", state: this };
+        yield this.yield();
+        return;
+      }
+      case "view_children": {
+        const { id, args: xs } = this.ensure(args[0], "struct");
+        const body = this.ensure(args[1], "struct");
+
+        let state = this as State;
+        const children: View[] = [];
+        for (const res of this.runClause(body)) {
+          switch (res.tag) {
+            case "view":
+              children.push(res);
+              continue;
+            case "state":
+              state = res.state;
+          }
+        }
+
+        yield {
+          tag: "view",
+          id,
+          args: xs.map((arg) => state.factToExpr(arg)),
+          children,
+          state,
+        };
+
+        yield state.yield();
         return;
       }
       default: {
-        const ruleState = this.ruleState(rule.rule__params, args);
-        for (const res of ruleState.runRuleBody(rule.rule__body)) {
-          switch (res.tag) {
-            case "view":
-              yield res;
-              break;
-            case "result": {
-              const state = this.ruleDone(res.state, rule.rule__params, args);
-              if (state) yield { tag: "result", state };
-              break;
-            }
-          }
-        }
+        yield* this.call(id, args);
         return;
+      }
+    }
+  }
+  private *test(value: Value, tag: Value["tag"]) {
+    if (value.tag === tag) yield this.yield();
+    if (value.tag === "var") {
+      yield this.addConstraint(value.id, sv(tag, value)).yield();
+    }
+    return;
+  }
+  private *get(id: Value, field: Value, value: Value) {
+    id = this.ensureVar(id, "string");
+    field = this.ensureVar(field, "string");
+
+    if (id.tag === "string") {
+      const rec = this.db.get(id.value);
+      if (!rec) return;
+      if (field.tag === "string") {
+        const val = rec[field.value as Field];
+        if (!val) return;
+        yield* semidet(this.unify(value, this.exprValue(val, {})));
+      } else {
+        yield* this.uniqueStates(function* () {
+          for (const f in rec) {
+            const val = rec[f as Field];
+            if (!val) continue;
+            yield* semidet(
+              this.unify(field, k(f))?.unify(value, this.exprValue(val, {}))
+            );
+          }
+        });
+      }
+      return;
+    }
+    if (field.tag === "string" && value.tag === "string") {
+      const idx = this.db.getIndex(field.value);
+      if (idx) {
+        yield* this.uniqueStates(function* () {
+          for (const [{ entityId }] of idx.tree.where(
+            whereValue(value.value)
+          )) {
+            yield* semidet(this.unify(id, k(entityId)));
+          }
+        });
+        return;
+      }
+    }
+    yield* this.uniqueStates(function* () {
+      for (const key of this.db.keys()) {
+        const ns = this.unify(id, k(key))!;
+        const rec = this.db.get(key)!;
+        for (const f in rec) {
+          const val = rec[f as Field];
+          if (!val) continue;
+          yield* semidet(
+            ns?.unify(field, k(f))?.unify(value, ns.exprValue(val, {}))
+          );
+        }
+      }
+    });
+    return;
+  }
+  private *delete(tx_: Value, id_: Value, field: Value, value: Value) {
+    const tx = this.ensure(tx_, "number");
+    const id = this.ensure(id_, "string");
+    const rec = this.db.get(id.value);
+    if (!rec) return;
+
+    // delete a field
+    if (field.tag === "string") {
+      const val = this.exprValue(rec[field.value], {});
+      const ns = this.unify(val, value);
+      if (!ns) return;
+      ns.db.updateTx(tx.value, id.value, field.value as Field, null);
+      yield ns.yield();
+    } else {
+      // delete whole record
+      this.db.insertTx(tx.value, id.value, null);
+      yield* this.uniqueStates(function* () {
+        for (const f in rec) {
+          const val = this.exprValue(rec[f], {});
+          const ns = this.unify(k(f), field) //
+            ?.unify(val, value);
+          if (!ns) return;
+          yield ns.yield();
+        }
+      });
+    }
+  }
+  private *call(id: string, args: Value[]): Generator<StateNext> {
+    const rule = this.db.get(id);
+    if (!rule) throw new Error(`unknown rule ${id}`);
+
+    if (!rule.rule__body || !rule.rule__params) {
+      throw new Error(`invalid rule ${rule.id}`);
+    }
+    const params = rule.rule__params.args;
+    const body = rule.rule__body;
+    if (params.length !== args.length) {
+      throw new Error(`Expected ${printExpr(s(id, ...params))}`);
+    }
+
+    let ruleState = new State(this.db, this.facts, this.context);
+    const symbolTable = {};
+    for (let i = 0; i < params.length; i++) {
+      const param = ruleState.exprValue(params[i], symbolTable);
+      const arg = args[i];
+      const ns = ruleState.unify(param, arg);
+      if (!ns) return;
+      ruleState = ns;
+    }
+
+    for (const res of ruleState.runClause(
+      ruleState.exprValue(body, symbolTable)
+    )) {
+      if (res.tag === "view") {
+        yield res;
+        continue;
+      }
+      yield new State(this.db, res.state.facts, this.context).yield();
+    }
+  }
+  private *seq(items: Value[]): Generator<StateNext> {
+    if (items.length === 0) {
+      yield this.yield();
+      return;
+    }
+
+    const stack = [this.runClause(items[0])];
+    while (stack.length) {
+      const frame = stack.at(-1)!;
+      const res = frame.next();
+      if (res.done) {
+        stack.pop();
+        continue;
+      }
+
+      if (res.value.tag === "view") {
+        yield res.value;
+        continue;
+      }
+
+      const nextClause = items[stack.length];
+
+      if (nextClause) {
+        stack.push(res.value.state.runClause(nextClause));
+      } else {
+        yield res.value;
       }
     }
   }

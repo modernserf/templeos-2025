@@ -1,6 +1,6 @@
-import { State } from "./state3";
-import { data } from "./data3";
-import { Query } from "./view_primitive3";
+import { State } from "./state";
+import { data } from "./data";
+import { Query } from "./view_primitive";
 import { useEventSource } from "./event_source";
 import { s, v } from "./expr";
 
