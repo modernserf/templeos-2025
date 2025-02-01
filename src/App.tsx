@@ -42,6 +42,9 @@ export function App() {
   return (
     <ErrorBoundary>
       <Query state={state} clause={qApp} />
+      <button style={{ marginTop: "1rem" }} onClick={clearState}>
+        Clear state
+      </button>
     </ErrorBoundary>
   );
 }

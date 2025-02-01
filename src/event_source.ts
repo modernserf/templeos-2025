@@ -27,7 +27,7 @@ export function useEventHandler(state: State) {
     for (const _ of state.runAll(rule)) {
       // do nothing
     }
-    eventSource.notifyEventListeners(state.dbDump());
+    eventSource.notifyEventListeners(state.db);
   };
 }
 

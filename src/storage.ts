@@ -1,21 +1,20 @@
-import { data } from "./data";
+import { data, initState, Rec } from "./data";
+import { DB } from "./db";
 import { eventSource } from "./event_source";
 
 const STATE_KEY = "state";
 
-eventSource.addEventListener((dbDump) => {
-  window.localStorage.setItem(STATE_KEY, JSON.stringify(dbDump));
+eventSource.addEventListener((db: DB<Rec>) => {
+  window.localStorage.setItem(STATE_KEY, JSON.stringify(db.dump()));
 });
 
 export function loadState() {
-  try {
-    const res = window.localStorage.getItem(STATE_KEY);
-    if (res) return JSON.parse(res);
-    return data;
-  } catch (e) {
-    console.error(e);
-    return data;
+  const res = window.localStorage.getItem(STATE_KEY);
+  if (res) {
+    const parsed = JSON.parse(res);
+    return { ...initState, ...parsed, ...data };
   }
+  return { ...initState, ...data };
 }
 
 export function clearState() {

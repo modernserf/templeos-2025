@@ -750,21 +750,7 @@ const views = {
   },
 } satisfies Record<string, Rec>;
 
-const startupItems = {
-  rootHistory: {
-    db__schema: "schema__history",
-    history__window: "rootWindow",
-    history__location: "home",
-  },
-  rootWindow: {
-    db__schema: "schema__window",
-    window__currentHistory: "rootHistory",
-  },
-  browser: {
-    db__schema: "schema__browser",
-    file__name: "Browser state",
-    browser__currentWindow: "rootWindow",
-  },
+const files = {
   home: {
     db__schema: "schema__text",
     file__name: "home",
@@ -781,15 +767,34 @@ const startupItems = {
     file__description: l("A folder with some items"),
     folder__items: l("home", "schema__text", "view_type__text"),
   },
-} satisfies Record<string, Rec>;
+};
 
+// always loads from source
 export const data = {
   ...(schemas as Record<string, Rec>),
   ...coreTypes,
   ...fields,
   ...rules,
   ...views,
-  ...startupItems,
+  ...files,
 
   ...typeRecs,
 };
+
+// loads from db if available
+export const initState = {
+  rootHistory: {
+    db__schema: "schema__history",
+    history__window: "rootWindow",
+    history__location: "home",
+  },
+  rootWindow: {
+    db__schema: "schema__window",
+    window__currentHistory: "rootHistory",
+  },
+  browser: {
+    db__schema: "schema__browser",
+    file__name: "Browser state",
+    browser__currentWindow: "rootWindow",
+  },
+} satisfies Record<string, Rec>;

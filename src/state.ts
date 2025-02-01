@@ -61,7 +61,7 @@ let varCount = 0;
 export class State {
   private constructor(
     //
-    private db: TransactDB<Rec>,
+    public db: TransactDB<Rec>,
     private facts: Facts,
     private context: Record<string, Value>
   ) {}
@@ -69,9 +69,6 @@ export class State {
     const db = new TransactDB<Rec>();
     db.bulkInsert(rules);
     return new State(db, {}, {});
-  }
-  dbDump() {
-    return this.db.dump();
   }
   *render(expr: Expr): Generator<View> {
     for (const res of this.runClause(this.exprValue(expr, {}))) {
