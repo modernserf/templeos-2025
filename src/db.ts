@@ -34,7 +34,9 @@ export function whereValue(value: Expr): Where<ExprIndex> {
 export class DB<Rec extends BaseRec> {
   private data = new Map<Id, Rec>();
   private index = new Map<Field, Index>();
-
+  dump() {
+    return Object.fromEntries(this.data);
+  }
   get(id: Id): Rec | null {
     return this.data.get(id) ?? null;
   }

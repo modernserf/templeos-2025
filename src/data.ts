@@ -400,25 +400,6 @@ const rules = {
       )
     ),
   },
-  location_view: {
-    rule__params: l(v.location, v.view),
-    rule__body: r.or(
-      // location for view type
-      r(
-        s("nonvar", v.view),
-        db.get(v.view, "view__schema", v.schema),
-        db.get(v.location, "db__schema", v.schema)
-      ),
-      // view for location type
-      r(
-        s("nonvar", v.location),
-        db.get(v.location, "db__schema", v.schema),
-        db.get(v.view, "view__schema", v.schema)
-      ),
-      // view for any type
-      db.get(v.view, "view__schema", "schema__any")
-    ),
-  },
   // event handlers
   on__selectWindow: {
     rule__params: l(v.window),
@@ -511,7 +492,6 @@ const views = {
     view__type: "type__any",
     rule__params: l(v.data),
     rule__body: r.or(
-      r(),
       r(s("string", v.data), view.string(v.data)),
       r(s("number", v.data), view.string(v.data)),
       r(
@@ -571,9 +551,8 @@ const views = {
       r(
         view.string("Fields"),
         db.get(v.id, v.field, v.value),
-        db.get(v.field, "db__type", v.type),
         view.row(
-          r(view.fileLink(v.field), s("view__for_type", v.type, v.value))
+          r(view.fileLink(v.field), s("view__for_field", v.field, v.value))
         )
       ),
       r(
@@ -632,12 +611,11 @@ const views = {
     ),
   },
   // built in UI elements
-  view__for_type: {
-    rule__params: l(v.type, v.value),
-    rule__body: s(
-      "limit",
-      1,
-      r(s("rule__type_view", v.type, v.view), s("call", v.view, v.value))
+  view__for_field: {
+    rule__params: l(v.field, v.value),
+    rule__body: r(
+      s("limit", 1, r(s("rule__field_view", v.field, v.view))),
+      s("call", v.view, v.value)
     ),
   },
   view__fileLink: {
@@ -675,7 +653,7 @@ const views = {
           db.update(v.tx, v.history, "history__view", v.nextView)
         ),
         r(
-          s("location_view", v.id, v.view),
+          s("rule__location_view", v.id, v.view),
           db.get(v.view, "file__name", v.name),
           view.option(v.view, v.name)
         )
@@ -698,7 +676,7 @@ const views = {
           // view from params
           db.get(v.history, "history__view", v.view),
           // view from id
-          s("location_view", v.id, v.view)
+          s("rule__location_view", v.id, v.view)
         )
       ),
       s("view", s("Window", v.id, v.view, v.w, v.currentWindow, v.name))
@@ -727,14 +705,40 @@ const views = {
     ),
   },
   // utilities
+  rule__location_view: {
+    rule__params: l(v.location, v.view),
+    rule__body: r.or(
+      // location for view type
+      r(
+        s("nonvar", v.view),
+        db.get(v.view, "view__schema", v.schema),
+        db.get(v.location, "db__schema", v.schema)
+      ),
+      // view for location type
+      r(
+        s("nonvar", v.location),
+        db.get(v.location, "db__schema", v.schema),
+        db.get(v.view, "view__schema", v.schema)
+      ),
+      // view for any type
+      db.get(v.view, "view__schema", "schema__any")
+    ),
+  },
   rule__field_view: {
     rule__params: l(v.field, v.view),
     rule__body: r.or(
       db.get(v.view, "view__field", v.type),
       r(
+        s("nonvar", v.field),
         db.get(v.field, "db__type", v.type),
-        s("rule__type_view", v.type, v.view)
-      )
+        db.get(v.view, "view__type", v.type)
+      ),
+      r(
+        s("nonvar", v.view),
+        db.get(v.field, "db__type", v.type),
+        db.get(v.view, "view__type", v.type)
+      ),
+      db.get(v.view, "view__type", "type__any")
     ),
   },
   rule__type_view: {

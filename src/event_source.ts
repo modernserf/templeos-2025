@@ -2,22 +2,24 @@ import { useEffect, useState } from "react";
 import { State } from "./state";
 import { Expr } from "./expr";
 
+type EventListener<T> = (value: T) => void;
+
 export class EventSource {
-  private eventListeners: Array<() => void> = [];
-  addEventListener(fn: () => void) {
+  private eventListeners: Array<EventListener<unknown>> = [];
+  addEventListener(fn: EventListener<unknown>) {
     this.eventListeners.push(fn);
     return () => {
       this.eventListeners = this.eventListeners.filter((f) => f !== fn);
     };
   }
-  notifyEventListeners() {
+  notifyEventListeners(message: unknown) {
     for (const l of this.eventListeners) {
-      l();
+      l(message);
     }
   }
 }
 
-const eventSource = new EventSource();
+export const eventSource = new EventSource();
 
 export function useEventHandler(state: State) {
   return (rule: Expr) => {
@@ -25,7 +27,7 @@ export function useEventHandler(state: State) {
     for (const _ of state.runAll(rule)) {
       // do nothing
     }
-    eventSource.notifyEventListeners();
+    eventSource.notifyEventListeners(state.dbDump());
   };
 }
 

@@ -70,6 +70,9 @@ export class State {
     db.bulkInsert(rules);
     return new State(db, {}, {});
   }
+  dbDump() {
+    return this.db.dump();
+  }
   *render(expr: Expr): Generator<View> {
     for (const res of this.runClause(this.exprValue(expr, {}))) {
       if (res.tag === "view") yield res;
