@@ -187,6 +187,10 @@ const coreTypes = {
     file__name: "Number",
     // db__type: s("number"),
   },
+  type__time: {
+    db__schema: "schema__type",
+    file__name: "Time",
+  },
   type__ref: {
     db__schema: "schema__type",
     file__name: "Ref",
@@ -212,7 +216,7 @@ const fields = {
   time__created: {
     db__schema: "schema__field",
     file__name: "Time created",
-    db__type: "type__number",
+    db__type: "type__time",
     db__index: s("sorted"),
   },
   db__schema: {
@@ -525,6 +529,11 @@ const views = {
     rule__params: l(v.string),
     rule__body: view.string(v.string),
   },
+  view_type__time: {
+    view__type: "type__time",
+    rule__params: l(v.ts),
+    rule__body: view.string(v.ts),
+  },
   view_type__ref: {
     view__type: "type__ref",
     rule__params: l(v.ref),
@@ -633,7 +642,10 @@ const views = {
   },
   view__fileLink: {
     rule__params: l(v.id),
-    rule__body: r(db.get(v.id, "file__name", v.name), view.link(v.name, v.id)),
+    rule__body: r(
+      r.cond(db.get(v.id, "file__name", v.name), s("ok"), s("=", v.name, v.id)),
+      view.link(v.name, v.id)
+    ),
   },
   view__fileInfo: {
     rule__params: l(v.id),
@@ -727,7 +739,10 @@ const views = {
   },
   rule__type_view: {
     rule__params: l(v.type, v.view),
-    rule__body: r(db.get(v.view, "view__type", v.type)),
+    rule__body: r.or(
+      db.get(v.view, "view__type", v.type),
+      db.get(v.view, "view__type", "type__any")
+    ),
   },
 } satisfies Record<string, Rec>;
 
