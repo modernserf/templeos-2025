@@ -26,6 +26,10 @@ type FactId = number;
 type Facts = Record<FactId, Fact>;
 type SymbolTable = Record<Ident, FactId>;
 
+class Exception {
+  constructor(public error: Value) {}
+}
+
 function printFact(fact: Fact): string {
   switch (fact.tag) {
     case "placeholder":
@@ -235,8 +239,8 @@ export class State {
         }
     }
   }
-  expected(expected: string, received: Value): never {
-    throw new Error(`Expected ${expected}, received ${printFact(received)}`);
+  private expected(expected: string, received: Value): never {
+    throw new Exception(sv("expected_received", k(expected), received));
   }
   private ensure<T extends Value["tag"]>(
     res: Value,
@@ -256,9 +260,7 @@ export class State {
     tag: T
   ): Value & { tag: T | "var" | "placeholder" } {
     if (res.tag === "var" || res.tag == "placeholder") return res;
-    if (res.tag !== tag) {
-      throw new Error(`Expected ${tag}, received ${printFact(res)}`);
-    }
+    if (res.tag !== tag) this.expected(tag, res);
     return res as Value & { tag: T };
   }
   private log(facts: Value[]) {
@@ -353,9 +355,9 @@ export class State {
         yield* semidet(this.notProven(args[0]));
         return;
       case "throw":
-        throw new Error(`failure at ${printFact(args[0])}`);
-      case "try_catch":
-        yield* this.tryCatch(args[0], args[1]);
+        throw new Exception(args[0]);
+      case "try_error_catch":
+        yield* this.tryCatch(args[0], args[1], args[2]);
         return;
       case "if_then_else":
         yield* this.ifThenElse(args[0], args[1], args[2]);
@@ -535,21 +537,15 @@ export class State {
         return;
       }
       // db
-      case "id": {
-        const id = crypto.randomUUID();
-        yield* semidet(this.unify(args[0], k(id)));
+      case "id":
+        yield* semidet(this.unify(args[0], k(crypto.randomUUID())));
         return;
-      }
-      case "timestamp": {
-        const id = Date.now();
-        yield* semidet(this.unify(args[0], k(id)));
+      case "timestamp":
+        yield* semidet(this.unify(args[0], k(Date.now())));
         return;
-      }
-      case "tx": {
-        const tx = this.db.beginTx();
-        yield* semidet(this.unify(args[0], k(tx)));
+      case "tx":
+        yield* semidet(this.unify(args[0], k(this.db.beginTx())));
         return;
-      }
       case "commit": {
         const tx = this.ensure(args[0], "number");
         if (!tx) return;
@@ -665,13 +661,21 @@ export class State {
       }
     });
   }
-  private *tryCatch(tryClause: Value, catchClause: Value) {
+  private *tryCatch(tryClause: Value, errorVar: Value, catchClause: Value) {
     try {
       yield* this.runClause(tryClause);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
-      // console.error(e);
-      yield* this.runClause(catchClause);
+      if (e instanceof Exception) {
+        const ns = this.unify(errorVar, e.error);
+        if (!ns) {
+          throw new Error(
+            `failed to unify ${printFact(errorVar)} = ${printFact(e.error)}`
+          );
+        }
+        yield* ns.runClause(catchClause);
+      } else {
+        throw e;
+      }
     }
   }
   private *ifThenElse(cond: Value, ifSuccess: Value, ifFail: Value) {
@@ -857,7 +861,7 @@ export class State {
   }
   private *call(id: string, args: Value[]): Generator<StateNext> {
     const rule = this.db.get(id);
-    if (!rule) throw new Error(`unknown rule ${id}`);
+    if (!rule) throw new Exception(sv("unknown_rule", k(id)));
 
     // callable fields
     if (rule.db__schema === "schema__field") {
@@ -866,13 +870,12 @@ export class State {
     }
 
     if (!rule.rule__body || !rule.rule__params) {
-      console.error(rule);
-      throw new Error(`invalid rule ${id}`);
+      throw new Exception(sv("invalid_rule", k(id)));
     }
     const params = rule.rule__params.args;
     const body = rule.rule__body;
     if (params.length !== args.length) {
-      throw new Error(`Expected ${printExpr(s(id, ...params))}`);
+      this.expected(printExpr(s(id, ...params)), sv(id, ...args));
     }
 
     let ruleState = new State(this.db, this.facts, this.context);

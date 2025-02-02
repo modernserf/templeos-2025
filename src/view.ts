@@ -22,6 +22,12 @@ export const view = {
   text: (text: Expr) => s("view", s("Text", text)),
 };
 
+export const rootView = r(
+  s("view__appMenu"),
+  f.db__schema(v.window, "schema__window"),
+  s("view__window", v.window)
+);
+
 export const views = {
   // type views
   view_type__any: {

@@ -414,16 +414,23 @@ test("list_list_append", () => {
   ]);
 });
 
-test("error handlers", () => {
+test("exception handlers", () => {
   expect(
     runAll(
       s(
-        "try_catch",
-        s("throw", s("error", s("out_of_memory"))),
+        "try_error_catch",
+        s("throw", s("out_of_memory")),
+        __,
         s("=", v.foo, 123)
       )
     )
   ).toEqual([{ foo: 123 }]);
+
+  expect(
+    runAll(
+      s("try_error_catch", s("throw", s("out_of_memory")), v.error, s("ok"))
+    )
+  ).toEqual([{ error: s("out_of_memory") }]);
 });
 
 function ll(...xs: Expr[]): Expr {

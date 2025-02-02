@@ -1,4 +1,4 @@
-import { l, r, s, v, Expr, Struct, Id, List, AnyStruct, __ } from "./expr";
+import { l, r, s, v, Expr, Struct, Id, List, AnyStruct } from "./expr";
 import { typeRecs } from "./type";
 import { schemas, SchemaId } from "./schema";
 import { fields, Field, f } from "./field";
