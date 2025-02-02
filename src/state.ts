@@ -28,6 +28,9 @@ type SymbolTable = Record<Ident, FactId>;
 
 class Exception {
   constructor(public error: Value) {}
+  get message() {
+    return printFact(this.error);
+  }
 }
 
 function printFact(fact: Fact): string {
@@ -667,11 +670,7 @@ export class State {
     } catch (e) {
       if (e instanceof Exception) {
         const ns = this.unify(errorVar, e.error);
-        if (!ns) {
-          throw new Error(
-            `failed to unify ${printFact(errorVar)} = ${printFact(e.error)}`
-          );
-        }
+        if (!ns) throw ns;
         yield* ns.runClause(catchClause);
       } else {
         throw e;
@@ -749,9 +748,6 @@ export class State {
     });
   }
   private collect(into: Value, clause: Value, out: Value) {
-    if (into.tag !== "placeholder" && into.tag !== "var") {
-      this.expected("var", into);
-    }
     let state = this as State;
     let didSucceed = false;
     const results: Value[] = [];
@@ -759,12 +755,15 @@ export class State {
       if (res.tag === "view") throw "todo";
       didSucceed = true;
       state = res.state;
-      if (into.tag === "var") {
+      if (out.tag !== "placeholder") {
         const val = state.resolve(into);
         results.push(val);
       }
     }
     if (didSucceed) {
+      if (out.tag === "placeholder") {
+        return this;
+      }
       return this.unify(out, { tag: "struct", id: "", args: results });
     }
     return null;

@@ -72,6 +72,10 @@ export const fields = {
     file__name: "Rule body",
     // db__type: s("struct"),
   },
+  test__group: {
+    db__schema: "schema__field",
+    file__name: "Test group",
+  },
   view__schema: {
     db__schema: "schema__field",
     file__name: "View for schema",

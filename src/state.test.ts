@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { State, View } from "./state";
 import { Expr, AnyStruct, r, s, v, __ } from "./expr";
 import { data } from "./data";
+import { f } from "./field";
 
 function runAll(...clauses: Expr[]) {
   const state = State.root(data);
@@ -139,120 +140,9 @@ test("if_then_else", () => {
   ).toEqual([]);
 });
 
-test("type predicates", () => {
-  expect(
-    runAll(
-      s("=", v.bar, 123),
-      s("=", v.baz, "Hello"),
-      s("=", v.quux, s("pair", 123, 456)),
-      // var
-      s("var", v.foo),
-      s("var", __),
-      // nonvar
-      s("nonvar", v.bar),
-      s("nonvar", 456),
-      s("nonvar", s("pair", 123, 456)),
-      s("nonvar", s("pair", __, 123)),
-
-      s("number", 456),
-      s("string", "Goodbye"),
-      s("struct", s("pair", __, 456))
-    )
-  ).toEqual([
-    {
-      foo: undefined,
-      bar: 123,
-      baz: "Hello",
-      quux: s("pair", 123, 456),
-    },
-  ]);
-});
-
 test("negation as failure", () => {
   expect(runAll(s("¬", s("fail")))).toEqual([{}]);
   expect(runAll(s("¬", s("ok")))).toEqual([]);
-});
-
-test("constraints", () => {
-  // expect(
-  //   runAll(
-  //     s("string", v.x) //
-  //   )
-  // ).toEqual([{}]);
-
-  expect(
-    runAll(
-      s("constrain_type", v.x, s("string")),
-      // s("string", v.x), //
-      s("=", v.x, "hello")
-    )
-  ).toEqual([{ x: "hello" }]);
-
-  // expect(
-  //   runAll(
-  //     s("string", v.x), //
-  //     s("=", "hello", v.x)
-  //   )
-  // ).toEqual([{ x: "hello" }]);
-
-  // expect(
-  //   runAll(
-  //     s("string", v.x), //
-  //     s("=", v.x, 1)
-  //   )
-  // ).toEqual([]);
-
-  // expect(
-  //   runAll(
-  //     s("string", v.x), //
-  //     s("=", 1, v.x)
-  //   )
-  // ).toEqual([]);
-
-  // expect(
-  //   runAll(
-  //     s("string", v.x), //
-  //     s("=", v.x, v.y),
-  //     s("=", v.y, "hello")
-  //   )
-  // ).toEqual([{ x: "hello", y: "hello" }]);
-});
-
-test("conflicting constraints", () => {
-  expect(
-    runAll(
-      //
-      s("constrain_type", v.x, s("string")),
-      s("constrain_type", v.x, s("number"))
-    )
-  ).toEqual([{}]);
-  expect(
-    runAll(
-      //
-      s("constrain_type", v.x, s("number")),
-      s("constrain_type", v.x, s("string")),
-      s("=", v.x, 1)
-    )
-  ).toEqual([]);
-
-  expect(
-    runAll(
-      //
-      s("constrain_type", v.x, s("string")),
-      s("constrain_type", v.x, s("number")),
-      s("=", v.x, 1)
-    )
-  ).toEqual([]);
-
-  expect(
-    runAll(
-      //
-      s("constrain_type", v.x, s("string")),
-      s("constrain_type", v.y, s("number")),
-      s("=", v.x, v.y),
-      s("=", v.y, 1)
-    )
-  ).toEqual([]);
 });
 
 test("/=", () => {
@@ -314,104 +204,6 @@ test("/=", () => {
       s("=", v.x, 1)
     )
   ).toEqual([]);
-});
-
-test("struct_arity", () => {
-  expect(
-    runAll(
-      //
-      s("struct_arity", s("pair", 123, __), v.arity)
-    )
-  ).toEqual([{ arity: 2 }]);
-});
-
-test("struct_id_args", () => {
-  expect(
-    runAll(s("struct_id_args", s("pair", 123, 456), v.id, v.args))
-  ).toEqual([
-    {
-      id: "pair",
-      args: s("", 123, 456),
-    },
-  ]);
-
-  expect(
-    runAll(s("struct_id_args", v.struct, "pair", s("", 123, 456)))
-  ).toEqual([
-    {
-      struct: s("pair", 123, 456),
-    },
-  ]);
-});
-
-test("struct_id_index_arg", () => {
-  // get
-  expect(
-    runAll(s("struct_id_index_arg", s("pair", 123, 456), __, 0, v.value))
-  ).toEqual([{ value: 123 }]);
-
-  // iter
-  expect(
-    runAll(s("struct_id_index_arg", s("pair", 123, 456), __, v.index, v.value))
-  ).toEqual([
-    { index: 0, value: 123 },
-    { index: 1, value: 456 },
-  ]);
-
-  // find
-  expect(
-    runAll(s("struct_id_index_arg", s("pair", 123, 456), __, v.index, 456))
-  ).toEqual([{ index: 1 }]);
-
-  // coalesce duplicate states
-  expect(
-    runAll(
-      s(
-        //
-        "struct_id_index_arg",
-        s("pair", 123, 456),
-        v.id,
-        __,
-        __
-      )
-    )
-  ).toEqual([{ id: "pair" }]);
-});
-
-test("list_from_to_slice", () => {
-  // all outputs
-  expect(
-    runAll(s("list_from_to_slice", s("", "a", "b", "c"), v.from, v.to, v.slice))
-  ).toEqual([{ from: 0, to: 3, slice: s("", "a", "b", "c") }]);
-  // subset
-  expect(
-    runAll(s("list_from_to_slice", s("", "a", "b", "c"), 1, __, v.slice))
-  ).toEqual([{ slice: s("", "b", "c") }]);
-});
-
-test("list_list_append", () => {
-  // concat
-  expect(
-    runAll(s("list_list_append", s("", "a"), s("", "b", "c"), v.append))
-  ).toEqual([{ append: s("", "a", "b", "c") }]);
-  // cons
-  expect(
-    runAll(s("list_list_append", s("", v.head), v.tail, s("", "a", "b", "c")))
-  ).toEqual([{ head: "a", tail: s("", "b", "c") }]);
-  // stack
-  expect(
-    runAll(s("list_list_append", v.stack, s("", v.pop), s("", "a", "b", "c")))
-  ).toEqual([{ stack: s("", "a", "b"), pop: "c" }]);
-  // scan
-  expect(
-    runAll(s("list_list_append", v.left, __, s("", "a", "b", "c")))
-  ).toEqual([
-    //
-    { left: s("") },
-    { left: s("", "a") },
-    { left: s("", "a", "b") },
-    { left: s("", "a", "b", "c") },
-  ]);
 });
 
 test("exception handlers", () => {
@@ -722,4 +514,20 @@ test("views", () => {
       ]
     ),
   ]);
+});
+
+test("internal tests", () => {
+  expect(
+    runAll(
+      //
+      f.test__group(v.id, v.group),
+      s("log", "testing", v.group, v.id),
+      s(
+        "try_error_catch",
+        s("call", v.id),
+        v.error,
+        r(s("log", v.error), s("throw", v.error))
+      )
+    )
+  ).not.toEqual([]);
 });

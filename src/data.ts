@@ -32,6 +32,8 @@ export type Rec = Record<string, Expr> & {
   view__field?: Field;
   view__type?: TypeId;
 
+  test__group?: string;
+
   file__name?: string;
   file__description?: List<FormatText>;
 
