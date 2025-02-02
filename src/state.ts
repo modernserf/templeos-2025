@@ -153,8 +153,6 @@ export class State {
       case "placeholder":
         return __;
       case "ident": {
-        // vars should bind to each other,
-        // but not to similarly named vars in scope
         const sym =
           localSymbols[expr.ident] ?? Symbol(`${expr.ident}<${varCount++}>`);
         localSymbols[expr.ident] = sym;
@@ -237,18 +235,20 @@ export class State {
         }
     }
   }
+  expected(expected: string, received: Value): never {
+    throw new Error(`Expected ${expected}, received ${printFact(received)}`);
+  }
   private ensure<T extends Value["tag"]>(
     res: Value,
     tag: T
-  ): Value & { tag: T } {
-    if (res.tag !== tag) {
-      throw new Error(`Expected ${tag}, received ${printFact(res)}`);
-    }
+  ): (Value & { tag: T }) | null {
+    if (res.tag === "var" || res.tag == "placeholder") return null;
+    if (res.tag !== tag) this.expected(tag, res);
     return res as Value & { tag: T };
   }
   private ensureList(res: Value): Value & { tag: "struct"; id: "" } {
     const res_ = this.ensure(res, "struct");
-    if (res_.id) throw new Error(`Expected list, received ${printFact(res)}`);
+    if (!res_ || res_.id) this.expected("list", res);
     return res_ as Value & { tag: "struct"; id: "" };
   }
   private ensureVar<T extends Value["tag"]>(
@@ -327,27 +327,14 @@ export class State {
   }
   private *runClause(fact_: Value): Generator<StateNext> {
     // simplify
-    fact_ = this.mapValue(fact_, (e, args = []) => {
-      switch (e.tag) {
-        case "var":
-        case "string":
-        case "number":
-        case "placeholder":
-          return e;
-        case "struct": {
-          return { ...e, args };
-        }
-      }
-    });
-    const { id, args } = this.ensure(fact_, "struct");
+    fact_ = this.resolve(fact_);
+    const { id, args } =
+      this.ensure(fact_, "struct") ?? this.expected("struct", fact_);
     switch (id) {
+      // Control flow & basic matching
       case "fail":
         return;
       case "ok":
-        yield this.yield();
-        return;
-      case "log":
-        this.log(args);
         yield this.yield();
         return;
       case "=":
@@ -360,85 +347,55 @@ export class State {
         yield* this.seq(args);
         return;
       case ";":
-        yield* this.uniqueStates(function* () {
-          for (const arg of args) {
-            // buffer views until there's a result
-            let views = [];
-            for (const res of this.runClause(arg)) {
-              switch (res.tag) {
-                case "view":
-                  views.push(res);
-                  continue;
-                case "state":
-                  yield* views;
-                  views = [];
-                  yield res;
-              }
-            }
-          }
-        });
+        yield* this.or(args);
         return;
       case "¬": // option-L
-        for (const _ of this.runClause(args[0])) {
-          // success -> failure
-          return;
-        }
-        // failure -> success
-        yield this.yield();
+        yield* semidet(this.notProven(args[0]));
         return;
       case "throw":
         throw new Error(`failure at ${printFact(args[0])}`);
       case "try_catch":
-        try {
-          yield* this.runClause(args[0]);
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (e) {
-          // console.error(e);
-          yield* this.runClause(args[1]);
-        }
+        yield* this.tryCatch(args[0], args[1]);
         return;
-      case "if_then_else": {
-        const [cond, ifSuccess, ifFail] = args;
-        let didSucceed = false;
-        for (const res0 of this.runClause(cond)) {
-          if (res0.tag === "view") throw "todo";
-          didSucceed = true;
-          yield* res0.state.runClause(ifSuccess);
-        }
-        if (!didSucceed) {
-          yield* this.runClause(ifFail);
+      case "if_then_else":
+        yield* this.ifThenElse(args[0], args[1], args[2]);
+        return;
+      case "collect":
+        yield* semidet(this.collect(args[0], args[1], args[2]));
+        return;
+      case "limit":
+        yield* this.limit(args[0], args[1]);
+        return;
+      // values
+      case "value_type":
+        yield* semidet(this.unify(args[1], this.valueType(args[0])));
+        return;
+      case "value_constraint":
+        yield* this.valueConstraint(args[0], args[1]);
+        return;
+      case "var_name": {
+        const name = this.varName(args[0]);
+        yield* semidet(name && this.unify(name, args[1]));
+        return;
+      }
+      case "string_number": {
+        const str = this.ensureVar(args[0], "string");
+        const num = this.ensureVar(args[1], "number");
+        if (str.tag === "string") {
+          const parsed = Number(str.value);
+          if (Number.isFinite(parsed)) {
+            yield* semidet(this.unify(k(parsed), num));
+          }
+        } else if (num.tag === "number") {
+          const strung = String(num.value);
+          yield* semidet(this.unify(k(strung), str));
         }
         return;
       }
-      case "var__name": {
-        if (args[0].tag === "var") {
-          yield* semidet(this.unify(k(args[0].id.description!), args[1]));
-        }
-        if (args[0].tag === "placeholder") {
-          yield* semidet(this.unify(k("__"), args[1]));
-        }
-        return;
-      }
-      case "var":
-        if (args[0].tag === "var" || args[0].tag === "placeholder")
-          yield this.yield();
-        return;
-      case "nonvar":
-        if (args[0].tag !== "var" && args[0].tag !== "placeholder")
-          yield this.yield();
-        return;
-      case "number":
-        yield* this.test(args[0], "number");
-        return;
-      case "string":
-        yield* this.test(args[0], "string");
-        return;
-      case "struct":
-        yield* this.test(args[0], "struct");
-        return;
       case "string_substring": {
         const str = this.ensure(args[0], "string");
         const sub = this.ensure(args[1], "string");
+        if (!str || !sub) return;
         if (str.value.toLowerCase().match(sub.value.toLowerCase())) {
           yield this.yield();
         }
@@ -446,6 +403,7 @@ export class State {
       }
       case "struct_arity": {
         const st = this.ensure(args[0], "struct");
+        if (!st) return;
         yield* semidet(this.unify(args[1], k(st.args.length)));
         return;
       }
@@ -453,9 +411,7 @@ export class State {
         const st = this.ensureVar(args[0], "struct");
         const id = this.ensureVar(args[1], "string");
         const xs = this.ensureVar(args[2], "struct");
-        if (xs.tag === "struct" && xs.id !== "") {
-          throw new Error("Expected list");
-        }
+        if (xs.tag === "struct" && xs.id !== "") this.expected("list", xs);
         if (st.tag === "struct") {
           yield* semidet(
             this.unify(k(st.id), id)?.unify({ ...st, id: "" }, xs)
@@ -467,6 +423,7 @@ export class State {
       }
       case "struct_id_index_arg": {
         const st = this.ensure(args[0], "struct");
+        if (!st) return;
         const id = this.ensureVar(args[1], "string");
         const idx = this.ensureVar(args[2], "number");
         const arg = args[3];
@@ -554,36 +511,18 @@ export class State {
       }
 
       // do a block for side effects
-      case "group": {
-        let state = this as State;
-        let didSucceed = false;
-        for (const res of this.runClause(args[0])) {
-          if (res.tag === "view") throw "todo";
-          didSucceed = true;
-          state = res.state;
-        }
-        if (didSucceed) yield state.yield();
-        return;
-      }
-      case "limit": {
-        const limit = this.ensure(args[0], "number");
-        let count = 0;
-        for (const res of this.runClause(args[1])) {
-          if (count >= limit.value) return;
-          yield res;
-          count++;
-        }
-        return;
-      }
+
       // context
       case "has_context": {
         const key = this.ensure(args[0], "string");
+        if (!key) return;
         const value = this.context[key.value];
         if (value) yield this.yield();
         return;
       }
       case "get_context": {
         const key = this.ensure(args[0], "string");
+        if (!key) return;
         const value = this.context[key.value];
         if (!value) throw new Error(`Unknown context: ${key.value}`);
         yield* semidet(this.unify(args[1], value));
@@ -591,6 +530,7 @@ export class State {
       }
       case "set_context": {
         const key = this.ensure(args[0], "string");
+        if (!key) return;
         yield new State(this.db, this.facts, {
           ...this.context,
           [key.value]: args[1],
@@ -615,12 +555,14 @@ export class State {
       }
       case "commit": {
         const tx = this.ensure(args[0], "number");
+        if (!tx) return;
         this.db.commitTx(tx.value);
         yield this.yield();
         return;
       }
       case "rollback": {
         const tx = this.ensure(args[0], "number");
+        if (!tx) return;
         this.db.rollbackTx(tx.value);
         yield this.yield();
         return;
@@ -629,6 +571,7 @@ export class State {
         const tx = this.ensure(args[0], "number");
         const id = this.ensure(args[1], "string");
         const field = this.ensure(args[2], "string");
+        if (!tx || !id || !field) return;
         const value = args[3];
         this.db.updateTx(
           tx.value,
@@ -645,8 +588,16 @@ export class State {
       case "get_field_value":
         yield* this.get(args[0], args[1], args[2]);
         return;
+
+      case "log":
+        this.log(args);
+        yield this.yield();
+        return;
+
       case "view": {
-        const { id, args: xs } = this.ensure(args[0], "struct");
+        const view = this.ensure(args[0], "struct");
+        if (!view) return;
+        const { id, args: xs } = view;
 
         yield {
           tag: "view",
@@ -658,8 +609,10 @@ export class State {
         return;
       }
       case "view_children": {
-        const { id, args: xs } = this.ensure(args[0], "struct");
+        const view = this.ensure(args[0], "struct");
         const body = this.ensure(args[1], "struct");
+        if (!view || !body) return;
+        const { id, args: xs } = view;
 
         let state = this as State;
         const children: View[] = [];
@@ -686,6 +639,7 @@ export class State {
       }
       case "call": {
         const id = this.ensure(args[0], "string");
+        if (!id) return;
         yield* this.call(id.value, args.slice(1));
         return;
       }
@@ -695,12 +649,133 @@ export class State {
       }
     }
   }
-  private *test(value: Value, tag: Value["tag"]) {
-    if (value.tag === tag) yield this.yield();
-    if (value.tag === "var") {
-      yield this.addConstraint(value.id, sv(tag, value)).yield();
+  private *or(args: Value[]) {
+    yield* this.uniqueStates(function* () {
+      for (const arg of args) {
+        // buffer views until there's a result
+        let views = [];
+        for (const res of this.runClause(arg)) {
+          switch (res.tag) {
+            case "view":
+              views.push(res);
+              continue;
+            case "state":
+              yield* views;
+              views = [];
+              yield res;
+          }
+        }
+      }
+    });
+  }
+  private *tryCatch(tryClause: Value, catchClause: Value) {
+    try {
+      yield* this.runClause(tryClause);
+    } catch (e) {
+      // console.error(e);
+      yield* this.runClause(catchClause);
     }
-    return;
+  }
+  private *ifThenElse(cond: Value, ifSuccess: Value, ifFail: Value) {
+    let didSucceed = false;
+    for (const res0 of this.runClause(cond)) {
+      if (res0.tag === "view") continue;
+      didSucceed = true;
+      yield* res0.state.runClause(ifSuccess);
+    }
+    if (!didSucceed) {
+      yield* this.runClause(ifFail);
+    }
+  }
+  private notProven(clause: Value): State | null {
+    for (const _ of this.runClause(clause)) {
+      // success -> failure
+      return null;
+    }
+    return this;
+  }
+  private valueType(value: Value): Value {
+    switch (value.tag) {
+      case "string":
+        return sv("string");
+      case "number":
+        return sv("number");
+      case "placeholder":
+      case "var":
+        return sv("var");
+      case "struct":
+        return sv("struct");
+    }
+  }
+  private *valueConstraint(value: Value, constraint: Value) {
+    switch (value.tag) {
+      case "string":
+      case "number":
+      case "struct":
+        yield* this.runClause(constraint);
+        return;
+      case "placeholder":
+        return;
+      case "var":
+        yield this.addConstraint(value.id, constraint).yield();
+    }
+  }
+  private varName(value: Value) {
+    switch (value.tag) {
+      case "placeholder":
+        return k("__");
+      case "var":
+        return k(String(value.id.description));
+      case "struct":
+      case "string":
+      case "number":
+        return null;
+    }
+  }
+  private resolve(value: Value): Value {
+    return this.mapValue(value, (e, args = []) => {
+      switch (e.tag) {
+        case "var":
+        case "string":
+        case "number":
+        case "placeholder":
+          return e;
+        case "struct": {
+          return { ...e, args };
+        }
+      }
+    });
+  }
+  private collect(into: Value, clause: Value, out: Value) {
+    if (into.tag !== "placeholder" && into.tag !== "var") {
+      this.expected("var", into);
+    }
+    let state = this as State;
+    let didSucceed = false;
+    const results: Value[] = [];
+    for (const res of this.runClause(clause)) {
+      if (res.tag === "view") throw "todo";
+      didSucceed = true;
+      state = res.state;
+      if (into.tag === "var") {
+        const val = state.resolve(into);
+        results.push(val);
+      }
+    }
+    if (didSucceed) {
+      return this.unify(out, { tag: "struct", id: "", args: results });
+    }
+    return null;
+  }
+  private *limit(input: Value, clause: Value) {
+    const limit = this.ensure(input, "number");
+    if (!limit) return;
+    let count = 0;
+    for (const res of this.runClause(clause)) {
+      if (count >= limit.value) return;
+      yield res;
+      if (res.tag === "state") count++;
+    }
   }
   private *get(id: Value, field: Value, value: Value) {
     id = this.ensureVar(id, "string");
@@ -757,6 +832,7 @@ export class State {
   private *delete(tx_: Value, id_: Value, field: Value, value: Value) {
     const tx = this.ensure(tx_, "number");
     const id = this.ensure(id_, "string");
+    if (!tx || !id) return;
     const rec = this.db.get(id.value);
     if (!rec) return;
 
@@ -785,8 +861,15 @@ export class State {
     const rule = this.db.get(id);
     if (!rule) throw new Error(`unknown rule ${id}`);
 
+    // callable fields
+    if (rule.db__schema === "schema__field") {
+      yield* this.get(args[0], k(id), args[1]);
+      return;
+    }
+
     if (!rule.rule__body || !rule.rule__params) {
-      throw new Error(`invalid rule ${rule.id}`);
+      console.error(rule);
+      throw new Error(`invalid rule ${id}`);
     }
     const params = rule.rule__params.args;
     const body = rule.rule__body;

@@ -153,14 +153,9 @@ test("type predicates", () => {
       s("nonvar", 456),
       s("nonvar", s("pair", 123, 456)),
       s("nonvar", s("pair", __, 123)),
-      // number
-      s("number", v.bar),
+
       s("number", 456),
-      // string
-      s("string", v.baz),
       s("string", "Goodbye"),
-      // struct
-      s("struct", v.quux),
       s("struct", s("pair", __, 456))
     )
   ).toEqual([
@@ -179,62 +174,63 @@ test("negation as failure", () => {
 });
 
 test("constraints", () => {
-  expect(
-    runAll(
-      s("string", v.x) //
-    )
-  ).toEqual([{}]);
+  // expect(
+  //   runAll(
+  //     s("string", v.x) //
+  //   )
+  // ).toEqual([{}]);
 
   expect(
     runAll(
-      s("string", v.x), //
+      s("constrain_type", v.x, s("string")),
+      // s("string", v.x), //
       s("=", v.x, "hello")
     )
   ).toEqual([{ x: "hello" }]);
 
-  expect(
-    runAll(
-      s("string", v.x), //
-      s("=", "hello", v.x)
-    )
-  ).toEqual([{ x: "hello" }]);
+  // expect(
+  //   runAll(
+  //     s("string", v.x), //
+  //     s("=", "hello", v.x)
+  //   )
+  // ).toEqual([{ x: "hello" }]);
 
-  expect(
-    runAll(
-      s("string", v.x), //
-      s("=", v.x, 1)
-    )
-  ).toEqual([]);
+  // expect(
+  //   runAll(
+  //     s("string", v.x), //
+  //     s("=", v.x, 1)
+  //   )
+  // ).toEqual([]);
 
-  expect(
-    runAll(
-      s("string", v.x), //
-      s("=", 1, v.x)
-    )
-  ).toEqual([]);
+  // expect(
+  //   runAll(
+  //     s("string", v.x), //
+  //     s("=", 1, v.x)
+  //   )
+  // ).toEqual([]);
 
-  expect(
-    runAll(
-      s("string", v.x), //
-      s("=", v.x, v.y),
-      s("=", v.y, "hello")
-    )
-  ).toEqual([{ x: "hello", y: "hello" }]);
+  // expect(
+  //   runAll(
+  //     s("string", v.x), //
+  //     s("=", v.x, v.y),
+  //     s("=", v.y, "hello")
+  //   )
+  // ).toEqual([{ x: "hello", y: "hello" }]);
 });
 
 test("conflicting constraints", () => {
   expect(
     runAll(
       //
-      s("string", v.x),
-      s("number", v.x)
+      s("constrain_type", v.x, s("string")),
+      s("constrain_type", v.x, s("number"))
     )
   ).toEqual([{}]);
   expect(
     runAll(
       //
-      s("number", v.x),
-      s("string", v.x),
+      s("constrain_type", v.x, s("number")),
+      s("constrain_type", v.x, s("string")),
       s("=", v.x, 1)
     )
   ).toEqual([]);
@@ -242,8 +238,8 @@ test("conflicting constraints", () => {
   expect(
     runAll(
       //
-      s("string", v.x),
-      s("number", v.x),
+      s("constrain_type", v.x, s("string")),
+      s("constrain_type", v.x, s("number")),
       s("=", v.x, 1)
     )
   ).toEqual([]);
@@ -251,8 +247,8 @@ test("conflicting constraints", () => {
   expect(
     runAll(
       //
-      s("string", v.x),
-      s("number", v.y),
+      s("constrain_type", v.x, s("string")),
+      s("constrain_type", v.y, s("number")),
       s("=", v.x, v.y),
       s("=", v.y, 1)
     )

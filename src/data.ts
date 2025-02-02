@@ -42,6 +42,15 @@ export type Rec = Record<string, Expr> & {
   text__content?: List<FormatText>;
 };
 
+export const f = new Proxy(
+  {},
+  {
+    get(_, field: Field) {
+      return (id: Expr, value: Expr) => s(field, id, value);
+    },
+  }
+) as Record<Field, (id: Expr, value: Expr) => Expr>;
+
 export const db = {
   get: (id: Expr, field: Field, value: Expr) =>
     s("get_field_value", id, field, value),
@@ -371,6 +380,34 @@ const fields = {
 } satisfies Record<string, Rec>;
 
 const rules = {
+  // type checks
+  var: {
+    rule__params: l(v.item),
+    rule__body: s("value_type", v.item, s("var")),
+  },
+  nonvar: {
+    rule__params: l(v.item),
+    rule__body: r(
+      s("value_type", v.item, v.type), //
+      s("/=", v.type, s("var"))
+    ),
+  },
+  string: {
+    rule__params: l(v.item),
+    rule__body: s("value_type", v.item, s("string")),
+  },
+  number: {
+    rule__params: l(v.item),
+    rule__body: s("value_type", v.item, s("number")),
+  },
+  struct: {
+    rule__params: l(v.item),
+    rule__body: s("value_type", v.item, s("struct")),
+  },
+  constrain_type: {
+    rule__params: l(v.item, v.type),
+    rule__body: s("value_constraint", v.item, s("value_type", v.item, v.type)),
+  },
   list_item: {
     rule__params: l(v.list, v.item),
     rule__body: s("struct_id_index_arg", v.list, "", __, v.item),
@@ -404,7 +441,7 @@ const rules = {
       s("tx", v.tx),
       s(
         "if_then_else",
-        s("group", v.goal),
+        s("collect", __, v.goal, __),
         s("commit", v.tx),
         s("rollback", v.tx)
       )
@@ -431,7 +468,7 @@ const rules = {
     rule__body: db.with_tx(
       v.tx,
       s("if_var", v.window, s("get_context", "window_id", v.window)),
-      db.get(v.window, "window__currentHistory", v.prev),
+      f.window__currentHistory(v.window, v.prev),
       s("new__history", v.tx, v.next, v.window, v.location, v.params),
       db.update(v.tx, v.next, "history__back", v.prev),
       db.update(v.tx, v.prev, "history__forward", v.next),
@@ -442,8 +479,8 @@ const rules = {
     rule__params: l(v.window),
     rule__body: db.with_tx(
       v.tx,
-      db.get(v.window, "window__currentHistory", v.forward),
-      db.get(v.forward, "history__back", v.back),
+      f.window__currentHistory(v.window, v.forward),
+      f.history__back(v.forward, v.back),
       db.update(v.tx, v.window, "window__currentHistory", v.back),
       db.update(v.tx, v.back, "history__forward", v.forward),
       db.delete(v.tx, v.forward, "history__back")
@@ -453,8 +490,8 @@ const rules = {
     rule__params: l(v.window),
     rule__body: db.with_tx(
       v.tx,
-      db.get(v.window, "window__currentHistory", v.back),
-      db.get(v.back, "history__forward", v.forward),
+      f.window__currentHistory(v.window, v.back),
+      f.history__forward(v.back, v.forward),
 
       db.update(v.tx, v.window, "window__currentHistory", v.forward),
       db.update(v.tx, v.forward, "history__back", v.back),
@@ -503,7 +540,7 @@ const views = {
     view__type: "type__any",
     rule__params: l(v.data),
     rule__body: r.or(
-      r(s("var__name", v.data, v.var_name), view.string(v.var_name)),
+      r(s("var_name", v.data, v.var_name), view.string(v.var_name)),
       r(
         s("nonvar", v.data),
         r.or(
@@ -586,10 +623,7 @@ const views = {
       ),
       r(
         view.string("References"),
-        r.or(
-          db.get(v.f, "db__index", s("ref")),
-          db.get(v.f, "db__index", s("multiRef"))
-        ),
+        r.or(f.db__index(v.f, s("ref")), f.db__index(v.f, s("multiRef"))),
         r(
           db.get(v.ref, v.f, v.id),
           view.row(view.fileLink(v.f), view.fileLink(v.ref))
@@ -602,7 +636,7 @@ const views = {
     view__schema: "schema__text",
     rule__params: l(v.id, v.state),
     rule__body: r(
-      db.get(v.id, "text__content", v.text),
+      f.text__content(v.id, v.text),
       view.row(s("view_type__text", v.text))
     ),
   },
@@ -611,7 +645,7 @@ const views = {
     view__schema: "schema__folder",
     rule__params: l(v.id, v.state),
     rule__body: r(
-      db.get(v.id, "folder__items", v.folder),
+      f.folder__items(v.id, v.folder),
       s("list_item", v.folder, v.item),
       view.row(s("view__fileInfo", v.item))
     ),
@@ -622,7 +656,7 @@ const views = {
     rule__params: l(v.id, v.state),
     rule__body: r(
       view.row(
-        db.get(v.id, "folder__items", v.folder),
+        f.folder__items(v.id, v.folder),
         s("list_item", v.folder, v.item),
         view.column(view.icon(), view.fileLink(v.item))
       )
@@ -655,11 +689,11 @@ const views = {
   view__fileInfo: {
     rule__params: l(v.id),
     rule__body: r(
-      db.get(v.id, "file__name", v.name),
+      f.file__name(v.id, v.name),
       view.link(v.name, v.id),
       r.or(
         r(
-          db.get(v.id, "file__description", v.description),
+          f.file__description(v.id, v.description),
           s("view_type__text", v.description)
         ),
         r()
@@ -676,12 +710,12 @@ const views = {
         v.nextView,
         db.with_tx(
           v.tx,
-          db.get(v.window, "window__currentHistory", v.history),
+          f.window__currentHistory(v.window, v.history),
           db.update(v.tx, v.history, "history__view", v.nextView)
         ),
         r(
           s("rule__location_view", v.id, v.view),
-          db.get(v.view, "file__name", v.name),
+          f.file__name(v.view, v.name),
           view.option(v.view, v.name)
         )
       )
@@ -691,9 +725,9 @@ const views = {
     file__name: "Window",
     rule__params: l(v.window),
     rule__body: r(
-      db.get(v.window, "window__currentHistory", v.history),
-      db.get("browser", "browser__currentWindow", v.currentWindow),
-      db.get(v.history, "history__location", v.id),
+      f.window__currentHistory(v.window, v.history),
+      f.browser__currentWindow("browser", v.currentWindow),
+      f.history__location(v.history, v.id),
       s("set_context", "window_id", v.window),
       s("set_context", "history_id", v.history),
       s("get_default", v.id, "file__name", v.name, v.id),
@@ -702,7 +736,7 @@ const views = {
         1,
         r.or(
           // view from params
-          db.get(v.history, "history__view", v.view),
+          f.history__view(v.history, v.view),
           // view from id
           s("rule__location_view", v.id, v.view)
         )
@@ -720,14 +754,14 @@ const views = {
       view.button(
         "←",
         r(
-          db.get("browser", "browser__currentWindow", v.window),
+          f.browser__currentWindow("browser", v.window),
           s("on__back", v.window)
         )
       ),
       view.button(
         "→",
         r(
-          db.get("browser", "browser__currentWindow", v.window),
+          f.browser__currentWindow("browser", v.window),
           s("on__forward", v.window)
         )
       )
@@ -740,41 +774,41 @@ const views = {
       // location for view type
       r(
         s("nonvar", v.view),
-        db.get(v.view, "view__schema", v.schema),
-        db.get(v.location, "db__schema", v.schema)
+        f.view__schema(v.view, v.schema),
+        f.db__schema(v.location, v.schema)
       ),
       // view for location type
       r(
         s("nonvar", v.location),
-        db.get(v.location, "db__schema", v.schema),
-        db.get(v.view, "view__schema", v.schema)
+        f.db__schema(v.location, v.schema),
+        f.view__schema(v.view, v.schema)
       ),
       // view for any type
-      db.get(v.view, "view__schema", "schema__any")
+      f.view__schema(v.view, "schema__any")
     ),
   },
   rule__field_view: {
     rule__params: l(v.field, v.view),
     rule__body: r.or(
-      db.get(v.view, "view__field", v.type),
+      f.view__field(v.view, v.type),
       r(
         s("nonvar", v.field),
-        db.get(v.field, "db__type", v.type),
-        db.get(v.view, "view__type", v.type)
+        f.db__type(v.field, v.type),
+        f.view__type(v.view, v.type)
       ),
       r(
         s("nonvar", v.view),
-        db.get(v.field, "db__type", v.type),
-        db.get(v.view, "view__type", v.type)
+        f.db__type(v.field, v.type),
+        f.view__type(v.view, v.type)
       ),
-      db.get(v.view, "view__type", "type__any")
+      f.view__type(v.view, "type__any")
     ),
   },
   rule__type_view: {
     rule__params: l(v.type, v.view),
     rule__body: r.or(
-      db.get(v.view, "view__type", v.type),
-      db.get(v.view, "view__type", "type__any")
+      f.view__type(v.view, v.type),
+      f.view__type(v.view, "type__any")
     ),
   },
 } satisfies Record<string, Rec>;
@@ -806,7 +840,7 @@ const files = {
         "limit",
         10,
         r(
-          db.get(v.result, "file__name", v.result_name),
+          f.file__name(v.result, v.result_name),
           s("string_substring", v.result_name, v.omnibox)
         )
       ),

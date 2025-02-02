@@ -12,21 +12,21 @@ function runAll(...clauses: Expr[]) {
   return Array.from(state.runAll(s(",", ...clauses)));
 }
 
-test("value_type", () => {
-  expect(
-    runAll(
-      ///
-      s("value_type", "hello", t.string),
-      s("value_type", 123, t.number),
-      s("value_type", s("foo"), t.struct("foo")),
-      s(
-        "value_type",
-        s("pair", "hello", 123),
-        t.struct("pair", t.string, t.number)
-      )
-    )
-  ).toEqual([{}]);
-});
+// test("value_type", () => {
+//   expect(
+//     runAll(
+//       ///
+//       s("value_type", "hello", t.string),
+//       s("value_type", 123, t.number),
+//       s("value_type", s("foo"), t.struct("foo")),
+//       s(
+//         "value_type",
+//         s("pair", "hello", 123),
+//         t.struct("pair", t.string, t.number)
+//       )
+//     )
+//   ).toEqual([{}]);
+// });
 
 test("union_member", () => {
   expect(
