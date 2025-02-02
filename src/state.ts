@@ -410,6 +410,15 @@ export class State {
         }
         return;
       }
+      case "var__name": {
+        if (args[0].tag === "var") {
+          yield* semidet(this.unify(k(args[0].id.description!), args[1]));
+        }
+        if (args[0].tag === "placeholder") {
+          yield* semidet(this.unify(k("__"), args[1]));
+        }
+        return;
+      }
       case "var":
         if (args[0].tag === "var" || args[0].tag === "placeholder")
           yield this.yield();

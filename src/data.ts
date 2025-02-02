@@ -53,8 +53,9 @@ export const db = {
 };
 
 export const view = {
-  row: (children: Expr) => s("view_children", s("Row"), children),
-  column: (children: Expr) => s("view_children", s("Column"), children),
+  row: (...children: Expr[]) => s("view_children", s("Row"), r(...children)),
+  column: (...children: Expr[]) =>
+    s("view_children", s("Column"), r(...children)),
   data: (data: Expr) => s("view", s("AnyData", data)),
   string: (str: string) => s("view", s("String", str)),
   button: (str: string, onClick: Expr) => s("view", s("Button", str, onClick)),
@@ -498,21 +499,42 @@ const rules = {
 const views = {
   // type views
   view_type__any: {
+    file__name: "Any : View",
     view__type: "type__any",
     rule__params: l(v.data),
     rule__body: r.or(
-      r(s("string", v.data), view.string(v.data)),
-      r(s("number", v.data), view.string(v.data)),
+      r(s("var__name", v.data, v.var_name), view.string(v.var_name)),
       r(
-        s("struct", v.data),
-        s("struct_id_args", v.data, v.id, v.args),
-        view.string(v.id),
-        view.string("("),
-        view.row(r(s("list_item", v.args, v.arg), s("view_type__any", v.arg))),
-        view.string(")")
+        s("nonvar", v.data),
+        r.or(
+          r(s("string", v.data), view.string(v.data)),
+          r(s("number", v.data), view.string(v.data)),
+          r(
+            s("struct", v.data),
+            s("struct_id_args", v.data, v.id, v.args),
+            s(
+              "if_then_else",
+              r.or(s("=", v.id, ";"), s("=", v.id, ",")),
+              view.column(
+                s("list_item", v.args, v.arg),
+                view.row(s("view_type__any", v.arg), view.string(v.id))
+              ),
+              view.row(
+                view.string(v.id),
+                view.string("("),
+                view.row(
+                  s("list_item", v.args, v.arg),
+                  s("view_type__any", v.arg)
+                ),
+                view.string(")")
+              )
+            )
+          )
+        )
       )
     ),
   },
+
   view_type__string: {
     view__type: "type__string",
     rule__params: l(v.string),
@@ -555,14 +577,12 @@ const views = {
   view_schema__any: {
     file__name: "Default viewer",
     view__schema: "schema__any",
-    rule__params: l(v.id),
+    rule__params: l(v.id, v.state),
     rule__body: r.or(
       r(
         view.string("Fields"),
         db.get(v.id, v.field, v.value),
-        view.row(
-          r(view.fileLink(v.field), s("view__for_field", v.field, v.value))
-        )
+        view.row(view.fileLink(v.field), s("view__for_field", v.field, v.value))
       ),
       r(
         view.string("References"),
@@ -572,7 +592,7 @@ const views = {
         ),
         r(
           db.get(v.ref, v.f, v.id),
-          view.row(r(view.fileLink(v.f), view.fileLink(v.ref)))
+          view.row(view.fileLink(v.f), view.fileLink(v.ref))
         )
       )
     ),
@@ -580,7 +600,7 @@ const views = {
   view_schema__text: {
     file__name: "Text viewer",
     view__schema: "schema__text",
-    rule__params: l(v.id),
+    rule__params: l(v.id, v.state),
     rule__body: r(
       db.get(v.id, "text__content", v.text),
       view.row(s("view_type__text", v.text))
@@ -589,7 +609,7 @@ const views = {
   view_schema__folder_list: {
     file__name: "Folder - List",
     view__schema: "schema__folder",
-    rule__params: l(v.id),
+    rule__params: l(v.id, v.state),
     rule__body: r(
       db.get(v.id, "folder__items", v.folder),
       s("list_item", v.folder, v.item),
@@ -599,24 +619,22 @@ const views = {
   view_schema__folder_icon: {
     file__name: "Folder - Icon",
     view__schema: "schema__folder",
-    rule__params: l(v.id),
+    rule__params: l(v.id, v.state),
     rule__body: r(
       view.row(
-        r(
-          db.get(v.id, "folder__items", v.folder),
-          s("list_item", v.folder, v.item),
-          view.column(r(view.icon(), view.fileLink(v.item)))
-        )
+        db.get(v.id, "folder__items", v.folder),
+        s("list_item", v.folder, v.item),
+        view.column(view.icon(), view.fileLink(v.item))
       )
     ),
   },
   view_schema__form: {
     file__name: "Form",
     view__schema: "schema__form",
-    rule__params: l(v.id),
+    rule__params: l(v.id, v.state),
     rule__body: r(
       //
-      s("call", v.id, v.id)
+      s("call", v.id, v.id, v.state)
     ),
   },
   // built in UI elements
@@ -671,12 +689,12 @@ const views = {
   },
   view__window: {
     file__name: "Window",
-    rule__params: l(v.w),
+    rule__params: l(v.window),
     rule__body: r(
-      db.get(v.w, "window__currentHistory", v.history),
+      db.get(v.window, "window__currentHistory", v.history),
       db.get("browser", "browser__currentWindow", v.currentWindow),
       db.get(v.history, "history__location", v.id),
-      s("set_context", "window_id", v.w),
+      s("set_context", "window_id", v.window),
       s("set_context", "history_id", v.history),
       s("get_default", v.id, "file__name", v.name, v.id),
       s(
@@ -689,27 +707,28 @@ const views = {
           s("rule__location_view", v.id, v.view)
         )
       ),
-      s("view", s("Window", v.id, v.view, v.w, v.currentWindow, v.name))
+      s(
+        "view",
+        s("Window", v.id, v.view, v.window, v.history, v.currentWindow, v.name)
+      )
     ),
   },
   view__appMenu: {
     file__name: "App menu",
     rule__params: l(),
     rule__body: view.row(
-      r(
-        view.button(
-          "←",
-          r(
-            db.get("browser", "browser__currentWindow", v.window),
-            s("on__back", v.window)
-          )
-        ),
-        view.button(
-          "→",
-          r(
-            db.get("browser", "browser__currentWindow", v.window),
-            s("on__forward", v.window)
-          )
+      view.button(
+        "←",
+        r(
+          db.get("browser", "browser__currentWindow", v.window),
+          s("on__back", v.window)
+        )
+      ),
+      view.button(
+        "→",
+        r(
+          db.get("browser", "browser__currentWindow", v.window),
+          s("on__forward", v.window)
         )
       )
     ),
@@ -775,14 +794,13 @@ const files = {
   omnibox: {
     db__schema: "schema__form",
     file__name: "Omnibox",
-    rule__params: l(v.id),
+    rule__params: l(v.id, v.state),
     rule__body: r(
-      s("get_context", "history_id", v.h),
-      s("get_default", v.h, "data__omnibox", v.omnibox, ""),
+      s("get_default", v.state, "data__omnibox", v.omnibox, ""),
       view.input(
         v.omnibox,
         v.next,
-        db.with_tx(v.tx, db.update(v.tx, v.h, "data__omnibox", v.next))
+        db.with_tx(v.tx, db.update(v.tx, v.state, "data__omnibox", v.next))
       ),
       s(
         "limit",

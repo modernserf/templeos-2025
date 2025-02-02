@@ -1,4 +1,4 @@
-import { FC, ReactNode } from "react";
+import { Component, FC, ReactNode } from "react";
 import { __, AnyStruct, Expr, printExpr, s } from "./expr";
 import { State, View } from "./state";
 import "./view_primitive.css";
@@ -95,9 +95,9 @@ const Icon: VC<[]> = () => (
   <div style={{ textAlign: "center", fontSize: 32 }}>📄</div>
 );
 
-const Window: VC<[string, string, string, string, string]> = ({
+const Window: VC<[string, string, string, string, string, string]> = ({
   state,
-  args: [id, view, windowId, currentWindowId, fileName],
+  args: [id, view, windowId, historyId, currentWindowId, fileName],
 }) => {
   const handle = useEventHandler(state);
   const isCurrent = windowId === currentWindowId;
@@ -133,7 +133,7 @@ const Window: VC<[string, string, string, string, string]> = ({
 
         <Query state={state} clause={s("view__viewMenu", windowId, id, view)} />
       </header>
-      <Query state={state} clause={s(view, id)} />
+      <Query state={state} clause={s(view, id, historyId)} />
     </div>
   );
 };
@@ -161,6 +161,29 @@ const DefaultRenderer: VC<Expr[]> = ({ id, args, children }) => {
   );
 };
 
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ backgroundColor: "pink" }}>
+          <div>{this.state.error.message}</div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function Primitive({
   state,
   id,
@@ -174,11 +197,13 @@ function Primitive({
 }) {
   const View = viewPrimitives[id] ?? DefaultRenderer;
   return (
-    <View state={state} id={id} args={args}>
-      {(children ?? []).map((child, i) => (
-        <Primitive key={i} {...child} />
-      ))}
-    </View>
+    <ErrorBoundary>
+      <View state={state} id={id} args={args}>
+        {(children ?? []).map((child, i) => (
+          <Primitive key={i} {...child} />
+        ))}
+      </View>
+    </ErrorBoundary>
   );
 }
 

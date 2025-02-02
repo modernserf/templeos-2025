@@ -81,15 +81,15 @@
 .Row {
   display: flex;
   flex-direction: row;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .Row > * + * {
-  margin-left: 0.5rem;
+  margin-left: 0.25rem;
 }
 
 .Column {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: block;
+  /* flex-direction: column; */
+  /* align-items: flex-start; */
 }
