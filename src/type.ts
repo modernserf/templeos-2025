@@ -33,6 +33,46 @@ export const t = {
   anyStruct: s("any_struct"),
 };
 
+export type TypeId = keyof typeof coreTypes;
+export const coreTypes = {
+  type__any: {
+    db__schema: "schema__type",
+    file__name: "Any",
+  },
+  type__string: {
+    db__schema: "schema__type",
+    file__name: "String",
+    // db__type: s("string"),
+  },
+  type__number: {
+    db__schema: "schema__type",
+    file__name: "Number",
+    // db__type: s("number"),
+  },
+  type__time: {
+    db__schema: "schema__type",
+    file__name: "Time",
+  },
+  type__ref: {
+    db__schema: "schema__type",
+    file__name: "Ref",
+    // db__type: s("number"),
+  },
+  type__multiRef: {
+    db__schema: "schema__type",
+    file__name: "Multi ref",
+    // db__type: s("list,s("number")),
+  },
+  type__text: {
+    db__schema: "schema__type",
+    file__name: "Text",
+    // db__type: s(
+    //   "list",
+    //   s("oneof", s("string"), s("struct", "link", s("string"), s("ref")))
+    // ),
+  },
+} satisfies Record<string, Rec>;
+
 export const typeRecs = {
   // semidet
   value_type: {

@@ -1,6 +1,7 @@
-import { Field, Rec } from "./data";
+import { Rec } from "./data";
 import { TransactDB, whereValue } from "./db";
 import { Expr, Id, Ident, __, printExpr, s } from "./expr";
+import { Field } from "./field";
 
 export const k = (value: string | number) =>
   typeof value === "string"
@@ -12,7 +13,7 @@ const sv = <T extends Id, Args extends Value[]>(id: T, ...args: Args) =>
 
 type Value =
   | { tag: "placeholder" }
-  | { tag: "var"; id: FactId }
+  | { tag: "var"; id: FactId; name: string }
   | { tag: "string"; value: string }
   | { tag: "number"; value: number }
   | { tag: "struct"; id: Id; args: Value[] };
@@ -21,7 +22,7 @@ type Constraint = { tag: "constraint"; predicate: Value };
 
 type Fact = Value | Constraint;
 
-type FactId = symbol;
+type FactId = number;
 type Facts = Record<FactId, Fact>;
 type SymbolTable = Record<Ident, FactId>;
 
@@ -32,7 +33,7 @@ function printFact(fact: Fact): string {
     case "constraint":
       return `{${printFact(fact.predicate)}}`;
     case "var":
-      return `${fact.id.description}`;
+      return `${fact.name}<${fact.id}>`;
     case "string":
     case "number":
       return JSON.stringify(fact.value);
@@ -136,7 +137,7 @@ export class State {
         case "placeholder":
           return __;
         case "var":
-          return { tag: "ident", ident: f.id.description ?? "<anonymous>" };
+          return { tag: "ident", ident: f.name };
         case "string":
         case "number":
           return f.value;
@@ -153,10 +154,9 @@ export class State {
       case "placeholder":
         return __;
       case "ident": {
-        const sym =
-          localSymbols[expr.ident] ?? Symbol(`${expr.ident}<${varCount++}>`);
-        localSymbols[expr.ident] = sym;
-        return { tag: "var", id: sym };
+        const id = localSymbols[expr.ident] ?? varCount++;
+        localSymbols[expr.ident] = id;
+        return { tag: "var", id, name: expr.ident };
       }
       case "struct":
         return {
@@ -509,9 +509,6 @@ export class State {
         }
         return;
       }
-
-      // do a block for side effects
-
       // context
       case "has_context": {
         const key = this.ensure(args[0], "string");
@@ -671,6 +668,7 @@ export class State {
   private *tryCatch(tryClause: Value, catchClause: Value) {
     try {
       yield* this.runClause(tryClause);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       // console.error(e);
       yield* this.runClause(catchClause);
@@ -725,7 +723,7 @@ export class State {
       case "placeholder":
         return k("__");
       case "var":
-        return k(String(value.id.description));
+        return k(value.name);
       case "struct":
       case "string":
       case "number":
