@@ -427,6 +427,14 @@ export class State {
       case "struct":
         yield* this.test(args[0], "struct");
         return;
+      case "string_substring": {
+        const str = this.ensure(args[0], "string");
+        const sub = this.ensure(args[1], "string");
+        if (str.value.toLowerCase().match(sub.value.toLowerCase())) {
+          yield this.yield();
+        }
+        return;
+      }
       case "struct_arity": {
         const st = this.ensure(args[0], "struct");
         yield* semidet(this.unify(args[1], k(st.args.length)));

@@ -4,6 +4,7 @@ import { eventSource } from "./event_source";
 
 const STATE_KEY = "state";
 
+// TODO debounce
 eventSource.addEventListener((db: DB<Rec>) => {
   window.localStorage.setItem(STATE_KEY, JSON.stringify(db.dump()));
 });

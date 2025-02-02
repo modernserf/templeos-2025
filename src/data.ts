@@ -58,8 +58,8 @@ export const view = {
   data: (data: Expr) => s("view", s("AnyData", data)),
   string: (str: string) => s("view", s("String", str)),
   button: (str: string, onClick: Expr) => s("view", s("Button", str, onClick)),
-  input: (value: string, onChange: Expr) =>
-    s("view", s("Input", value, onChange)),
+  input: (value: string, event: Expr, onChange: Expr) =>
+    s("view", s("Input", value, event, onChange)),
   select: (value: string, event: Expr, onChange: Expr, children: Expr) =>
     s("view_children", s("Select", value, event, onChange), children),
   option: (id: string, label: string) => s("view", s("Option", id, label)),
@@ -379,6 +379,15 @@ const rules = {
     rule__params: l(v.arg, v.body),
     rule__body: s("if_then_else", s("var", v.arg), v.body, r()),
   },
+  get_default: {
+    rule__params: l(v.id, v.field, v.value, v.default),
+    rule__body: s(
+      "if_then_else",
+      db.get(v.id, v.field, v.value),
+      s("ok"),
+      s("=", v.value, v.default)
+    ),
+  },
   tx_insert: {
     file__description: l("insert a property list into the db"),
     rule__params: l(v.tx, v.id, v.params),
@@ -621,7 +630,7 @@ const views = {
   view__fileLink: {
     rule__params: l(v.id),
     rule__body: r(
-      r.cond(db.get(v.id, "file__name", v.name), s("ok"), s("=", v.name, v.id)),
+      s("get_default", v.id, "file__name", v.name, v.id),
       view.link(v.name, v.id)
     ),
   },
@@ -664,11 +673,12 @@ const views = {
     file__name: "Window",
     rule__params: l(v.w),
     rule__body: r(
-      s("set_context", "window_id", v.w),
       db.get(v.w, "window__currentHistory", v.history),
       db.get("browser", "browser__currentWindow", v.currentWindow),
       db.get(v.history, "history__location", v.id),
-      r.cond(db.get(v.id, "file__name", v.name), r(), s("=", v.id, v.name)),
+      s("set_context", "window_id", v.w),
+      s("set_context", "history_id", v.history),
+      s("get_default", v.id, "file__name", v.name, v.id),
       s(
         "limit",
         1,
@@ -758,7 +768,31 @@ const files = {
     text__content: l(
       "content that ",
       s("link", "links", "example__folder"),
-      " to another record."
+      " to another record.",
+      s("link", "omnibox", "omnibox")
+    ),
+  },
+  omnibox: {
+    db__schema: "schema__form",
+    file__name: "Omnibox",
+    rule__params: l(v.id),
+    rule__body: r(
+      s("get_context", "history_id", v.h),
+      s("get_default", v.h, "data__omnibox", v.omnibox, ""),
+      view.input(
+        v.omnibox,
+        v.next,
+        db.with_tx(v.tx, db.update(v.tx, v.h, "data__omnibox", v.next))
+      ),
+      s(
+        "limit",
+        10,
+        r(
+          db.get(v.result, "file__name", v.result_name),
+          s("string_substring", v.result_name, v.omnibox)
+        )
+      ),
+      s("view__fileInfo", v.result)
     ),
   },
   example__folder: {
@@ -767,7 +801,7 @@ const files = {
     file__description: l("A folder with some items"),
     folder__items: l("home", "schema__text", "view_type__text"),
   },
-};
+} satisfies Record<string, Rec>;
 
 // always loads from source
 export const data = {

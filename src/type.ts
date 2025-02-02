@@ -120,7 +120,8 @@ export const typeRecs = {
       "get the concrete types that inhabit type u."
     ),
     rule__params: l(v.u, v.x),
-    rule__body: r.cond(
+    rule__body: s(
+      "if_then_else",
       s("=", v.u, t.union(v.l, v.r)),
       r.or(s("union_member", v.l, v.x), s("union_member", v.r, v.x)),
       r(s("/=", v.u, t.bottom), s("=", v.u, v.x))

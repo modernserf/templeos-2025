@@ -39,9 +39,6 @@ export function r<Args extends Expr[]>(...args: Args) {
   return s(",", ...args);
 }
 r.or = <Args extends Expr[]>(...args: Args) => s(";", ...args);
-r.cond = (if_: Expr, then_: Expr, else_: Expr) =>
-  s("if_then_else", if_, then_, else_);
-r.log = (...args: Expr[]) => s("log", ...args);
 
 function sameTypeExpr<T extends Expr>(l: T, r: Expr): r is T {
   if (typeof l === "object" && typeof r === "object") {
