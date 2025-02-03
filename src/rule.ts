@@ -14,9 +14,8 @@ export const test = {
   ok: (...goal: Expr[]) => s("expect_ok", r(...goal)),
   fail: (...goal: Expr[]) => s("expect_fail", r(...goal)),
   throw: (goal: Expr, error: Expr) => s("expect_throw", goal, error),
-  eq: (received: Expr, expected: Expr) => s("expect_eq", received, expected),
-  collect: (pattern: Expr, goal: Expr, expected: Expr) =>
-    s("expect_collect", pattern, goal, expected),
+  collect: (pattern: Expr, goal: Expr, ...expected: Expr[]) =>
+    s("expect_collect", pattern, goal, l(...expected)),
 };
 
 export const rules = {
@@ -61,7 +60,7 @@ export const rules = {
     rule__params: l(v.pattern, v.goal, v.expected),
     rule__body: r(
       s("collect", v.pattern, v.goal, v.received),
-      test.eq(v.received, v.expected)
+      s("expect_eq", v.received, v.expected)
     ),
   },
 
@@ -174,7 +173,7 @@ export const rules = {
     test__group: "struct",
     rule__params: l(),
     rule__body: r(
-      test.ok(s("struct_arity", s("pair", 123, __), 2)),
+      test.collect(v.len, s("struct_arity", s("pair", 123, __), v.len), 2),
       test.throw(s("struct_arity", "foo", __), s("expected_received", __, __))
     ),
   },
@@ -182,12 +181,16 @@ export const rules = {
     test__group: "struct",
     rule__params: l(),
     rule__body: r(
-      s("struct_id_args", s("pair", 123, 456), v.id, v.args),
-      test.eq(v.id, "pair"),
-      test.eq(v.args, l(123, 456)),
-
-      s("struct_id_args", v.struct, "pair", l(123, 456)),
-      test.eq(v.struct, s("pair", 123, 456))
+      test.collect(
+        l(v.id, v.args),
+        s("struct_id_args", s("pair", 123, 456), v.id, v.args),
+        l("pair", l(123, 456))
+      ),
+      test.collect(
+        v.struct,
+        s("struct_id_args", v.struct, "pair", l(123, 456)),
+        s("pair", 123, 456)
+      )
     ),
   },
   test__struct_id_index_arg: {
@@ -195,24 +198,29 @@ export const rules = {
     rule__params: l(),
     rule__body: r(
       // get
-      test.ok(s("struct_id_index_arg", s("pair", 123, 456), __, 0, 123)),
+      test.collect(
+        v.value,
+        s("struct_id_index_arg", s("pair", 123, 456), __, 0, v.value),
+        123
+      ),
       // iter
       test.collect(
         l(v.index, v.value),
         s("struct_id_index_arg", s("pair", 123, 456), __, v.index, v.value),
-        l(l(0, 123), l(1, 456))
+        l(0, 123),
+        l(1, 456)
       ),
       // find
       test.collect(
         v.index,
         s("struct_id_index_arg", s("pair", 123, 456), __, v.index, 456),
-        l(1)
+        1
       ),
       // unique states
       test.collect(
         v.id,
         s("struct_id_index_arg", s("pair", 123, 456), v.id, __, __),
-        l("pair")
+        "pair"
       )
     ),
   },
@@ -225,13 +233,13 @@ export const rules = {
       test.collect(
         l(v.from, v.to, v.slice),
         s("list_from_to_slice", l("a", "b", "c"), v.from, v.to, v.slice),
-        l(l(0, 3, l("a", "b", "c")))
+        l(0, 3, l("a", "b", "c"))
       ),
       // subset
       test.collect(
         v.slice,
         s("list_from_to_slice", l("a", "b", "c"), 1, __, v.slice),
-        l(l("b", "c"))
+        l("b", "c")
       )
     ),
   },
@@ -243,30 +251,28 @@ export const rules = {
       test.collect(
         v.append,
         s("list_list_append", l("a"), l("b", "c"), v.append),
-        l(l("a", "b", "c"))
+        l("a", "b", "c")
       ),
       // cons
       test.collect(
         l(v.head, v.tail),
         s("list_list_append", l(v.head), v.tail, l("a", "b", "c")),
-        l(l("a", l("b", "c")))
+        l("a", l("b", "c"))
       ),
       // stack
       test.collect(
         l(v.stack, v.pop),
         s("list_list_append", v.stack, l(v.pop), l("a", "b", "c")),
-        l(l(l("a", "b"), "c"))
+        l(l("a", "b"), "c")
       ),
       // scan
       test.collect(
         v.left,
         s("list_list_append", v.left, __, l("a", "b", "c")),
-        l(
-          l(), //
-          l("a"),
-          l("a", "b"),
-          l("a", "b", "c")
-        )
+        l(),
+        l("a"),
+        l("a", "b"),
+        l("a", "b", "c")
       )
     ),
   },
@@ -294,14 +300,12 @@ export const rules = {
     test__group: "list",
     rule__params: l(),
     rule__body: r(
-      test.ok(s("list_length", l(), 0)),
-      test.ok(s("list_length", l(__), 1)),
-      test.ok(s("list_length", l(1, 2, 3), 3)),
+      test.collect(v.len, s("list_length", l(), v.len), 0),
+      test.collect(v.len, s("list_length", l(__), v.len), 1),
+      test.collect(v.len, s("list_length", l(1, 2, 3), v.len), 3),
 
-      s("list_length", v.list0, 0),
-      test.eq(v.list0, l()),
-      s("list_length", v.list3, 3),
-      test.eq(v.list3, l(__, __, __))
+      test.collect(v.list, s("list_length", v.list, 0), l()),
+      test.collect(v.list, s("list_length", v.list, 3), l(__, __, __))
     ),
   },
   list_item: {
@@ -317,7 +321,7 @@ export const rules = {
       test.fail(s("list_item", l(), __)),
       test.fail(s("list_item", s("tuple", 1, 2, 3), __)),
 
-      test.collect(v.x, s("list_item", l(1, 2, 3), v.x), l(1, 2, 3))
+      test.collect(v.x, s("list_item", l(1, 2, 3), v.x), 1, 2, 3)
     ),
   },
 

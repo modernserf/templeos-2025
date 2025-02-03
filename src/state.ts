@@ -680,7 +680,10 @@ export class State {
   private *ifThenElse(cond: Value, ifSuccess: Value, ifFail: Value) {
     let didSucceed = false;
     for (const res0 of this.runClause(cond)) {
-      if (res0.tag === "view") continue;
+      if (res0.tag === "view") {
+        yield res0;
+        continue;
+      }
       didSucceed = true;
       yield* res0.state.runClause(ifSuccess);
     }

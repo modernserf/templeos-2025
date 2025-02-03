@@ -51,27 +51,48 @@ export const views = {
             s("struct_id_args", v.data, v.id, v.args),
             s(
               "if_then_else",
-              r.or(s("=", v.id, ";"), s("=", v.id, ",")),
-              view.column(
-                s("list_item", v.args, v.arg),
-                view.row(s("view_type__any", v.arg), view.string(v.id))
-              ),
-              view.row(
-                view.string(v.id),
-                view.string("("),
-                view.row(
-                  s("list_item", v.args, v.arg),
-                  s("view_type__any", v.arg)
+              r.or(
+                r(
+                  s("list_item", l(";", ","), v.id),
+                  s("_view_operator_vertical", v.id, v.args)
                 ),
-                view.string(")")
-              )
+                r(
+                  s("list_item", l("="), v.id),
+                  s("_view_operator_binary", v.id, v.args)
+                )
+              ),
+              s("ok"),
+              s("_view_tuple", v.id, v.args)
             )
           )
         )
       )
     ),
   },
-
+  _view_operator_binary: {
+    rule__params: l(v.id, l(v.l, v.r)),
+    rule__body: view.row(
+      s("view_type__any", v.l),
+      view.string(v.id),
+      s("view_type__any", v.r)
+    ),
+  },
+  _view_operator_vertical: {
+    rule__params: l(v.id, v.args),
+    rule__body: view.column(
+      s("list_item", v.args, v.arg),
+      view.row(view.string(v.id), s("view_type__any", v.arg))
+    ),
+  },
+  _view_tuple: {
+    rule__params: l(v.id, v.args),
+    rule__body: view.row(
+      view.string(v.id),
+      view.string("("),
+      view.row(s("list_item", v.args, v.arg), s("view_type__any", v.arg)),
+      view.string(")")
+    ),
+  },
   view_type__string: {
     view__type: "type__string",
     rule__params: l(v.string),
@@ -90,23 +111,14 @@ export const views = {
   view_type__text: {
     view__type: "type__text",
     rule__params: l(v.text),
-    rule__body: r.or(
-      // []
-      r(s("=", v.text, l())),
-      // [el | rest]
-      r(
-        s("list_list_append", l(v.head), v.rest, v.text),
-        r.or(
-          r(s("string", v.head), view.string(v.head)),
-          r(
-            s("struct", v.head),
-            s("struct_id_args", v.head, "link", v.args),
-            // dumb, fixme
-            s("struct_id_args", v.as_view, "Link", v.args),
-            s("view", v.as_view)
-          )
-        ),
-        s("view_type__text", v.rest)
+    rule__body: r(
+      s("list_item", v.text, v.node),
+      r.or(
+        r(s("string", v.node), view.string(v.node)),
+        r(
+          s("=", v.node, s("link", v.label, v.location)),
+          view.link(v.label, v.location)
+        )
       )
     ),
   },
