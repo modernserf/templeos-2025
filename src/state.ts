@@ -102,27 +102,6 @@ export class State {
       this.db.rollbackAll();
     }
   }
-  private mapValue<T>(fact: Value, f: (f: Value, args?: T[]) => T): T {
-    switch (fact.tag) {
-      case "string":
-      case "number":
-      case "placeholder":
-        return f(fact);
-      case "var": {
-        const next = this.facts[fact.id];
-        if (next && next.tag !== "constraint") {
-          return this.mapValue(next, f);
-        } else {
-          return f(fact);
-        }
-      }
-      case "struct":
-        return f(
-          fact,
-          fact.args.map((arg) => this.mapValue(arg, f))
-        );
-    }
-  }
   private mapExpr<T>(expr: Expr, f: (e: Expr, args?: T[]) => T): T {
     if (typeof expr !== "object") {
       return f(expr);
@@ -139,19 +118,26 @@ export class State {
     }
   }
   private factToExpr(fact: Value): Expr {
-    return this.mapValue(fact, (f, args = []) => {
-      switch (f.tag) {
-        case "placeholder":
-          return __;
-        case "var":
-          return { tag: "ident", ident: f.name };
-        case "string":
-        case "number":
-          return f.value;
-        case "struct":
-          return { ...f, args };
+    switch (fact.tag) {
+      case "placeholder":
+        return __;
+      case "var": {
+        const resolved = this.resolveVar(fact.id);
+        if (resolved && resolved.tag !== "constraint") {
+          return this.factToExpr(resolved);
+        }
+        return { tag: "ident", ident: fact.name };
       }
-    });
+      case "string":
+      case "number":
+        return fact.value;
+      case "struct":
+        return {
+          tag: "struct",
+          id: fact.id,
+          args: fact.args.map((arg) => this.factToExpr(arg)),
+        };
+    }
   }
   private exprValue(expr: Expr, localSymbols: SymbolTable): Value {
     if (typeof expr !== "object") {
@@ -203,6 +189,8 @@ export class State {
     return ns;
   }
   private unify(left: Value, right: Value): State | null {
+    left = this.resolve(left);
+    right = this.resolve(right);
     // handle placeholders
     if (left.tag == "placeholder" || right.tag === "placeholder") return this;
 
@@ -268,13 +256,13 @@ export class State {
   }
   private log(facts: Value[]) {
     console.log(
-      ...facts.map(printFact)
-      // Object.fromEntries(
-      //   Object.getOwnPropertySymbols(this.facts).map((sym) => [
-      //     sym.description,
-      //     printFact(this.facts[sym]),
-      //   ])
-      // )
+      ...facts.map((fact) => {
+        if (fact.tag === "var") {
+          const next = this.resolveVar(fact.id);
+          if (next) return printFact(next);
+        }
+        return printFact(fact);
+      })
     );
   }
   yield() {
@@ -330,12 +318,25 @@ export class State {
       }
     }
   }
+  private resolveShallow(fact: Value): Value {
+    switch (fact.tag) {
+      case "string":
+      case "number":
+      case "placeholder":
+      case "struct":
+        return fact;
+      case "var": {
+        const next = this.resolveVar(fact.id);
+        if (next && next.tag !== "constraint") return next;
+        return fact;
+      }
+    }
+  }
   private *runClause(fact_: Value): Generator<StateNext> {
-    // simplify
-    fact_ = this.resolve(fact_);
-    const { id, args } =
-      this.ensure(fact_, "struct") ?? this.expected("struct", fact_);
-    switch (id) {
+    fact_ = this.resolveShallow(fact_);
+    if (fact_.tag !== "struct") this.expected("struct", fact_);
+    const args = fact_.args.map((arg) => this.resolveShallow(arg));
+    switch (fact_.id) {
       // Control flow & basic matching
       case "fail":
         return;
@@ -652,7 +653,7 @@ export class State {
         return;
       }
       default: {
-        yield* this.call(id, args);
+        yield* this.call(fact_.id, args);
         return;
       }
     }
@@ -748,19 +749,27 @@ export class State {
         return null;
     }
   }
+  private resolveVar(id: FactId): Fact | null {
+    const next = this.facts[id];
+    if (next?.tag === "var") return this.resolveVar(next.id);
+    return next;
+  }
   private resolve(value: Value): Value {
-    return this.mapValue(value, (e, args = []) => {
-      switch (e.tag) {
-        case "var":
-        case "string":
-        case "number":
-        case "placeholder":
-          return e;
-        case "struct": {
-          return { ...e, args };
-        }
+    switch (value.tag) {
+      case "var": {
+        const next = this.facts[value.id];
+        if (next?.tag === "var") return this.resolve(next);
+        if (next && next.tag !== "constraint") return next;
+        return value;
       }
-    });
+      case "placeholder":
+      case "string":
+      case "number":
+        return value;
+      case "struct": {
+        return { ...value, args: value.args.map((arg) => this.resolve(arg)) };
+      }
+    }
   }
   private collect(into: Value, clause: Value, out: Value) {
     let state = this as State;

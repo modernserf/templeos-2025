@@ -45,7 +45,7 @@ export const views = {
       r(s("number", v.data), view.string(v.data)),
       r(
         s("struct", v.data),
-        s("struct_tag_list", v.data, v.id, v.args),
+        s("struct_tag_list", v.data, v.tag, v.args),
         s(
           "if_then_else",
           r.or(
@@ -153,18 +153,26 @@ export const views = {
           r(s("struct_tag_list", v.next, v.next_id, v.args), v.on_change)
         ),
         view.string("("),
-        view.row(
-          s("struct_at_value", v.data, v.i, v.arg),
-          s(
-            "view_type__any_edit",
-            v.arg,
-            v.arg_next,
-            r(
-              s("struct_at_value_updated", v.data, v.i, v.arg_next, v.next),
-              v.on_change
+        s(
+          "view_children",
+          s("Column"),
+          r(
+            s("struct_at_value", v.data, v.i, v.arg),
+            s(
+              "view_type__any_edit",
+              v.arg,
+              v.arg_next,
+              r(
+                // TODO: this rule is calling itself and v.next is conflicting between parent and child
+                s("log", v.arg, v.arg_next, v.next, v.on_change),
+                // s("var", v.next),
+                s("struct_at_value_updated", v.data, v.i, v.arg_next, v.next),
+                v.on_change
+              )
             )
           )
         ),
+
         view.string(")")
       )
     ),
@@ -352,7 +360,8 @@ export const views = {
           f.browser__currentWindow("browser", v.window),
           s("on__forward", v.window)
         )
-      )
+      ),
+      view.button("new window", r(s("on__newWindow", "omnibox", l())))
     ),
   },
   // utilities
