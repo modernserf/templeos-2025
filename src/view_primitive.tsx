@@ -108,7 +108,7 @@ const Window: VC<[string, string, string, string, string, string]> = ({
         .filter(Boolean)
         .join(" ")}
       onMouseDownCapture={() => {
-        handle(s("on__selectWindow", windowId));
+        if (!isCurrent) handle(s("on__selectWindow", windowId));
       }}
       onKeyDownCapture={(e) => {
         if (e.key == "[" && e.metaKey) {

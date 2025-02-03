@@ -183,44 +183,55 @@ export const rules = {
     rule__body: r(
       test.collect(
         l(v.id, v.args),
-        s("struct_id_args", s("pair", 123, 456), v.id, v.args),
+        s("struct_tag_list", s("pair", 123, 456), v.id, v.args),
         l("pair", l(123, 456))
       ),
       test.collect(
         v.struct,
-        s("struct_id_args", v.struct, "pair", l(123, 456)),
+        s("struct_tag_list", v.struct, "pair", l(123, 456)),
         s("pair", 123, 456)
       )
     ),
   },
-  test__struct_id_index_arg: {
+  test__struct_at_value: {
     test__group: "struct",
     rule__params: l(),
     rule__body: r(
       // get
       test.collect(
         v.value,
-        s("struct_id_index_arg", s("pair", 123, 456), __, 0, v.value),
+        s("struct_at_value", s("pair", 123, 456), 0, v.value),
         123
       ),
       // iter
       test.collect(
         l(v.index, v.value),
-        s("struct_id_index_arg", s("pair", 123, 456), __, v.index, v.value),
+        s("struct_at_value", s("pair", 123, 456), v.index, v.value),
         l(0, 123),
         l(1, 456)
       ),
       // find
       test.collect(
         v.index,
-        s("struct_id_index_arg", s("pair", 123, 456), __, v.index, 456),
+        s("struct_at_value", s("pair", 123, 456), v.index, 456),
         1
       ),
       // unique states
       test.collect(
         v.id,
-        s("struct_id_index_arg", s("pair", 123, 456), v.id, __, __),
+        s("struct_at_value", s("pair", 123, 456), __, __),
         "pair"
+      )
+    ),
+  },
+  test__struct_at_value_updated: {
+    test__group: "struct",
+    rule__params: l(),
+    rule__body: r(
+      test.collect(
+        v.value,
+        s("struct_at_value_updated", s("foo", "a", "b"), 0, 123, v.value),
+        s("foo", 123, "b")
       )
     ),
   },
@@ -310,7 +321,10 @@ export const rules = {
   },
   list_item: {
     rule__params: l(v.list, v.item),
-    rule__body: s("struct_id_index_arg", v.list, "", __, v.item),
+    rule__body: r(
+      s("struct_tag_list", v.list, "", __),
+      s("struct_at_value", v.list, __, v.item)
+    ),
   },
   test__list_item: {
     test__group: "list",
@@ -337,15 +351,6 @@ export const rules = {
       s("get_field_value", v.id, v.field, v.value),
       s("ok"),
       s("=", v.value, v.default)
-    ),
-  },
-  tx_insert: {
-    file__description: l("insert a property list into the db"),
-    rule__params: l(v.tx, v.id, v.params),
-    rule__body: r(
-      s("struct_id_index_arg", v.params, __, __, v.pair),
-      s("struct_id_index_arg", v.pair, v.field, 0, v.value),
-      db.update(v.tx, v.id, v.field, v.value)
     ),
   },
   with_tx: {
@@ -429,19 +434,14 @@ export const rules = {
     ),
   },
   new__history: {
-    rule__params: l(v.tx, v.history, v.window, v.location, v.params),
+    rule__params: l(v.tx, v.history, v.window, v.location, __),
     rule__body: r(
       s("if_var", v.history, s("id", v.history)),
       s("timestamp", v.ts),
       db.update(v.tx, v.history, "db__schema", "schema__history"),
       db.update(v.tx, v.history, "time__created", v.ts),
       db.update(v.tx, v.history, "history__window", v.window),
-      db.update(v.tx, v.history, "history__location", v.location),
-      r.or(
-        //
-        r(s("nonvar", v.params), s("tx_insert", v.tx, v.history, v.params)),
-        r()
-      )
+      db.update(v.tx, v.history, "history__location", v.location)
     ),
   },
 } satisfies Record<string, Rec>;

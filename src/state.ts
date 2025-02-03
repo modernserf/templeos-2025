@@ -412,7 +412,7 @@ export class State {
         yield* semidet(this.unify(args[1], k(st.args.length)));
         return;
       }
-      case "struct_id_args": {
+      case "struct_tag_list": {
         const st = this.ensureVar(args[0], "struct");
         const id = this.ensureVar(args[1], "string");
         const xs = this.ensureVar(args[2], "struct");
@@ -426,26 +426,38 @@ export class State {
         }
         return;
       }
-      case "struct_id_index_arg": {
-        const st = this.ensure(args[0], "struct");
+      case "struct_at_value": {
+        const st =
+          this.ensure(args[0], "struct") ?? this.expected("struct", args[0]);
         if (!st) return;
-        const id = this.ensureVar(args[1], "string");
-        const idx = this.ensureVar(args[2], "number");
-        const arg = args[3];
-        const ns = this.unify(k(st.id), id);
-        if (!ns) return;
+        const idx = this.ensureVar(args[1], "number");
+        const value = args[2];
 
         if (idx.tag === "number") {
           const i = idx.value;
           if (i < 0 || i >= st.args.length) return;
-          yield* semidet(ns.unify(arg, st.args[i]));
+          yield* semidet(this.unify(value, st.args[i]));
         } else {
           yield* this.uniqueStates(function* () {
             for (let i = 0; i < st.args.length; i++) {
-              yield* semidet(ns.unify(idx, k(i))?.unify(arg, st.args[i]));
+              yield* semidet(this.unify(idx, k(i))?.unify(value, st.args[i]));
             }
           });
         }
+        return;
+      }
+      case "struct_at_value_updated": {
+        const st =
+          this.ensure(args[0], "struct") ?? this.expected("struct", args[0]);
+        const idx =
+          this.ensure(args[1], "number") ?? this.expected("number", args[1]);
+        const argNext = args[2];
+        const out = args[3];
+        const nextArgs = st.args.slice();
+        nextArgs[idx.value] = argNext;
+        yield* semidet(
+          this.unify({ tag: "struct", id: st.id, args: nextArgs }, out)
+        );
         return;
       }
       case "list_from_to_slice": {

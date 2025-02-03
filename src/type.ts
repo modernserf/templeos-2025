@@ -86,10 +86,10 @@ export const typeRecs = {
       r(s("string", v.value), s("=", v.type, t.string)),
       r(
         s("struct", v.value),
-        s("struct_id_args", v.value, v.id, v.args),
+        s("struct_tag_list", v.value, v.id, v.args),
         s("_maplist", s("value_type"), v.args, v.t_args),
         s("list_list_append", l(v.id), v.t_args, v.t_body),
-        s("struct_id_args", v.type, "struct", v.t_body)
+        s("struct_tag_list", v.type, "struct", v.t_body)
       )
     ),
   },
@@ -124,7 +124,7 @@ export const typeRecs = {
   structType_id_args: {
     rule__params: l(v.struct, v.id, v.args),
     rule__body: r(
-      s("struct_id_args", v.struct, "struct", v.body),
+      s("struct_tag_list", v.struct, "struct", v.body),
       s("list_list_append", l(v.id), v.args, v.body)
     ),
   },
@@ -213,9 +213,9 @@ export const typeRecs = {
   _apply: {
     rule__params: l(v.fn, v.args),
     rule__body: r(
-      s("struct_id_args", v.fn, v.id, v.base_args),
+      s("struct_tag_list", v.fn, v.id, v.base_args),
       s("list_list_append", v.base_args, v.args, v.full_args),
-      s("struct_id_args", v.fn1, v.id, v.full_args),
+      s("struct_tag_list", v.fn1, v.id, v.full_args),
       v.fn1
     ),
   },

@@ -1,5 +1,5 @@
 import { Rec } from "./data";
-import { l, r, s, v, Expr } from "./expr";
+import { l, r, s, v, Expr, __ } from "./expr";
 import { f } from "./field";
 import { db } from "./rule";
 
@@ -37,34 +37,29 @@ export const views = {
     rule__body: r.or(
       r(s("var_name", v.data, v.var_name), view.string(v.var_name)),
       r(
-        s("nonvar", v.data),
-        r.or(
-          r(
-            s("string", v.data),
-            view.string('"'),
-            view.string(v.data),
-            view.string('"')
-          ),
-          r(s("number", v.data), view.string(v.data)),
-          r(
-            s("struct", v.data),
-            s("struct_id_args", v.data, v.id, v.args),
-            s(
-              "if_then_else",
-              r.or(
-                r(
-                  s("list_item", l(";", ","), v.id),
-                  s("_view_operator_vertical", v.id, v.args)
-                ),
-                r(
-                  s("list_item", l("="), v.id),
-                  s("_view_operator_binary", v.id, v.args)
-                )
-              ),
-              s("ok"),
-              s("_view_tuple", v.id, v.args)
+        s("string", v.data),
+        view.string('"'),
+        view.string(v.data),
+        view.string('"')
+      ),
+      r(s("number", v.data), view.string(v.data)),
+      r(
+        s("struct", v.data),
+        s("struct_tag_list", v.data, v.id, v.args),
+        s(
+          "if_then_else",
+          r.or(
+            r(
+              s("list_item", l(";", ","), v.id),
+              s("_view_operator_vertical", v.id, v.args)
+            ),
+            r(
+              s("list_item", l("="), v.id),
+              s("_view_operator_binary", v.id, v.args)
             )
-          )
+          ),
+          s("ok"),
+          s("_view_tuple", v.id, v.args)
         )
       )
     ),
@@ -122,6 +117,59 @@ export const views = {
       )
     ),
   },
+  // type editors
+  view_type__any_edit: {
+    file__name: "Any : Edit",
+    rule__params: l(v.data, v.next, v.on_change),
+    rule__body: r.or(
+      r(
+        s("var_name", v.data, v.var_name),
+        view.input(v.data, v.next, v.on_change)
+      ),
+      r(s("string", v.data), view.input(v.data, v.next, v.on_change)),
+      r(
+        s("number", v.data),
+        view.input(
+          v.data,
+          v.next_str,
+          r(s("string_number", v.next_str, v.next), v.on_change)
+        )
+      ),
+      r(
+        s("struct", v.data),
+        s("view_type__struct_edit", v.data, v.next, v.on_change)
+      )
+    ),
+  },
+  view_type__struct_edit: {
+    file__name: "Any Struct : Edit",
+    rule__params: l(v.data, v.next, v.on_change),
+    rule__body: r(
+      s("struct_tag_list", v.data, v.id, v.args),
+      view.row(
+        view.input(
+          v.id,
+          v.next_id,
+          r(s("struct_tag_list", v.next, v.next_id, v.args), v.on_change)
+        ),
+        view.string("("),
+        view.row(
+          s("struct_at_value", v.data, v.i, v.arg),
+          s(
+            "view_type__any_edit",
+            v.arg,
+            v.arg_next,
+            r(
+              s("struct_at_value_updated", v.data, v.i, v.arg_next, v.next),
+              v.on_change
+            )
+          )
+        ),
+        view.string(")")
+      )
+    ),
+  },
+
   // schema views
   view_schema__any: {
     file__name: "Default viewer",
@@ -132,6 +180,34 @@ export const views = {
         view.string("Fields"),
         s("get_field_value", v.id, v.field, v.value),
         view.row(view.fileLink(v.field), s("view__for_field", v.field, v.value))
+      ),
+      r(
+        view.string("References"),
+        r.or(f.db__index(v.f, s("ref")), f.db__index(v.f, s("multiRef"))),
+        r(
+          s("get_field_value", v.ref, v.f, v.id),
+          view.row(view.fileLink(v.f), view.fileLink(v.ref))
+        )
+      )
+    ),
+  },
+  view_schema__any_edit: {
+    file__name: "Default editor",
+    view__schema: "schema__any",
+    rule__params: l(v.id, v.state),
+    rule__body: r.or(
+      r(
+        view.string("Fields"),
+        s("get_field_value", v.id, v.field, v.value),
+        view.row(
+          view.fileLink(v.field),
+          s(
+            "view_type__any_edit",
+            v.value,
+            v.next,
+            db.with_tx(v.tx, db.update(v.tx, v.id, v.field, v.next))
+          )
+        )
       ),
       r(
         view.string("References"),

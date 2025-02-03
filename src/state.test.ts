@@ -458,7 +458,7 @@ test("views", () => {
   expect(
     renderAll(
       //
-      s("struct_id_index_arg", s("", "Hello", "World"), __, __, v.x),
+      s("struct_at_value", s("", "Hello", "World"), __, v.x),
       s("view", s("text", v.x))
     )
   ).toEqual([
@@ -498,7 +498,7 @@ test("views", () => {
         s("row"),
         s(
           ",",
-          s("struct_id_index_arg", s("", "Hello", "World"), __, __, v.x),
+          s("struct_at_value", s("", "Hello", "World"), __, v.x),
           s("view", s("text", v.x))
         )
       )
