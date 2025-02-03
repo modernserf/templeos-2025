@@ -1,5 +1,5 @@
 import { Rec } from "./data";
-import { l, r, s, v, Expr, __ } from "./expr";
+import { l, r, s, v, Expr } from "./expr";
 import { f } from "./field";
 import { db } from "./rule";
 
