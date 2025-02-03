@@ -1,13 +1,14 @@
 import { Component, FC, ReactNode } from "react";
 import { __, AnyStruct, Expr, printExpr, s } from "./expr";
-import { State, View } from "./state";
+import { Callback, State, View } from "./state";
 import "./view_primitive.css";
-import { useEventHandler } from "./event_source";
+import { useStateCallback, useEventHandler } from "./event_source";
 
 type VC<Args extends Expr[]> = FC<{
   state: State;
   id: string;
   args: Args;
+  callbacks: Callback[];
   children: ReactNode;
 }>;
 
@@ -19,13 +20,17 @@ const Column: VC<[]> = ({ children }) => (
 
 const String: VC<[string]> = ({ args: [value] }) => <div>{value}</div>;
 
-const Button: VC<[string, Expr]> = ({ state, args: [label, onClick] }) => {
-  const handle = useEventHandler(state);
+const Button: VC<[string]> = ({
+  state,
+  args: [label],
+  callbacks: [onClick],
+}) => {
+  const handle = useStateCallback(state);
   return (
     <button
       type="button"
       onClick={() => {
-        handle(onClick);
+        handle(onClick, "");
       }}
     >
       {label}
@@ -33,16 +38,17 @@ const Button: VC<[string, Expr]> = ({ state, args: [label, onClick] }) => {
   );
 };
 
-const Input: VC<[string, Expr, Expr]> = ({
+const Input: VC<[string]> = ({
   state,
-  args: [value, event, onChange],
+  args: [value],
+  callbacks: [onChange],
 }) => {
-  const handle = useEventHandler(state);
+  const handle = useStateCallback(state);
   return (
     <input
       value={value}
       onChange={(e) => {
-        handle(s(",", s("=", event, e.target.value), onChange));
+        handle(onChange, e.target.value);
       }}
     />
   );
@@ -51,17 +57,18 @@ const Input: VC<[string, Expr, Expr]> = ({
 const Option: VC<[string, string]> = ({ args: [id, label] }) => (
   <option value={id}>{label}</option>
 );
-const Select: VC<[string, Expr, Expr]> = ({
+const Select: VC<[string]> = ({
   state,
-  args: [value, event, onChange],
+  args: [value],
+  callbacks: [onChange],
   children,
 }) => {
-  const handle = useEventHandler(state);
+  const handle = useStateCallback(state);
   return (
     <select
       value={value}
       onChange={(e) => {
-        handle(s(",", s("=", event, e.target.value), onChange));
+        handle(onChange, e.target.value);
       }}
     >
       {children}
@@ -188,17 +195,19 @@ function Primitive({
   state,
   id,
   args,
+  callbacks,
   children,
 }: {
   state: State;
   id: string;
   args: Expr[];
+  callbacks: Callback[];
   children?: View[];
 }) {
   const View = viewPrimitives[id] ?? DefaultRenderer;
   return (
     <ErrorBoundary>
-      <View state={state} id={id} args={args}>
+      <View state={state} id={id} args={args} callbacks={callbacks}>
         {(children ?? []).map((child, i) => (
           <Primitive key={i} {...child} />
         ))}

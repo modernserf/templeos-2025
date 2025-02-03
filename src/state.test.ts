@@ -10,7 +10,7 @@ function runAll(...clauses: Expr[]) {
 }
 
 function view(id: string, args: Expr[], children?: unknown[]) {
-  return { tag: "view", id, args, children };
+  return { tag: "view", id, args, children, callbacks: [] };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

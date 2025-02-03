@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { State } from "./state";
+import { Callback, State } from "./state";
 import { Expr } from "./expr";
 
 type EventListener<T> = (value: T) => void;
@@ -20,6 +20,13 @@ export class EventSource {
 }
 
 export const eventSource = new EventSource();
+
+export function useStateCallback(state: State) {
+  return (callback: Callback, arg: Expr) => {
+    state.runCallback(callback, arg);
+    eventSource.notifyEventListeners(state.db);
+  };
+}
 
 export function useEventHandler(state: State) {
   return (rule: Expr) => {

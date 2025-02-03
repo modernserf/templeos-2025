@@ -1,5 +1,5 @@
 import { Rec } from "./data";
-import { l, r, s, v, Expr } from "./expr";
+import { l, r, s, v, Expr, __ } from "./expr";
 import { f } from "./field";
 import { db } from "./rule";
 
@@ -9,11 +9,12 @@ export const view = {
     s("view_children", s("Column"), r(...children)),
   data: (data: Expr) => s("view", s("AnyData", data)),
   string: (str: string) => s("view", s("String", str)),
-  button: (str: string, onClick: Expr) => s("view", s("Button", str, onClick)),
+  button: (str: string, onClick: Expr) =>
+    s("view_callback", s("Button", str), __, onClick),
   input: (value: string, event: Expr, onChange: Expr) =>
-    s("view", s("Input", value, event, onChange)),
+    s("view_callback", s("Input", value), event, onChange),
   select: (value: string, event: Expr, onChange: Expr, children: Expr) =>
-    s("view_children", s("Select", value, event, onChange), children),
+    s("view_callback", s("Select", value), event, onChange, children),
   option: (id: string, label: string) => s("view", s("Option", id, label)),
   link: (label: string, id: string, target: string = "current") =>
     s("view", s("Link", label, id, target)),
@@ -45,7 +46,7 @@ export const views = {
       r(s("number", v.data), view.string(v.data)),
       r(
         s("struct", v.data),
-        s("struct_tag_list", v.data, v.tag, v.args),
+        s("struct_tag_list", v.data, v.id, v.args),
         s(
           "if_then_else",
           r.or(
@@ -124,7 +125,8 @@ export const views = {
     rule__body: r.or(
       r(
         s("var_name", v.data, v.var_name),
-        view.input(v.data, v.next, v.on_change)
+        // view.string("todo var")
+        view.input(v.var_name, v.next, v.on_change)
       ),
       r(s("string", v.data), view.input(v.data, v.next, v.on_change)),
       r(
@@ -163,9 +165,6 @@ export const views = {
               v.arg,
               v.arg_next,
               r(
-                // TODO: this rule is calling itself and v.next is conflicting between parent and child
-                s("log", v.arg, v.arg_next, v.next, v.on_change),
-                // s("var", v.next),
                 s("struct_at_value_updated", v.data, v.i, v.arg_next, v.next),
                 v.on_change
               )

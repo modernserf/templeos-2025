@@ -44,7 +44,7 @@ export function check<T extends Value["tag"]>(
   return value.tag === tag;
 }
 
-export function ensure<T extends Value["tag"]>(
+function ensure<T extends Value["tag"]>(
   value: Value,
   tag: T
 ): asserts value is Value & { tag: T } {
@@ -65,7 +65,7 @@ export function* uniqueStates(gen: () => Generator<StateNext>) {
   }
 }
 
-function printFact(fact: Fact): string {
+export function printFact(fact: Fact): string {
   switch (fact.tag) {
     case "placeholder":
       return "__";
@@ -81,11 +81,17 @@ function printFact(fact: Fact): string {
   }
 }
 
+export type Callback = {
+  params: Value;
+  body: Value;
+};
+
 type ViewPrimitive = string;
 export type View = {
   tag: "view";
   id: ViewPrimitive;
   args: Expr[];
+  callbacks: Callback[];
   children?: View[];
   state: State;
 };
@@ -108,6 +114,14 @@ export class State {
   *render(expr: Expr): Generator<View> {
     for (const res of this.runClause(this.exprValue(expr, {}))) {
       if (res.tag === "view") yield res;
+    }
+  }
+  runCallback(callback: Callback, arg: Expr) {
+    const ns = this.unify(callback.params, this.exprValue(arg, {}));
+    if (!ns) throw new Error("todo");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for (const _ of ns.runClause(callback.body)) {
+      // do nothing
     }
   }
   *runAll(expr: Expr): Generator<Record<Ident, Expr | undefined>> {
@@ -243,21 +257,27 @@ export class State {
         }
     }
   }
-  log(facts: Value[]) {
-    console.log(
-      ...facts.map((fact) => {
-        if (fact.tag === "var") {
-          const next = this.resolveVar(fact.id);
-          if (next) return printFact(next);
-        }
-        return printFact(fact);
-      })
-    );
-  }
   yield() {
     return { tag: "state", state: this } as const;
   }
+  resolveString(value: Value): string {
+    const next = this.resolveShallow(value);
+    ensure(next, "string");
+    return next.value;
+  }
+  resolveNumber(value: Value): number {
+    const next = this.resolveShallow(value);
+    ensure(next, "number");
+    return next.value;
+  }
+  resolveStruct(value: Value): { id: string; args: Value[] } {
+    const next = this.resolveShallow(value);
+    ensure(next, "struct");
+    return next;
+  }
   *dif(l: Value, r: Value): Generator<StateNext> {
+    l = this.resolve(l);
+    r = this.resolve(r);
     if (l.tag === "var" || r.tag === "var") {
       let ns = this as State;
       if (l.tag === "var") {
@@ -296,7 +316,7 @@ export class State {
       }
     }
   }
-  private resolveShallow(fact: Value): Value {
+  resolveShallow(fact: Value): Value {
     switch (fact.tag) {
       case "string":
       case "number":
@@ -304,9 +324,10 @@ export class State {
       case "struct":
         return fact;
       case "var": {
-        const next = this.resolveVar(fact.id);
-        if (next && next.tag !== "constraint") return next;
-        return fact;
+        const next = this.facts[fact.id];
+        if (!next || next.tag === "constraint") return fact;
+        if (next.tag === "var") return this.resolveShallow(next);
+        return next;
       }
     }
   }
@@ -319,7 +340,7 @@ export class State {
   *runClause(fact: Value): Generator<StateNext> {
     fact = this.resolveShallow(fact);
     ensure(fact, "struct");
-    const args = fact.args.map((arg) => this.resolveShallow(arg));
+    const args = fact.args; //.map((arg) => this.resolveShallow(arg));
     if (primitives[fact.id]) {
       yield* primitives[fact.id](this, ...args);
     } else {

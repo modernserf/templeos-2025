@@ -203,6 +203,7 @@ export const rules = {
         s("struct_at_value", s("pair", 123, 456), 0, v.value),
         123
       ),
+      s("set_context", "trace_enabled", l()),
       // iter
       test.collect(
         l(v.index, v.value),
