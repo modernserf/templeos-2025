@@ -1,5 +1,5 @@
 import { Component, FC, ReactNode } from "react";
-import { __, AnyStruct, Expr, printExpr, s } from "./expr";
+import { __, AnyStruct, Expr, List, printExpr, s, Struct } from "./expr";
 import { Callback, State, View } from "./state";
 import "./view_primitive.css";
 import { useStateCallback, useEventHandler } from "./event_source";
@@ -54,14 +54,12 @@ const Input: VC<[string]> = ({
   );
 };
 
-const Option: VC<[string, string]> = ({ args: [id, label] }) => (
-  <option value={id}>{label}</option>
-);
-const Select: VC<[string]> = ({
+type Option = Struct<"option", [string, string]>;
+
+const Select: VC<[string, List<Option>]> = ({
   state,
-  args: [value],
+  args: [value, options],
   callbacks: [onChange],
-  children,
 }) => {
   const handle = useStateCallback(state);
   return (
@@ -71,7 +69,11 @@ const Select: VC<[string]> = ({
         handle(onChange, e.target.value);
       }}
     >
-      {children}
+      {options.args.map(({ args: [id, label] }) => (
+        <option key={id} value={id}>
+          {label}
+        </option>
+      ))}
     </select>
   );
 };
@@ -102,9 +104,10 @@ const Icon: VC<[]> = () => (
   <div style={{ textAlign: "center", fontSize: 32 }}>📄</div>
 );
 
-const Window: VC<[string, string, string, string, string, string]> = ({
+const WindowContainer: VC<[string, string]> = ({
   state,
-  args: [id, view, windowId, historyId, currentWindowId, fileName],
+  children,
+  args: [windowId, currentWindowId],
 }) => {
   const handle = useEventHandler(state);
   const isCurrent = windowId === currentWindowId;
@@ -128,20 +131,28 @@ const Window: VC<[string, string, string, string, string, string]> = ({
         }
       }}
     >
-      <header className="AppWindow__header">
-        <button
-          className="AppWindow__closeButton"
-          type="button"
-          onClick={() => {
-            handle(s("on__closeWindow", windowId));
-          }}
-        ></button>
-        <h1 className="AppWindow__title">{fileName}</h1>
-
-        <Query state={state} clause={s("view__viewMenu", windowId, id, view)} />
-      </header>
-      <Query state={state} clause={s(view, id, historyId)} />
+      {children}
     </div>
+  );
+};
+
+const WindowBar: VC<[string, string, string, string]> = ({
+  state,
+  args: [windowId, id, view, fileName],
+}) => {
+  const handle = useEventHandler(state);
+  return (
+    <header className="AppWindow__header">
+      <button
+        className="AppWindow__closeButton"
+        type="button"
+        onClick={() => {
+          handle(s("on__closeWindow", windowId));
+        }}
+      ></button>
+      <h1 className="AppWindow__title">{fileName}</h1>
+      <Query state={state} clause={s("view__viewMenu", windowId, id, view)} />
+    </header>
   );
 };
 
@@ -151,12 +162,12 @@ const viewPrimitives: Record<string, VC<any>> = {
   Column,
   String,
   Button,
-  Option,
   Select,
   Link,
   Icon,
   Input,
-  Window,
+  WindowBar,
+  WindowContainer,
 };
 
 const DefaultRenderer: VC<Expr[]> = ({ id, args, children }) => {

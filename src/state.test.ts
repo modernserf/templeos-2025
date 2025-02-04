@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { State, View } from "./state";
-import { Expr, AnyStruct, r, s, v, __ } from "./expr";
+import { Expr, AnyStruct, r, s, v, __, l } from "./expr";
 import { data } from "./data";
 import { f } from "./field";
 
@@ -444,62 +444,48 @@ test("views", () => {
   // sequence
   expect(
     renderAll(
-      //
-      s("view", s("text", "Hello")),
-      s("view", s("text", "World"))
+      s("view", "text", l("Hello"), l(), r()),
+      s("view", "text", l("World"), l(), r())
     )
   ).toEqual([
-    //
-    view("text", ["Hello"]),
+    view("text", ["Hello"]), //
     view("text", ["World"]),
   ]);
 
   // iteration
   expect(
     renderAll(
-      //
       s("struct_at_value", s("", "Hello", "World"), __, v.x),
-      s("view", s("text", v.x))
+      s("view", "text", l(v.x), l(), r())
     )
   ).toEqual([
-    //
-    view("text", ["Hello"]),
+    view("text", ["Hello"]), //
     view("text", ["World"]),
   ]);
 
   // backtracking;
   expect(
     renderAll(
-      s(
-        ";", //
-        s(
-          ",", //
-          s("view", s("text", "Hello")),
-          s("fail")
-        ),
-        s(
-          ",", //
-          s("view", s("text", "World")),
-          s("ok")
-        )
+      r.or(
+        r(s("view", "text", l("Hello"), l(), r()), s("fail")),
+        r(s("view", "text", l("World"), l(), r()), s("ok"))
       )
     )
   ).toEqual([
-    //
-    view("text", ["World"]),
+    view("text", ["World"]), //
   ]);
 
-  // // children
+  // children
   expect(
     renderAll(
-      //
       s(
-        "view_children",
-        s("row"),
-        s(
-          ",",
+        "view", //
+        "row",
+        l(),
+        l(),
+        r(
           s("struct_at_value", s("", "Hello", "World"), __, v.x),
-          s("view", s("text", v.x))
+          s("view", "text", l(v.x), l(), r())
         )
       )
     )
@@ -508,8 +494,7 @@ test("views", () => {
       "row",
       [],
       [
-        //
-        view("text", ["Hello"]),
+        view("text", ["Hello"]), //
         view("text", ["World"]),
       ]
     ),

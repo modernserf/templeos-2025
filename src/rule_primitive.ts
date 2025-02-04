@@ -1,4 +1,5 @@
 import { whereValue } from "./db";
+import { reduce } from "./iter";
 import {
   Exception,
   k,
@@ -9,7 +10,6 @@ import {
   uniqueStates,
   sv,
   printFact,
-  Callback,
 } from "./state";
 
 function semidet<Args extends unknown[]>(
@@ -453,38 +453,26 @@ export const primitives: Record<string, RulePrimitive> = {
       }
     });
   },
-  view: function* (state, view) {
-    yield* this.view_callback(state, view, null, null, null);
-  },
-  view_children: function* (state, view, body) {
-    yield* this.view_callback(state, view, null, null, body);
-  },
-  view_callback: function* (state, view, params, callback, body) {
-    const { id, args } = state.resolveStruct(view);
-    const children: View[] = [];
-    if (body) {
-      for (const res of state.runClause(body)) {
-        switch (res.tag) {
-          case "view":
-            children.push(res);
-            continue;
-          case "state":
-            state = res.state;
-        }
-      }
-    }
-    const callbacks: Callback[] = [];
-    if (params && callback) {
-      callbacks.push({ params, body: callback });
-    }
-
+  view: function* (state, viewId, args, callbacks, children) {
     yield {
       tag: "view",
-      id: id,
-      args: args.map((arg) => state.valueExpr(arg)),
       state,
-      callbacks,
-      children,
+      id: state.resolveString(viewId),
+      args: state.resolveStruct(args).args.map((arg) => state.valueExpr(arg)),
+      callbacks: state.resolveStruct(callbacks).args.map((cb) => {
+        const {
+          args: [params, body],
+        } = state.resolveStruct(cb);
+        return { params, body };
+      }),
+      children: reduce<View[], StateNext>(
+        [],
+        (children, res) => {
+          if (res.tag === "view") children.push(res);
+          return children;
+        },
+        state.runClause(children)
+      ),
     };
     yield state.yield();
   },

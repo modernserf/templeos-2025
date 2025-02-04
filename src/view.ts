@@ -4,23 +4,18 @@ import { f } from "./field";
 import { db } from "./rule";
 
 export const view = {
-  row: (...children: Expr[]) => s("view_children", s("Row"), r(...children)),
-  column: (...children: Expr[]) =>
-    s("view_children", s("Column"), r(...children)),
-  data: (data: Expr) => s("view", s("AnyData", data)),
-  string: (str: string) => s("view", s("String", str)),
-  button: (str: string, onClick: Expr) =>
-    s("view_callback", s("Button", str), __, onClick),
+  row: (...children: Expr[]) => s("view__row", r(...children)),
+  column: (...children: Expr[]) => s("view__column", r(...children)),
+  string: (str: string) => s("view__string", str),
+  button: (str: string, onClick: Expr) => s("view__button", str, onClick),
   input: (value: string, event: Expr, onChange: Expr) =>
-    s("view_callback", s("Input", value), event, onChange),
-  select: (value: Expr, event: Expr, onChange: Expr, children: Expr) =>
-    s("view_callback", s("Select", value), event, onChange, children),
-  option: (id: string, label: string) => s("view", s("Option", id, label)),
+    s("view__input", value, event, onChange),
+  select: (value: Expr, event: Expr, options: Expr, onChange: Expr) =>
+    s("view__select", value, event, options, onChange),
   link: (label: string, id: string, target: string = "current") =>
-    s("view", s("Link", label, id, target)),
+    s("view__link", label, id, target),
+  icon: () => s("view__icon"),
   fileLink: (id: string) => s("view__fileLink", id),
-  icon: () => s("view", s("Icon")),
-  text: (text: Expr) => s("view", s("Text", text)),
 };
 
 export const rootView = r(
@@ -30,6 +25,50 @@ export const rootView = r(
 );
 
 export const views = {
+  // primitives
+  view__row: {
+    rule__params: l(v.children),
+    rule__body: s("view", "Row", l(), l(), v.children),
+  },
+  view__column: {
+    rule__params: l(v.children),
+    rule__body: s("view", "Column", l(), l(), v.children),
+  },
+  view__string: {
+    rule__params: l(v.string),
+    rule__body: s("view", "String", l(v.string), l(), r()),
+  },
+  view__button: {
+    rule__params: l(v.string, v.on_click),
+    rule__body: s("view", "Button", l(v.string), l(l(__, v.on_click)), r()),
+  },
+  view__input: {
+    rule__params: l(v.value, v.next, v.on_change),
+    rule__body: s("view", "Input", l(v.value), l(l(v.next, v.on_change)), r()),
+  },
+  view__select: {
+    rule__params: l(v.value, v.next, v.options, v.on_change),
+    rule__body: s(
+      "view",
+      "Select",
+      l(v.value, v.options),
+      l(l(v.next, v.on_change)),
+      r()
+    ),
+  },
+  view__option: {
+    rule__params: l(v.id, v.label),
+    rule__body: s("view", "Option", l(v.id, v.label), l(), r()),
+  },
+  view__link: {
+    // TODO: target in params block
+    rule__params: l(v.label, v.id, v.target),
+    rule__body: s("view", "Link", l(v.label, v.id, v.target), l(), r()),
+  },
+  view__icon: {
+    rule__params: l(),
+    rule__body: s("view", "Icon", l(), l(), r()),
+  },
   // type views
   view_type__any: {
     file__name: "Any : View",
@@ -190,6 +229,13 @@ export const views = {
       view.select(
         "",
         v.next_type,
+        l(
+          s("option", "", "+"),
+          s("option", "string", "string"),
+          s("option", "number", "number"),
+          s("option", "struct", "struct"),
+          s("option", "var", "var")
+        ),
         r(
           r.or(
             s("=", l(v.next_type, v.next), l("string", "")),
@@ -198,13 +244,6 @@ export const views = {
             s("=", l(v.next_type, v.next), l("var", v("")))
           ),
           v.on_change
-        ),
-        r(
-          view.option("", "+"),
-          view.option("string", "string"),
-          view.option("number", "number"),
-          view.option("struct", "struct"),
-          view.option("var", "var")
         )
       )
     ),
@@ -333,18 +372,20 @@ export const views = {
     file__description: l("the view selection menu on window chrome"),
     rule__params: l(v.window, v.id, v.selectedView),
     rule__body: r(
+      s(
+        "collect",
+        s("option", v.view, v.name),
+        r(s("rule__location_view", v.id, v.view), f.file__name(v.view, v.name)),
+        v.options
+      ),
       view.select(
         v.selectedView,
         v.nextView,
+        v.options,
         db.with_tx(
           v.tx,
           f.window__currentHistory(v.window, v.history),
           db.update(v.tx, v.history, "history__view", v.nextView)
-        ),
-        r(
-          s("rule__location_view", v.id, v.view),
-          f.file__name(v.view, v.name),
-          view.option(v.view, v.name)
         )
       )
     ),
@@ -371,7 +412,13 @@ export const views = {
       ),
       s(
         "view",
-        s("Window", v.id, v.view, v.window, v.history, v.currentWindow, v.name)
+        "WindowContainer",
+        l(v.window, v.currentWindow),
+        l(),
+        r(
+          s("view", "WindowBar", l(v.window, v.id, v.view, v.name), l(), r()),
+          s("call", v.view, v.id, v.history)
+        )
       )
     ),
   },
