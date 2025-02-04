@@ -6,7 +6,12 @@ import { TypeId, coreTypes } from "./type";
 import { view, views } from "./view";
 import { db, rules } from "./rule";
 
-export type FormatText = string | Struct<"link", [string, Id]>;
+export type Location =
+  | Struct<"location", [id: Id]>
+  | Struct<"location", [id: Id, view: Id]>
+  | Struct<"location", [id: Id, view: Id, params: List<AnyStruct>]>;
+
+export type FormatText = string | Struct<"link", [string, Location]>;
 
 type SchemaField =
   | Struct<"field", [Field]>
@@ -56,9 +61,9 @@ const files = {
     file__description: l("this is the home card"),
     text__content: l(
       "content that ",
-      s("link", "links", "example__folder"),
+      s("link", "links", s("location", "example__folder")),
       " to another record.",
-      s("link", "omnibox", "omnibox")
+      s("link", "omnibox", s("location", "omnibox"))
     ),
   },
   omnibox: {

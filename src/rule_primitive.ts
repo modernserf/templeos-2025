@@ -145,9 +145,9 @@ export const primitives: Record<string, RulePrimitive> = {
     const value = state.resolveNumber(limit);
     let count = 0;
     for (const res of state.runClause(clause)) {
-      if (count >= value) return;
       yield res;
       if (res.tag === "state") count++;
+      if (count >= value) return;
     }
   },
   // context

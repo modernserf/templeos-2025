@@ -1,5 +1,5 @@
-import { Rec } from "./data";
-import { l, r, s, v, Expr, __ } from "./expr";
+import { Rec, Location } from "./data";
+import { l, r, s, v, Expr, __, AnyStruct, List } from "./expr";
 import { f } from "./field";
 import { db } from "./rule";
 
@@ -12,8 +12,8 @@ export const view = {
     s("view__input", value, event, onChange),
   select: (value: Expr, event: Expr, options: Expr, onChange: Expr) =>
     s("view__select", value, event, options, onChange),
-  link: (label: string, id: string, target: string = "current") =>
-    s("view__link", label, id, target),
+  link: (label: string, location: Location, params: List<AnyStruct> = l()) =>
+    s("view__link", label, location, params),
   icon: () => s("view__icon"),
   fileLink: (id: string) => s("view__fileLink", id),
 };
@@ -40,7 +40,7 @@ export const views = {
   },
   view__button: {
     rule__params: l(v.string, v.on_click),
-    rule__body: s("view", "Button", l(v.string), l(l(__, v.on_click)), r()),
+    rule__body: s("view", "Button", l(v.string, ""), l(l(__, v.on_click)), r()),
   },
   view__input: {
     rule__params: l(v.value, v.next, v.on_change),
@@ -56,14 +56,33 @@ export const views = {
       r()
     ),
   },
-  view__option: {
-    rule__params: l(v.id, v.label),
-    rule__body: s("view", "Option", l(v.id, v.label), l(), r()),
-  },
   view__link: {
-    // TODO: target in params block
-    rule__params: l(v.label, v.id, v.target),
-    rule__body: s("view", "Link", l(v.label, v.id, v.target), l(), r()),
+    rule__params: l(v.label, v.location, v.params),
+    rule__body: r(
+      s("get_context", "window_id", v.window),
+      s(
+        "view",
+        "Button",
+        l(v.label, "Link"),
+        l(
+          l(
+            v.event,
+            s(
+              "if_then_else",
+              s("=", v.event, s("click", 1)),
+              s("on__newWindow", v.location),
+              s(
+                "if_then_else",
+                s("list_item", v.params, s("target", "new")),
+                s("on__newWindow", v.location),
+                s("on__push", v.window, v.location)
+              )
+            )
+          )
+        ),
+        r()
+      )
+    ),
   },
   view__icon: {
     rule__params: l(),
@@ -350,14 +369,14 @@ export const views = {
     rule__params: l(v.id),
     rule__body: r(
       s("get_default", v.id, "file__name", v.name, v.id),
-      view.link(v.name, v.id)
+      view.link(v.name, s("location", v.id))
     ),
   },
   view__fileInfo: {
     rule__params: l(v.id),
     rule__body: r(
       f.file__name(v.id, v.name),
-      view.link(v.name, v.id),
+      view.link(v.name, s("location", v.id)),
       r.or(
         r(
           f.file__description(v.id, v.description),

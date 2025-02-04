@@ -1,5 +1,5 @@
 import { Component, FC, ReactNode } from "react";
-import { __, AnyStruct, Expr, List, printExpr, s, Struct } from "./expr";
+import { AnyStruct, Expr, List, printExpr, s, Struct } from "./expr";
 import { Callback, State, View } from "./state";
 import "./view_primitive.css";
 import { useStateCallback, useEventHandler } from "./event_source";
@@ -20,17 +20,18 @@ const Column: VC<[]> = ({ children }) => (
 
 const String: VC<[string]> = ({ args: [value] }) => <div>{value}</div>;
 
-const Button: VC<[string]> = ({
+const Button: VC<[string, string]> = ({
   state,
-  args: [label],
+  args: [label, className],
   callbacks: [onClick],
 }) => {
   const handle = useStateCallback(state);
   return (
     <button
+      className={className}
       type="button"
-      onClick={() => {
-        handle(onClick, "");
+      onClick={(e) => {
+        handle(onClick, s("click", Number(e.metaKey)));
       }}
     >
       {label}
@@ -75,28 +76,6 @@ const Select: VC<[string, List<Option>]> = ({
         </option>
       ))}
     </select>
-  );
-};
-
-const Link: VC<[string, string, string]> = ({
-  state,
-  args: [label, id, target],
-}) => {
-  const handle = useEventHandler(state);
-  return (
-    <button
-      type="button"
-      className="Link"
-      onClick={(e) => {
-        if (e.metaKey || target === "new") {
-          handle(s("on__newWindow", id, __));
-        } else {
-          handle(s("on__push", __, id, __));
-        }
-      }}
-    >
-      {label}
-    </button>
   );
 };
 
@@ -163,7 +142,6 @@ const viewPrimitives: Record<string, VC<any>> = {
   String,
   Button,
   Select,
-  Link,
   Icon,
   Input,
   WindowBar,

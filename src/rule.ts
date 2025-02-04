@@ -434,6 +434,27 @@ export const rules = {
       s("=", v.value, v.default)
     ),
   },
+  params_default_match: {
+    rule__params: l(v.params, v.default, v.match),
+    rule__body: s(
+      "if_then_else",
+      s("list_item", v.params, v.match),
+      s("ok"),
+      s("=", v.default, v.match)
+    ),
+  },
+  location_id_view_params: {
+    rule__params: l(v.location, v.id, v.view, v.params),
+    rule__body: r(
+      s("nonvar", v.location),
+      r.or(
+        s("=", v.location, s("location", v.id)),
+        s("=", v.location, s("location", v.id, v.view)),
+        s("=", v.location, s("location", v.id, v.view, v.params))
+      ),
+      s("if_var", v.params, s("=", v.params, l()))
+    ),
+  },
   with_tx: {
     rule__params: l(v.tx, v.goal),
     rule__body: r(
@@ -455,25 +476,25 @@ export const rules = {
     ),
   },
   on__newWindow: {
-    rule__params: l(v.location, v.params),
-    rule__body: db.with_tx(v.tx, s("new__window", v.tx, __, v.location, __)),
+    rule__params: l(v.location),
+    rule__body: db.with_tx(v.tx, s("new__window", v.tx, __, v.location)),
   },
   on__closeWindow: {
     rule__params: l(v.window),
     rule__body: db.with_tx(v.tx, db.delete(v.tx, v.window)),
   },
   on__push: {
-    rule__params: l(v.window, v.location, v.params),
+    rule__params: l(v.window, v.location),
     rule__body: db.with_tx(
       v.tx,
-      s("if_var", v.window, s("get_context", "window_id", v.window)),
       f.window__currentHistory(v.window, v.prev),
-      s("new__history", v.tx, v.next, v.window, v.location, v.params),
+      s("new__history", v.tx, v.next, v.window, v.location),
       db.update(v.tx, v.next, "history__back", v.prev),
       db.update(v.tx, v.prev, "history__forward", v.next),
       db.update(v.tx, v.window, "window__currentHistory", v.next)
     ),
   },
+
   on__back: {
     rule__params: l(v.window),
     rule__body: db.with_tx(
@@ -506,23 +527,48 @@ export const rules = {
     ),
   },
   new__window: {
-    rule__params: l(v.tx, v.window, v.location, v.params),
+    rule__params: l(v.tx, v.window, v.location),
     rule__body: r(
       s("if_var", v.window, s("id", v.window)),
-      s("new__history", v.tx, v.history, v.window, v.location, v.params),
+      s("new__history", v.tx, v.history, v.window, v.location),
       db.update(v.tx, v.window, "db__schema", "schema__window"),
       db.update(v.tx, v.window, "window__currentHistory", v.history)
     ),
   },
   new__history: {
-    rule__params: l(v.tx, v.history, v.window, v.location, __),
+    rule__params: l(v.tx, v.history, v.window, v.location),
     rule__body: r(
       s("if_var", v.history, s("id", v.history)),
       s("timestamp", v.ts),
+      s("location_id_view_params", v.location, v.id, v.view, v.params),
       db.update(v.tx, v.history, "db__schema", "schema__history"),
       db.update(v.tx, v.history, "time__created", v.ts),
       db.update(v.tx, v.history, "history__window", v.window),
-      db.update(v.tx, v.history, "history__location", v.location)
+      db.update(v.tx, v.history, "history__location", v.id),
+      s(
+        "if_then_else",
+        s("nonvar", v.view),
+        db.update(v.tx, v.history, "history__view", v.view),
+        r()
+      ),
+      s(
+        "each_item_do",
+        v.params,
+        s("param", v.param_field, v.param_value),
+        db.update(v.tx, v.history, v.param_field, v.param_value)
+      )
+    ),
+  },
+  each_item_do: {
+    file__description: l(
+      "for each item in collection, run do block but discard results (e.g. for side effects). succeed if collection is empty."
+    ),
+    rule__params: l(v.collection, v.item, v.do),
+    rule__body: s(
+      "if_then_else",
+      s("=", v.collection, l()),
+      s("ok"),
+      s("collect", __, r(s("list_item", v.collection, v.item), v.do), __)
     ),
   },
 } satisfies Record<string, Rec>;
