@@ -39,14 +39,15 @@ const Button: VC<[string, string]> = ({
   );
 };
 
-const Input: VC<[string]> = ({
+const Input: VC<[string, string]> = ({
   state,
-  args: [value],
+  args: [value, className],
   callbacks: [onChange],
 }) => {
   const handle = useStateCallback(state);
   return (
     <input
+      className={className}
       value={value}
       onChange={(e) => {
         handle(onChange, e.target.value);

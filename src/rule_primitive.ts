@@ -404,7 +404,7 @@ export const primitives: Record<string, RulePrimitive> = {
       if (field.tag == "string") {
         // get single field
         const val = rec[field.value];
-        if (!val) return;
+        if (val == null) return;
         const ns = state.unify(value, state.exprValue(val, {}));
         if (ns) yield ns.yield();
         return;
@@ -413,7 +413,7 @@ export const primitives: Record<string, RulePrimitive> = {
       yield* uniqueStates(function* () {
         for (const f in rec) {
           const val = rec[f];
-          if (!val) continue;
+          if (val == null) continue;
           const ns = state
             .unify(field, k(f))
             ?.unify(value, state.exprValue(val, {}));
@@ -444,7 +444,7 @@ export const primitives: Record<string, RulePrimitive> = {
         const rec = state.db.get(key)!;
         for (const f in rec) {
           const val = rec[f];
-          if (!val) continue;
+          if (val == null) continue;
           const nns = ns
             ?.unify(field, k(f))
             ?.unify(value, ns.exprValue(val, {}));

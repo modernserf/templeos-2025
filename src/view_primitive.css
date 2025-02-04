@@ -68,6 +68,11 @@
   display: inline-block;
 }
 
+.Input--fitContent {
+  field-sizing: content;
+  padding: 0 0.25rem;
+}
+
 .OmniboxView__input {
   display: block;
   width: 100%;

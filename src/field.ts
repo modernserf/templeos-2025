@@ -61,6 +61,10 @@ export const fields = {
     // ),
     db__index: s("sorted"),
   },
+  db__default_value: {
+    db__schema: "schema__field",
+    file__name: "Default value",
+  },
   // TODO: rule primitive / view primitive?
   rule__params: {
     db__schema: "schema__field",

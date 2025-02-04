@@ -44,7 +44,13 @@ export const views = {
   },
   view__input: {
     rule__params: l(v.value, v.next, v.on_change),
-    rule__body: s("view", "Input", l(v.value), l(l(v.next, v.on_change)), r()),
+    rule__body: s(
+      "view",
+      "Input",
+      l(v.value, ""),
+      l(l(v.next, v.on_change)),
+      r()
+    ),
   },
   view__select: {
     rule__params: l(v.value, v.next, v.options, v.on_change),
@@ -177,18 +183,34 @@ export const views = {
     ),
   },
   // type editors
+  _fit_content_input: {
+    rule__params: l(v.value, v.next, v.on_change),
+
+    rule__body: s(
+      "view",
+      "Input",
+      l(v.value, "Input--fitContent"),
+      l(l(v.next, v.on_change)),
+      r()
+    ),
+  },
+
   view_type__any_edit: {
     file__name: "Any : Edit",
     rule__params: l(v.data, v.next, v.on_change),
     rule__body: r.or(
       r(
         s("var_name", v.data, v.var_name),
-        view.input(v.var_name, v.next, v.on_change)
+        s("_fit_content_input", v.var_name, v.next, v.on_change)
       ),
-      r(s("string", v.data), view.input(v.data, v.next, v.on_change)),
+      r(
+        s("string", v.data),
+        s("_fit_content_input", v.data, v.next, v.on_change)
+      ),
       r(
         s("number", v.data),
-        view.input(
+        s(
+          "_fit_content_input",
           v.data,
           v.next_str,
           r(s("string_number", v.next_str, v.next), v.on_change)
@@ -206,7 +228,8 @@ export const views = {
     rule__body: r(
       s("struct_tag_list", v.data, v.id, v.args),
       view.row(
-        view.input(
+        s(
+          "_fit_content_input",
           v.id,
           v.next_id,
           r(s("struct_tag_list", v.next, v.next_id, v.args), v.on_change)
@@ -214,13 +237,23 @@ export const views = {
         view.string("("),
         view.column(
           s("struct_at_value", v.data, v.i, v.arg),
-          s(
-            "view_type__any_edit",
-            v.arg,
-            v.arg_next,
-            r(
-              s("struct_at_value_updated", v.data, v.i, v.arg_next, v.next),
-              v.on_change
+          view.row(
+            view.button(
+              "×",
+              r(
+                s("list_at_removed_splice", v.args, v.i, l(__), v.next),
+                s("struct_tag_list", v.next, v.id, v.next_args),
+                v.on_change
+              )
+            ),
+            s(
+              "view_type__any_edit",
+              v.arg,
+              v.arg_next,
+              r(
+                s("struct_at_value_updated", v.data, v.i, v.arg_next, v.next),
+                v.on_change
+              )
             )
           )
         ),
@@ -273,18 +306,24 @@ export const views = {
     file__name: "Default viewer",
     view__schema: "schema__any",
     rule__params: l(v.id, v.state),
-    rule__body: r.or(
-      r(
-        view.string("Fields"),
-        s("get_field_value", v.id, v.field, v.value),
-        view.row(view.fileLink(v.field), s("view__for_field", v.field, v.value))
-      ),
-      r(
-        view.string("References"),
-        r.or(f.db__index(v.f, s("ref")), f.db__index(v.f, s("multiRef"))),
+    rule__body: view.column(
+      r.or(
+        view.row(view.string("id:"), view.string(v.id)),
         r(
-          s("get_field_value", v.ref, v.f, v.id),
-          view.row(view.fileLink(v.f), view.fileLink(v.ref))
+          view.string("Fields"),
+          s("get_field_value", v.id, v.field, v.value),
+          view.row(
+            view.fileLink(v.field),
+            s("view__for_field", v.field, v.value)
+          )
+        ),
+        r(
+          view.string("References"),
+          r.or(f.db__index(v.f, s("ref")), f.db__index(v.f, s("multiRef"))),
+          r(
+            s("get_field_value", v.ref, v.f, v.id),
+            view.row(view.fileLink(v.f), view.fileLink(v.ref))
+          )
         )
       )
     ),
@@ -293,11 +332,13 @@ export const views = {
     file__name: "Default editor",
     view__schema: "schema__any",
     rule__params: l(v.id, v.state),
-    rule__body: r.or(
-      r(
-        view.string("Fields"),
+    rule__body: view.column(
+      view.row(view.string("id:"), view.string(v.id)),
+      view.string("Fields"),
+      view.column(
         s("get_field_value", v.id, v.field, v.value),
         view.row(
+          view.button("×", db.with_tx(v.tx, db.delete(v.tx, v.id, v.field))),
           view.fileLink(v.field),
           s(
             "view_type__any_edit",
@@ -307,14 +348,43 @@ export const views = {
           )
         )
       ),
-      r(
-        view.string("References"),
-        r.or(f.db__index(v.f, s("ref")), f.db__index(v.f, s("multiRef"))),
-        r(
-          s("get_field_value", v.ref, v.f, v.id),
-          view.row(view.fileLink(v.f), view.fileLink(v.ref))
+      view.column(
+        s(
+          "collect",
+          s("option", v.field_id, v.field_name),
+          r(
+            f.db__schema(v.field_id, "schema__field"),
+            f.file__name(v.field_id, v.field_name)
+          ),
+          v.fields
+        ),
+        s(
+          "list_list_append",
+          l(s("option", "", "Add field...")),
+          v.fields,
+          v.field_opts
+        ),
+        view.select(
+          "",
+          v.new_field_id,
+          v.field_opts,
+          s("_add_field", v.id, v.new_field_id)
         )
       )
+    ),
+  },
+  _add_field: {
+    rule__params: l(v.id, v.field),
+    rule__body: db.with_tx(
+      v.tx,
+      f.db__type(v.field, v.field_type),
+      s(
+        "if_then_else",
+        f.db__default_value(v.field_type, v.default_value),
+        s("ok"),
+        s("=", v.default_value, l())
+      ),
+      db.update(v.tx, v.id, v.field, v.default_value)
     ),
   },
   view_schema__text: {
@@ -357,6 +427,29 @@ export const views = {
       s("call", v.id, v.id, v.state)
     ),
   },
+  view_schema__schema: {
+    file__name: "Schema viewer",
+    view__schema: "schema__schema",
+    rule__params: l(v.id, v.state),
+    rule__body: r(
+      s("view__string", "Schema"),
+      s("view_schema__any", v.id, v.state),
+      s(
+        "view__button",
+        "New item",
+        s(
+          "with_tx",
+          v.tx,
+          r(
+            s("id", v.item_id),
+            db.update(v.tx, v.item_id, "db__schema", v.id),
+            s("new__window", v.tx, __, s("location", v.item_id))
+          )
+        )
+      )
+    ),
+  },
+
   // built in UI elements
   view__for_field: {
     rule__params: l(v.field, v.value),
@@ -459,7 +552,7 @@ export const views = {
           s("on__forward", v.window)
         )
       ),
-      view.button("new window", r(s("on__newWindow", "omnibox", l())))
+      view.button("new window", r(s("on__newWindow", s("location", "omnibox"))))
     ),
   },
   // utilities

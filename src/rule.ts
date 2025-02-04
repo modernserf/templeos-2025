@@ -467,6 +467,18 @@ export const rules = {
       )
     ),
   },
+  each_item_do: {
+    file__description: l(
+      "for each item in collection, run do block but discard results (e.g. for side effects). succeed if collection is empty."
+    ),
+    rule__params: l(v.collection, v.item, v.do),
+    rule__body: s(
+      "if_then_else",
+      s("=", v.collection, l()),
+      s("ok"),
+      s("collect", __, r(s("list_item", v.collection, v.item), v.do), __)
+    ),
+  },
   // event handlers
   on__selectWindow: {
     rule__params: l(v.window),
@@ -557,18 +569,6 @@ export const rules = {
         s("param", v.param_field, v.param_value),
         db.update(v.tx, v.history, v.param_field, v.param_value)
       )
-    ),
-  },
-  each_item_do: {
-    file__description: l(
-      "for each item in collection, run do block but discard results (e.g. for side effects). succeed if collection is empty."
-    ),
-    rule__params: l(v.collection, v.item, v.do),
-    rule__body: s(
-      "if_then_else",
-      s("=", v.collection, l()),
-      s("ok"),
-      s("collect", __, r(s("list_item", v.collection, v.item), v.do), __)
     ),
   },
 } satisfies Record<string, Rec>;

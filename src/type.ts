@@ -38,34 +38,41 @@ export const coreTypes = {
   type__any: {
     db__schema: "schema__type",
     file__name: "Any",
+    db__default_value: l(),
   },
   type__string: {
     db__schema: "schema__type",
     file__name: "String",
+    db__default_value: "",
     // db__type: s("string"),
   },
   type__number: {
     db__schema: "schema__type",
     file__name: "Number",
+    db__default_value: 0,
     // db__type: s("number"),
   },
   type__time: {
     db__schema: "schema__type",
     file__name: "Time",
+    db__default_value: 0,
   },
   type__ref: {
     db__schema: "schema__type",
     file__name: "Ref",
+    db__default_value: "",
     // db__type: s("number"),
   },
   type__multiRef: {
     db__schema: "schema__type",
     file__name: "Multi ref",
+    db__default_value: l(),
     // db__type: s("list,s("number")),
   },
   type__text: {
     db__schema: "schema__type",
     file__name: "Text",
+    db__default_value: l(),
     // db__type: s(
     //   "list",
     //   s("oneof", s("string"), s("struct", "link", s("string"), s("ref")))
