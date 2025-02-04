@@ -58,9 +58,11 @@ export const rules = {
   },
   expect_collect: {
     rule__params: l(v.pattern, v.goal, v.expected),
-    rule__body: r(
+    rule__body: s(
+      "if_then_else",
       s("collect", v.pattern, v.goal, v.received),
-      s("expect_eq", v.received, v.expected)
+      s("expect_eq", v.received, v.expected),
+      s("throw", s("expected_received", v.expected, l()))
     ),
   },
 
@@ -336,7 +338,85 @@ export const rules = {
       test.fail(s("list_item", l(), __)),
       test.fail(s("list_item", s("tuple", 1, 2, 3), __)),
 
-      test.collect(v.x, s("list_item", l(1, 2, 3), v.x), 1, 2, 3)
+      test.collect(v.x, s("list_item", l(1, 2, 3), v.x), 1, 2, 3),
+
+      s("=", v.plist, l(s("foo", 123), s("bar", 456))),
+      test.collect(
+        v.value, //
+        s("list_item", v.plist, s("foo", v.value)),
+        123
+      )
+    ),
+  },
+  list_at_removed_splice: {
+    rule__params: l(v.list, v.at, v.removed, v.splice),
+    rule__body: r(
+      // if at is not provided, scan across list for match on removed
+      s("list_length", v.list, v.len),
+      s("number_min_max", v.at, 0, v.len),
+
+      s("list_from_to_slice", v.list, __, v.at, v.prefix),
+      s("list_from_to_slice", v.list, v.at, __, v.rest),
+      s("list_list_append", v.removed, v.suffix, v.rest),
+      s("list_list_append", v.prefix, v.suffix, v.splice)
+    ),
+  },
+  test__list_at_removed_splice: {
+    test__group: "list",
+    rule__params: l(),
+    rule__body: r(
+      test.collect(
+        l(v.removed, v.splice),
+        s("list_at_removed_splice", l(1, 2, 3), 1, l(v.removed), v.splice),
+        l(2, l(1, 3))
+      ),
+
+      test.collect(
+        l(v.first, v.second, v.splice),
+        s(
+          "list_at_removed_splice",
+          l(1, 2, 3, 4, 5),
+          1,
+          l(v.first, v.second),
+          v.splice
+        ),
+        l(2, 3, l(1, 4, 5))
+      ),
+
+      test.collect(
+        v.splice,
+        s("list_at_removed_splice", l(1, 2, 3, 4, 5), __, l(3, 4), v.splice),
+        l(1, 2, 5)
+      ),
+      test.collect(
+        l(v.l, v.r),
+        s("list_at_removed_splice", l(1, 2, 3, 4, 5), __, l(v.l, v.r), __),
+        l(1, 2),
+        l(2, 3),
+        l(3, 4),
+        l(4, 5)
+      ),
+
+      test.collect(
+        l(v.removed, v.splice),
+        s("list_at_removed_splice", l(1, 2, 3, 4, 5), 2, v.removed, v.splice),
+        l(l(), l(1, 2, 3, 4, 5)),
+        l(l(3), l(1, 2, 4, 5)),
+        l(l(3, 4), l(1, 2, 5)),
+        l(l(3, 4, 5), l(1, 2))
+      ),
+
+      test.collect(
+        l(v.at, v.removed),
+        s(
+          "list_at_removed_splice",
+          l(1, 2, 3, 4, 5),
+          v.at,
+          v.removed,
+          l(1, 2, 5)
+        ),
+        l(2, v(3, 4))
+      )
     ),
   },
 

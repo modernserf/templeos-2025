@@ -6,10 +6,10 @@ import {
   StateNext,
   Value,
   View,
-  check,
   uniqueStates,
   sv,
   printFact,
+  Callback,
 } from "./state";
 
 function semidet<Args extends unknown[]>(
@@ -123,7 +123,6 @@ export const primitives: Record<string, RulePrimitive> = {
     }
   },
   collect: semidet((state, into, goal, out) => {
-    into = state.resolveShallow(into);
     let didSucceed = false;
     const results: Value[] = [];
     for (const res of state.runClause(goal)) {
@@ -168,7 +167,7 @@ export const primitives: Record<string, RulePrimitive> = {
   }),
   // values
   value_type: semidet((state, value, type) => {
-    switch (state.resolveShallow(value).tag) {
+    switch (value.tag) {
       case "string":
         return state.unify(type, sv("string"));
       case "number":
@@ -181,7 +180,6 @@ export const primitives: Record<string, RulePrimitive> = {
     }
   }),
   value_constraint: function* (state, value, constraint) {
-    value = state.resolveShallow(value);
     switch (value.tag) {
       case "string":
       case "number":
@@ -195,7 +193,6 @@ export const primitives: Record<string, RulePrimitive> = {
     }
   },
   var_name: semidet((state, value, name) => {
-    value = state.resolveShallow(value);
     switch (value.tag) {
       case "placeholder":
         return state.unify(k("__"), name);
@@ -208,9 +205,7 @@ export const primitives: Record<string, RulePrimitive> = {
     }
   }),
   string_number: semidet((state, string, number) => {
-    string = state.resolveShallow(string);
-    number = state.resolveShallow(number);
-    if (check(string, "string")) {
+    if (string.tag == "string") {
       const parsed = Number(string.value);
       console.log({ string, parsed });
       if (Number.isFinite(parsed)) {
@@ -218,7 +213,7 @@ export const primitives: Record<string, RulePrimitive> = {
       }
       return null;
     }
-    if (check(number, "number")) {
+    if (number.tag == "number") {
       const strung = String(number.value);
       return state.unify(k(strung), string);
     }
@@ -235,26 +230,50 @@ export const primitives: Record<string, RulePrimitive> = {
     }
     return null;
   }),
+  number_min_max: function* (state, num, min, max) {
+    if (num.tag == "number") {
+      if (min.tag == "number") {
+        if (min.value > num.value) return;
+      } else {
+        const ns = state.unify(num, min);
+        if (!ns) return;
+        state = ns;
+      }
+      if (max.tag == "number") {
+        if (max.value < num.value) return;
+      } else {
+        const ns = state.unify(num, max);
+        if (!ns) return;
+        state = ns;
+      }
+      yield state.yield();
+    } else {
+      const minVal = min.tag == "number" ? min.value : 0;
+      const maxVal = max.tag == "number" ? max.value : Infinity;
+      if (minVal > maxVal) return;
+      for (let i = minVal; i <= maxVal; i++) {
+        const ns = state.unify(num, k(i));
+        if (!ns) return;
+        yield ns.yield();
+      }
+    }
+  },
   struct_arity: semidet((state, struct, arity) => {
     return state.unify(k(state.resolveStruct(struct).args.length), arity);
   }),
   struct_tag_list: semidet((state, struct, tag, list) => {
-    struct = state.resolveShallow(struct);
-    tag = state.resolveShallow(tag);
-    list = state.resolveShallow(list);
-    if (check(struct, "struct")) {
+    if (struct.tag == "struct") {
       const { id, args } = struct;
       return state.unify(k(id), tag)?.unify(sv("", ...args), list);
     }
-    if (check(tag, "string") && check(list, "struct")) {
+    if (tag.tag == "string" && list.tag == "struct") {
       return state.unify(struct, sv(tag.value, ...list.args));
     }
     return null;
   }),
   struct_at_value: function* (state, struct, index, value) {
     const { args } = state.resolveStruct(struct);
-    index = state.resolveShallow(index);
-    if (check(index, "number")) {
+    if (index.tag == "number") {
       const i = index.value;
       if (i < 0 || i >= args.length) return;
       const res = state.unify(value, args[i]);
@@ -278,19 +297,15 @@ export const primitives: Record<string, RulePrimitive> = {
   }),
   list_from_to_slice: semidet((state, list, from, to, slice) => {
     const { id, args } = state.resolveStruct(list);
-    from = state.resolveShallow(from);
-    to = state.resolveShallow(to);
-    const fromVal = check(from, "number") ? from.value : 0;
-    const toVal = check(to, "number") ? to.value : args.length;
+    const fromVal = from.tag == "number" ? from.value : 0;
+    const toVal = to.tag == "number" ? to.value : args.length;
     return state
       .unify(from, k(fromVal))
       ?.unify(to, k(toVal))
       ?.unify(slice, { tag: "struct", id, args: args.slice(fromVal, toVal) });
   }),
   list_list_append: function* (state, left, right, append) {
-    left = state.resolveShallow(left);
-    right = state.resolveShallow(right);
-    if (check(left, "struct") && check(right, "struct")) {
+    if (left.tag == "struct" && right.tag == "struct") {
       if (left.tag !== right.tag) return null;
       const ns = state.unify(append, sv(left.id, ...left.args, ...right.args));
       if (ns) yield ns.yield();
@@ -310,10 +325,10 @@ export const primitives: Record<string, RulePrimitive> = {
           args: args.slice(split),
         });
 
-    if (check(left, "struct")) {
+    if (left.tag == "struct") {
       const ns = unifySplit(left.args.length);
       if (ns) yield ns.yield();
-    } else if (check(right, "struct")) {
+    } else if (right.tag == "struct") {
       const ns = unifySplit(args.length - right.args.length);
       if (ns) yield ns.yield();
     } else {
@@ -346,25 +361,23 @@ export const primitives: Record<string, RulePrimitive> = {
       state.resolveNumber(tx),
       state.resolveString(id),
       state.resolveString(field),
-      state.factToExpr(value)
+      state.valueExpr(value)
     );
     return state;
   }),
   tx_delete_field_value: function* (state, tx, id, field, value) {
     const id_ = state.resolveString(id);
     const tx_ = state.resolveNumber(tx);
-    const field_ = state.resolve(field);
-    const value_ = state.resolve(value);
 
     const prev = state.db.get(id_);
     if (!prev) return null;
 
-    if (field_.tag === "string") {
+    if (field.tag === "string") {
       // delete specific field
-      const val = state.exprValue(prev[field_.value], {});
-      const ns = state.unify(val, value_);
+      const val = state.exprValue(prev[field.value], {});
+      const ns = state.unify(val, value);
       if (!ns) return;
-      ns.db.updateTx(tx_, id_, field_.value, null);
+      ns.db.updateTx(tx_, id_, field.value, null);
       yield ns.yield();
       return;
     }
@@ -377,21 +390,18 @@ export const primitives: Record<string, RulePrimitive> = {
         if (!prevValue) continue;
         const val = state.exprValue(prevValue, {});
         const ns = state
-          .unify(k(f), field_) //
-          ?.unify(val, value_);
+          .unify(k(f), field) //
+          ?.unify(val, value);
         if (!ns) return;
         yield ns.yield();
       }
     });
   },
   get_field_value: function* (state, id, field, value) {
-    id = state.resolveShallow(id);
-    field = state.resolveShallow(field);
-    value = state.resolveShallow(value);
-    if (check(id, "string")) {
+    if (id.tag == "string") {
       const rec = state.db.get(id.value);
       if (!rec) return;
-      if (check(field, "string")) {
+      if (field.tag == "string") {
         // get single field
         const val = rec[field.value];
         if (!val) return;
@@ -413,12 +423,12 @@ export const primitives: Record<string, RulePrimitive> = {
       return;
     }
     // get from index
-    if (check(field, "string")) {
+    if (field.tag == "string") {
       const idx = state.db.getIndex(field.value);
       if (idx) {
         yield* uniqueStates(function* () {
           for (const [{ entityId }] of idx.tree.where(
-            whereValue(state.factToExpr(value))
+            whereValue(state.valueExpr(value))
           )) {
             const ns = state.unify(id, k(entityId));
             if (ns) yield ns.yield();
@@ -444,39 +454,10 @@ export const primitives: Record<string, RulePrimitive> = {
     });
   },
   view: function* (state, view) {
-    const { id, args } = state.resolveStruct(view);
-    yield {
-      tag: "view",
-      id: id,
-      args: args.map((arg) => state.factToExpr(arg)),
-      state,
-      callbacks: [],
-    };
-    yield state.yield();
+    yield* this.view_callback(state, view, null, null, null);
   },
-
   view_children: function* (state, view, body) {
-    const { id, args } = state.resolveStruct(view);
-    const children: View[] = [];
-    for (const res of state.runClause(body)) {
-      switch (res.tag) {
-        case "view":
-          children.push(res);
-          continue;
-        case "state":
-          state = res.state;
-      }
-    }
-
-    yield {
-      tag: "view",
-      id: id,
-      args: args.map((arg) => state.factToExpr(arg)),
-      children,
-      callbacks: [],
-      state,
-    };
-    yield state.yield();
+    yield* this.view_callback(state, view, null, null, body);
   },
   view_callback: function* (state, view, params, callback, body) {
     const { id, args } = state.resolveStruct(view);
@@ -492,34 +473,19 @@ export const primitives: Record<string, RulePrimitive> = {
         }
       }
     }
+    const callbacks: Callback[] = [];
+    if (params && callback) {
+      callbacks.push({ params, body: callback });
+    }
+
     yield {
       tag: "view",
       id: id,
-      args: args.map((arg) => state.factToExpr(arg)),
+      args: args.map((arg) => state.valueExpr(arg)),
       state,
-      callbacks: [{ params, body: callback }],
+      callbacks,
       children,
     };
     yield state.yield();
-  },
-  view_results: function* (state, body, out) {
-    for (const res of state.runClause(body)) {
-      if (res.tag === "view") {
-        const ns = res.state.unify(out, {
-          tag: "struct",
-          id: res.id,
-          args: [
-            {
-              tag: "struct",
-              id: "",
-              //this conversion seems suspect, especially wrt on_change
-              args: res.args.map((arg) => res.state.exprValue(arg, {})),
-            },
-            // children goes here
-          ],
-        });
-        if (ns) yield ns.yield();
-      }
-    }
   },
 };

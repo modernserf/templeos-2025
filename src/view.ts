@@ -13,7 +13,7 @@ export const view = {
     s("view_callback", s("Button", str), __, onClick),
   input: (value: string, event: Expr, onChange: Expr) =>
     s("view_callback", s("Input", value), event, onChange),
-  select: (value: string, event: Expr, onChange: Expr, children: Expr) =>
+  select: (value: Expr, event: Expr, onChange: Expr, children: Expr) =>
     s("view_callback", s("Select", value), event, onChange, children),
   option: (id: string, label: string) => s("view", s("Option", id, label)),
   link: (label: string, id: string, target: string = "current") =>
@@ -125,7 +125,6 @@ export const views = {
     rule__body: r.or(
       r(
         s("var_name", v.data, v.var_name),
-        // view.string("todo var")
         view.input(v.var_name, v.next, v.on_change)
       ),
       r(s("string", v.data), view.input(v.data, v.next, v.on_change)),
@@ -155,24 +154,58 @@ export const views = {
           r(s("struct_tag_list", v.next, v.next_id, v.args), v.on_change)
         ),
         view.string("("),
-        s(
-          "view_children",
-          s("Column"),
-          r(
-            s("struct_at_value", v.data, v.i, v.arg),
-            s(
-              "view_type__any_edit",
-              v.arg,
-              v.arg_next,
-              r(
-                s("struct_at_value_updated", v.data, v.i, v.arg_next, v.next),
-                v.on_change
-              )
+        view.column(
+          s("struct_at_value", v.data, v.i, v.arg),
+          s(
+            "view_type__any_edit",
+            v.arg,
+            v.arg_next,
+            r(
+              s("struct_at_value_updated", v.data, v.i, v.arg_next, v.next),
+              v.on_change
             )
           )
         ),
-
+        s(
+          "view_type__struct_add_field",
+          v.next_arg,
+          r(s("_struct_push", v.data, v.next_arg, v.next), v.on_change)
+        ),
         view.string(")")
+      )
+    ),
+  },
+  _struct_push: {
+    rule__params: l(v.struct, v.added, v.updated),
+    rule__body: r(
+      s("struct_tag_list", v.struct, v.tag, v.list),
+      s("list_list_append", v.list, l(v.added), v.next_list),
+      s("struct_tag_list", v.updated, v.tag, v.next_list)
+    ),
+  },
+
+  view_type__struct_add_field: {
+    rule__params: l(v.next, v.on_change),
+    rule__body: r(
+      view.select(
+        "",
+        v.next_type,
+        r(
+          r.or(
+            s("=", l(v.next_type, v.next), l("string", "")),
+            s("=", l(v.next_type, v.next), l("number", 0)),
+            s("=", l(v.next_type, v.next), l("struct", l())),
+            s("=", l(v.next_type, v.next), l("var", v("")))
+          ),
+          v.on_change
+        ),
+        r(
+          view.option("", "+"),
+          view.option("string", "string"),
+          view.option("number", "number"),
+          view.option("struct", "struct"),
+          view.option("var", "var")
+        )
       )
     ),
   },

@@ -9,7 +9,7 @@ function runAll(...clauses: Expr[]) {
   return Array.from(state.runAll(s(",", ...clauses)));
 }
 
-function view(id: string, args: Expr[], children?: unknown[]) {
+function view(id: string, args: Expr[], children: unknown[] = []) {
   return { tag: "view", id, args, children, callbacks: [] };
 }
 
