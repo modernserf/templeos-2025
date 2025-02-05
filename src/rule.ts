@@ -484,7 +484,6 @@ export const rules = {
       db.update(v.tx, v.id, v.field, v.default_value)
     ),
   },
-  type_default: {},
   each_item_do: {
     file__description: l(
       "for each item in collection, run do block but discard results (e.g. for side effects). succeed if collection is empty."
@@ -521,7 +520,7 @@ export const rules = {
   rule__field_view: {
     rule__params: l(v.field, v.view),
     rule__body: r.or(
-      f.view__field(v.view, v.field),
+      // f.view__field(v.view, v.field),
       r(
         s("nonvar", v.field),
         f.db__type(v.field, v.type),
@@ -591,17 +590,6 @@ export const rules = {
       db.update(v.tx, v.window, "window__currentHistory", v.forward),
       db.update(v.tx, v.forward, "history__back", v.back),
       db.delete(v.tx, v.back, "history__forward")
-    ),
-  },
-
-  on__add_tag: {
-    rule__params: l(v.file, v.tag),
-    rule__body: db.with_tx(
-      v.tx,
-      s("log", "on__add_tag", v.file, v.tag),
-      f.file__tags(v.file, v.old_tags),
-      s("list_list_append", v.old_tags, l(v.tag), v.new_tags),
-      db.update(v.tx, v.file, "file__tags", v.new_tags)
     ),
   },
 

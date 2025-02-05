@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { DB, whereValue } from "./db";
+import { s } from "./expr";
 
 type Id = string;
 type Rec = Record<string, unknown>;
@@ -47,7 +48,7 @@ test("ref index", () => {
   const db = init({
     parent__id: {
       db__schema: "schema__field",
-      field__index: "ref",
+      db__index: s("ref"),
     },
     root: { value: 1 },
     foo: { value: 123, parent__id: "root" },

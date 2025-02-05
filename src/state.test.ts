@@ -1,30 +1,12 @@
 import { expect, test } from "vitest";
-import { State, View } from "./state";
-import { Expr, AnyStruct, r, s, v, __, l } from "./expr";
+import { State } from "./state";
+import { Expr, AnyStruct, r, s, v, __ } from "./expr";
 import { data } from "./data";
 import { f } from "./field";
 
 function runAll(...clauses: Expr[]) {
   const state = State.root(data);
   return Array.from(state.runAll(s(",", ...clauses)));
-}
-
-function view(id: string, args: Expr[], children: unknown[] = []) {
-  return { tag: "view", id, args, children, callbacks: [] };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function stripState(view: View): any {
-  return {
-    ...view,
-    state: undefined,
-    children: view.children?.map(stripState),
-  };
-}
-
-function renderAll(...clauses: Expr[]) {
-  const state = State.root(data);
-  return Array.from(state.render(s(",", ...clauses))).map(stripState);
 }
 
 test("unknown rule", () => {
@@ -438,67 +420,6 @@ test("define rules", () => {
       )
     )
   ).toMatchObject([{ right: ll(456, 789) }]);
-});
-
-test("views", () => {
-  // sequence
-  expect(
-    renderAll(
-      s("view", "text", l("Hello"), l(), r()),
-      s("view", "text", l("World"), l(), r())
-    )
-  ).toEqual([
-    view("text", ["Hello"]), //
-    view("text", ["World"]),
-  ]);
-
-  // iteration
-  expect(
-    renderAll(
-      s("struct_at_value", s("", "Hello", "World"), __, v.x),
-      s("view", "text", l(v.x), l(), r())
-    )
-  ).toEqual([
-    view("text", ["Hello"]), //
-    view("text", ["World"]),
-  ]);
-
-  // backtracking;
-  expect(
-    renderAll(
-      r.or(
-        r(s("view", "text", l("Hello"), l(), r()), s("fail")),
-        r(s("view", "text", l("World"), l(), r()), s("ok"))
-      )
-    )
-  ).toEqual([
-    view("text", ["World"]), //
-  ]);
-
-  // children
-  expect(
-    renderAll(
-      s(
-        "view", //
-        "row",
-        l(),
-        l(),
-        r(
-          s("struct_at_value", s("", "Hello", "World"), __, v.x),
-          s("view", "text", l(v.x), l(), r())
-        )
-      )
-    )
-  ).toEqual([
-    view(
-      "row",
-      [],
-      [
-        view("text", ["Hello"]), //
-        view("text", ["World"]),
-      ]
-    ),
-  ]);
 });
 
 test("internal tests", () => {

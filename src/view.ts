@@ -306,13 +306,17 @@ const baseViews = {
   // field views
   file__tags: {
     view__field: "file__tags",
-    rule__params: l(v.tags),
+    rule__params: l(v.id, v.field),
     rule__body: view.row(
-      r(s("list_item", v.tags, v.tag), view.file_link(v.tag)),
       r(
-        // TODO: record id should be explicit prop for field editors
-        s("get_context", "history_id", v.history),
-        f.history__location(v.history, v.id),
+        f.file__tags(v.id, v.tag),
+        view.button(
+          "x",
+          db.with_tx(v.tx, db.delete(v.tx, v.id, "file__tags", v.tag))
+        ),
+        view.file_link(v.tag)
+      ),
+      r(
         s(
           "collect",
           s("option", v.tag_opt, v.name),
@@ -326,7 +330,7 @@ const baseViews = {
           "Add tag",
           v.tag_opts,
           v.selected,
-          s("on__add_tag", v.id, v.selected)
+          db.with_tx(v.tx, db.update(v.tx, v.id, "file__tags", v.selected))
         )
       )
     ),
@@ -341,12 +345,20 @@ const baseViews = {
       view.row(view.string("id:"), view.string(v.id)),
       r(
         view.string("Fields"),
-        s("get_field_value", v.id, v.field, v.value),
+        s("get_field_value", v.id, v.field, __),
         view.row(
           view.file_link(v.field),
           r(
-            s("limit", 1, r(s("rule__field_view", v.field, v.view))),
-            s("call", v.view, v.value)
+            s(
+              "if_then_else",
+              f.view__field(v.view, v.field),
+              s("call", v.view, v.id, v.field),
+              r(
+                s("limit", 1, r(s("rule__field_view", v.field, v.view))),
+                s("get_field_value", v.id, v.field, v.value),
+                s("call", v.view, v.value)
+              )
+            )
           )
         )
       ),
@@ -474,18 +486,13 @@ const baseViews = {
       r(f.file__tags(v.file, v.tag), view.row(view.file_info(v.file)))
     ),
   },
-  // TODO: add items box
   schema__folder_list: {
     file__name: "Folder - List",
     view__schema: "schema__folder",
     rule__params: l(v.id, v.state),
     rule__body: view.column(
       r(f.file__description(v.id, v.desc), view.type__text(v.desc)),
-      r(
-        f.folder__items(v.id, v.folder),
-        s("list_item", v.folder, v.item),
-        view.row(view.file_info(v.item))
-      )
+      r(f.folder__items(v.id, v.item), view.row(view.file_info(v.item)))
     ),
   },
   schema__folder_icon: {
@@ -493,11 +500,10 @@ const baseViews = {
     view__schema: "schema__folder",
     rule__params: l(v.id, v.state),
     rule__body: view.column(
-      r(f.file__description(v.id, v.desc), view.text(v.desc)),
+      r(f.file__description(v.id, v.desc), view.type__text(v.desc)),
       view.row(
         r(
-          f.folder__items(v.id, v.folder),
-          s("list_item", v.folder, v.item),
+          f.folder__items(v.id, v.item),
           view.column(view.icon(), view.file_link(v.item))
         )
       )

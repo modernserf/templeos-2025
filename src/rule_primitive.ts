@@ -1,5 +1,5 @@
 import { whereValue } from "./db";
-import { s } from "./expr";
+import { AnyStruct, l, s } from "./expr";
 import {
   Exception,
   k,
@@ -388,12 +388,37 @@ export const primitives: Record<string, RulePrimitive> = {
     return state;
   }),
   tx_update_field_value: semidet((state, tx, id, field, value) => {
-    state.db.updateTx(
-      state.resolveNumber(tx),
-      state.resolveString(id),
-      state.resolveString(field),
-      state.valueExpr(value)
-    );
+    const idValue = state.resolveString(id);
+    const fieldValue = state.resolveString(field);
+    const valueExpr = state.valueExpr(value);
+
+    // TODO: db__cardinality field
+    const fieldRec = state.db.get(fieldValue);
+    const isMany = fieldRec?.db__index?.id === "multiRef";
+
+    // TODO: db should handle this
+    if (isMany) {
+      const prevRec = state.db.get(idValue) ?? {};
+      let valueList = (prevRec[fieldValue] as AnyStruct) ?? l();
+      // TODO: test via unification
+      if (!valueList.args.some((arg) => arg === valueExpr)) {
+        valueList = l(...valueList.args, valueExpr);
+      }
+      state.db.updateTx(
+        state.resolveNumber(tx),
+        idValue,
+        fieldValue,
+        valueList
+      );
+    } else {
+      state.db.updateTx(
+        state.resolveNumber(tx),
+        idValue,
+        fieldValue,
+        valueExpr
+      );
+    }
+
     return state;
   }),
   tx_delete_field_value: function* (state, tx, id, field, value) {
@@ -404,13 +429,31 @@ export const primitives: Record<string, RulePrimitive> = {
     if (!prev) return null;
 
     if (field.tag === "string") {
+      // TODO: db__cardinality field
+      const fieldRec = state.db.get(field.value);
+      const isMany = fieldRec?.db__index?.id === "multiRef";
+
       // delete specific field
       const val = state.exprValue(prev[field.value], {});
-      const ns = state.unify(val, value);
-      if (!ns) return;
-      ns.db.updateTx(tx_, id_, field.value, null);
-      yield ns.yield();
-      return;
+
+      if (isMany) {
+        const filtered = ((val as Value & { tag: "struct" }).args ?? []).filter(
+          (arg) => !state.unify(arg, value)
+        );
+        const nextValue = filtered.length
+          ? state.valueExpr({ tag: "struct", id: "", args: filtered })
+          : null;
+
+        state.db.updateTx(tx_, id_, field.value, nextValue);
+        yield state.yield();
+        return;
+      } else {
+        const ns = state.unify(val, value);
+        if (!ns) return;
+        ns.db.updateTx(tx_, id_, field.value, null);
+        yield ns.yield();
+        return;
+      }
     }
 
     // delete whole record
@@ -429,57 +472,69 @@ export const primitives: Record<string, RulePrimitive> = {
     });
   },
   get_field_value: function* (state, id, field, value) {
+    if (field.tag === "string") {
+      const fieldRec = state.db.get(field.value);
+      // TODO: db__cardinality field
+      const isMany = fieldRec?.db__index?.id === "multiRef";
+
+      // get single field
+      if (id.tag == "string") {
+        const rec = state.db.get(id.value);
+        if (!rec) return;
+        const val = rec[field.value];
+        if (val == null) return;
+
+        if (isMany) {
+          yield* uniqueStates(function* () {
+            for (const arg of (val as AnyStruct).args) {
+              const ns = state.unify(value, state.exprValue(arg, {}));
+              if (ns) yield ns.yield();
+            }
+          });
+          return;
+        } else {
+          const ns = state.unify(value, state.exprValue(val, {}));
+          if (ns) yield ns.yield();
+          return;
+        }
+      } else {
+        // get from index
+        const idx = state.db.getIndex(field.value);
+        if (idx) {
+          yield* uniqueStates(function* () {
+            for (const [{ entityId }] of idx.tree.where(
+              whereValue(state.valueExpr(value))
+            )) {
+              const ns = state.unify(id, k(entityId));
+              if (ns) yield ns.yield();
+            }
+          });
+          return;
+        }
+      }
+    }
+
+    // get all fields
     if (id.tag == "string") {
       const rec = state.db.get(id.value);
       if (!rec) return;
-      if (field.tag == "string") {
-        // get single field
-        const val = rec[field.value];
-        if (val == null) return;
-        const ns = state.unify(value, state.exprValue(val, {}));
-        if (ns) yield ns.yield();
-        return;
-      }
-      // get all fields
       yield* uniqueStates(function* () {
         for (const f in rec) {
-          const val = rec[f];
-          if (val == null) continue;
-          const ns = state
-            .unify(field, k(f))
-            ?.unify(value, state.exprValue(val, {}));
-          if (ns) yield ns.yield();
+          const ns = state.unify(field, k(f));
+          if (ns) yield* primitives.get_field_value(ns, id, k(f), value);
         }
       });
       return;
     }
-    // get from index
-    if (field.tag == "string") {
-      const idx = state.db.getIndex(field.value);
-      if (idx) {
-        yield* uniqueStates(function* () {
-          for (const [{ entityId }] of idx.tree.where(
-            whereValue(state.valueExpr(value))
-          )) {
-            const ns = state.unify(id, k(entityId));
-            if (ns) yield ns.yield();
-          }
-        });
-        return;
-      }
-    }
+
     // get everything
     yield* uniqueStates(function* () {
       for (const key of state.db.keys()) {
         const ns = state.unify(id, k(key));
         const rec = state.db.get(key)!;
         for (const f in rec) {
-          const val = rec[f];
-          if (val == null) continue;
-          const nns = ns
-            ?.unify(field, k(f))
-            ?.unify(value, ns.exprValue(val, {}));
-          if (nns) yield nns.yield();
+          const nns = ns?.unify(field, k(f));
+          if (nns) yield* primitives.get_field_value(nns, k(key), k(f), value);
         }
       }
     });

@@ -43,9 +43,7 @@ const LocalState: VC = ({
   return <Children state={localState} children={children} />;
 };
 
-const String: VC = ({ state, values: [string] }) => (
-  <div>{state.resolveString(string)}</div>
-);
+const String: VC = ({ values: [value] }) => <div>{value.value}</div>;
 
 const Button: VC = ({ state, values: [label, className, next, onClick] }) => {
   const handle = useStateCallback(state);
