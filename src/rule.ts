@@ -480,15 +480,11 @@ export const rules = {
     rule__body: db.with_tx(
       v.tx,
       f.db__type(v.field, v.field_type),
-      s(
-        "if_then_else",
-        f.db__default_value(v.field_type, v.default_value),
-        s("ok"),
-        s("=", v.default_value, l())
-      ),
+      s("get_default", v.field_type, "db__default_value", v.default_value, l()),
       db.update(v.tx, v.id, v.field, v.default_value)
     ),
   },
+  type_default: {},
   each_item_do: {
     file__description: l(
       "for each item in collection, run do block but discard results (e.g. for side effects). succeed if collection is empty."
@@ -598,6 +594,32 @@ export const rules = {
     ),
   },
   // constructors
+  new__default: {
+    rule__params: l(v.tx, v.id, v.schema),
+    rule__body: r(
+      s("if_var", v.id, s("id", v.id)),
+      db.update(v.tx, v.id, "db__schema", v.schema),
+      f.db__fields(v.schema, v.fields),
+      s(
+        "collect",
+        __,
+        r(
+          s("list_item", v.fields, s("field", v.field)),
+          f.db__type(v.field, v.field_type),
+          s(
+            "get_default",
+            v.field_type,
+            "db__default_value",
+            v.default_value,
+            l()
+          ),
+          db.update(v.tx, v.id, v.field, v.default_value)
+        ),
+        __
+      )
+    ),
+  },
+
   new__rule: {
     rule__params: l(v.tx, v.id, v.params, v.body),
     rule__body: r(

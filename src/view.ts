@@ -422,8 +422,7 @@ const baseViews = {
           "with_tx",
           v.tx,
           r(
-            s("id", v.item_id),
-            db.update(v.tx, v.item_id, "db__schema", v.id),
+            s("new__default", v.tx, v.item_id, v.id),
             s("new__window", v.tx, __, s("location", v.item_id))
           )
         )
@@ -485,6 +484,7 @@ const baseViews = {
           ),
           r(
             f.time__created(v.history, v.ts),
+            // TODO: adjust for timezone
             s(
               "timestamp_date",
               v.ts,
