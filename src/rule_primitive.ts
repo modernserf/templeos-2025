@@ -1,13 +1,11 @@
 import { whereValue } from "./db";
 import { s } from "./expr";
-import { reduce } from "./iter";
 import {
   Exception,
   k,
   State,
   StateNext,
   Value,
-  View,
   uniqueStates,
   sv,
   printFact,
@@ -486,26 +484,13 @@ export const primitives: Record<string, RulePrimitive> = {
       }
     });
   },
-  view: function* (state, viewId, args, callbacks, children) {
+  view: function* (state, view) {
+    const { id, args } = state.resolveStruct(view);
     yield {
       tag: "view",
       state,
-      id: state.resolveString(viewId),
-      args: state.resolveStruct(args).args.map((arg) => state.valueExpr(arg)),
-      callbacks: state.resolveStruct(callbacks).args.map((cb) => {
-        const {
-          args: [params, body],
-        } = state.resolveStruct(cb);
-        return { params, body };
-      }),
-      children: reduce<View[], StateNext>(
-        [],
-        (children, res) => {
-          if (res.tag === "view") children.push(res);
-          return children;
-        },
-        state.runClause(children)
-      ),
+      id,
+      values: args.map((val) => state.resolve(val)),
     };
     yield state.yield();
   },

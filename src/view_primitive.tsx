@@ -1,94 +1,92 @@
 import { Component, FC, ReactNode } from "react";
-import { AnyStruct, Expr, List, printExpr, s, Struct } from "./expr";
-import { Callback, State, View } from "./state";
+import { AnyStruct, s } from "./expr";
+import { printFact, State, StateNext, Value, View } from "./state";
 import "./view_primitive.css";
 import { useStateCallback, useEventHandler } from "./event_source";
+import { reduce } from "./iter";
 
-type VC<Args extends Expr[]> = FC<{
+type VC = FC<{
   state: State;
   id: string;
-  args: Args;
-  callbacks: Callback[];
-  children: ReactNode;
+  values: Value[];
 }>;
 
-// TODO: want to do non-hierarchichal layout
-const Row: VC<[]> = ({ children }) => <div className="Row">{children}</div>;
-const Column: VC<[]> = ({ children }) => (
-  <div className="Column">{children}</div>
+const Row: VC = ({ state, values: [children] }) => (
+  <div className="Row">
+    <Children state={state} children={children} />
+  </div>
+);
+const Column: VC = ({ state, values: [children] }) => (
+  <div className="Column">
+    <Children state={state} children={children} />
+  </div>
 );
 
-const String: VC<[string]> = ({ args: [value] }) => <div>{value}</div>;
+const String: VC = ({ state, values: [string] }) => (
+  <div>{state.resolveString(string)}</div>
+);
 
-const Button: VC<[string, string]> = ({
-  state,
-  args: [label, className],
-  callbacks: [onClick],
-}) => {
+const Button: VC = ({ state, values: [label, className, next, onClick] }) => {
   const handle = useStateCallback(state);
   return (
     <button
-      className={className}
+      className={state.resolveString(className)}
       type="button"
       onClick={(e) => {
-        handle(onClick, s("click", Number(e.metaKey)));
+        handle(next, onClick, s("click", Number(e.metaKey)));
       }}
     >
-      {label}
+      {state.resolveString(label)}
     </button>
   );
 };
 
-const Input: VC<[string, string]> = ({
-  state,
-  args: [value, className],
-  callbacks: [onChange],
-}) => {
+const Input: VC = ({ state, values: [value, className, next, onChange] }) => {
   const handle = useStateCallback(state);
   return (
     <input
-      className={className}
-      value={value}
+      className={state.resolveString(className)}
+      value={state.resolveString(value)}
       onChange={(e) => {
-        handle(onChange, e.target.value);
+        handle(next, onChange, e.target.value);
       }}
     />
   );
 };
 
-type Option = Struct<"option", [string, string]>;
-
-const Select: VC<[string, List<Option>]> = ({
-  state,
-  args: [value, options],
-  callbacks: [onChange],
-}) => {
+const Select: VC = ({ state, values: [value, options, next, onChange] }) => {
   const handle = useStateCallback(state);
   return (
     <select
-      value={value}
+      value={state.resolveString(value)}
       onChange={(e) => {
-        handle(onChange, e.target.value);
+        handle(next, onChange, e.target.value);
       }}
     >
-      {options.args.map(({ args: [id, label] }) => (
-        <option key={id} value={id}>
-          {label}
-        </option>
-      ))}
+      {state.resolveStruct(options).args.map((opt) => {
+        const struct = state.resolveStruct(opt);
+        const id = state.resolveString(struct.args[0]);
+        const label = state.resolveString(struct.args[1]);
+        return (
+          <option key={id} value={id}>
+            {label}
+          </option>
+        );
+      })}
     </select>
   );
 };
 
-const Icon: VC<[]> = () => (
+const Icon: VC = () => (
   <div style={{ textAlign: "center", fontSize: 32 }}>📄</div>
 );
 
-const WindowContainer: VC<[string, string]> = ({
+const WindowContainer: VC = ({
   state,
-  children,
-  args: [windowId, currentWindowId],
+  values: [windowId_, currentWindowId_, children],
 }) => {
+  const windowId = state.resolveString(windowId_);
+  const currentWindowId = state.resolveString(currentWindowId_);
   const handle = useEventHandler(state);
   const isCurrent = windowId === currentWindowId;
   return (
@@ -111,15 +109,16 @@ const WindowContainer: VC<[string, string]> = ({
         }
       }}
     >
-      {children}
+      <Children state={state} children={children} />
     </div>
   );
 };
 
-const WindowBar: VC<[string, string, string, string]> = ({
-  state,
-  args: [windowId, id, view, fileName],
-}) => {
+const WindowBar: VC = ({ state, values }) => {
+  const [windowId, id, view, fileName] = values.map((val) =>
+    state.resolveString(val)
+  );
+
   const handle = useEventHandler(state);
   return (
     <header className="AppWindow__header">
@@ -136,8 +135,7 @@ const WindowBar: VC<[string, string, string, string]> = ({
   );
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const viewPrimitives: Record<string, VC<any>> = {
+const viewPrimitives: Record<string, VC> = {
   Row,
   Column,
   String,
@@ -149,11 +147,10 @@ const viewPrimitives: Record<string, VC<any>> = {
   WindowContainer,
 };
 
-const DefaultRenderer: VC<Expr[]> = ({ id, args, children }) => {
+const DefaultRenderer: VC = ({ id, values }) => {
   return (
     <div style={{ backgroundColor: "pink" }}>
-      <pre>{printExpr(s(id, ...args))}</pre>
-      <div style={{ marginLeft: "1rem" }}>{children}</div>
+      <pre>{printFact({ tag: "struct", id, args: values })}</pre>
     </div>
   );
 };
@@ -181,27 +178,42 @@ class ErrorBoundary extends Component<
   }
 }
 
+function Children({ state, children }: { state: State; children: Value }) {
+  const views = reduce<View[], StateNext>(
+    [],
+    (children, res) => {
+      if (res.tag === "view") children.push(res);
+      return children;
+    },
+    state.runClause(children)
+  );
+  return (
+    <>
+      {views.map((view, i) => (
+        <Primitive
+          key={i}
+          state={view.state}
+          id={view.id}
+          values={view.values}
+        />
+      ))}
+    </>
+  );
+}
+
 function Primitive({
   state,
   id,
-  args,
-  callbacks,
-  children,
+  values,
 }: {
   state: State;
   id: string;
-  args: Expr[];
-  callbacks: Callback[];
-  children?: View[];
+  values: Value[];
 }) {
   const View = viewPrimitives[id] ?? DefaultRenderer;
   return (
     <ErrorBoundary>
-      <View state={state} id={id} args={args} callbacks={callbacks}>
-        {(children ?? []).map((child, i) => (
-          <Primitive key={i} {...child} />
-        ))}
-      </View>
+      <View state={state} id={id} values={values} />
     </ErrorBoundary>
   );
 }
@@ -218,7 +230,6 @@ export function Query({ state, clause }: { state: State; clause: AnyStruct }) {
     );
   } catch (e) {
     console.log(e);
-
-    return <pre>{e.message}</pre>;
+    return <pre>{(e as Error).message}</pre>;
   }
 }

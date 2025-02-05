@@ -25,7 +25,7 @@ const baseViews = {
     rule__rest_params: v.children_list,
     rule__body: r(
       s("struct_tag_list", v.children, ";", v.children_list),
-      s("view", "Row", l(), l(), v.children)
+      s("view", s("Row", v.children))
     ),
   },
   column: {
@@ -33,36 +33,24 @@ const baseViews = {
     rule__rest_params: v.children_list,
     rule__body: r(
       s("struct_tag_list", v.children, ";", v.children_list),
-      s("view", "Column", l(), l(), v.children)
+      s("view", s("Column", v.children))
     ),
   },
   string: {
     rule__params: l(v.string),
-    rule__body: s("view", "String", l(v.string), l(), r()),
+    rule__body: s("view", s("String", v.string)),
   },
   button: {
     rule__params: l(v.string, v.on_click),
-    rule__body: s("view", "Button", l(v.string, ""), l(l(__, v.on_click)), r()),
+    rule__body: s("view", s("Button", v.string, "", __, v.on_click)),
   },
   input: {
     rule__params: l(v.value, v.next, v.on_change),
-    rule__body: s(
-      "view",
-      "Input",
-      l(v.value, ""),
-      l(l(v.next, v.on_change)),
-      r()
-    ),
+    rule__body: s("view", s("Input", v.value, "", v.next, v.on_change)),
   },
   select: {
     rule__params: l(v.value, v.options, v.next, v.on_change),
-    rule__body: s(
-      "view",
-      "Select",
-      l(v.value, v.options),
-      l(l(v.next, v.on_change)),
-      r()
-    ),
+    rule__body: s("view", s("Select", v.value, v.options, v.next, v.on_change)),
   },
   link: {
     rule__params: l(v.label, v.location),
@@ -77,31 +65,29 @@ const baseViews = {
       s("get_context", "window_id", v.window),
       s(
         "view",
-        "Button",
-        l(v.label, "Link"),
-        l(
-          l(
-            v.event,
+        s(
+          "Button",
+          v.label,
+          "Link",
+          v.event,
+          s(
+            "if_then_else",
+            s("=", v.event, s("click", 1)),
+            s("on__newWindow", v.location),
             s(
               "if_then_else",
-              s("=", v.event, s("click", 1)),
+              s("list_item", v.params, s("target", "new")),
               s("on__newWindow", v.location),
-              s(
-                "if_then_else",
-                s("list_item", v.params, s("target", "new")),
-                s("on__newWindow", v.location),
-                s("on__push", v.window, v.location)
-              )
+              s("on__push", v.window, v.location)
             )
           )
-        ),
-        r()
+        )
       )
     ),
   },
   icon: {
     rule__params: l(),
-    rule__body: s("view", "Icon", l(), l(), r()),
+    rule__body: s("view", s("Icon")),
   },
   // type views
   type__any: {
@@ -200,10 +186,7 @@ const baseViews = {
     rule__params: l(v.value, v.next, v.on_change),
     rule__body: s(
       "view",
-      "Input",
-      l(v.value, "Input--fitContent"),
-      l(l(v.next, v.on_change)),
-      r()
+      s("Input", v.value, "Input--fitContent", v.next, v.on_change)
     ),
   },
   type__any_edit: {
@@ -610,12 +593,14 @@ const baseViews = {
       ),
       s(
         "view",
-        "WindowContainer",
-        l(v.window, v.currentWindow),
-        l(),
-        r(
-          s("view", "WindowBar", l(v.window, v.id, v.view, v.name), l(), r()),
-          s("call", v.view, v.id, v.history)
+        s(
+          "WindowContainer",
+          v.window,
+          v.currentWindow,
+          r(
+            s("view", s("WindowBar", v.window, v.id, v.view, v.name)),
+            s("call", v.view, v.id, v.history)
+          )
         )
       )
     ),

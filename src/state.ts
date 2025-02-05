@@ -74,18 +74,11 @@ export function printFact(fact: Fact): string {
   }
 }
 
-export type Callback = {
-  params: Value;
-  body: Value;
-};
-
 type ViewPrimitive = string;
 export type View = {
   tag: "view";
   id: ViewPrimitive;
-  args: Expr[];
-  callbacks: Callback[];
-  children: View[];
+  values: Value[];
   state: State;
 };
 
@@ -109,11 +102,11 @@ export class State {
       if (res.tag === "view") yield res;
     }
   }
-  runCallback(callback: Callback, arg: Expr) {
-    const ns = this.unify(callback.params, this.exprValue(arg, {}));
+  runCallback(params: Value, body: Value, arg: Expr) {
+    const ns = this.unify(params, this.exprValue(arg, {}));
     if (!ns) throw new Error("todo");
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const _ of ns.runClause(callback.body)) {
+    for (const _ of ns.runClause(body)) {
       // do nothing
     }
   }
