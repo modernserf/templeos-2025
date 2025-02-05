@@ -107,6 +107,28 @@ const files = {
     file__description: l("A folder with some items"),
     folder__items: l("home", "schema__text", "view__type__text"),
   },
+  test_local_state: {
+    db__schema: "schema__form",
+    file__name: "Test local state",
+    rule__params: l(v.id, v.state),
+    rule__body: view.column(
+      view.string("test local state"),
+      view.local_state(
+        "init",
+        v.value,
+        v.next,
+        v.on_change,
+        r(view.input(v.value, v.next, v.on_change))
+      ),
+      view.local_state(
+        "other",
+        v.value1,
+        v.next1,
+        v.on_change1,
+        r(view.input(v.value1, v.next1, v.on_change1))
+      )
+    ),
+  },
 } satisfies Record<string, Rec>;
 
 // always loads from source

@@ -36,6 +36,13 @@ const baseViews = {
       s("view", s("Column", v.children))
     ),
   },
+  local_state: {
+    rule__params: l(v.init_value, v.value, v.next, v.on_change, v.children),
+    rule__body: s(
+      "view",
+      s("LocalState", v.init_value, v.value, v.next, v.on_change, v.children)
+    ),
+  },
   string: {
     rule__params: l(v.string),
     rule__body: s("view", s("String", v.string)),

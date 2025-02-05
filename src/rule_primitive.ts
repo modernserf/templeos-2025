@@ -494,4 +494,11 @@ export const primitives: Record<string, RulePrimitive> = {
     };
     yield state.yield();
   },
+  dispatch: semidet((state, id, value) => {
+    state.eventSource.notifyEventListeners({
+      id: state.resolveString(id),
+      value,
+    });
+    return state;
+  }),
 };

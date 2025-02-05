@@ -1,5 +1,6 @@
 import { Rec } from "./data";
 import { TransactDB } from "./db";
+import { EventSource } from "./event_source";
 import { Expr, Id, Ident, __, printExpr, s } from "./expr";
 import { primitives } from "./rule_primitive";
 
@@ -90,12 +91,13 @@ export class State {
   private constructor(
     public db: TransactDB<Rec>,
     private facts: Facts,
-    public context: Record<string, Value>
+    public context: Record<string, Value>,
+    public eventSource: EventSource<{ id: string; value: Value }>
   ) {}
   static root(rules: Record<Id, Rec>): State {
     const db = new TransactDB<Rec>();
     db.bulkInsert(rules);
-    return new State(db, {}, {});
+    return new State(db, {}, {}, new EventSource());
   }
   *render(expr: Expr): Generator<View> {
     for (const res of this.runClause(this.exprValue(expr, {}))) {
@@ -172,7 +174,12 @@ export class State {
     }
   }
   private addValue(id: FactId, value: Value): State {
-    return new State(this.db, { ...this.facts, [id]: value }, this.context);
+    return new State(
+      this.db,
+      { ...this.facts, [id]: value },
+      this.context,
+      this.eventSource
+    );
   }
   addConstraint(id: FactId, predicate: Value) {
     const prev = this.facts[id];
@@ -185,7 +192,8 @@ export class State {
         ...this.facts,
         [id]: { tag: "constraint", predicate },
       },
-      this.context
+      this.context,
+      this.eventSource
     );
   }
   private unifyVar(left: Value & { tag: "var" }, right: Value): State | null {
@@ -316,10 +324,15 @@ export class State {
     }
   }
   setContext(key: string, value: Value) {
-    return new State(this.db, this.facts, {
-      ...this.context,
-      [key]: value,
-    });
+    return new State(
+      this.db,
+      this.facts,
+      {
+        ...this.context,
+        [key]: value,
+      },
+      this.eventSource
+    );
   }
   *runClause(fact: Value): Generator<StateNext> {
     fact = this.resolveShallow(fact);
@@ -366,7 +379,12 @@ export class State {
     const params = rule.rule__params.args;
     const body = rule.rule__body;
 
-    let ruleState = new State(this.db, this.facts, this.context);
+    let ruleState = new State(
+      this.db,
+      this.facts,
+      this.context,
+      this.eventSource
+    );
     const symbolTable = {};
 
     if (rule.rule__rest_params) {
@@ -400,7 +418,12 @@ export class State {
         yield res;
         continue;
       }
-      yield new State(this.db, res.state.facts, this.context).yield();
+      yield new State(
+        this.db,
+        res.state.facts,
+        this.context,
+        this.eventSource
+      ).yield();
     }
   }
 }

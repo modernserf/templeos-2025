@@ -4,15 +4,15 @@ import { Expr } from "./expr";
 
 type EventListener<T> = (value: T) => void;
 
-export class EventSource {
-  private eventListeners: Array<EventListener<unknown>> = [];
-  addEventListener(fn: EventListener<unknown>) {
+export class EventSource<T> {
+  private eventListeners: Array<EventListener<T>> = [];
+  addEventListener(fn: EventListener<T>) {
     this.eventListeners.push(fn);
     return () => {
       this.eventListeners = this.eventListeners.filter((f) => f !== fn);
     };
   }
-  notifyEventListeners(message: unknown) {
+  notifyEventListeners(message: T) {
     for (const l of this.eventListeners) {
       l(message);
     }

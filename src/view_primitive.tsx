@@ -1,6 +1,6 @@
-import { Component, FC, ReactNode } from "react";
+import { Component, FC, ReactNode, useEffect, useMemo, useState } from "react";
 import { AnyStruct, s } from "./expr";
-import { printFact, State, StateNext, Value, View } from "./state";
+import { k, printFact, State, StateNext, sv, Value, View } from "./state";
 import "./view_primitive.css";
 import { useStateCallback, useEventHandler } from "./event_source";
 import { reduce } from "./iter";
@@ -21,6 +21,27 @@ const Column: VC = ({ state, values: [children] }) => (
     <Children state={state} children={children} />
   </div>
 );
+
+const LocalState: VC = ({
+  state,
+  values: [init_value, value_var, next_var, on_change, children],
+}) => {
+  const id = useMemo(() => crypto.randomUUID(), []);
+  const [currentValue, setValue] = useState(init_value);
+  useEffect(() => {
+    // TODO: only get this component's events
+    state.eventSource.addEventListener((res) => {
+      if (res.id === id) setValue(res.value);
+    });
+  }, [state, next_var, on_change, id]);
+
+  const localState = state
+    .unify(value_var, currentValue)
+    ?.unify(on_change, sv("dispatch", k(id), next_var));
+  if (!localState) throw new Error("cannot unify local state value");
+
+  return <Children state={localState} children={children} />;
+};
 
 const String: VC = ({ state, values: [string] }) => (
   <div>{state.resolveString(string)}</div>
@@ -138,6 +159,7 @@ const WindowBar: VC = ({ state, values }) => {
 const viewPrimitives: Record<string, VC> = {
   Row,
   Column,
+  LocalState,
   String,
   Button,
   Select,
