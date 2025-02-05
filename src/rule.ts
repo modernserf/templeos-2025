@@ -521,7 +521,7 @@ export const rules = {
   rule__field_view: {
     rule__params: l(v.field, v.view),
     rule__body: r.or(
-      f.view__field(v.view, v.type),
+      f.view__field(v.view, v.field),
       r(
         s("nonvar", v.field),
         f.db__type(v.field, v.type),
@@ -593,6 +593,18 @@ export const rules = {
       db.delete(v.tx, v.back, "history__forward")
     ),
   },
+
+  on__add_tag: {
+    rule__params: l(v.file, v.tag),
+    rule__body: db.with_tx(
+      v.tx,
+      s("log", "on__add_tag", v.file, v.tag),
+      f.file__tags(v.file, v.old_tags),
+      s("list_list_append", v.old_tags, l(v.tag), v.new_tags),
+      db.update(v.tx, v.file, "file__tags", v.new_tags)
+    ),
+  },
+
   // constructors
   new__default: {
     rule__params: l(v.tx, v.id, v.schema),

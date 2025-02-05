@@ -1,4 +1,4 @@
-import { exprOrd, Expr, List } from "./expr";
+import { exprOrd, Expr, List, Struct, AnyStruct } from "./expr";
 import { Where, defaultOrd, Ord, Tree } from "./tree";
 
 type Id = string;
@@ -66,8 +66,8 @@ export class DB<Rec extends BaseRec> {
     for (const [field, value] of Object.entries(rec)) {
       this.addToIndex(id, field, value as Id);
     }
-    if (rec.db__schema === "schema__field" && rec.field__index) {
-      this.createIndex(id as Field, rec.field__index as IndexType);
+    if (rec.db__schema === "schema__field" && rec.db__index) {
+      this.createIndex(id as Field, rec.db__index.id as IndexType);
     }
   }
   update(id: Id, field: Field, value: unknown) {

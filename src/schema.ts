@@ -76,6 +76,11 @@ export const schemas = {
     file__description: l("A collection of records"),
     db__fields: l(s("field", "rule__params"), s("field", "rule__body")),
   },
+  schema__tag: {
+    db__schema: "schema__schema",
+    file__name: "Tag",
+    db__fields: l(s("field", "file__name")),
+  },
   schema__history: {
     db__schema: "schema__schema",
     file__name: "History",

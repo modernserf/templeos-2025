@@ -117,6 +117,12 @@ export const fields = {
     file__description: l("describes the content of the record"),
     db__type: "type__text",
   },
+  file__tags: {
+    db__schema: "schema__field",
+    file__name: "File tags",
+    db__type: "type__multiRef",
+    db__index: s("multiRef"),
+  },
   folder__items: {
     db__schema: "schema__field",
     file__name: "File folder items",

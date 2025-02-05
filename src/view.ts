@@ -157,7 +157,12 @@ const baseViews = {
     rule__body: view.row(
       view.string(v.id),
       view.string("("),
-      view.row(s("list_item", v.args, v.arg), view.type__any(v.arg)),
+      view.row(
+        r(
+          s("list_item", v.args, v.arg), //
+          view.type__any(v.arg)
+        )
+      ),
       view.string(")")
     ),
   },
@@ -308,6 +313,34 @@ const baseViews = {
       )
     ),
   },
+  // field views
+  file__tags: {
+    view__field: "file__tags",
+    rule__params: l(v.tags),
+    rule__body: view.row(
+      r(s("list_item", v.tags, v.tag), view.file_link(v.tag)),
+      r(
+        // TODO: record id should be explicit prop for field editors
+        s("get_context", "history_id", v.history),
+        f.history__location(v.history, v.id),
+        s(
+          "collect",
+          s("option", v.tag_opt, v.name),
+          r(
+            f.db__schema(v.tag_opt, "schema__tag"),
+            f.file__name(v.tag_opt, v.name)
+          ),
+          v.tag_opts
+        ),
+        view.menu(
+          "Add tag",
+          v.tag_opts,
+          v.selected,
+          s("on__add_tag", v.id, v.selected)
+        )
+      )
+    ),
+  },
 
   // schema views
   schema__any: {
@@ -330,10 +363,8 @@ const baseViews = {
       r(
         view.string("References"),
         r.or(f.db__index(v.f, s("ref")), f.db__index(v.f, s("multiRef"))),
-        r(
-          s("get_field_value", v.ref, v.f, v.id),
-          view.row(view.file_link(v.f), view.file_link(v.ref))
-        )
+        s("get_field_value", v.ref, v.f, v.id),
+        view.row(view.file_link(v.f), view.file_link(v.ref))
       )
     ),
   },
@@ -444,11 +475,22 @@ const baseViews = {
       view.row(view.type__text(v.text))
     ),
   },
+  schema__tag: {
+    file__name: "Tag items",
+    view__schema: "schema__tag",
+    rule__params: l(v.tag, v.state),
+    rule__body: view.column(
+      r(f.file__description(v.tag, v.desc), view.type__text(v.desc)),
+      r(f.file__tags(v.file, v.tag), view.row(view.file_info(v.file)))
+    ),
+  },
+  // TODO: add items box
   schema__folder_list: {
     file__name: "Folder - List",
     view__schema: "schema__folder",
     rule__params: l(v.id, v.state),
     rule__body: view.column(
+      r(f.file__description(v.id, v.desc), view.type__text(v.desc)),
       r(
         f.folder__items(v.id, v.folder),
         s("list_item", v.folder, v.item),
@@ -460,11 +502,14 @@ const baseViews = {
     file__name: "Folder - Icon",
     view__schema: "schema__folder",
     rule__params: l(v.id, v.state),
-    rule__body: view.row(
-      r(
-        f.folder__items(v.id, v.folder),
-        s("list_item", v.folder, v.item),
-        view.column(view.icon(), view.file_link(v.item))
+    rule__body: view.column(
+      r(f.file__description(v.id, v.desc), view.text(v.desc)),
+      view.row(
+        r(
+          f.folder__items(v.id, v.folder),
+          s("list_item", v.folder, v.item),
+          view.column(view.icon(), view.file_link(v.item))
+        )
       )
     ),
   },

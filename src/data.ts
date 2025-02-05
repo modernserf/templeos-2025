@@ -42,6 +42,7 @@ export type Rec = Record<string, Expr> & {
 
   file__name?: string;
   file__description?: List<FormatText>;
+  file__tags?: List<string>;
 
   folder__items?: List<Id>;
 
@@ -61,12 +62,18 @@ const files = {
     db__schema: "schema__text",
     file__name: "home",
     file__description: l("this is the home card"),
+    file__tags: l("example_tag"),
     text__content: l(
       "content that ",
       s("link", "links", s("location", "example__folder")),
       " to another record.",
       s("link", "omnibox", s("location", "omnibox"))
     ),
+  },
+  example_tag: {
+    db__schema: "schema__tag",
+    file__name: "Example Tag",
+    file__description: l("A tag with some items"),
   },
   omnibox: {
     db__schema: "schema__form",

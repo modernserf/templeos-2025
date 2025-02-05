@@ -5,6 +5,7 @@ import { useEventSource } from "./event_source";
 import { rootView } from "./view";
 
 const state = State.root(loadState());
+window.db = state.db;
 export function App() {
   useEventSource();
   return (
