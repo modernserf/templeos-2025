@@ -45,6 +45,7 @@ export type Rec = Record<string, Expr> & {
 
   folder__items?: List<Id>;
 
+  history__window?: Id;
   history__location?: Id;
   history__view?: Id;
   history__back?: Id;
@@ -86,14 +87,14 @@ const files = {
           s("string_substring", v.result_name, v.omnibox)
         )
       ),
-      s("view__fileInfo", v.result)
+      view.fileInfo(v.result)
     ),
   },
   example__folder: {
     db__schema: "schema__folder",
     file__name: "Example Folder",
     file__description: l("A folder with some items"),
-    folder__items: l("home", "schema__text", "view_type__text"),
+    folder__items: l("home", "schema__text", "view__type__text"),
   },
 } satisfies Record<string, Rec>;
 

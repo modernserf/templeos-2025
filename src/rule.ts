@@ -467,6 +467,28 @@ export const rules = {
       )
     ),
   },
+  _struct_push: {
+    rule__params: l(v.struct, v.added, v.updated),
+    rule__body: r(
+      s("struct_tag_list", v.struct, v.tag, v.list),
+      s("list_list_append", v.list, l(v.added), v.next_list),
+      s("struct_tag_list", v.updated, v.tag, v.next_list)
+    ),
+  },
+  _add_field: {
+    rule__params: l(v.id, v.field),
+    rule__body: db.with_tx(
+      v.tx,
+      f.db__type(v.field, v.field_type),
+      s(
+        "if_then_else",
+        f.db__default_value(v.field_type, v.default_value),
+        s("ok"),
+        s("=", v.default_value, l())
+      ),
+      db.update(v.tx, v.id, v.field, v.default_value)
+    ),
+  },
   each_item_do: {
     file__description: l(
       "for each item in collection, run do block but discard results (e.g. for side effects). succeed if collection is empty."
@@ -477,6 +499,51 @@ export const rules = {
       s("=", v.collection, l()),
       s("ok"),
       s("collect", __, r(s("list_item", v.collection, v.item), v.do), __)
+    ),
+  },
+  // view helpers
+  // utilities
+  rule__location_view: {
+    rule__params: l(v.location, v.view),
+    rule__body: r.or(
+      // location for view type
+      r(
+        s("nonvar", v.view),
+        f.view__schema(v.view, v.schema),
+        f.db__schema(v.location, v.schema)
+      ),
+      // view for location type
+      r(
+        s("nonvar", v.location),
+        f.db__schema(v.location, v.schema),
+        f.view__schema(v.view, v.schema)
+      ),
+      // view for any type
+      f.view__schema(v.view, "schema__any")
+    ),
+  },
+  rule__field_view: {
+    rule__params: l(v.field, v.view),
+    rule__body: r.or(
+      f.view__field(v.view, v.type),
+      r(
+        s("nonvar", v.field),
+        f.db__type(v.field, v.type),
+        f.view__type(v.view, v.type)
+      ),
+      r(
+        s("nonvar", v.view),
+        f.db__type(v.field, v.type),
+        f.view__type(v.view, v.type)
+      ),
+      f.view__type(v.view, "type__any")
+    ),
+  },
+  rule__type_view: {
+    rule__params: l(v.type, v.view),
+    rule__body: r.or(
+      f.view__type(v.view, v.type),
+      f.view__type(v.view, "type__any")
     ),
   },
   // event handlers

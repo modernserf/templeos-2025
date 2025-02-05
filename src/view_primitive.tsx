@@ -218,6 +218,7 @@ export function Query({ state, clause }: { state: State; clause: AnyStruct }) {
     );
   } catch (e) {
     console.log(e);
+
     return <pre>{e.message}</pre>;
   }
 }
