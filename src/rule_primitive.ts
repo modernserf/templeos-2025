@@ -1,4 +1,5 @@
 import { whereValue } from "./db";
+import { s } from "./expr";
 import { reduce } from "./iter";
 import {
   Exception,
@@ -207,7 +208,6 @@ export const primitives: Record<string, RulePrimitive> = {
   string_number: semidet((state, string, number) => {
     if (string.tag == "string") {
       const parsed = Number(string.value);
-      console.log({ string, parsed });
       if (Number.isFinite(parsed)) {
         return state.unify(k(parsed), number);
       }
@@ -258,6 +258,39 @@ export const primitives: Record<string, RulePrimitive> = {
       }
     }
   },
+  timestamp_date: semidet((state, ts, date) => {
+    if (ts.tag === "number") {
+      const d = new Date(ts.value);
+      const dateValue = state.exprValue(
+        s(
+          "date",
+          d.getFullYear(),
+          d.getMonth() + 1,
+          d.getDate(),
+          d.getHours(),
+          d.getMinutes(),
+          d.getSeconds(),
+          d.getMilliseconds()
+        ),
+        {}
+      );
+      return state.unify(date, dateValue);
+    } else {
+      const { id, args } = state.resolveStruct(date);
+      if (id !== "date") return null;
+      const d = new Date(
+        state.resolveNumber(args[0]),
+        state.resolveNumber(args[1]) - 1,
+        state.resolveNumber(args[2]),
+        state.resolveNumber(args[3]),
+        state.resolveNumber(args[4]),
+        state.resolveNumber(args[5]),
+        state.resolveNumber(args[6])
+      );
+      return state.unify(ts, k(d.getTime()));
+    }
+    return null;
+  }),
   struct_arity: semidet((state, struct, arity) => {
     return state.unify(k(state.resolveStruct(struct).args.length), arity);
   }),

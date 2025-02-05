@@ -131,7 +131,7 @@ const WindowBar: VC<[string, string, string, string]> = ({
         }}
       ></button>
       <h1 className="AppWindow__title">{fileName}</h1>
-      <Query state={state} clause={s("view__viewMenu", windowId, id, view)} />
+      <Query state={state} clause={s("view__view_menu", windowId, id, view)} />
     </header>
   );
 };

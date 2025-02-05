@@ -13,7 +13,7 @@ export const view = new Proxy(
 ) as Record<string, (...args: Expr[]) => AnyStruct>;
 
 export const rootView = r(
-  view.appMenu(),
+  view.app_menu(),
   f.db__schema(v.window, "schema__window"),
   view.window(v.window)
 );
@@ -55,7 +55,7 @@ const baseViews = {
     ),
   },
   select: {
-    rule__params: l(v.value, v.next, v.options, v.on_change),
+    rule__params: l(v.value, v.options, v.next, v.on_change),
     rule__body: s(
       "view",
       "Select",
@@ -174,7 +174,7 @@ const baseViews = {
   type__ref: {
     view__type: "type__ref",
     rule__params: l(v.ref),
-    rule__body: view.fileLink(v.ref),
+    rule__body: view.file_link(v.ref),
   },
   type__text: {
     view__type: "type__text",
@@ -271,19 +271,31 @@ const baseViews = {
     ),
   },
 
+  menu: {
+    rule__params: l(v.label, v.options, v.next, v.on_change),
+    rule__body: r(
+      s(
+        "list_list_append",
+        l(s("option", "", v.label)),
+        v.options,
+        v.menu_options
+      ),
+      view.select("", v.menu_options, v.next, v.on_change)
+    ),
+  },
+
   type__struct_add_field: {
     rule__params: l(v.next, v.on_change),
     rule__body: r(
-      view.select(
-        "",
-        v.next_type,
+      view.menu(
+        "+",
         l(
-          s("option", "", "+"),
           s("option", "string", "string"),
           s("option", "number", "number"),
           s("option", "struct", "struct"),
           s("option", "var", "var")
         ),
+        v.next_type,
         r(
           r.or(
             s("=", l(v.next_type, v.next), l("string", "")),
@@ -298,7 +310,7 @@ const baseViews = {
   },
 
   // schema views
-  schema___any: {
+  schema__any: {
     file__name: "Default viewer",
     view__schema: "schema__any",
     rule__params: l(v.id, v.state),
@@ -308,8 +320,11 @@ const baseViews = {
         view.string("Fields"),
         s("get_field_value", v.id, v.field, v.value),
         view.row(
-          view.fileLink(v.field), //
-          view.for_field(v.field, v.value)
+          view.file_link(v.field),
+          r(
+            s("limit", 1, r(s("rule__field_view", v.field, v.view))),
+            s("call", v.view, v.value)
+          )
         )
       ),
       r(
@@ -317,12 +332,12 @@ const baseViews = {
         r.or(f.db__index(v.f, s("ref")), f.db__index(v.f, s("multiRef"))),
         r(
           s("get_field_value", v.ref, v.f, v.id),
-          view.row(view.fileLink(v.f), view.fileLink(v.ref))
+          view.row(view.file_link(v.f), view.file_link(v.ref))
         )
       )
     ),
   },
-  schema___any_edit: {
+  schema__any_edit: {
     file__name: "Default editor",
     view__schema: "schema__any",
     rule__params: l(v.id, v.state),
@@ -334,7 +349,7 @@ const baseViews = {
           s("get_field_value", v.id, v.field, v.value),
           view.row(
             view.button("×", db.with_tx(v.tx, db.delete(v.tx, v.id, v.field))),
-            view.fileLink(v.field),
+            view.file_link(v.field),
             view.type__any_edit(
               v.value,
               v.next,
@@ -354,58 +369,17 @@ const baseViews = {
             ),
             v.fields
           ),
-          s(
-            "list_list_append",
-            l(s("option", "", "Add field...")),
+          view.menu(
+            "Add field...",
             v.fields,
-            v.field_opts
-          ),
-          view.select(
-            "",
             v.new_field_id,
-            v.field_opts,
             s("_add_field", v.id, v.new_field_id)
           )
         )
       )
     ),
   },
-  schema___text: {
-    file__name: "Text viewer",
-    view__schema: "schema__text",
-    rule__params: l(v.id, v.state),
-    rule__body: r(
-      f.text__content(v.id, v.text),
-      view.row(view.type__text(v.text))
-    ),
-  },
-  schema___folder_list: {
-    file__name: "Folder - List",
-    view__schema: "schema__folder",
-    rule__params: l(v.id, v.state),
-    rule__body: r(
-      f.folder__items(v.id, v.folder),
-      s("list_item", v.folder, v.item),
-      view.row(view.fileInfo(v.item))
-    ),
-  },
-  schema___folder_icon: {
-    file__name: "Folder - Icon",
-    view__schema: "schema__folder",
-    rule__params: l(v.id, v.state),
-    rule__body: view.row(
-      f.folder__items(v.id, v.folder),
-      s("list_item", v.folder, v.item),
-      view.column(view.icon(), view.fileLink(v.item))
-    ),
-  },
-  schema___form: {
-    file__name: "Form",
-    view__schema: "schema__form",
-    rule__params: l(v.id, v.state),
-    rule__body: s("call", v.id, v.id, v.state),
-  },
-  schema___schema: {
+  schema__schema: {
     file__name: "Schema viewer",
     view__schema: "schema__schema",
     rule__params: l(v.id, v.state),
@@ -419,21 +393,27 @@ const baseViews = {
           r.or(
             r(
               s("=", v.field, s("field", v.field_id)),
-              view.fileLink(v.field_id)
+              view.file_link(v.field_id)
             ),
             r(
               s("=", v.field, s("field_optional", v.field_id)),
-              view.fileLink(v.field_id),
-              view.string("(optional)")
+              view.row(view.file_link(v.field_id), view.string("(optional)"))
             )
           )
         )
       ),
       view.column(
         r(
+          view.string("Views:"),
+          f.view__schema(v.view, v.id),
+          view.row(view.file_info(v.view))
+        )
+      ),
+      view.column(
+        r(
           view.string("Items:"),
           f.db__schema(v.record, v.id),
-          view.row(view.fileInfo(v.record))
+          view.row(view.file_info(v.record))
         )
       ),
       view.button(
@@ -450,33 +430,97 @@ const baseViews = {
       )
     ),
   },
-
-  // built in UI elements
-  for_field: {
-    rule__params: l(v.field, v.value),
+  schema__form: {
+    file__name: "Form",
+    view__schema: "schema__form",
+    rule__params: l(v.id, v.state),
+    rule__body: s("call", v.id, v.id, v.state),
+  },
+  schema__text: {
+    file__name: "Text viewer",
+    view__schema: "schema__text",
+    rule__params: l(v.id, v.state),
     rule__body: r(
-      s("limit", 1, r(s("rule__field_view", v.field, v.view))),
-      s("call", v.view, v.value)
+      f.text__content(v.id, v.text),
+      view.row(view.type__text(v.text))
     ),
   },
-  fileLink: {
+  schema__folder_list: {
+    file__name: "Folder - List",
+    view__schema: "schema__folder",
+    rule__params: l(v.id, v.state),
+    rule__body: view.column(
+      r(
+        f.folder__items(v.id, v.folder),
+        s("list_item", v.folder, v.item),
+        view.row(view.file_info(v.item))
+      )
+    ),
+  },
+  schema__folder_icon: {
+    file__name: "Folder - Icon",
+    view__schema: "schema__folder",
+    rule__params: l(v.id, v.state),
+    rule__body: view.row(
+      r(
+        f.folder__items(v.id, v.folder),
+        s("list_item", v.folder, v.item),
+        view.column(view.icon(), view.file_link(v.item))
+      )
+    ),
+  },
+  schema__window: {
+    file__name: "Window - History",
+    view__schema: "schema__window",
+    rule__params: l(v.id, v.state),
+    rule__body: view.column(
+      r(
+        f.history__window(v.history, v.id),
+        view.row(
+          r(f.history__location(v.history, v.h_id), view.file_link(v.h_id)),
+          r(
+            f.history__view(v.history, v.h_view),
+            view.string(":"),
+            view.file_link(v.h_view)
+          ),
+          r(
+            f.time__created(v.history, v.ts),
+            s(
+              "timestamp_date",
+              v.ts,
+              s("date", __, __, __, v.hour, v.minute, v.second, __)
+            ),
+            view.string("-"),
+            view.string(v.hour),
+            view.string(":"),
+            view.string(v.minute),
+            view.string(":"),
+            view.string(v.second)
+          )
+        )
+      )
+    ),
+  },
+  // built in UI elements
+
+  file_link: {
     rule__params: l(v.id),
     rule__body: r(
       s("get_default", v.id, "file__name", v.name, v.id),
       view.link(v.name, s("location", v.id))
     ),
   },
-  fileInfo: {
+  file_info: {
     rule__params: l(v.id),
-    rule__body: view.row(
-      r(f.file__name(v.id, v.name), view.link(v.name, s("location", v.id))),
+    rule__body: r.or(
+      view.file_link(v.id),
       r(
         f.file__description(v.id, v.description),
         view.type__text(v.description)
       )
     ),
   },
-  viewMenu: {
+  view_menu: {
     file__name: "View menu",
     file__description: l("the view selection menu on window chrome"),
     rule__params: l(v.window, v.id, v.selectedView),
@@ -489,8 +533,8 @@ const baseViews = {
       ),
       view.select(
         v.selectedView,
-        v.nextView,
         v.options,
+        v.nextView,
         db.with_tx(
           v.tx,
           f.window__currentHistory(v.window, v.history),
@@ -531,7 +575,7 @@ const baseViews = {
       )
     ),
   },
-  appMenu: {
+  app_menu: {
     file__name: "App menu",
     rule__params: l(),
     rule__body: view.row(

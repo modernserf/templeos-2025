@@ -58,17 +58,17 @@ export const schemas = {
       s("field", "rule__body")
     ),
   },
-  schema__text: {
-    db__schema: "schema__schema",
-    file__name: "Text",
-    file__description: l("A text document"),
-    db__fields: l(s("field", "text__content")),
-  },
   schema__form: {
     db__schema: "schema__schema",
     file__name: "Form",
     file__description: l("A self rendering form UI"),
     db__fields: l(s("field", "rule__params"), s("field", "rule__body")),
+  },
+  schema__text: {
+    db__schema: "schema__schema",
+    file__name: "Text",
+    file__description: l("A text document"),
+    db__fields: l(s("field", "text__content")),
   },
   schema__folder: {
     db__schema: "schema__schema",

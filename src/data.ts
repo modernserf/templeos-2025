@@ -74,20 +74,24 @@ const files = {
     rule__params: l(v.id, v.state),
     rule__body: r(
       s("get_default", v.state, "data__omnibox", v.omnibox, ""),
-      view.input(
-        v.omnibox,
-        v.next,
-        db.with_tx(v.tx, db.update(v.tx, v.state, "data__omnibox", v.next))
-      ),
-      s(
-        "limit",
-        10,
+      view.column(
+        view.input(
+          v.omnibox,
+          v.next,
+          db.with_tx(v.tx, db.update(v.tx, v.state, "data__omnibox", v.next))
+        ),
         r(
-          f.file__name(v.result, v.result_name),
-          s("string_substring", v.result_name, v.omnibox)
+          s(
+            "limit",
+            10,
+            r(
+              f.file__name(v.result, v.result_name),
+              s("string_substring", v.result_name, v.omnibox)
+            )
+          ),
+          view.file_info(v.result)
         )
-      ),
-      view.fileInfo(v.result)
+      )
     ),
   },
   example__folder: {
