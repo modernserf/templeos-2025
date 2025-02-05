@@ -372,12 +372,26 @@ export class State {
     }
     const params = rule.rule__params.args;
     const body = rule.rule__body;
-    if (params.length !== args.length) {
-      expected(printExpr(s(id, ...params)), sv(id, ...args));
-    }
 
     let ruleState = new State(this.db, this.facts, this.context);
     const symbolTable = {};
+
+    if (rule.rule__rest_params) {
+      const param = ruleState.exprValue(rule.rule__rest_params, symbolTable);
+      const restArgs = args.slice(params.length);
+      const ns = ruleState.unify(param, {
+        tag: "struct",
+        id: "",
+        args: restArgs,
+      });
+      if (!ns) return;
+      ruleState = ns;
+    } else {
+      if (params.length !== args.length) {
+        expected(printExpr(s(id, ...params)), sv(id, ...args));
+      }
+    }
+
     for (let i = 0; i < params.length; i++) {
       const param = ruleState.exprValue(params[i], symbolTable);
       const arg = args[i];

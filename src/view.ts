@@ -4,8 +4,8 @@ import { f } from "./field";
 import { db } from "./rule";
 
 export const view = {
-  row: (...children: Expr[]) => s("view__row", r(...children)),
-  column: (...children: Expr[]) => s("view__column", r(...children)),
+  row: (...children: Expr[]) => s("view__row", ...children),
+  column: (...children: Expr[]) => s("view__column", ...children),
   string: (str: string) => s("view__string", str),
   button: (str: string, onClick: Expr) => s("view__button", str, onClick),
   input: (value: string, event: Expr, onChange: Expr) =>
@@ -27,12 +27,20 @@ export const rootView = r(
 export const views = {
   // primitives
   view__row: {
-    rule__params: l(v.children),
-    rule__body: s("view", "Row", l(), l(), v.children),
+    rule__params: l(),
+    rule__rest_params: v.children_list,
+    rule__body: r(
+      s("struct_tag_list", v.children, ",", v.children_list),
+      s("view", "Row", l(), l(), v.children)
+    ),
   },
   view__column: {
-    rule__params: l(v.children),
-    rule__body: s("view", "Column", l(), l(), v.children),
+    rule__params: l(),
+    rule__rest_params: v.children_list,
+    rule__body: r(
+      s("struct_tag_list", v.children, ",", v.children_list),
+      s("view", "Column", l(), l(), v.children)
+    ),
   },
   view__string: {
     rule__params: l(v.string),
@@ -347,30 +355,30 @@ export const views = {
             db.with_tx(v.tx, db.update(v.tx, v.id, v.field, v.next))
           )
         )
-      ),
-      view.column(
-        s(
-          "collect",
-          s("option", v.field_id, v.field_name),
-          r(
-            f.db__schema(v.field_id, "schema__field"),
-            f.file__name(v.field_id, v.field_name)
-          ),
-          v.fields
-        ),
-        s(
-          "list_list_append",
-          l(s("option", "", "Add field...")),
-          v.fields,
-          v.field_opts
-        ),
-        view.select(
-          "",
-          v.new_field_id,
-          v.field_opts,
-          s("_add_field", v.id, v.new_field_id)
-        )
       )
+      // view.column(
+      //   s(
+      //     "collect",
+      //     s("option", v.field_id, v.field_name),
+      //     r(
+      //       f.db__schema(v.field_id, "schema__field"),
+      //       f.file__name(v.field_id, v.field_name)
+      //     ),
+      //     v.fields
+      //   ),
+      //   s(
+      //     "list_list_append",
+      //     l(s("option", "", "Add field...")),
+      //     v.fields,
+      //     v.field_opts
+      //   ),
+      //   view.select(
+      //     "",
+      //     v.new_field_id,
+      //     v.field_opts,
+      //     s("_add_field", v.id, v.new_field_id)
+      //   )
+      // )
     ),
   },
   _add_field: {
@@ -410,30 +418,42 @@ export const views = {
     file__name: "Folder - Icon",
     view__schema: "schema__folder",
     rule__params: l(v.id, v.state),
-    rule__body: r(
-      view.row(
-        f.folder__items(v.id, v.folder),
-        s("list_item", v.folder, v.item),
-        view.column(view.icon(), view.fileLink(v.item))
-      )
+    rule__body: view.row(
+      f.folder__items(v.id, v.folder),
+      s("list_item", v.folder, v.item),
+      view.column(view.icon(), view.fileLink(v.item))
     ),
   },
   view_schema__form: {
     file__name: "Form",
     view__schema: "schema__form",
     rule__params: l(v.id, v.state),
-    rule__body: r(
-      //
-      s("call", v.id, v.id, v.state)
-    ),
+    rule__body: s("call", v.id, v.id, v.state),
   },
   view_schema__schema: {
     file__name: "Schema viewer",
     view__schema: "schema__schema",
     rule__params: l(v.id, v.state),
-    rule__body: r(
-      s("view__string", "Schema"),
-      s("view_schema__any", v.id, v.state),
+    rule__body: view.column(
+      view.row(f.file__description(v.id, v.desc), s("view_type__text", v.desc)),
+      view.column(
+        view.string("Fields:"),
+        f.db__fields(v.id, v.fields),
+        s("list_item", v.fields, v.field),
+        r.or(
+          r(s("=", v.field, s("field", v.field_id)), view.fileLink(v.field_id)),
+          r(
+            s("=", v.field, s("field_optional", v.field_id)),
+            view.fileLink(v.field_id),
+            view.string("(optional)")
+          )
+        )
+      ),
+      view.column(
+        view.string("Items:"),
+        f.db__schema(v.record, v.id),
+        view.row(s("view__fileInfo", v.record))
+      ),
       s(
         "view__button",
         "New item",

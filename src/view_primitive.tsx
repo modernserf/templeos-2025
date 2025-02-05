@@ -207,12 +207,17 @@ function Primitive({
 }
 
 export function Query({ state, clause }: { state: State; clause: AnyStruct }) {
-  const res = Array.from(state.render(clause));
-  return (
-    <>
-      {res.map((view, i) => (
-        <Primitive key={i} {...view} />
-      ))}
-    </>
-  );
+  try {
+    const res = Array.from(state.render(clause));
+    return (
+      <>
+        {res.map((view, i) => (
+          <Primitive key={i} {...view} />
+        ))}
+      </>
+    );
+  } catch (e) {
+    console.log(e);
+    return <pre>{e.message}</pre>;
+  }
 }

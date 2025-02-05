@@ -32,6 +32,7 @@ export type Rec = Record<string, Expr> & {
   db__index?: IndexType;
 
   rule__params?: List<Expr>;
+  rule__rest_params?: Expr;
   rule__body?: AnyStruct;
   view__schema?: SchemaId;
   view__field?: Field;

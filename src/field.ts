@@ -65,11 +65,14 @@ export const fields = {
     db__schema: "schema__field",
     file__name: "Default value",
   },
-  // TODO: rule primitive / view primitive?
   rule__params: {
     db__schema: "schema__field",
     file__name: "Rule params",
     // db__type: s("list", s("any")),
+  },
+  rule__rest_params: {
+    db__schema: "schema__field",
+    file__name: "Rule rest params",
   },
   rule__body: {
     db__schema: "schema__field",
