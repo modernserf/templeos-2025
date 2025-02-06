@@ -5,6 +5,7 @@ import { fields, Field, f } from "./field";
 import { TypeId, coreTypes } from "./type";
 import { view, views } from "./view";
 import { db, rules } from "./rule";
+import { testUtils } from "./test_utils";
 
 export type Location =
   | Struct<"location", [id: Id]>
@@ -107,76 +108,36 @@ const files = {
     file__description: l("A folder with some items"),
     folder__items: l("home", "schema__text", "view__type__text"),
   },
-  // TODO: add controls to filter by group, focus, skip
-  // TODO: better tables
+  view__test_result: {
+    rule__params: l(v.test_id),
+    rule__body: s(
+      "try_error_catch",
+      r(s("call", v.test_id), view.string("ok")),
+      v.error,
+      view.type__any(v.error)
+    ),
+  },
   test_runner: {
     db__schema: "schema__form",
     file__name: "Unit tests",
     rule__params: l(__, __),
-    rule__body: s(
-      "view",
-      s(
-        "Html",
-        "table",
+    rule__body: view.column(
+      view.string("todo: sort & filter tests"),
+      view.table(
         l(),
-        r.or(
-          s(
-            "view",
-            s(
-              "Html",
-              "thead",
-              l(),
-              s(
-                "view",
-                s(
-                  "Html",
-                  "tr",
-                  l(),
-                  r.or(
-                    s("view", s("Html", "th", l(), view.string("group"))),
-                    s("view", s("Html", "th", l(), view.string("test"))),
-                    s("view", s("Html", "th", l(), view.string("result")))
-                  )
-                )
-              )
-            )
-          ),
-          s(
-            "view",
-            s(
-              "Html",
-              "tbody",
-              l(),
-              r(
-                f.test__group(v.id, v.group),
-                s(
-                  "view",
-                  s(
-                    "Html",
-                    "tr",
-                    l(),
-                    r.or(
-                      s("view", s("Html", "td", l(), view.string(v.group))),
-                      s("view", s("Html", "td", l(), view.file_link(v.id))),
-                      s(
-                        "view",
-                        s(
-                          "Html",
-                          "td",
-                          l(),
-                          s(
-                            "try_error_catch",
-                            r(s("call", v.id), view.string("ok")),
-                            v.error,
-                            view.type__any(v.error)
-                          )
-                        )
-                      )
-                    )
-                  )
-                )
-              )
-            )
+        view.table_header(
+          l(),
+          view.string("group"),
+          view.string("test"),
+          view.string("result")
+        ),
+        r(
+          f.test__group(v.id, v.group),
+          view.table_row(
+            l(),
+            view.string(v.group),
+            view.file_link(v.id),
+            view.test_result(v.id)
           )
         )
       )
@@ -215,6 +176,7 @@ export const data = {
   ...rules,
   ...views,
   ...files,
+  ...testUtils,
 
   ...typeRecs,
 };

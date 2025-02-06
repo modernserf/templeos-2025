@@ -215,7 +215,7 @@ function Children({ state, children }: { state: State; children: Value }) {
       if (res.tag === "view") children.push(res);
       return children;
     },
-    state.runClause(children)
+    state.eval(children)
   );
   return (
     <>

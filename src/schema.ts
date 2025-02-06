@@ -39,7 +39,12 @@ export const schemas = {
     ),
     db__fields: l(),
   },
-  // TODO: rule primitive / view primitive?
+  schema__primitive: {
+    db__schema: "schema__schema",
+    file__name: "Rule primitive",
+    file__description: l("Schema for rules with native implementations"),
+    db__fields: l(s("field", "rule__params")),
+  },
   schema__rule: {
     db__schema: "schema__schema",
     file__name: "Rule",

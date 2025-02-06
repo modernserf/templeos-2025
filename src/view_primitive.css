@@ -95,6 +95,6 @@
 
 .Column {
   display: block;
-  /* flex-direction: column; */
-  /* align-items: flex-start; */
+  flex-direction: column;
+  align-items: flex-start;
 }

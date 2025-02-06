@@ -1,6 +1,7 @@
 import { Rec } from "./data";
 import { l, r, s, v, Expr, __, Struct } from "./expr";
 import { Field, f } from "./field";
+import { test } from "./test_utils";
 
 export const db = {
   update: (tx: Expr, id: Expr, field: Field, value: Expr) =>
@@ -10,75 +11,323 @@ export const db = {
   with_tx: (tx: Expr, ...body: Expr[]) => s("with_tx", tx, s(",", ...body)),
 };
 
-export const test = {
-  ok: (...goal: Expr[]) => s("expect_ok", r(...goal)),
-  fail: (...goal: Expr[]) => s("expect_fail", r(...goal)),
-  throw: (goal: Expr, error: Expr) => s("expect_throw", goal, error),
-  collect: (pattern: Expr, goal: Expr, ...expected: Expr[]) =>
-    s("expect_collect", pattern, goal, ...expected),
-  view: (goal: Expr, ...expected: Expr[]) =>
-    s("expect_view", goal, ...expected),
-};
-
 export const cond = (...pairs: Struct<"", [Expr, Expr]>[]) =>
   s("cond", ...pairs);
 
 export const rules = {
-  // test utils
-  expect_ok: {
+  test__unknown_rule: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.throw(
+        s("doesNotExist", 123), //
+        s("unknown_rule", "doesNotExist")
+      )
+    ),
+  },
+  test__invalid_clause: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.throw(
+        r(1), //
+        s("expected_type", "struct", 1)
+      )
+    ),
+  },
+  test__not_callable_example: {
+    db__schema: "schema__any",
+  },
+  test__not_callable: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.throw(
+        s("test__not_callable_example"),
+        s("invalid_rule", "test__not_callable_example")
+      )
+    ),
+  },
+  test__wrong_args: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.throw(
+        s("=", 123),
+        s("expected_received", s("=", __, __), s("=", 123))
+      )
+    ),
+  },
+  "%": {
+    rule__params: l(),
+    rule__rest_params: v.comments,
+    rule__body: r(),
+  },
+  // primitives
+  fail: {
+    rule__params: l(),
+  },
+  test__fail: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.fail(s("fail")) //
+    ),
+  },
+  ok: {
+    rule__params: l(),
+  },
+  test__ok: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.ok(s("ok")) //
+    ),
+  },
+  "=": {
+    rule__params: l(v.left, v.right),
+  },
+  "test__=": {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.ok(s("=", 1, 1)),
+      test.ok(s("=", 1, __)),
+      test.collect(
+        l(v.left, v.right), //
+        s("=", l(v.left, 456), l(123, v.right)),
+        l(123, 456)
+      )
+    ),
+  },
+  "/=": {
+    rule__params: l(v.left, v.right),
+  },
+  "test__/=": {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.ok(s("/=", 1, 2)),
+      test.ok(s("/=", 1, "foo")),
+      test.fail(s("/=", 1, 1)),
+
+      test.ok(
+        s("/=", 1, v.x) //
+      ),
+      test.collect(
+        v.x,
+        r(
+          s("/=", 1, v.x), //
+          s("=", v.x, 2)
+        ),
+        2
+      ),
+      test.fail(
+        s("/=", 1, v.x), //
+        s("=", v.y, 1),
+        s("=", v.x, v.y)
+      ),
+
+      test.ok(
+        s("/=", s("foo", 1), s("foo", v.x)) //
+      ),
+      test.ok(
+        s("/=", s("foo", 1), s("foo", v.x)), //
+        s("=", v.x, 2)
+      ),
+      test.fail(
+        s("/=", s("foo", 1), s("foo", v.x)), //
+        s("=", v.x, 1)
+      )
+    ),
+  },
+  ",": {
+    rule__params: l(),
+    rule__rest_params: v.items,
+  },
+  "test__,": {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.ok(r()), //
+      test.ok(r(s("ok"))),
+      test.fail(r(s("ok"), s("fail"))),
+
+      test.fail(
+        r(
+          s("=", v.x, 1), //
+          s("=", v.x, 2)
+        )
+      )
+    ),
+  },
+  ";": {
+    rule__params: l(),
+    rule__rest_params: v.items,
+  },
+  "test__;": {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.fail(s(";")), //
+      test.ok(s(";", s("ok"))),
+      test.ok(s(";", s("ok"), s("fail"))),
+
+      test.collect(
+        v.x,
+        s(
+          ";",
+          s("=", v.x, 1), //
+          s("=", v.x, 2)
+        ),
+        1,
+        2
+      )
+    ),
+  },
+  "¬": {
     rule__params: l(v.goal),
-    rule__body: s(
-      "if_then_else",
-      v.goal,
-      s("ok"),
-      s("throw", s("expected_ok", v.goal))
+  },
+  "test__¬": {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.fail(s("¬", s("ok"))), //
+      test.ok(s("¬", s("fail")))
     ),
   },
-  expect_fail: {
-    rule__params: l(v.goal),
-    rule__body: s(
-      "if_then_else",
-      v.goal,
-      s("throw", s("expected_fail", v.goal)),
-      s("ok")
+  if_then_else: {
+    rule__params: l(v.if, v.then, v.else),
+  },
+  test__if_then_else: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.collect(
+        v.result,
+        s(
+          "if_then_else",
+          s("ok"),
+          s("=", v.result, 123),
+          s("=", v.result, 456)
+        ),
+        123
+      ),
+      test.collect(
+        v.result,
+        s(
+          "if_then_else",
+          s("fail"),
+          s("=", v.result, 123),
+          s("=", v.result, 456)
+        ),
+        456
+      ),
+      test.collect(
+        v.result,
+        s(
+          "if_then_else",
+          s("ok"),
+          r.or(s("=", v.result, 123), s("=", v.result, 789)),
+          s("=", v.result, 456)
+        ),
+        123,
+        789
+      ),
+      test.collect(
+        v.result,
+        s(
+          "if_then_else",
+          s("list_item", l(123, 789), v.item),
+          s("=", v.result, s("item", v.item)),
+          s("=", v.result, 456)
+        ),
+        s("item", 123),
+        s("item", 789)
+      ),
+      test.collect(
+        v.result,
+        s(
+          "if_then_else",
+          s("list_item", l(), v.item),
+          s("=", v.result, s("item", v.item)),
+          s("=", v.result, s("empty"))
+        ),
+        s("empty")
+      )
     ),
   },
-  expect_throw: {
-    rule__params: l(v.goal, v.error),
-    rule__body: s(
-      "try_error_catch",
-      r(v.goal, s("throw", s("expected_throw", v.error))),
-      v.error,
-      s("ok")
+  call: {
+    rule__params: l(v.id),
+    rule__rest_params: v.args,
+  },
+  test__call: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.collect(
+        v.result, //
+        s("call", "=", 123, v.result),
+        123
+      )
     ),
   },
-  expect_eq: {
-    rule__params: l(v.received, v.expected),
-    rule__body: s(
-      "if_then_else",
-      r(s("nonvar", v.received), s("=", v.received, v.expected)),
-      s("ok"),
-      s("throw", s("expected_received", v.expected, v.received))
+  throw: {
+    rule__params: l(v.error),
+  },
+  test__throw: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.throw(
+        s("throw", s("foo", 123)), //
+        s("foo", 123)
+      )
     ),
   },
-  expect_collect: {
-    rule__params: l(v.pattern, v.goal),
-    rule__rest_params: v.expected,
-    rule__body: s(
-      "if_then_else",
-      s("collect", v.pattern, v.goal, v.received),
-      s("expect_eq", v.received, v.expected),
-      s("throw", s("expected_received", v.expected, l()))
+  try_error_catch: {
+    rule__params: l(v.try, v.error, v.catch),
+  },
+  test__try_error_catch: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: r(
+      test.collect(
+        v.result,
+        s(
+          "try_error_catch", //
+          s("throw", s("foo", 123)),
+          s("foo", v.arg),
+          s("=", v.result, v.arg)
+        ),
+        123
+      ),
+
+      test.throw(
+        s(
+          "try_error_catch", //
+          s("throw", s("foo", 123)),
+          s("bar", v.arg),
+          s("=", v.result, v.arg)
+        ),
+        s("foo", 123)
+      )
     ),
   },
-  expect_view: {
-    rule__params: l(v.goal),
-    rule__rest_params: v.expected,
-    rule__body: s(
-      "if_then_else",
-      s("collect_view", v.goal, v.received),
-      s("expect_eq", v.received, v.expected),
-      s("throw", s("expected_received", v.expected, l()))
+
+  test__db: {
+    test__group: "db",
+    rule__params: l(),
+    rule__body: r(
+      s("id", v.id),
+      test.db(
+        v.tx,
+        db.update(v.tx, v.id, "test__field" as Field, 123),
+
+        s("get_field_value", v.id, "test__field", v.value),
+        test.eq(v.value, 123)
+      ),
+      test.fail(s("get_field_value", v.id, "test__field", v.value))
     ),
   },
 
@@ -192,7 +441,7 @@ export const rules = {
     rule__params: l(),
     rule__body: r(
       test.collect(v.len, s("struct_arity", s("pair", 123, __), v.len), 2),
-      test.throw(s("struct_arity", "foo", __), s("expected_received", __, __))
+      test.throw(s("struct_arity", "foo", __), s("expected_type", "struct", __))
     ),
   },
   test__struct_id_args: {
@@ -501,6 +750,10 @@ export const rules = {
       )
     ),
   },
+  nonempty: {
+    rule__params: l(v.list),
+    rule__body: s("/=", v.list, l()),
+  },
   match: {
     rule__params: l(v.pattern, v.match),
     rule__rest_params: v.rest,
@@ -508,12 +761,7 @@ export const rules = {
       "if_then_else",
       s("=", v.pattern, v.match),
       s("ok"),
-      s(
-        "if_then_else",
-        s("=", v.rest, l()),
-        s("fail"),
-        s("apply", "match", l(v.pattern), v.rest)
-      )
+      r(s("nonempty", v.rest), s("apply", "match", l(v.pattern), v.rest))
     ),
   },
   match_cond: {
@@ -523,13 +771,11 @@ export const rules = {
       "if_then_else",
       s("=", v.pattern, v.match),
       v.then,
-      r(
-        s("list_list_append", l(v.head), v.tail, v.rest),
-        s("match_cond", v.pattern, v.head, v.tail)
-      )
+      r(s("nonempty", v.rest), s("apply", "match_cond", l(v.pattern), v.rest))
     ),
   },
   test__match: {
+    test__group: "rules",
     rule__params: l(),
     rule__body: r(
       test.collect(
@@ -543,6 +789,56 @@ export const rules = {
         456
       ),
       test.fail(s("match", s("baz", v.result), s("foo", 123), s("bar", 456)))
+    ),
+  },
+  test__match_cond: {
+    test__group: "rules",
+    rule__params: l(),
+    rule__body: r(
+      test.collect(
+        v.result,
+        s(
+          "match_cond",
+          s("foo", v.pat),
+          l(s("foo", 123), s("=", v.result, l(v.pat))),
+          l(s("bar", 456), s("=", v.result, l(v.pat, v.pat))),
+          l(__, s("=", v.result, l()))
+        ),
+        l(123)
+      ),
+
+      test.collect(
+        v.result,
+        s(
+          "match_cond",
+          s("bar", v.pat),
+          l(s("foo", 123), s("=", v.result, l(v.pat))),
+          l(s("bar", 456), s("=", v.result, l(v.pat, v.pat))),
+          l(__, s("=", v.result, l()))
+        ),
+        l(456, 456)
+      ),
+
+      test.collect(
+        v.result,
+        s(
+          "match_cond",
+          s("baz", v.pat),
+          l(s("foo", 123), s("=", v.result, l(v.pat))),
+          l(s("bar", 456), s("=", v.result, l(v.pat, v.pat))),
+          l(__, s("=", v.result, "ok"))
+        ),
+        "ok"
+      ),
+
+      test.fail(
+        s(
+          "match_cond",
+          s("baz", v.pat),
+          l(s("foo", 123), s("=", v.result, l(v.pat))),
+          l(s("bar", 456), s("=", v.result, l(v.pat, v.pat)))
+        )
+      )
     ),
   },
   first: {

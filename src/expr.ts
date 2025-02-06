@@ -19,6 +19,7 @@ export type AnyStruct = Struct<string, Expr[]>;
 
 export const s = <T extends Id, Args extends Expr[]>(id: T, ...args: Args) =>
   ({ tag: "struct", id, args } as const);
+
 export const __ = { tag: "placeholder" } as const;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const v: any = new Proxy(

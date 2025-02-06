@@ -38,7 +38,7 @@ export const primitives: Record<string, RulePrimitive> = {
       return;
     }
 
-    const stack = [state.runClause(items[0])];
+    const stack = [state.eval(items[0])];
     while (stack.length) {
       const frame = stack.at(-1)!;
       const res = frame.next();
@@ -55,7 +55,7 @@ export const primitives: Record<string, RulePrimitive> = {
       const nextClause = items[stack.length];
 
       if (nextClause) {
-        stack.push(res.value.state.runClause(nextClause));
+        stack.push(res.value.state.eval(nextClause));
       } else {
         yield res.value;
       }
@@ -66,7 +66,7 @@ export const primitives: Record<string, RulePrimitive> = {
       for (const arg of items) {
         // buffer views until there's a result
         let views = [];
-        for (const res of state.runClause(arg)) {
+        for (const res of state.eval(arg)) {
           switch (res.tag) {
             case "view":
               views.push(res);
@@ -81,7 +81,7 @@ export const primitives: Record<string, RulePrimitive> = {
     });
   },
   "¬": semidet((state, goal) => {
-    for (const _ of state.runClause(goal)) {
+    for (const _ of state.eval(goal)) {
       // success -> failure
       return null;
     }
@@ -96,12 +96,12 @@ export const primitives: Record<string, RulePrimitive> = {
   },
   try_error_catch: function* (state, tryGoal, exception, catchGoal) {
     try {
-      yield* state.runClause(tryGoal);
+      yield* state.eval(tryGoal);
     } catch (e) {
       if (e instanceof Exception) {
         const ns = state.unify(exception, e.error);
-        if (!ns) throw ns;
-        yield* ns.runClause(catchGoal);
+        if (!ns) throw e;
+        yield* ns.eval(catchGoal);
       } else {
         throw e;
       }
@@ -109,22 +109,22 @@ export const primitives: Record<string, RulePrimitive> = {
   },
   if_then_else: function* (state, cond, ifSuccess, ifFail) {
     let didSucceed = false;
-    for (const res0 of state.runClause(cond)) {
+    for (const res0 of state.eval(cond)) {
       if (res0.tag === "view") {
         yield res0;
         continue;
       }
       didSucceed = true;
-      yield* res0.state.runClause(ifSuccess);
+      yield* res0.state.eval(ifSuccess);
     }
     if (!didSucceed) {
-      yield* state.runClause(ifFail);
+      yield* state.eval(ifFail);
     }
   },
   collect: semidet((state, into, goal, out) => {
     let didSucceed = false;
     const results: Value[] = [];
-    for (const res of state.runClause(goal)) {
+    for (const res of state.eval(goal)) {
       if (res.tag === "view") throw "todo";
       didSucceed = true;
       if (out.tag !== "placeholder") {
@@ -143,7 +143,7 @@ export const primitives: Record<string, RulePrimitive> = {
   collect_view: semidet((state, goal, out) => {
     let didSucceed = false;
     const results: Value[] = [];
-    for (const res of state.runClause(goal)) {
+    for (const res of state.eval(goal)) {
       switch (res.tag) {
         case "state":
           didSucceed = true;
@@ -159,7 +159,7 @@ export const primitives: Record<string, RulePrimitive> = {
   limit: function* (state, limit, clause) {
     const value = state.resolveNumber(limit);
     let count = 0;
-    for (const res of state.runClause(clause)) {
+    for (const res of state.eval(clause)) {
       yield res;
       if (res.tag === "state") count++;
       if (count >= value) return;
@@ -199,7 +199,7 @@ export const primitives: Record<string, RulePrimitive> = {
       case "string":
       case "number":
       case "struct":
-        yield* state.runClause(constraint);
+        yield* state.eval(constraint);
         return;
       case "placeholder":
         return;

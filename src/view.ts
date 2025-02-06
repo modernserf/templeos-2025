@@ -1,7 +1,8 @@
 import { Rec } from "./data";
 import { l, r, s, v, Expr, __, AnyStruct } from "./expr";
 import { f } from "./field";
-import { cond, db, test } from "./rule";
+import { cond, db } from "./rule";
+import { test } from "./test_utils";
 
 export const view = new Proxy(
   {},
@@ -120,6 +121,53 @@ const baseViews = {
     rule__params: l(),
     rule__body: s("view", s("Icon")),
   },
+  table: {
+    rule__params: l(v.params, v.header, v.body),
+    rule__body: s(
+      "view",
+      s(
+        "Html",
+        "table",
+        l(),
+        r.or(
+          s("view", s("Html", "thead", l(), v.header)),
+          s("view", s("Html", "tbody", l(), v.body))
+        )
+      )
+    ),
+  },
+  table_header: {
+    rule__params: l(v.params),
+    rule__rest_params: v.items,
+    rule__body: s(
+      "view",
+      s(
+        "Html",
+        "tr",
+        l(),
+        r(
+          s("list_item", v.items, v.item),
+          s("view", s("Html", "th", l(), v.item))
+        )
+      )
+    ),
+  },
+  table_row: {
+    rule__params: l(v.params),
+    rule__rest_params: v.items,
+    rule__body: s(
+      "view",
+      s(
+        "Html",
+        "tr",
+        l(),
+        r(
+          s("list_item", v.items, v.item),
+          s("view", s("Html", "td", l(), v.item))
+        )
+      )
+    ),
+  },
   // type views
   type__any: {
     file__name: "Any : View",
@@ -134,11 +182,11 @@ const baseViews = {
       r(s("number", v.data), view.string(v.data)),
       r(
         s("struct", v.data),
-        s("struct_tag_list", v.data, v.id, v.args),
-        r.or(
-          r(s("match", v.id, ";", ","), view.operator_vertical(v.id, v.args)),
-          r(s("match", v.id, "="), view.operator_binary(v.id, v.args)),
-          r(s("ok"), view.tuple(v.id, v.args))
+        s("struct_tag_list", v.data, v.tag, v.args),
+        cond(
+          l(s("match", v.tag, ";", ","), view.operator_chain(v.tag, v.args)),
+          l(s("match", v.tag, "="), view.operator_binary(v.tag, v.args)),
+          l(s("ok"), view.tuple(v.tag, v.args))
         )
       )
     ),
@@ -149,6 +197,28 @@ const baseViews = {
       view.type__any(v.l),
       view.string(v.id),
       view.type__any(v.r)
+    ),
+  },
+  operator_chain: {
+    rule__params: l(v.op, v.args),
+    rule__body: s(
+      "match_cond",
+      v.args,
+      l(l(), s("ok")),
+      l(l(v.single), view.type__any(v.single)),
+      l(
+        __,
+        r(
+          s("list_list_append", l(v.head), v.tail, v.args),
+          view.column(
+            view.type__any(v.head),
+            r(
+              s("list_item", v.tail, v.item),
+              view.row(view.string(v.op), view.type__any(v.item))
+            )
+          )
+        )
+      )
     ),
   },
   operator_vertical: {

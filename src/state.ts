@@ -1,7 +1,7 @@
 import { Rec } from "./data";
 import { TransactDB } from "./db";
 import { EventSource } from "./event_source";
-import { Expr, Id, Ident, __, printExpr, s } from "./expr";
+import { Expr, Id, Ident, __, s, v } from "./expr";
 import { primitives } from "./rule_primitive";
 
 export const k = (value: string | number) =>
@@ -34,15 +34,17 @@ export class Exception {
   }
 }
 
-export function expected(expected: string, received: Value) {
-  throw new Exception(sv("expected_received", k(expected), received));
+export function expected(expected: Value, received: Value) {
+  throw new Exception(sv("expected_received", expected, received));
 }
 
 function ensure<T extends Value["tag"]>(
   value: Value,
   tag: T
 ): asserts value is Value & { tag: T } {
-  if (value.tag !== tag) expected(tag, value);
+  if (value.tag !== tag) {
+    throw new Exception(sv("expected_type", k(tag), value));
+  }
 }
 
 export function* uniqueStates(gen: () => Generator<StateNext>) {
@@ -100,7 +102,7 @@ export class State {
     return new State(db, {}, {}, new EventSource());
   }
   *render(expr: Expr): Generator<View> {
-    for (const res of this.runClause(this.exprValue(expr, {}))) {
+    for (const res of this.eval(this.exprValue(expr, {}))) {
       if (res.tag === "view") yield res;
     }
   }
@@ -108,14 +110,14 @@ export class State {
     const ns = this.unify(params, this.exprValue(arg, {}));
     if (!ns) throw new Error("todo");
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const _ of ns.runClause(body)) {
+    for (const _ of ns.eval(body)) {
       // do nothing
     }
   }
   *runAll(expr: Expr): Generator<Record<Ident, Expr | undefined>> {
     const rootSymbolTable: SymbolTable = {};
     try {
-      for (const res of this.runClause(this.exprValue(expr, rootSymbolTable))) {
+      for (const res of this.eval(this.exprValue(expr, rootSymbolTable))) {
         if (res.tag !== "state") continue;
         const { state } = res;
         yield state.resolveSymbols(rootSymbolTable);
@@ -201,7 +203,7 @@ export class State {
     const ns = this.addValue(left.id, right);
     if (!ns) return null;
     if (constraint?.tag === "constraint") {
-      for (const res of ns.runClause(constraint.predicate)) {
+      for (const res of ns.eval(constraint.predicate)) {
         if (res.tag === "view") throw new Error();
         return res.state;
       }
@@ -334,15 +336,11 @@ export class State {
       this.eventSource
     );
   }
-  *runClause(fact: Value): Generator<StateNext> {
+  *eval(fact: Value): Generator<StateNext> {
     fact = this.resolveShallow(fact);
     ensure(fact, "struct");
     const args = fact.args.map((arg) => this.resolveShallow(arg));
-    if (primitives[fact.id]) {
-      yield* primitives[fact.id](this, ...args);
-    } else {
-      yield* this.call(fact.id, args);
-    }
+    yield* this.call(fact.id, args);
   }
   resolve(value: Value): Value {
     switch (value.tag) {
@@ -362,22 +360,37 @@ export class State {
       }
     }
   }
+  private check_call(id: string, rule: Rec, args: Value[]) {
+    if (!rule.rule__params || (!rule.rule__body && !primitives[id])) {
+      throw new Exception(sv("invalid_rule", k(id)));
+    }
+    const params = rule.rule__params.args;
+    if (params.length !== args.length && !rule.rule__rest_params) {
+      expected(this.exprValue(s(id, ...params), {}), sv(id, ...args));
+    }
+    return { params, body: rule.rule__body ?? sv(",") };
+  }
 
   *call(id: string, args: Value[]): Generator<StateNext> {
     const rule = this.db.get(id);
+    // TODO: check db__schema instead of presence in primitives table
+    if (primitives[id]) {
+      if (rule) this.check_call(id, rule, args);
+      yield* primitives[id](this, ...args);
+      return;
+    }
     if (!rule) throw new Exception(sv("unknown_rule", k(id)));
 
     // callable fields
     if (rule.db__schema === "schema__field") {
+      if (args.length !== 2) {
+        expected(sv(id, v.entity, v.value), sv(id, ...args));
+      }
       yield* primitives.get_field_value(this, args[0], k(id), args[1]);
       return;
     }
 
-    if (!rule.rule__body || !rule.rule__params) {
-      throw new Exception(sv("invalid_rule", k(id)));
-    }
-    const params = rule.rule__params.args;
-    const body = rule.rule__body;
+    const { params, body } = this.check_call(id, rule, args);
 
     let ruleState = new State(
       this.db,
@@ -397,10 +410,6 @@ export class State {
       });
       if (!ns) return;
       ruleState = ns;
-    } else {
-      if (params.length !== args.length) {
-        expected(printExpr(s(id, ...params)), sv(id, ...args));
-      }
     }
 
     for (let i = 0; i < params.length; i++) {
@@ -411,9 +420,7 @@ export class State {
       ruleState = ns;
     }
 
-    for (const res of ruleState.runClause(
-      ruleState.exprValue(body, symbolTable)
-    )) {
+    for (const res of ruleState.eval(ruleState.exprValue(body, symbolTable))) {
       if (res.tag === "view") {
         yield res;
         continue;
