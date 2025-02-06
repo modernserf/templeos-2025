@@ -134,13 +134,11 @@ const baseViews = {
       r(s("number", v.data), view.string(v.data)),
       r(
         s("struct", v.data),
-        r(
-          s("struct_tag_list", v.data, v.id, v.args),
-          r.or(
-            r(s("match", v.id, ";", ","), view.operator_vertical(v.id, v.args)),
-            r(s("match", v.id, "="), view.operator_binary(v.id, v.args)),
-            r(s("ok"), view.tuple(v.id, v.args))
-          )
+        s("struct_tag_list", v.data, v.id, v.args),
+        r.or(
+          r(s("match", v.id, ";", ","), view.operator_vertical(v.id, v.args)),
+          r(s("match", v.id, "="), view.operator_binary(v.id, v.args)),
+          r(s("ok"), view.tuple(v.id, v.args))
         )
       )
     ),

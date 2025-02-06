@@ -737,8 +737,9 @@ export const rules = {
       f.db__fields(v.schema, v.fields),
       s(
         "each_item_do",
+        v.fields,
+        s("field", v.field),
         r(
-          s("list_item", v.fields, s("field", v.field)),
           f.db__type(v.field, v.field_type),
           s(
             "get_default",

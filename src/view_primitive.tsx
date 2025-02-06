@@ -11,6 +11,15 @@ type VC = FC<{
   values: Value[];
 }>;
 
+const Html: VC = ({ state, values: [tag, props, children] }) => {
+  const El = state.resolveString(tag);
+  return (
+    <El>
+      <Children state={state} children={children} />
+    </El>
+  );
+};
+
 const Row: VC = ({ state, values: [children] }) => (
   <div className="Row">
     <Children state={state} children={children} />
@@ -155,6 +164,7 @@ const WindowBar: VC = ({ state, values }) => {
 };
 
 const viewPrimitives: Record<string, VC> = {
+  Html,
   Row,
   Column,
   LocalState,

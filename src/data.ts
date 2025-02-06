@@ -1,4 +1,4 @@
-import { l, r, s, v, Expr, Struct, Id, List, AnyStruct } from "./expr";
+import { l, r, s, v, Expr, Struct, Id, List, AnyStruct, __ } from "./expr";
 import { typeRecs } from "./type";
 import { schemas, SchemaId } from "./schema";
 import { fields, Field, f } from "./field";
@@ -107,6 +107,82 @@ const files = {
     file__description: l("A folder with some items"),
     folder__items: l("home", "schema__text", "view__type__text"),
   },
+  // TODO: add controls to filter by group, focus, skip
+  // TODO: better tables
+  test_runner: {
+    db__schema: "schema__form",
+    file__name: "Unit tests",
+    rule__params: l(__, __),
+    rule__body: s(
+      "view",
+      s(
+        "Html",
+        "table",
+        l(),
+        r.or(
+          s(
+            "view",
+            s(
+              "Html",
+              "thead",
+              l(),
+              s(
+                "view",
+                s(
+                  "Html",
+                  "tr",
+                  l(),
+                  r.or(
+                    s("view", s("Html", "th", l(), view.string("group"))),
+                    s("view", s("Html", "th", l(), view.string("test"))),
+                    s("view", s("Html", "th", l(), view.string("result")))
+                  )
+                )
+              )
+            )
+          ),
+          s(
+            "view",
+            s(
+              "Html",
+              "tbody",
+              l(),
+              r(
+                f.test__group(v.id, v.group),
+                s(
+                  "view",
+                  s(
+                    "Html",
+                    "tr",
+                    l(),
+                    r.or(
+                      s("view", s("Html", "td", l(), view.string(v.group))),
+                      s("view", s("Html", "td", l(), view.file_link(v.id))),
+                      s(
+                        "view",
+                        s(
+                          "Html",
+                          "td",
+                          l(),
+                          s(
+                            "try_error_catch",
+                            r(s("call", v.id), view.string("ok")),
+                            v.error,
+                            view.type__any(v.error)
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    ),
+  },
+
   test_local_state: {
     db__schema: "schema__form",
     file__name: "Test local state",
