@@ -1,7 +1,7 @@
 import { Rec } from "./data";
 import { l, r, s, v, Expr, __, AnyStruct } from "./expr";
 import { f } from "./field";
-import { db } from "./rule";
+import { cond, db, test } from "./rule";
 
 export const view = new Proxy(
   {},
@@ -63,12 +63,7 @@ const baseViews = {
     rule__params: l(v.label, v.location),
     rule__rest_params: v.rest_params,
     rule__body: r(
-      s(
-        "if_then_else",
-        s("=", l(v.params), v.rest_params),
-        s("ok"),
-        s("=", v.params, l())
-      ),
+      s("match", l(v.params), v.rest_params, l(l())),
       s("get_context", "window_id", v.window),
       s(
         "view",
@@ -77,15 +72,44 @@ const baseViews = {
           v.label,
           "Link",
           v.event,
-          s(
-            "if_then_else",
-            s("=", v.event, s("click", 1)),
-            s("on__newWindow", v.location),
-            s(
-              "if_then_else",
+          cond(
+            l(s("=", v.event, s("click", 1)), s("on__newWindow", v.location)),
+            l(
               s("list_item", v.params, s("target", "new")),
-              s("on__newWindow", v.location),
-              s("on__push", v.window, v.location)
+              s("on__newWindow", v.location)
+            ),
+            l(s("ok"), s("on__push", v.window, v.location))
+          )
+        )
+      )
+    ),
+  },
+  test__link: {
+    test__group: "views",
+    rule__params: l(),
+    rule__body: r(
+      test.view(
+        r(
+          s("set_context", "window_id", "test_window_id"),
+          view.link("hello", s("location", "test_link"))
+        ),
+        s(
+          "Button",
+          "hello",
+          "Link",
+          v.event,
+          cond(
+            l(
+              s("=", v.event, s("click", 1)),
+              s("on__newWindow", s("location", "test_link"))
+            ),
+            l(
+              s("list_item", l(), s("target", "new")),
+              s("on__newWindow", s("location", "test_link"))
+            ),
+            l(
+              s("ok"),
+              s("on__push", "test_window_id", s("location", "test_link"))
             )
           )
         )
@@ -105,25 +129,18 @@ const baseViews = {
       r(s("var_name", v.data, v.var_name), view.string(v.var_name)),
       r(
         s("string", v.data),
-        view.string('"'),
-        view.string(v.data),
-        view.string('"')
+        view.row(view.string('"'), view.string(v.data), view.string('"'))
       ),
       r(s("number", v.data), view.string(v.data)),
       r(
         s("struct", v.data),
-        s("struct_tag_list", v.data, v.id, v.args),
-        s(
-          "if_then_else",
+        r(
+          s("struct_tag_list", v.data, v.id, v.args),
           r.or(
-            r(
-              s("list_item", l(";", ","), v.id),
-              view.operator_vertical(v.id, v.args)
-            ),
-            r(s("list_item", l("="), v.id), view.operator_binary(v.id, v.args))
-          ),
-          s("ok"),
-          view.tuple(v.id, v.args)
+            r(s("match", v.id, ";", ","), view.operator_vertical(v.id, v.args)),
+            r(s("match", v.id, "="), view.operator_binary(v.id, v.args)),
+            r(s("ok"), view.tuple(v.id, v.args))
+          )
         )
       )
     ),
@@ -150,15 +167,15 @@ const baseViews = {
     rule__body: view.row(
       view.string(v.id),
       view.string("("),
-      view.row(
-        r(
-          s("list_item", v.args, v.arg), //
-          view.type__any(v.arg)
-        )
+      r(
+        s("list_item", v.args, v.arg), //
+        view.type__any(v.arg)
       ),
       view.string(")")
     ),
   },
+  // test
+
   type__string: {
     view__type: "type__string",
     rule__params: l(v.string),
@@ -292,11 +309,13 @@ const baseViews = {
         ),
         v.next_type,
         r(
-          r.or(
-            s("=", l(v.next_type, v.next), l("string", "")),
-            s("=", l(v.next_type, v.next), l("number", 0)),
-            s("=", l(v.next_type, v.next), l("struct", l())),
-            s("=", l(v.next_type, v.next), l("var", v("")))
+          s(
+            "match",
+            l(v.next_type, v.next),
+            l("string", ""),
+            l("number", 0),
+            l("struct", l()),
+            l("var", v(""))
           ),
           v.on_change
         )
@@ -348,16 +367,13 @@ const baseViews = {
         s("get_field_value", v.id, v.field, __),
         view.row(
           view.file_link(v.field),
-          r(
-            s(
-              "if_then_else",
-              f.view__field(v.view, v.field),
-              s("call", v.view, v.id, v.field),
-              r(
-                s("limit", 1, r(s("rule__field_view", v.field, v.view))),
-                s("get_field_value", v.id, v.field, v.value),
-                s("call", v.view, v.value)
-              )
+          s(
+            "first",
+            r(f.view__field(v.view, v.field), s("call", v.view, v.id, v.field)),
+            r(
+              s("rule__field_view", v.field, v.view),
+              s("get_field_value", v.id, v.field, v.value),
+              s("call", v.view, v.value)
             )
           )
         )
@@ -423,13 +439,12 @@ const baseViews = {
           view.string("Fields:"),
           f.db__fields(v.id, v.fields),
           s("list_item", v.fields, v.field),
-          r.or(
-            r(
-              s("=", v.field, s("field", v.field_id)),
-              view.file_link(v.field_id)
-            ),
-            r(
-              s("=", v.field, s("field_optional", v.field_id)),
+          s(
+            "match_cond",
+            v.field,
+            l(s("field", v.field_id), view.file_link(v.field_id)),
+            l(
+              s("field_optional", v.field_id),
               view.row(view.file_link(v.field_id), view.string("(optional)"))
             )
           )
@@ -595,14 +610,11 @@ const baseViews = {
       s("set_context", "history_id", v.history),
       s("get_default", v.id, "file__name", v.name, v.id),
       s(
-        "limit",
-        1,
-        r.or(
-          // view from params
-          f.history__view(v.history, v.view),
-          // view from id
-          s("rule__location_view", v.id, v.view)
-        )
+        "first",
+        // view from params
+        f.history__view(v.history, v.view),
+        // view from id
+        s("rule__location_view", v.id, v.view)
       ),
       s(
         "view",

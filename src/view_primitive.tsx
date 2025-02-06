@@ -65,7 +65,7 @@ const Input: VC = ({ state, values: [value, className, next, onChange] }) => {
   return (
     <input
       className={state.resolveString(className)}
-      value={state.resolveString(value)}
+      value={value.value}
       onChange={(e) => {
         handle(next, onChange, e.target.value);
       }}

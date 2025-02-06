@@ -1,5 +1,5 @@
 import { Rec } from "./data";
-import { l, r, s, v, Expr, __ } from "./expr";
+import { l, r, s, v, Expr, __, Struct } from "./expr";
 import { Field, f } from "./field";
 
 export const db = {
@@ -15,8 +15,13 @@ export const test = {
   fail: (...goal: Expr[]) => s("expect_fail", r(...goal)),
   throw: (goal: Expr, error: Expr) => s("expect_throw", goal, error),
   collect: (pattern: Expr, goal: Expr, ...expected: Expr[]) =>
-    s("expect_collect", pattern, goal, l(...expected)),
+    s("expect_collect", pattern, goal, ...expected),
+  view: (goal: Expr, ...expected: Expr[]) =>
+    s("expect_view", goal, ...expected),
 };
+
+export const cond = (...pairs: Struct<"", [Expr, Expr]>[]) =>
+  s("cond", ...pairs);
 
 export const rules = {
   // test utils
@@ -57,10 +62,21 @@ export const rules = {
     ),
   },
   expect_collect: {
-    rule__params: l(v.pattern, v.goal, v.expected),
+    rule__params: l(v.pattern, v.goal),
+    rule__rest_params: v.expected,
     rule__body: s(
       "if_then_else",
       s("collect", v.pattern, v.goal, v.received),
+      s("expect_eq", v.received, v.expected),
+      s("throw", s("expected_received", v.expected, l()))
+    ),
+  },
+  expect_view: {
+    rule__params: l(v.goal),
+    rule__rest_params: v.expected,
+    rule__body: s(
+      "if_then_else",
+      s("collect_view", v.goal, v.received),
       s("expect_eq", v.received, v.expected),
       s("throw", s("expected_received", v.expected, l()))
     ),
@@ -293,9 +309,11 @@ export const rules = {
 
   list_length: {
     rule__params: l(v.list, v.length),
-    rule__body: r.or(
-      r(s("var", v.list), s("_list_length_gen", l(), v.length, v.list)),
-      r(s("nonvar", v.list), s("struct_arity", v.list, v.length))
+    rule__body: s(
+      "if_then_else",
+      s("var", v.list),
+      s("_list_length_gen", l(), v.length, v.list),
+      s("struct_arity", v.list, v.length)
     ),
   },
   _list_length_gen: {
@@ -419,7 +437,122 @@ export const rules = {
       )
     ),
   },
-
+  apply: {
+    file__description: l("run a rule with a list of params"),
+    rule__params: l(v.id),
+    rule__rest_params: v.param_lists,
+    rule__body: r(
+      s(
+        "collect",
+        v.param,
+        r(
+          s("list_item", v.param_lists, v.param_list),
+          s("list_item", v.param_list, v.param)
+        ),
+        v.params
+      ),
+      s("struct_tag_list", v.call, v.id, v.params),
+      v.call
+    ),
+  },
+  cond: {
+    file__description: l("pattern match on a list of (if, then) pairs"),
+    rule__params: l(l(v.if, v.then)),
+    rule__rest_params: v.else,
+    rule__body: s(
+      "if_then_else",
+      v.if,
+      v.then,
+      s(
+        "if_then_else",
+        s("=", v.else, l()),
+        s("fail"),
+        s("apply", "cond", v.else)
+      )
+    ),
+  },
+  test__cond: {
+    test__group: "rules",
+    rule__params: l(),
+    rule__body: r(
+      test.collect(
+        v.result,
+        cond(
+          l(s("=", 123, 456), s("=", v.result, "foo")),
+          l(s("=", 456, 456), s("=", v.result, "bar")),
+          l(s("ok"), s("=", v.result, "baz"))
+        ),
+        "bar"
+      ),
+      test.collect(
+        v.result,
+        cond(
+          l(s("=", 123, 789), s("=", v.result, "foo")),
+          l(s("=", 456, 789), s("=", v.result, "bar")),
+          l(s("ok"), s("=", v.result, "baz"))
+        ),
+        "baz"
+      ),
+      test.fail(
+        cond(
+          l(s("=", 123, 789), s("=", v.result, "foo")),
+          l(s("=", 456, 789), s("=", v.result, "bar"))
+        )
+      )
+    ),
+  },
+  match: {
+    rule__params: l(v.pattern, v.match),
+    rule__rest_params: v.rest,
+    rule__body: s(
+      "if_then_else",
+      s("=", v.pattern, v.match),
+      s("ok"),
+      s(
+        "if_then_else",
+        s("=", v.rest, l()),
+        s("fail"),
+        s("apply", "match", l(v.pattern), v.rest)
+      )
+    ),
+  },
+  match_cond: {
+    rule__params: l(v.pattern, l(v.match, v.then)),
+    rule__rest_params: v.rest,
+    rule__body: s(
+      "if_then_else",
+      s("=", v.pattern, v.match),
+      v.then,
+      r(
+        s("list_list_append", l(v.head), v.tail, v.rest),
+        s("match_cond", v.pattern, v.head, v.tail)
+      )
+    ),
+  },
+  test__match: {
+    rule__params: l(),
+    rule__body: r(
+      test.collect(
+        v.result,
+        s("match", s("foo", v.result), s("foo", 123), s("bar", 456)),
+        123
+      ),
+      test.collect(
+        v.result,
+        s("match", s("bar", v.result), s("foo", 123), s("bar", 456)),
+        456
+      ),
+      test.fail(s("match", s("baz", v.result), s("foo", 123), s("bar", 456)))
+    ),
+  },
+  first: {
+    rule__params: l(),
+    rule__rest_params: v.rest,
+    rule__body: r(
+      s("struct_tag_list", v.body, ";", v.rest),
+      s("limit", 1, v.body)
+    ),
+  },
   if_var: {
     file__description: l("if arg is var, run body"),
     rule__params: l(v.arg, v.body),
@@ -447,10 +580,12 @@ export const rules = {
     rule__params: l(v.location, v.id, v.view, v.params),
     rule__body: r(
       s("nonvar", v.location),
-      r.or(
-        s("=", v.location, s("location", v.id)),
-        s("=", v.location, s("location", v.id, v.view)),
-        s("=", v.location, s("location", v.id, v.view, v.params))
+      s(
+        "match",
+        v.location,
+        s("location", v.id),
+        s("location", v.id, v.view),
+        s("location", v.id, v.view, v.params)
       ),
       s("if_var", v.params, s("=", v.params, l()))
     ),
@@ -601,8 +736,7 @@ export const rules = {
       db.update(v.tx, v.id, "db__schema", v.schema),
       f.db__fields(v.schema, v.fields),
       s(
-        "collect",
-        __,
+        "each_item_do",
         r(
           s("list_item", v.fields, s("field", v.field)),
           f.db__type(v.field, v.field_type),
@@ -614,8 +748,7 @@ export const rules = {
             l()
           ),
           db.update(v.tx, v.id, v.field, v.default_value)
-        ),
-        __
+        )
       )
     ),
   },

@@ -140,6 +140,22 @@ export const primitives: Record<string, RulePrimitive> = {
     }
     return null;
   }),
+  collect_view: semidet((state, goal, out) => {
+    let didSucceed = false;
+    const results: Value[] = [];
+    for (const res of state.runClause(goal)) {
+      switch (res.tag) {
+        case "state":
+          didSucceed = true;
+          continue;
+        case "view":
+          results.push({ tag: "struct", id: res.id, args: res.values });
+      }
+    }
+    if (didSucceed) {
+      return state.unify(out, { tag: "struct", id: "", args: results });
+    }
+  }),
   limit: function* (state, limit, clause) {
     const value = state.resolveNumber(limit);
     let count = 0;
