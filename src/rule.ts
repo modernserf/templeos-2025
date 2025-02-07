@@ -656,6 +656,14 @@ export const rules = {
       ),
     ),
   },
+  list_rule_mapped: {
+    rule__params: l($.list, $.rule, $.mapped),
+    rule__body: s.collect(
+      $.out,
+      r(s.list_item($.list, $.item), s.call($.rule, $.item, $.out)),
+      $.mapped,
+    ),
+  },
   apply: {
     file__description: l("run a rule with a list of params"),
     rule__params: l($.id),

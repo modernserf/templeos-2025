@@ -13,80 +13,102 @@ export const view = new Proxy(
   },
 ) as Record<string, (...args: Expr[]) => AnyStruct>;
 
-export const rootView = r(
-  view.app_menu(),
-  f.db__schema($.window, "schema__window"),
-  view.window($.window),
-);
+export const rootView = (output: Expr) =>
+  r(
+    s.collect(
+      $.view,
+      fork(
+        view.app_menu($.view),
+        r(
+          f.db__schema($.window, "schema__window"),
+          view.window($.window, $.view),
+        ),
+      ),
+      $.content,
+    ),
+    eq(s.Html("div", l(), $.content), output),
+  );
 
 const baseViews = {
-  // primitives
+  // functional views
   spacer: {
-    rule__params: l($.space),
-    rule__body: s.view(
+    rule__params: l(
+      $.space,
       s.Html("div", l(s.class("Spacer"), s.style("flexBasis", $.space)), r()),
     ),
+    rule__body: r(),
   },
   row: {
-    rule__params: l(),
-    rule__rest_params: $.children_list,
-    rule__body: r(
-      s.struct_tag_list($.children, ";", $.children_list),
-      view.children($.children, $.children_rendered),
-      s.view(s.Html("div", l(s.class("Row")), $.children_rendered)),
+    rule__params: l(
+      $.props,
+      $.children,
+      s.Html("div", l(s.class("Row")), $.children),
     ),
+    rule__body: r(),
   },
   column: {
-    rule__params: l(),
-    rule__rest_params: $.children_list,
-    rule__body: r(
-      s.struct_tag_list($.children, ";", $.children_list),
-      view.children($.children, $.children_rendered),
-      s.view(s.Html("div", l(s.class("Column")), $.children_rendered)),
+    rule__params: l(
+      $.props,
+      $.children,
+      s.Html("div", l(s.class("Column")), $.children),
     ),
+    rule__body: r(),
   },
-  local_state: {
-    rule__params: l($.init_value, $.value, $.next, $.on_change, $.children),
-    rule__body: s.view(
-      s.LocalState($.init_value, $.value, $.next, $.on_change, $.children),
-    ),
-  },
+  // local_state: {
+  //   rule__params: l($.init_value, $.value, $.next, $.on_change, $.children),
+  //   rule__body: s.view(
+  //     s.LocalState($.init_value, $.value, $.next, $.on_change, $.children),
+  //   ),
+  // },
   string: {
-    rule__params: l($.string),
-    rule__body: s.view(s.String($.string)),
+    rule__params: l($.string, s.String($.string)),
+    rule__body: r(),
   },
   button: {
-    rule__params: l($.string, $.on_click),
-    rule__body: s.view(s.Button(l(), $.string, __, $.on_click)),
+    rule__params: l(
+      $.params,
+      $.label,
+      $.event,
+      $.on_click,
+      s.Button($.params, $.label, $.event, $.on_click),
+    ),
+    rule__body: r(),
   },
   input: {
-    rule__params: l($.props, $.value, $.next, $.on_change),
-    rule__body: s.view(s.Input($.props, $.value, $.next, $.on_change)),
+    rule__params: l(
+      $.props,
+      $.value,
+      $.next,
+      $.on_change,
+      s.Input($.props, $.value, $.next, $.on_change),
+    ),
+    rule__body: r(),
   },
   select: {
-    rule__params: l($.value, $.options, $.next, $.on_change),
-    rule__body: s.view(s.Select(l(), $.value, $.options, $.next, $.on_change)),
+    rule__params: l(
+      $.params,
+      $.value,
+      $.options,
+      $.next,
+      $.on_change,
+      s.Select(l(), $.value, $.options, $.next, $.on_change),
+    ),
+    rule__body: r(),
   },
   link: {
-    rule__params: l($.label, $.location),
-    rule__rest_params: $.rest_params,
+    rule__params: l($.props, $.label, $.location, $.out),
     rule__body: r(
-      s.match(l($.params), $.rest_params, l(l())),
       s.get_context("window_id", $.window),
-      s.view(
-        s.Button(
-          l(s.class("Link")),
-          $.label,
-          $.event,
-          s.cond(
-            l(eq($.event, s.click(1)), s.on__newWindow($.location)),
-            l(
-              s.list_item($.params, s.target("new")),
-              s.on__newWindow($.location),
-            ),
-            l(s.ok(), s.on__push($.window, $.location)),
-          ),
+      view.button(
+        l(s.class("Link")),
+        $.label,
+        $.event,
+        s.cond(
+          l(eq($.event, s.click(1)), s.on__newWindow($.location)),
+          l(s.list_item($.props, s.target("new")), s.on__newWindow($.location)),
+          l(s.ok(), s.on__push($.window, $.location)),
         ),
+        $.out,
       ),
     ),
   },
@@ -94,10 +116,11 @@ const baseViews = {
     test__group: "views",
     rule__params: l(),
     rule__body: r(
-      test.view(
+      test.collect(
+        $.out,
         r(
           s.set_context("window_id", "test_window_id"),
-          view.link("hello", s.location("test_link")),
+          view.link(l(), "hello", s.location("test_link"), $.out),
         ),
         s.Button(
           l(s.class("Link")),
@@ -119,331 +142,219 @@ const baseViews = {
     ),
   },
   icon: {
-    rule__params: l(),
-    rule__body: s.view(s.Icon()),
+    rule__params: l(s.Icon()),
+    rule__body: r(),
   },
-
   table: {
-    file__description: l("Render a table. Fails if there are no rows."),
-    rule__params: l($.props, $.header, $.body),
+    rule__params: l($.props, $.header, $.rows, $.out),
     rule__body: r(
-      view.children($.body, $.body_rendered),
-      s.view(
+      eq(
+        $.out,
         s.Html(
           "table",
           $.props,
-          fork(
-            s.view(s.Html("thead", l(), $.header)),
-            s.view(s.Html("tbody", l(), $.body_rendered)),
-          ),
+          l(s.Html("thead", l(), l($.header)), s.Html("tbody", l(), $.rows)),
         ),
       ),
     ),
   },
   table_header: {
-    rule__params: l($.props),
-    rule__rest_params: $.items,
-    rule__body: s.view(
-      s.Html(
-        "tr",
-        $.props,
-        r(s.list_item($.items, $.item), s.view(s.Html("th", l(), $.item))),
+    rule__params: l($.props, $.items, $.out),
+    rule__body: r(
+      s.collect(
+        s.Html("th", l(), l($.item)),
+        s.list_item($.items, $.item),
+        $.cells,
       ),
+      eq($.out, s.Html("tr", $.props, $.cells)),
     ),
   },
   table_row: {
-    rule__params: l($.props),
-    rule__rest_params: $.items,
-    rule__body: s.view(
-      s.Html(
-        "tr",
-        $.props,
-        r(s.list_item($.items, $.item), s.view(s.Html("td", l(), $.item))),
+    rule__params: l($.props, $.items, $.out),
+    rule__body: r(
+      s.collect(
+        s.Html("td", l(), l($.item)),
+        s.list_item($.items, $.item),
+        $.cells,
       ),
+      eq($.out, s.Html("tr", $.props, $.cells)),
     ),
   },
   menu: {
-    rule__params: l($.label, $.options, $.next, $.on_change),
+    rule__params: l($.label, $.options, $.next, $.on_change, $.out),
     rule__body: r(
       s.list_list_append(l(s.option("", $.label)), $.options, $.menu_options),
-      view.select("", $.menu_options, $.next, $.on_change),
+      view.select(l(), $.label, $.menu_options, $.next, $.on_change, $.out),
     ),
   },
   text_section: {
-    rule__params: l($.header, $.body),
-    rule__body: s.view(
-      s.Html(
-        "section",
-        l(),
-        r(
-          s.view(s.Html("header", l(), view.text($.header))),
-          view.text($.body),
-        ),
+    rule__params: l($.header, $.body, $.out),
+    rule__body: r(
+      s.list_rule_mapped($.header, "view__text_node", $.header_out),
+      s.list_rule_mapped($.body, "view__text_node", $.body_out),
+      s.list_list_append(
+        l(s.Html("header", l(), $.header_out)),
+        $.body_out,
+        $.joined,
       ),
+      eq(s.Html("section", l(), $.joined), $.out),
     ),
   },
   text_node: {
-    rule__params: l($.node),
+    rule__params: l($.node, $.out),
     rule__body: s.match_cond(
       $.node,
-      l(s.link($.label, $.location), view.link($.label, $.location)),
-      l(s.section($.header, $.body), view.text_section($.header, $.body)),
-      l(__, r(s.string($.node), view.string($.node))),
+      l(
+        s.link($.label, $.location),
+        view.link(l(), $.label, $.location, $.out),
+      ),
+      l(
+        s.section($.header, $.body),
+        view.text_section($.header, $.body, $.out),
+      ),
+      l(__, r(s.string($.node), view.string($.node, $.out))),
     ),
   },
   text: {
-    rule__params: l($.text),
-    rule__body: s.view(
-      s.Html(
-        "div",
-        l(s.class("Text")),
-        r(s.list_item($.text, $.node), view.text_node($.node)),
-      ),
-    ),
-  },
-  // view utilities
-  children: {
-    file__description: l(
-      "Runs a goal, collects emitted views, and fails if no views are yielded. This is useful for preventing wrapper components from rendering if are empty.",
-    ),
-    rule__params: l($.get_children, $.children),
+    rule__params: l($.text, $.out),
     rule__body: r(
-      s.collect_view($.get_children, $.children_collected),
-      eq($.children, r(s.list_item($.children_collected, $.v), s.view($.v))),
+      s.list_rule_mapped($.text, "view__text_node", $.nodes),
+      eq(s.Html("div", l(s.class("Text")), $.nodes), $.out),
     ),
   },
   id_field: {
-    rule__params: l($.entity, $.field),
+    rule__params: l($.entity, $.field, $.out),
     rule__body: s.cond(
       l(
         s.get_field_value($.field, "db__default_view", $.view),
-        s.call($.view, $.entity, $.field),
+        s.call($.view, $.entity, $.field, $.out),
       ),
       l(
         r(
           db.get($.field, "db__type", $.type),
           db.get($.type, "db__default_view", $.view),
         ),
-        s.call($.view, $.entity, $.field),
+        s.call($.view, $.entity, $.field, $.out),
       ),
       l(
         db.get("type__any", "db__default_view", $.view),
-        s.call($.view, $.entity, $.field),
+        s.call($.view, $.entity, $.field, $.out),
       ),
     ),
   },
-
-  rule: {
-    file__description: l("renders a struct formatted as a rule"),
-    rule__params: l($.data),
-    rule__body: s.cond(
-      l(
-        s.struct($.data),
-        r(
-          s.struct_tag_list($.data, $.tag, $.list),
-          s("%", "Todo: get these from db"),
-          s.cond(
-            l(s.match($.tag, ",", ";"), view.rule__postfix($.tag, $.list)),
-            l(s.match($.tag, "=", "/="), view.rule__infix($.tag, $.list)),
-            l(
-              s.match(
-                $.tag,
-                "view__row",
-                "view__column",
-                "view__table",
-                "view__table_header",
-                "view__table_row",
-                "view__table_column",
-              ),
-              view.rule__tuple($.tag, l(), $.list),
-            ),
-            l(s.ok(), view.rule__tuple($.tag, $.list, l())),
-          ),
-        ),
-      ),
-      l(s.ok(), view.expr($.data)),
-    ),
-  },
-  rule__postfix: {
-    rule__params: l($.tag, $.list),
-    rule__body: view.column(
-      r(
-        s.list_item($.list, $.item),
-        view.row(view.rule($.item), view.file_link($.tag)),
-      ),
-    ),
-  },
-  rule__infix: {
-    rule__params: l($.tag, $.list),
+  expr_tuple: {
+    rule__params: l($.tag, $.list, $.out),
     rule__body: r(
-      s.list_list_append($.rest, l($.last), $.list),
-      view.row(
+      s.collect(
+        $.view,
+        fork(
+          view.file_link($.tag, $.view),
+          view.string("( ", $.view),
+          r(
+            s.list_item($.list, $.expr),
+            fork(view.expr($.expr, $.view), view.string(" ", $.view)),
+          ),
+          view.string(")", $.view),
+        ),
+        $.row,
+      ),
+      view.row(l(), $.row, $.out),
+    ),
+  },
+  expr_block: {
+    rule__params: l($.tag, $.list, $.out),
+    rule__body: r(
+      s.collect(
+        $.view,
         r(
-          s.list_item($.rest, $.item),
-          view.expr($.item),
-          view.string(" "),
-          view.file_link($.tag),
-          view.string(" "),
+          s.list_item($.list, $.expr),
+          view.expr($.expr, $.e),
+          view.string($.tag, $.t),
+          view.row(l(), l($.e, $.t), $.view),
         ),
-        view.expr($.last),
+        $.column,
       ),
+      view.column(l(), $.column, $.out),
     ),
   },
-  rule__tuple: {
-    rule__params: l($.tag, $.list, $.rest),
-    rule__body: view.row(
-      view.file_link($.tag),
-      view.string("( "),
-      view.column(
-        view.row(
-          r(s.list_item($.list, $.item), view.expr($.item), view.string(" ")),
-        ),
-        r(s.list_item($.rest, $.rest_item), view.rule($.rest_item)),
+  expr_tuple_block: {
+    rule__params: l($.tag, $.list, $.out),
+    rule__body: r(
+      s.collect(
+        $.view,
+        r(s.list_item($.list, $.expr), view.expr($.expr, $.view)),
+        $.column,
       ),
-      view.string(")"),
+      s.collect(
+        $.view,
+        fork(
+          view.file_link($.tag, $.view),
+          view.string("( ", $.view),
+          view.column(l(), $.column, $.view),
+          view.string(" )", $.view),
+        ),
+        $.row,
+      ),
+      view.row(l(), $.row, $.out),
     ),
   },
-
+  expr_struct: {
+    rule__params: l($.tag, $.list, $.out),
+    rule__body: s.cond(
+      l(s.match($.tag, ",", ";"), view.expr_block($.tag, $.list, $.out)),
+      l(
+        s.match(
+          $.tag,
+          "view__row",
+          "view__column",
+          "view__table",
+          "view__table_header",
+          "view__table_row",
+          "view__table_column",
+        ),
+        view.expr_tuple_block($.tag, $.list, $.out),
+      ),
+      l(s.ok(), view.expr_tuple($.tag, $.list, $.out)),
+    ),
+  },
   expr: {
-    file__name: "Any : View",
-    rule__params: l($.data),
+    rule__params: l($.data, $.out),
     rule__body: fork(
-      r(s.var_name($.data, $.var_name), view.string($.var_name)),
+      r(s.var_name($.data, $.var_name), view.string($.var_name, $.out)),
       r(
         s.string($.data),
-        view.row(view.string('"'), view.string($.data), view.string('"')),
-      ),
-      r(s.number($.data), view.string($.data)),
-      r(s.struct($.data), view.struct($.data)),
-    ),
-  },
-  struct: {
-    rule__params: l($.data),
-    rule__body: r(
-      s.struct_tag_list($.data, $.tag, $.args),
-      s.cond(
-        l(s.match($.tag, ";", ","), view.rule($.data)),
-        l(s.match($.tag, "="), view.operator_binary($.tag, $.args)),
-        l(s.ok(), view.tuple($.tag, $.args)),
-      ),
-    ),
-  },
-  operator_binary: {
-    rule__params: l($.id, l($.l, $.r)),
-    rule__body: view.row(view.expr($.l), view.string($.id), view.expr($.r)),
-  },
-  operator_chain: {
-    rule__params: l($.op, $.args),
-    rule__body: s.match_cond(
-      $.args,
-      l(l(), s.ok()),
-      l(l($.single), view.expr($.single)),
-      l(
-        __,
-        r(
-          s.list_list_append(l($.head), $.tail, $.args),
-          view.column(
-            view.expr($.head),
-            r(
-              s.list_item($.tail, $.item),
-              view.row(view.string($.op), view.expr($.item)),
-            ),
+        s.collect(
+          $.view,
+          fork(
+            view.string('"', $.view),
+            view.string($.data, $.view),
+            view.string('"', $.view),
           ),
+          $.row,
         ),
+        view.row(l(), $.row, $.out),
       ),
-    ),
-  },
-  tuple: {
-    rule__params: l($.id, $.args),
-    rule__body: view.row(
-      view.string($.id),
-      view.string("( "),
+      r(s.number($.data), view.string($.data, $.out)),
       r(
-        s.list_item($.args, $.arg), //
-        view.expr($.arg),
-        view.string(" "),
+        s.struct($.data),
+        s.struct_tag_list($.data, $.tag, $.list),
+        view.expr_struct($.tag, $.list, $.out),
       ),
-      view.string(")"),
     ),
   },
 
-  // type editors
   fit_content_input: {
-    rule__params: l($.value, $.next, $.on_change),
+    rule__params: l($.value, $.next, $.on_change, $.out),
     rule__body: view.input(
-      l(s.class("Input--fitContent")),
+      l(s.class("Input--fitContent"), s.debounce(300)),
       $.value,
       $.next,
       $.on_change,
+      $.out,
     ),
   },
-  expr_edit: {
-    file__name: "Any : Edit",
-    rule__params: l($.data, $.next, $.on_change),
-    rule__body: fork(
-      r(
-        s.var_name($.data, $.var_name),
-        view.fit_content_input($.var_name, $.next, $.on_change),
-      ),
-      r(s.string($.data), view.fit_content_input($.data, $.next, $.on_change)),
-      r(
-        s.number($.data),
-        view.fit_content_input(
-          $.data,
-          $.next_str,
-          r(s.string_number($.next_str, $.next), $.on_change),
-        ),
-      ),
-      r(s.struct($.data), view.struct_edit($.data, $.next, $.on_change)),
-    ),
-  },
-  struct_edit: {
-    file__name: "Any Struct : Edit",
-    rule__params: l($.data, $.next, $.on_change),
-    rule__body: r(
-      s.struct_tag_list($.data, $.id, $.args),
-      view.row(
-        view.fit_content_input(
-          $.id,
-          $.next_id,
-          r(s.struct_tag_list($.next, $.next_id, $.args), $.on_change),
-        ),
-        view.string("("),
-        view.column(
-          r(
-            s.struct_at_value($.data, $.i, $.arg),
-            view.row(
-              view.button(
-                "×",
-                r(
-                  s.list_at_removed_splice($.args, $.i, l(__), $.next),
-                  s.struct_tag_list($.next, $.id, $.next_args),
-                  $.on_change,
-                ),
-              ),
-              view.expr_edit(
-                $.arg,
-                $.arg_next,
-                r(
-                  s.struct_at_value_updated($.data, $.i, $.arg_next, $.next),
-                  $.on_change,
-                ),
-              ),
-            ),
-          ),
-          view.struct_add_field(
-            $.next_arg,
-            r(s._struct_push($.data, $.next_arg, $.next), $.on_change),
-          ),
-        ),
-
-        view.string(")"),
-      ),
-    ),
-  },
-
   struct_add_field: {
-    rule__params: l($.next, $.on_change),
+    rule__params: l($.next, $.on_change, $.out),
     rule__body: r(
       view.menu(
         "+",
@@ -464,47 +375,137 @@ const baseViews = {
           ),
           $.on_change,
         ),
+        $.out,
       ),
     ),
   },
+  struct_nodes_edit: {
+    rule__params: l($.data, $.next, $.on_change, $.view),
+    rule__body: r(
+      s.struct_tag_list($.data, $.id, $.args),
+      s.struct_at_value($.data, $.i, $.arg),
+      view.button(
+        l(),
+        "×",
+        __,
+        r(
+          s.list_at_removed_splice($.args, $.i, l(__), $.next_args),
+          s.struct_tag_list($.next, $.id, $.next_args),
+          $.on_change,
+        ),
+        $.delete_button,
+      ),
+      view.expr_edit(
+        $.arg,
+        $.arg_next,
+        r(
+          s.struct_at_value_updated($.data, $.i, $.arg_next, $.next),
+          $.on_change,
+        ),
+        $.expr,
+      ),
+      view.row(l(), l($.delete_button, $.expr), $.view),
+    ),
+  },
+  struct_edit: {
+    rule__params: l($.data, $.next, $.on_change, $.out),
+    rule__body: r(
+      s.struct_tag_list($.data, $.id, $.args),
+      s.collect(
+        $.view,
+        fork(
+          view.struct_nodes_edit($.data, $.next, $.on_change, $.view),
+          view.struct_add_field(
+            $.next_arg,
+            r(s._struct_push($.data, $.next_arg, $.next), $.on_change),
+            $.view,
+          ),
+        ),
+        $.arg_nodes,
+      ),
+      s.collect(
+        $.view,
+        fork(
+          view.fit_content_input(
+            $.id,
+            $.next_id,
+            r(s.struct_tag_list($.next, $.next_id, $.args), $.on_change),
+            $.view,
+          ),
+          view.string("(", $.view),
+          view.column(l(), $.arg_nodes, $.view),
+          view.string(")", $.view),
+        ),
+        $.row,
+      ),
+      view.row(l(), $.row, $.out),
+    ),
+  },
 
+  expr_edit: {
+    rule__params: l($.data, $.next, $.on_change, $.out),
+    rule__body: fork(
+      r(
+        s.var_name($.data, $.var_name),
+        view.fit_content_input($.var_name, $.next, $.on_change, $.out),
+      ),
+      r(
+        s.string($.data),
+        view.fit_content_input($.data, $.next, $.on_change, $.out),
+      ),
+      r(
+        s.number($.data),
+        view.fit_content_input(
+          $.data,
+          $.next_str,
+          r(s.string_number($.next_str, $.next), $.on_change),
+          $.out,
+        ),
+      ),
+      r(s.struct($.data), view.struct_edit($.data, $.next, $.on_change, $.out)),
+    ),
+  },
   // type views
   type__any: {
-    rule__params: l($.id, $.field),
-    rule__body: r(db.get($.id, $.field, $.value), view.expr($.value)),
+    rule__params: l($.id, $.field, $.out),
+    rule__body: r(db.get($.id, $.field, $.value), view.expr($.value, $.out)),
   },
   type__string: {
-    rule__params: l($.id, $.field),
+    rule__params: l($.id, $.field, $.out),
     rule__body: r(
       db.get($.id, $.field, $.value), //
-      view.string($.value),
+      view.string($.value, $.out),
     ),
   },
   type__time: {
-    rule__params: l($.id, $.field),
+    rule__params: l($.id, $.field, $.out),
     rule__body: r(
       db.get($.id, $.field, $.value), //
-      view.string($.value),
+      view.string($.value, $.out),
     ),
   },
   type__ref: {
-    rule__params: l($.id, $.field),
+    rule__params: l($.id, $.field, $.out),
     rule__body: r(
       db.get($.id, $.field, $.value), //
-      view.file_link($.value),
+      view.file_link($.value, $.out),
     ),
   },
   type__text: {
-    rule__params: l($.id, $.field),
-    rule__body: r(db.get($.id, $.field, $.text), view.text($.text)),
+    rule__params: l($.id, $.field, $.out),
+    rule__body: r(db.get($.id, $.field, $.text), view.text($.text, $.out)),
   },
 
   tag_edit: {
-    rule__params: l($.tag, $.on_delete),
-    rule__body: view.row(view.button("x", $.on_delete), view.file_link($.tag)),
+    rule__params: l($.tag, $.on_delete, $.out),
+    rule__body: r(
+      view.button(l(), "x", __, $.on_delete, $.button),
+      view.file_link($.tag, $.link),
+      view.row(l(), l($.button, $.link), $.out),
+    ),
   },
   add_tag_menu: {
-    rule__params: l($.selected, $.on_add),
+    rule__params: l($.selected, $.on_add, $.out),
     rule__body: r(
       s.collect(
         s.option($.tag_opt, $.name),
@@ -514,68 +515,104 @@ const baseViews = {
         ),
         $.tag_opts,
       ),
-      view.menu("Add tag", $.tag_opts, $.selected, $.on_add),
+      view.menu("Add tag", $.tag_opts, $.selected, $.on_add, $.out),
     ),
   },
 
   // field views
   file__tags: {
-    rule__params: l($.id, $.field),
-    rule__body: view.row(
-      r(
-        f.file__tags($.id, $.tag),
-        view.tag_edit(
-          $.tag,
-          db.with_tx($.tx, db.delete($.tx, $.id, "file__tags", $.tag)),
+    rule__params: l($.id, $.field, $.out),
+    rule__body: r(
+      s.collect(
+        $.view,
+        fork(
+          r(
+            f.file__tags($.id, $.tag),
+            view.tag_edit(
+              $.tag,
+              db.with_tx($.tx, db.delete($.tx, $.id, "file__tags", $.tag)),
+              $.view,
+            ),
+          ),
+          view.spacer("0.25rem", $.view),
+          view.add_tag_menu(
+            $.selected,
+            db.with_tx($.tx, db.update($.tx, $.id, "file__tags", $.selected)),
+            $.view,
+          ),
         ),
-        view.spacer("0.25rem"),
+        $.row,
       ),
-      view.add_tag_menu(
-        $.selected,
-        db.with_tx($.tx, db.update($.tx, $.id, "file__tags", $.selected)),
-      ),
+      view.row(l(), $.row, $.out),
     ),
   },
   rule__body: {
-    rule__params: l($.id, $.field),
-    rule__body: r(db.get($.id, $.field, $.body), view.rule($.body)),
+    rule__params: l($.id, $.field, $.out),
+    rule__body: r(db.get($.id, $.field, $.body), view.expr($.body, $.out)),
   },
 
   // schema views
+  schema__any_fields: {
+    rule__params: l($.id, $.state, $.out),
+    rule__body: r(
+      s.collect(
+        $.view,
+        fork(
+          r(
+            view.string("id", $.label),
+            view.string($.id, $.value),
+            view.table_row(l(), l($.label, $.value), $.view),
+          ),
+          r(
+            s.get_field_value($.id, $.field, __),
+            view.file_link($.field, $.label),
+            view.id_field($.id, $.field, $.value),
+            view.table_row(l(), l($.label, $.value), $.view),
+          ),
+        ),
+        $.fields,
+      ),
+      view.string("Field", $.label),
+      view.string("Value", $.value),
+      view.table_header(l(), l($.label, $.value), $.header),
+      view.table(l(), $.header, $.fields, $.out),
+    ),
+  },
+  schema__any_refs: {
+    rule__params: l($.id, $.state, $.out),
+    rule__body: r(
+      s.collect(
+        $.view,
+        r(
+          fork(f.db__index($.f, s.ref()), f.db__index($.f, s.multiRef())),
+          s.get_field_value($.ref, $.f, $.id),
+          view.file_link($.f, $.label),
+          view.file_link($.ref, $.value),
+          view.table_row(l(), l($.label, $.value), $.view),
+        ),
+        $.references,
+      ),
+
+      view.string("Field", $.label),
+      view.string("Ref", $.value),
+      view.table_header(l(), l($.label, $.value), $.header),
+      view.table(l(), $.header, $.references, $.out),
+    ),
+  },
+
   schema__any: {
     file__name: "Default viewer",
     view__schema: "schema__any",
-    rule__params: l($.id, $.state),
-    rule__body: view.column(
-      view.table(
-        l(),
-        view.table_header(l(), view.string("Field"), view.string("Value")),
-        r(
-          view.table_row(l(), view.string("id"), view.string($.id)),
-          s.get_field_value($.id, $.field, __),
-          view.table_row(
-            l(),
-            view.file_link($.field),
-            view.id_field($.id, $.field),
-          ),
-        ),
-      ),
-      r(
-        view.string("References"),
-        view.table(
-          l(),
-          view.table_header(l(), view.string("Field"), view.string("Ref")),
-          r(
-            fork(f.db__index($.f, s.ref()), f.db__index($.f, s.multiRef())),
-            s.get_field_value($.ref, $.f, $.id),
-            view.table_row(l(), view.file_link($.f), view.file_link($.ref)),
-          ),
-        ),
-      ),
+    rule__params: l($.id, $.state, $.out),
+    rule__body: r(
+      view.schema__any_fields($.id, $.state, $.fields),
+      view.schema__any_refs($.id, $.state, $.refs),
+      view.column(l(), l($.fields, $.refs), $.out),
     ),
   },
+
   schema__any_add_field: {
-    rule__params: l($.id),
+    rule__params: l($.id, $.out),
     rule__body: r(
       s.collect(
         s.option($.field_id, $.field_name),
@@ -590,46 +627,57 @@ const baseViews = {
         $.fields,
         $.new_field_id,
         s._add_field($.id, $.new_field_id),
+        $.out,
       ),
     ),
   },
   schema__any_edit: {
     file__name: "Default editor",
     view__schema: "schema__any",
-    rule__params: l($.id, $.state),
-    rule__body: view.column(
-      view.table(
-        l(),
-        view.table_header(l(), view.string("Field"), view.string("Value")),
-        r(
-          view.table_row(l(), view.string("id"), view.string($.id)),
+    rule__params: l($.id, $.state, $.out),
+    rule__body: r(
+      s.collect(
+        $.row,
+        fork(
+          r(
+            view.string("id", $.field_label),
+            view.string($.id, $.field_value),
+            view.table_row(l(), l($.field_label, $.field_value), $.row),
+          ),
           r(
             s.get_field_value($.id, $.field, $.value),
-            view.table_row(
+            view.button(
               l(),
-              view.row(
-                view.button(
-                  "×",
-                  db.with_tx($.tx, db.delete($.tx, $.id, $.field)),
-                ),
-                view.file_link($.field),
-              ),
-              view.expr_edit(
-                $.value,
-                $.next,
-                db.with_tx($.tx, db.update($.tx, $.id, $.field, $.next)),
-              ),
+              "×",
+              __,
+              db.with_tx($.tx, db.delete($.tx, $.id, $.field)),
+              $.button,
             ),
+            view.file_link($.field, $.link),
+            view.row(l(), l($.button, $.link), $.field_label),
+            view.expr_edit(
+              $.value,
+              $.next,
+              db.with_tx($.tx, db.update($.tx, $.id, $.field, $.next)),
+              $.field_value,
+            ),
+            view.table_row(l(), l($.field_label, $.field_value), $.row),
           ),
         ),
+        $.rows,
       ),
-      view.schema__any_add_field($.id),
+      view.string("Field", $.k),
+      view.string("Value", $.v),
+      view.table_header(l(), l($.k, $.v), $.header),
+      view.table(l(), $.header, $.rows, $.table),
+      view.schema__any_add_field($.id, $.add_menu),
+      view.column(l(), l($.table, $.add_menu), $.out),
     ),
   },
   schema__schema: {
     file__name: "Schema viewer",
     view__schema: "schema__schema",
-    rule__params: l($.id, $.state),
+    rule__params: l($.id, $.state, $.out),
     rule__body: view.column(
       view.row(f.file__description($.id, $.desc), view.text($.desc)),
       view.column(
@@ -676,32 +724,38 @@ const baseViews = {
   schema__form: {
     file__name: "Form",
     view__schema: "schema__form",
-    rule__params: l($.id, $.state),
-    rule__body: s.call($.id, $.id, $.state),
+    rule__params: l($.id, $.state, $.out),
+    rule__body: s.call($.id, $.id, $.state, $.out),
   },
   schema__text: {
     file__name: "Text viewer",
     view__schema: "schema__text",
-    rule__params: l($.id, $.state),
-    rule__body: view.column(
-      view.spacer("2rem"),
-      view.row(
-        view.spacer("2rem"),
-        r(f.text__content($.id, $.text), view.row(view.text($.text))),
-        view.spacer("2rem"),
-      ),
-      view.spacer("2rem"),
+    rule__params: l($.id, $.state, $.out),
+    rule__body: r(
+      view.spacer("2rem", $.margin),
+      f.text__content($.id, $.text),
+      view.text($.text, $.content),
+      view.row(l(), l($.margin, $.content, $.margin), $.row),
+      view.column(l(), l($.margin, $.row, $.margin), $.out),
     ),
   },
   schema__tag: {
     file__name: "Tag items",
     view__schema: "schema__tag",
-    rule__params: l($.tag, $.state),
-    rule__body: view.column(
-      r(f.file__description($.tag, $.desc), view.text($.desc)),
-      r(f.file__tags($.file, $.tag), view.row(view.file_info($.file))),
+    rule__params: l($.tag, $.state, $.out),
+    rule__body: r(
+      f.file__description($.tag, $.desc),
+      view.text($.desc, $.header),
+      s.collect(
+        $.view,
+        r(f.file__tags($.file, $.tag), view.file_info($.file, $.view)),
+        $.tags,
+      ),
+      view.column(l(), $.tags, $.tag_section),
+      view.column(l(), l($.header, $.tag_section), $.out),
     ),
   },
+  // FIXME
   schema__folder_list: {
     file__name: "Folder - List",
     view__schema: "schema__folder",
@@ -711,6 +765,7 @@ const baseViews = {
       r(f.folder__items($.id, $.item), view.row(view.file_info($.item))),
     ),
   },
+  // FIXME
   schema__folder_icon: {
     file__name: "Folder - Icon",
     view__schema: "schema__folder",
@@ -725,6 +780,7 @@ const baseViews = {
       ),
     ),
   },
+  // FIXME
   schema__window: {
     file__name: "Window - History",
     view__schema: "schema__window",
@@ -758,32 +814,44 @@ const baseViews = {
     ),
   },
   // built in UI elements
-
   file_link: {
-    rule__params: l($.id),
+    rule__params: l($.id, $.out),
     rule__body: r(
       s.get_default($.id, "file__name", $.name, $.id),
-      view.link($.name, s.location($.id)),
+      view.link(l(), $.name, s.location($.id), $.out),
     ),
   },
   file_info: {
-    rule__params: l($.id),
-    rule__body: view.column(
-      view.row(
-        r(
-          f.db__schema($.id, $.schema),
-          view.file_link($.schema),
-          view.string(": "),
+    rule__params: l($.id, $.out),
+    rule__body: r(
+      s.collect(
+        $.view,
+        fork(
+          r(
+            f.db__schema($.id, $.schema),
+            fork(view.file_link($.schema, $.view), view.string(": ", $.view)),
+          ),
+          view.file_link($.id, $.view),
         ),
-        view.file_link($.id),
+        $.main_info,
       ),
-      r(f.file__description($.id, $.description), view.text($.description)),
+      view.row(l(), $.main_info, $.row),
+      s.cond(
+        l(
+          f.file__description($.id, $.description),
+          r(
+            view.text($.description, $.d),
+            view.column(l(), l($.row, $.d), $.out),
+          ),
+        ),
+        l(s.ok(), view.column(l(), l($.row), $.out)),
+      ),
     ),
   },
   view_menu: {
     file__name: "View menu",
     file__description: l("the view selection menu on window chrome"),
-    rule__params: l($.window, $.id, $.selectedView),
+    rule__params: l($.window, $.id, $.selectedView, $.out),
     rule__body: r(
       s.collect(
         s.option($.view, $.name),
@@ -791,6 +859,7 @@ const baseViews = {
         $.options,
       ),
       view.select(
+        l(),
         $.selectedView,
         $.options,
         $.nextView,
@@ -799,12 +868,13 @@ const baseViews = {
           f.window__currentHistory($.window, $.history),
           db.update($.tx, $.history, "history__view", $.nextView),
         ),
+        $.out,
       ),
     ),
   },
   window: {
     file__name: "Window",
-    rule__params: l($.window),
+    rule__params: l($.window, $.out),
     rule__body: r(
       f.window__currentHistory($.window, $.history),
       f.browser__currentWindow("browser", $.currentWindow),
@@ -818,61 +888,82 @@ const baseViews = {
         // view from id
         s.rule__location_view($.id, $.view),
       ),
-      s.view(
+      view.window_bar($.window, $.id, $.view, $.name, $.window_bar),
+      s.call($.view, $.id, $.history, $.main_content),
+      eq(
+        $.out,
         s.WindowContainer(
           $.window,
           $.currentWindow,
-          r(
-            view.window_bar($.window, $.id, $.view, $.name),
-            s.call($.view, $.id, $.history),
-          ),
+          l($.window_bar, $.main_content),
         ),
       ),
     ),
   },
-  window_close_button: {
-    rule__params: l($.window),
-    rule__body: s.view(
-      s.Button(
+  window_bar: {
+    rule__params: l($.window, $.id, $.view, $.name, $.out),
+    rule__body: r(
+      view.view_menu($.window, $.id, $.view, $.menu),
+      view.string($.name, $.window_title),
+      view.button(
         l(s.class("AppWindow__closeButton")),
         "",
         __,
         s.on__closeWindow($.window),
+        $.close_button,
       ),
-    ),
-  },
-  window_bar: {
-    rule__params: l($.window, $.id, $.view, $.name),
-    rule__body: s.view(
-      s.Html(
-        "header",
-        l(s.class("AppWindow__header")),
-        fork(
-          view.window_close_button($.window),
-          s.view(
-            s.Html("h1", l(s.class("AppWindow__title")), view.string($.name)),
+      eq(
+        $.out,
+        s.Html(
+          "header",
+          l(s.class("AppWindow__header")),
+          l(
+            $.close_button,
+            s.Html("h1", l(s.class("AppWindow__title")), l($.window_title)),
+            $.menu,
           ),
-          view.view_menu($.window, $.id, $.view),
         ),
       ),
     ),
   },
   app_menu: {
     file__name: "App menu",
-    rule__params: l(),
-    rule__body: view.row(
-      view.button(
-        "←",
-        r(f.browser__currentWindow("browser", $.window), s.on__back($.window)),
-      ),
-      view.button(
-        "→",
-        r(
-          f.browser__currentWindow("browser", $.window),
-          s.on__forward($.window),
+    rule__params: l($.out),
+    rule__body: r(
+      s.collect(
+        $.view,
+        fork(
+          view.button(
+            l(),
+            "←",
+            __,
+            r(
+              f.browser__currentWindow("browser", $.window),
+              s.on__back($.window),
+            ),
+            $.view,
+          ),
+          view.button(
+            l(),
+            "→",
+            __,
+            r(
+              f.browser__currentWindow("browser", $.window),
+              s.on__forward($.window),
+            ),
+            $.view,
+          ),
+          view.button(
+            l(),
+            "new window",
+            __,
+            r(s.on__newWindow(s.location("omnibox"))),
+            $.view,
+          ),
         ),
+        $.items,
       ),
-      view.button("new window", r(s.on__newWindow(s.location("omnibox")))),
+      view.row(l(), $.items, $.out),
     ),
   },
 } satisfies Record<string, Rec>;

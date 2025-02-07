@@ -554,6 +554,7 @@ export const primitives: Record<string, RulePrimitive> = {
       }
     });
   },
+  // TODO: this is no longer _needed_ for views, but may be useful as general control flow thing
   view: function* (state, view) {
     const { id, args } = state.resolveStruct(view);
     yield {

@@ -106,6 +106,16 @@ export class State {
       if (res.tag === "view") yield res;
     }
   }
+  render_(expr: Expr, out: Expr): Value[] {
+    const results: Value[] = [];
+    const rootSymbolTable: SymbolTable = {};
+    for (const res of this.eval(this.exprValue(expr, rootSymbolTable))) {
+      if (res.tag !== "state") continue;
+      const { state } = res;
+      results.push(state.resolve(state.exprValue(out, rootSymbolTable)));
+    }
+    return results;
+  }
   runCallback(params: Value, body: Value, arg: Expr) {
     const ns = this.unify(params, this.exprValue(arg, {}));
     if (!ns) throw new Error("todo");

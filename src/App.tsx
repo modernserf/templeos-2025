@@ -1,16 +1,22 @@
 import { State } from "./state";
 import { clearState, loadState } from "./storage";
-import { Query } from "./view_primitive";
+import { Primitive } from "./view_primitive";
 import { useEventSource } from "./event_source";
 import { rootView } from "./view";
+import { $ } from "./expr";
 
 const state = State.root(loadState());
 window.db = state.db;
+
 export function App() {
   useEventSource();
+  const outVar = $.out;
+  const res = state.render_(rootView(outVar), outVar);
   return (
     <>
-      <Query state={state} clause={rootView} />
+      {res.map((view, i) => (
+        <Primitive key={i} state={state} id={view.id} values={view.args} />
+      ))}
       <button style={{ marginTop: "1rem" }} onClick={clearState}>
         Clear state
       </button>

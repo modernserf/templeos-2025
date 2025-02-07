@@ -1,9 +1,9 @@
 import { Component, FC, ReactNode, useEffect, useMemo, useState } from "react";
-import { AnyStruct, s } from "./expr";
-import { k, printFact, State, StateNext, sv, Value, View } from "./state";
+import { s } from "./expr";
+import { k, printFact, State, sv, Value } from "./state";
 import "./view_primitive.css";
 import { useStateCallback, useEventHandler } from "./event_source";
-import { reduce } from "./iter";
+import { debounce } from "./util";
 
 type VC = FC<{
   state: State;
@@ -11,7 +11,14 @@ type VC = FC<{
   values: Value[];
 }>;
 
-function getProps(state: State, props: Value) {
+type Props = {
+  className: string;
+  style: Record<string, unknown>;
+  placeholder?: string;
+  debounce?: number;
+};
+
+function getProps(state: State, props: Value): Props {
   const out: Record<string, unknown> = {};
   const classList: string[] = [];
   const style: Record<string, string> = {};
@@ -27,6 +34,8 @@ function getProps(state: State, props: Value) {
       case "placeholder":
         out.placeholder = state.resolveString(args[0]);
         break;
+      case "debounce":
+        out.debounce = state.resolveNumber(args[0]);
     }
   }
   return { ...out, className: classList.join(" "), style };
@@ -79,15 +88,18 @@ const Button: VC = ({ state, values: [props, label, next, onClick] }) => {
   );
 };
 
-const Input: VC = ({ state, values: [props, value, next, onChange] }) => {
+const Input: VC = ({ state, values: [props, value_, next, onChange] }) => {
   const handle = useStateCallback(state);
+  const value = value_.value as string;
+  const { debounce: db = 0, ...jsProps } = getProps(state, props);
+
   return (
     <input
-      {...getProps(state, props)}
-      value={value.value}
-      onChange={(e) => {
+      {...jsProps}
+      defaultValue={value}
+      onChange={debounce(db, (e) => {
         handle(next, onChange, e.target.value);
-      }}
+      })}
     />
   );
 };
@@ -199,29 +211,16 @@ class ErrorBoundary extends Component<
 }
 
 function Children({ state, children }: { state: State; children: Value }) {
-  const views = reduce<View[], StateNext>(
-    [],
-    (children, res) => {
-      if (res.tag === "view") children.push(res);
-      return children;
-    },
-    state.eval(children),
-  );
   return (
     <>
-      {views.map((view, i) => (
-        <Primitive
-          key={i}
-          state={view.state}
-          id={view.id}
-          values={view.values}
-        />
+      {(children.args as (Value & { tag: "struct" })[]).map((arg, i) => (
+        <Primitive key={i} state={state} id={arg.id} values={arg.args} />
       ))}
     </>
   );
 }
 
-function Primitive({
+export function Primitive({
   state,
   id,
   values,
@@ -236,20 +235,4 @@ function Primitive({
       <View state={state} id={id} values={values} />
     </ErrorBoundary>
   );
-}
-
-export function Query({ state, clause }: { state: State; clause: AnyStruct }) {
-  try {
-    const res = Array.from(state.render(clause));
-    return (
-      <>
-        {res.map((view, i) => (
-          <Primitive key={i} {...view} />
-        ))}
-      </>
-    );
-  } catch (e) {
-    console.log(e);
-    return <pre>{(e as Error).message}</pre>;
-  }
 }

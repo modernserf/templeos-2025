@@ -74,16 +74,6 @@
   padding: 0 0.25rem;
 }
 
-.OmniboxView__input {
-  display: block;
-  width: 100%;
-}
-
-.OmniboxView__listItem {
-  padding: 0.25rem;
-  border-top: 1px solid #ccc;
-}
-
 .Row {
   display: flex;
   flex-direction: row;

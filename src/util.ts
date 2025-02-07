@@ -24,6 +24,7 @@ export function debounce<Args extends unknown[]>(
   f: (...v: Args) => void,
 ): (...v: Args) => void {
   let handler = 0;
+  if (timeout === 0) return f;
   return (...v) => {
     clearTimeout(handler);
     handler = setTimeout(() => f(...v), timeout);

@@ -1,4 +1,4 @@
-import { l, r, s, $, Expr, Struct, Id, List, AnyStruct, eq } from "./expr";
+import { l, r, s, $, Expr, Struct, Id, List, AnyStruct, fork } from "./expr";
 import { typeRecs } from "./type";
 import { schemas, SchemaId } from "./schema";
 import { fields, Field, f } from "./field";
@@ -100,31 +100,39 @@ const files = {
   omnibox: {
     db__schema: "schema__form",
     file__name: "Omnibox",
-    rule__params: l($.id, $.state),
+    rule__params: l($.id, $.state, $.out),
     rule__body: r(
       s.get_default($.state, "data__omnibox", $.omnibox, ""),
-      view.column(
-        view.input(
-          l(s.placeholder("Search..."), s.style("width", "100%")),
-          $.omnibox,
-          $.next,
-          db.with_tx($.tx, db.update($.tx, $.state, "data__omnibox", $.next)),
-        ),
-        s.cond(
-          l(eq("", $.omnibox), s.ok()),
-          l(
-            s.limit(
-              10,
-              r(
-                f.file__name($.result, $.result_name),
-                s.string_substring($.result_name, $.omnibox),
+      s.collect(
+        $.view,
+        fork(
+          view.input(
+            l(s.placeholder("Search..."), s.style("width", "100%")),
+            $.omnibox,
+            $.next,
+            db.with_tx($.tx, db.update($.tx, $.state, "data__omnibox", $.next)),
+            $.view,
+          ),
+          s.cond(
+            l(
+              s.limit(
+                10,
+                r(
+                  f.file__name($.result, $.result_name),
+                  s.string_substring($.result_name, $.omnibox),
+                ),
+              ),
+              fork(
+                view.file_info($.result, $.view),
+                view.spacer("0.5rem", $.view),
               ),
             ),
-            r(view.file_info($.result), view.spacer("0.5rem")),
+            l(s.ok(), view.string("no results", $.view)),
           ),
-          l(s.ok(), view.string("no results")),
         ),
+        $.results,
       ),
+      view.column(l(), $.results, $.out),
     ),
   },
   example__folder: {
@@ -134,37 +142,40 @@ const files = {
     folder__items: l("home", "schema__text", "view__type__text"),
   },
   view__test_result: {
-    rule__params: l($.test_id),
+    rule__params: l($.test_id, $.out),
     rule__body: s.try_error_catch(
-      r(s.call($.test_id), view.string("ok")),
+      r(s.call($.test_id), view.string("ok", $.out)),
       $.error,
-      view.any($.error),
+      view.any($.error, $.out),
     ),
   },
   test_runner: {
     db__schema: "schema__form",
     file__name: "Unit tests",
-    rule__params: l($.self, $.state),
-    rule__body: view.column(
-      view.string("todo: sort & filter tests"),
-      view.table(
-        l(),
-        view.table_header(
-          l(),
-          view.string("group"),
-          view.string("test"),
-          view.string("result"),
+    rule__params: l($.self, $.state, $.out),
+    rule__body: r(
+      s.collect(
+        $.v,
+        fork(
+          view.string("group", $.v),
+          view.string("test", $.v),
+          view.string("result", $.v),
         ),
+        $.h,
+      ),
+      view.table_header(l(), $.h, $.header),
+      s.collect(
+        $.v,
         r(
           f.test__group($.id, $.group),
-          view.table_row(
-            l(),
-            view.string($.group),
-            view.file_link($.id),
-            view.test_result($.id),
-          ),
+          view.string($.group, $.a),
+          view.file_link($.id, $.b),
+          view.test_result($.id, $.c),
+          view.table_row(l(), l($.a, $.b, $.c), $.v),
         ),
+        $.rows,
       ),
+      view.table(l(), $.header, $.rows, $.out),
     ),
   },
 

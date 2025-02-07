@@ -54,13 +54,4 @@ export const testUtils = {
       s.throw(s.expected_received($.expected, l())),
     ),
   },
-  expect_view: {
-    rule__params: l($.goal),
-    rule__rest_params: $.expected,
-    rule__body: s.if_then_else(
-      s.collect_view($.goal, $.received),
-      s.expect_eq($.received, $.expected),
-      s.throw(s.expected_received($.expected, l())),
-    ),
-  },
 };
