@@ -1,13 +1,14 @@
-import { data, initState, Rec } from "./data";
-import { DB } from "./db";
+import { data, initState } from "./data";
 import { eventSource } from "./event_source";
+import { debounce } from "./util";
 
 const STATE_KEY = "state";
 
-// TODO debounce
-eventSource.addEventListener((db: DB<Rec>) => {
-  window.localStorage.setItem(STATE_KEY, JSON.stringify(db.dump()));
-});
+eventSource.addEventListener(
+  debounce(1000, (db) => {
+    window.localStorage.setItem(STATE_KEY, JSON.stringify(db.dump()));
+  }),
+);
 
 export function loadState() {
   const res = window.localStorage.getItem(STATE_KEY);

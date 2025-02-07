@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Value, State } from "./state";
 import { Expr } from "./expr";
+import { DB } from "./db";
+import { Rec } from "./data";
 
-type EventListener<T> = (value: T) => void;
+export type EventListener<T> = (value: T) => void;
 
 export class EventSource<T> {
   private eventListeners: Array<EventListener<T>> = [];
@@ -19,7 +21,7 @@ export class EventSource<T> {
   }
 }
 
-export const eventSource = new EventSource();
+export const eventSource = new EventSource<DB<Rec>>();
 
 export function useStateCallback(state: State) {
   return (params: Value, body: Value, arg: Expr) => {

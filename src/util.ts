@@ -18,3 +18,14 @@ export function deepEqual(left: unknown, right: unknown): boolean {
   }
   return false;
 }
+
+export function debounce<Args extends unknown[]>(
+  timeout: number,
+  f: (...v: Args) => void,
+): (...v: Args) => void {
+  let handler = 0;
+  return (...v) => {
+    clearTimeout(handler);
+    handler = setTimeout(() => f(...v), timeout);
+  };
+}
