@@ -61,6 +61,14 @@ export const fields = {
     // ),
     db__index: s("sorted"),
   },
+  db__default_view: {
+    db__schema: "schema__field",
+    file__name: "Default view",
+    file__description: l(
+      "the default view for this entity ",
+      "(e.g. a type, field or schema)."
+    ),
+  },
   db__default_value: {
     db__schema: "schema__field",
     file__name: "Default value",
@@ -77,6 +85,7 @@ export const fields = {
   rule__body: {
     db__schema: "schema__field",
     file__name: "Rule body",
+    db__default_view: "view__rule__body",
     // db__type: s("struct"),
   },
   test__group: {
@@ -89,20 +98,6 @@ export const fields = {
     file__description: l("the schema that this view is supposed to render"),
     db__type: "type__ref",
     // db__type: s("ref", "schema__schema" as const),
-    db__index: s("ref"),
-  },
-  view__field: {
-    db__schema: "schema__field",
-    file__name: "View for field",
-    file__description: l("the field that this view can render"),
-    db__type: "type__ref",
-    db__index: s("ref"),
-  },
-  view__type: {
-    db__schema: "schema__field",
-    file__name: "View for type",
-    file__description: l("the type that this view can render"),
-    db__type: "type__ref",
     db__index: s("ref"),
   },
   file__name: {
@@ -122,6 +117,7 @@ export const fields = {
     file__name: "File tags",
     db__type: "type__multiRef",
     db__index: s("multiRef"),
+    db__default_view: "view__file__tags",
   },
   folder__items: {
     db__schema: "schema__field",

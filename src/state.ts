@@ -1,7 +1,7 @@
 import { Rec } from "./data";
 import { TransactDB } from "./db";
 import { EventSource } from "./event_source";
-import { Expr, Id, Ident, __, s, v } from "./expr";
+import { Expr, Id, Ident, __, s, $ } from "./expr";
 import { primitives } from "./rule_primitive";
 
 export const k = (value: string | number) =>
@@ -40,7 +40,7 @@ export function expected(expected: Value, received: Value) {
 
 function ensure<T extends Value["tag"]>(
   value: Value,
-  tag: T
+  tag: T,
 ): asserts value is Value & { tag: T } {
   if (value.tag !== tag) {
     throw new Exception(sv("expected_type", k(tag), value));
@@ -94,7 +94,7 @@ export class State {
     public db: TransactDB<Rec>,
     private facts: Facts,
     public context: Record<string, Value>,
-    public eventSource: EventSource<{ id: string; value: Value }>
+    public eventSource: EventSource<{ id: string; value: Value }>,
   ) {}
   static root(rules: Record<Id, Rec>): State {
     const db = new TransactDB<Rec>();
@@ -135,7 +135,7 @@ export class State {
         } else {
           return [key, undefined];
         }
-      })
+      }),
     );
   }
   valueExpr(value: Value): Expr {
@@ -180,7 +180,7 @@ export class State {
       this.db,
       { ...this.facts, [id]: value },
       this.context,
-      this.eventSource
+      this.eventSource,
     );
   }
   addConstraint(id: FactId, predicate: Value) {
@@ -195,7 +195,7 @@ export class State {
         [id]: { tag: "constraint", predicate },
       },
       this.context,
-      this.eventSource
+      this.eventSource,
     );
   }
   private unifyVar(left: Value & { tag: "var" }, right: Value): State | null {
@@ -305,7 +305,7 @@ export class State {
             for (let i = 0; i < args.length; i++) {
               yield* this.dif(l.args[i], args[i]);
             }
-          }.bind(this)
+          }.bind(this),
         );
       }
     }
@@ -333,7 +333,7 @@ export class State {
         ...this.context,
         [key]: value,
       },
-      this.eventSource
+      this.eventSource,
     );
   }
   *eval(fact: Value): Generator<StateNext> {
@@ -384,7 +384,7 @@ export class State {
     // callable fields
     if (rule.db__schema === "schema__field") {
       if (args.length !== 2) {
-        expected(sv(id, v.entity, v.value), sv(id, ...args));
+        expected(sv(id, $.entity, $.value), sv(id, ...args));
       }
       yield* primitives.get_field_value(this, args[0], k(id), args[1]);
       return;
@@ -396,7 +396,7 @@ export class State {
       this.db,
       this.facts,
       this.context,
-      this.eventSource
+      this.eventSource,
     );
     const symbolTable = {};
 
@@ -429,7 +429,7 @@ export class State {
         this.db,
         res.state.facts,
         this.context,
-        this.eventSource
+        this.eventSource,
       ).yield();
     }
   }

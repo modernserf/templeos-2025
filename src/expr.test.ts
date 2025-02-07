@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { s, exprOrd, Expr, __, v } from "./expr";
+import { s, exprOrd, Expr, __, $ } from "./expr";
 
 function shuffle(xs: Expr[]): Expr[] {
   const array = xs.slice();
@@ -11,16 +11,16 @@ function shuffle(xs: Expr[]): Expr[] {
 }
 
 test("var helper", () => {
-  expect(v.x).toEqual(v("x"));
+  expect($.x).toEqual($("x"));
 });
 
 test("sort", () => {
   const items = [
     __,
     __,
-    v.x,
-    v.x,
-    v.y,
+    $.x,
+    $.x,
+    $.y,
     -123,
     123,
     "goodbye",

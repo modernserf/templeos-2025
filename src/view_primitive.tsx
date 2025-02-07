@@ -11,6 +11,12 @@ type VC = FC<{
   values: Value[];
 }>;
 
+const Spacer: VC = ({ state, values: [space] }) => {
+  return (
+    <div className="Spacer" style={{ flexBasis: state.resolveString(space) }} />
+  );
+};
+
 const Html: VC = ({ state, values: [tag, props, children] }) => {
   const El = state.resolveString(tag);
   return (
@@ -52,7 +58,9 @@ const LocalState: VC = ({
   return <Children state={localState} children={children} />;
 };
 
-const String: VC = ({ values: [value] }) => <div>{value.value}</div>;
+const String: VC = ({ values: [value] }) => (
+  <span className="String">{value.value}</span>
+);
 
 const Button: VC = ({ state, values: [label, className, next, onClick] }) => {
   const handle = useStateCallback(state);
@@ -165,6 +173,7 @@ const WindowBar: VC = ({ state, values }) => {
 
 const viewPrimitives: Record<string, VC> = {
   Html,
+  Spacer,
   Row,
   Column,
   LocalState,

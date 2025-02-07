@@ -1,4 +1,4 @@
-import { l, r, s, v, Expr } from "./expr";
+import { l, r, s, $, Expr } from "./expr";
 
 export const test = {
   ok: (...goal: Expr[]) => s("expect_ok", r(...goal)),
@@ -15,64 +15,64 @@ export const test = {
 export const testUtils = {
   // test utils
   expect_ok: {
-    rule__params: l(v.goal),
+    rule__params: l($.goal),
     rule__body: s(
       "if_then_else",
-      v.goal,
+      $.goal,
       s("ok"),
-      s("throw", s("expected_ok", v.goal))
+      s("throw", s("expected_ok", $.goal)),
     ),
   },
   expect_fail: {
-    rule__params: l(v.goal),
+    rule__params: l($.goal),
     rule__body: s(
       "if_then_else",
-      v.goal,
-      s("throw", s("expected_fail", v.goal)),
-      s("ok")
+      $.goal,
+      s("throw", s("expected_fail", $.goal)),
+      s("ok"),
     ),
   },
   expect_throw: {
-    rule__params: l(v.goal, v.error_expected),
+    rule__params: l($.goal, $.error_expected),
     rule__body: s(
       "try_error_catch",
-      r(v.goal, s("throw", s("expected_throw", v.error_expected))),
-      v.error_received,
+      r($.goal, s("throw", s("expected_throw", $.error_expected))),
+      $.error_received,
       s(
         "if_then_else",
-        s("=", v.error_expected, v.error_received),
+        s("=", $.error_expected, $.error_received),
         s("ok"),
-        s("throw", s("expected_received", v.error_expected, v.error_received))
-      )
+        s("throw", s("expected_received", $.error_expected, $.error_received)),
+      ),
     ),
   },
   expect_eq: {
-    rule__params: l(v.received, v.expected),
+    rule__params: l($.received, $.expected),
     rule__body: s(
       "if_then_else",
-      r(s("nonvar", v.received), s("=", v.received, v.expected)),
+      r(s("nonvar", $.received), s("=", $.received, $.expected)),
       s("ok"),
-      s("throw", s("expected_received", v.expected, v.received))
+      s("throw", s("expected_received", $.expected, $.received)),
     ),
   },
   expect_collect: {
-    rule__params: l(v.pattern, v.goal),
-    rule__rest_params: v.expected,
+    rule__params: l($.pattern, $.goal),
+    rule__rest_params: $.expected,
     rule__body: s(
       "if_then_else",
-      s("collect", v.pattern, v.goal, v.received),
-      s("expect_eq", v.received, v.expected),
-      s("throw", s("expected_received", v.expected, l()))
+      s("collect", $.pattern, $.goal, $.received),
+      s("expect_eq", $.received, $.expected),
+      s("throw", s("expected_received", $.expected, l())),
     ),
   },
   expect_view: {
-    rule__params: l(v.goal),
-    rule__rest_params: v.expected,
+    rule__params: l($.goal),
+    rule__rest_params: $.expected,
     rule__body: s(
       "if_then_else",
-      s("collect_view", v.goal, v.received),
-      s("expect_eq", v.received, v.expected),
-      s("throw", s("expected_received", v.expected, l()))
+      s("collect_view", $.goal, $.received),
+      s("expect_eq", $.received, $.expected),
+      s("throw", s("expected_received", $.expected, l())),
     ),
   },
 };

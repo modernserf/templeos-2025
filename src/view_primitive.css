@@ -6,6 +6,7 @@
   cursor: pointer;
   text-decoration: underline;
   display: block;
+  text-wrap: nowrap;
 }
 
 .FileLink {
@@ -87,14 +88,46 @@
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-}
-
-.Row > * + * {
-  margin-left: 0.25rem;
+  align-self: stretch;
+  flex-wrap: wrap;
 }
 
 .Column {
-  display: block;
+  display: flex;
   flex-direction: column;
   align-items: flex-start;
+  align-self: stretch;
+}
+
+table {
+  width: 100%;
+}
+
+td,
+th {
+  text-align: left;
+  vertical-align: top;
+}
+
+.String {
+  white-space: preserve;
+}
+
+.Spacer {
+  flex: 0 0 auto;
+}
+
+section header {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+section section header {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+section section section header {
+  font-size: 1rem;
+  font-weight: bold;
 }

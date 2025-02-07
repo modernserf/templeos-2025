@@ -22,7 +22,7 @@ export const s = <T extends Id, Args extends Expr[]>(id: T, ...args: Args) =>
 
 export const __ = { tag: "placeholder" } as const;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const v: any = new Proxy(
+export const $: any = new Proxy(
   function v(ident: string) {
     return { tag: "ident", ident };
   },
@@ -30,13 +30,14 @@ export const v: any = new Proxy(
     get(_, ident) {
       return { tag: "ident", ident };
     },
-  }
+  },
 );
 
 export function l<Args extends Expr[]>(...args: Args) {
   return s("", ...args);
 }
 export function r<Args extends Expr[]>(...args: Args) {
+  if (args.length === 1) return args[0] as AnyStruct;
   return s(",", ...args);
 }
 r.or = <Args extends Expr[]>(...args: Args) => s(";", ...args);

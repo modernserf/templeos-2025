@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { State } from "./state";
-import { Expr, AnyStruct, r, s, v, __ } from "./expr";
+import { Expr, AnyStruct, r, s, $, __ } from "./expr";
 import { data } from "./data";
 import { f } from "./field";
 
@@ -22,30 +22,30 @@ test("db get", () => {
     runAll(
       s(
         "with_tx",
-        v.tx,
+        $.tx,
         r(
-          s("tx_update_field_value", v.tx, "test1", "field1", 123),
-          s("tx_update_field_value", v.tx, "test1", "field2", 456),
-          s("tx_update_field_value", v.tx, "test2", "field1", 789)
-        )
+          s("tx_update_field_value", $.tx, "test1", "field1", 123),
+          s("tx_update_field_value", $.tx, "test1", "field2", 456),
+          s("tx_update_field_value", $.tx, "test2", "field1", 789),
+        ),
       ),
-      s("get_field_value", "test1", "field1", v.val)
-    )
+      s("get_field_value", "test1", "field1", $.val),
+    ),
   ).toMatchObject([{ val: 123 }]);
 
   expect(
     runAll(
       s(
         "with_tx",
-        v.tx,
+        $.tx,
         r(
-          s("tx_update_field_value", v.tx, "test1", "field1", 123),
-          s("tx_update_field_value", v.tx, "test1", "field2", 456),
-          s("tx_update_field_value", v.tx, "test2", "field1", 789)
-        )
+          s("tx_update_field_value", $.tx, "test1", "field1", 123),
+          s("tx_update_field_value", $.tx, "test1", "field2", 456),
+          s("tx_update_field_value", $.tx, "test2", "field1", 789),
+        ),
       ),
-      s("get_field_value", "test1", v.field, v.val)
-    )
+      s("get_field_value", "test1", $.field, $.val),
+    ),
   ).toMatchObject([
     { field: "field1", val: 123 },
     { field: "field2", val: 456 },
@@ -55,15 +55,15 @@ test("db get", () => {
     runAll(
       s(
         "with_tx",
-        v.tx,
+        $.tx,
         r(
-          s("tx_update_field_value", v.tx, "test1", "field1", 123),
-          s("tx_update_field_value", v.tx, "test1", "field2", 456),
-          s("tx_update_field_value", v.tx, "test2", "field1", 789)
-        )
+          s("tx_update_field_value", $.tx, "test1", "field1", 123),
+          s("tx_update_field_value", $.tx, "test1", "field2", 456),
+          s("tx_update_field_value", $.tx, "test2", "field1", 789),
+        ),
       ),
-      s("get_field_value", v.id, "field1", v.val)
-    )
+      s("get_field_value", $.id, "field1", $.val),
+    ),
   ).toMatchObject([
     { id: "test1", val: 123 },
     { id: "test2", val: 789 },
@@ -73,32 +73,32 @@ test("db get", () => {
     runAll(
       s(
         "with_tx",
-        v.tx,
+        $.tx,
         r(
-          s("tx_update_field_value", v.tx, "test1", "field1", 123),
-          s("tx_update_field_value", v.tx, "test1", "field2", 456),
-          s("tx_update_field_value", v.tx, "test2", "field1", 789),
-          s("tx_delete_field_value", v.tx, "test1", "field1", __)
-        )
+          s("tx_update_field_value", $.tx, "test1", "field1", 123),
+          s("tx_update_field_value", $.tx, "test1", "field2", 456),
+          s("tx_update_field_value", $.tx, "test2", "field1", 789),
+          s("tx_delete_field_value", $.tx, "test1", "field1", __),
+        ),
       ),
 
-      s("get_field_value", "test1", v.field, v.val)
-    )
+      s("get_field_value", "test1", $.field, $.val),
+    ),
   ).toMatchObject([{ field: "field2", val: 456 }]);
 
   expect(
     runAll(
       s(
         "with_tx",
-        v.tx,
+        $.tx,
         r(
-          s("tx_update_field_value", v.tx, "test1", "field1", 123),
-          s("tx_update_field_value", v.tx, "test1", "field2", 456),
-          s("tx_update_field_value", v.tx, "test2", "field1", 789)
-        )
+          s("tx_update_field_value", $.tx, "test1", "field1", 123),
+          s("tx_update_field_value", $.tx, "test1", "field2", 456),
+          s("tx_update_field_value", $.tx, "test2", "field1", 789),
+        ),
       ),
-      s("get_field_value", v.id, __, __)
-    )
+      s("get_field_value", $.id, __, __),
+    ),
   ).toMatchObject([
     ...Object.keys(data).map((id) => ({ id })),
     //
@@ -115,28 +115,28 @@ test("db transact", () => {
         r(
           s(
             "with_tx",
-            v.tx,
-            s("tx_update_field_value", v.tx, "test1", "field1", 123)
+            $.tx,
+            s("tx_update_field_value", $.tx, "test1", "field1", 123),
           ),
-          s("fail") // suppress results
+          s("fail"), // suppress results
         ),
         // change
         r(
           s(
             "with_tx",
-            v.tx,
+            $.tx,
             r(
-              s("tx_update_field_value", v.tx, "test1", "field1", 456)
+              s("tx_update_field_value", $.tx, "test1", "field1", 456),
               // tx succeeds
-            )
+            ),
           ),
-          s("fail") // suppress results (but keep tx committed)
+          s("fail"), // suppress results (but keep tx committed)
         ),
 
         // verify
-        s("get_field_value", "test1", "field1", v.value)
-      )
-    )
+        s("get_field_value", "test1", "field1", $.value),
+      ),
+    ),
   ).toMatchObject([{ value: 456 }]);
 
   expect(
@@ -148,55 +148,55 @@ test("db transact", () => {
           ",",
           s(
             "with_tx",
-            v.tx,
-            s("tx_update_field_value", v.tx, "test1", "field1", 123)
+            $.tx,
+            s("tx_update_field_value", $.tx, "test1", "field1", 123),
           ),
-          s("fail") // suppress results
+          s("fail"), // suppress results
         ),
         // change
         s(
           ",",
           s(
             "with_tx",
-            v.tx,
+            $.tx,
             s(
               ",",
-              s("tx_update_field_value", v.tx, "test1", "field1", 456),
-              s("fail") // tx fails
-            )
+              s("tx_update_field_value", $.tx, "test1", "field1", 456),
+              s("fail"), // tx fails
+            ),
           ),
-          s("fail") // suppress results (but keep tx committed)
+          s("fail"), // suppress results (but keep tx committed)
         ),
 
         // verify
-        s("get_field_value", "test1", "field1", v.value)
-      )
-    )
+        s("get_field_value", "test1", "field1", $.value),
+      ),
+    ),
   ).toMatchObject([{ value: 123 }]);
 });
 
 test("define rules", () => {
   const define = s(
     "with_tx",
-    v.tx,
+    $.tx,
     r(
       s(
         "new__rule",
-        v.tx,
+        $.tx,
         "cons_cons_append",
-        s("", v.left, v.right, v.append),
+        s("", $.left, $.right, $.append),
         r.or(
           // []
-          r(s("=", v.left, s("nil")), s("=", v.right, v.append)),
+          r(s("=", $.left, s("nil")), s("=", $.right, $.append)),
           // [head | tail]
           r(
-            s("=", v.left, s("cons", v.head, v.tail)),
-            s("=", s("cons", v.head, v.append_tail), v.append),
-            s("cons_cons_append", v.tail, v.right, v.append_tail)
-          )
-        )
-      )
-    )
+            s("=", $.left, s("cons", $.head, $.tail)),
+            s("=", s("cons", $.head, $.append_tail), $.append),
+            s("cons_cons_append", $.tail, $.right, $.append_tail),
+          ),
+        ),
+      ),
+    ),
   );
 
   expect(
@@ -206,9 +206,9 @@ test("define rules", () => {
         "cons_cons_append",
         s("cons", 123, s("nil")),
         s("cons", 456, s("cons", 789, s("nil"))),
-        v.joined
-      )
-    )
+        $.joined,
+      ),
+    ),
   ).toMatchObject([{ joined: ll(123, 456, 789) }]);
 
   expect(
@@ -217,10 +217,10 @@ test("define rules", () => {
       s(
         "cons_cons_append",
         s("cons", 123, s("nil")),
-        v.right,
-        s("cons", 123, s("cons", 456, s("cons", 789, s("nil"))))
-      )
-    )
+        $.right,
+        s("cons", 123, s("cons", 456, s("cons", 789, s("nil")))),
+      ),
+    ),
   ).toMatchObject([{ right: ll(456, 789) }]);
 });
 
@@ -228,14 +228,14 @@ test("internal tests", () => {
   expect(
     runAll(
       //
-      f.test__group(v.id, v.group),
-      s("log", "testing", v.group, v.id),
+      f.test__group($.id, $.group),
+      s("log", "testing", $.group, $.id),
       s(
         "try_error_catch",
-        s("call", v.id),
-        v.error,
-        r(s("log", v.error), s("throw", v.error))
-      )
-    )
+        s("call", $.id),
+        $.error,
+        r(s("log", $.error), s("throw", $.error)),
+      ),
+    ),
   ).not.toEqual([]);
 });

@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { State } from "./state";
-import { Expr, r, s, v } from "./expr";
+import { Expr, r, s, $ } from "./expr";
 import { data } from "./data";
 import { t } from "./type";
 
@@ -31,16 +31,16 @@ function runAll(...clauses: Expr[]) {
 test("union_member", () => {
   expect(
     //
-    runAll(s("union_member", t.bottom, v.t))
+    runAll(s("union_member", t.bottom, $.t)),
   ).toEqual([]);
   expect(
     //
-    runAll(s("union_member", t.number, s("number")))
+    runAll(s("union_member", t.number, s("number"))),
   ).toEqual([{}]);
 
   expect(
     //
-    runAll(s("union_member", t.union(t.string, t.number), v.t))
+    runAll(s("union_member", t.union(t.string, t.number), $.t)),
   ).toEqual([{ t: t.string }, { t: t.number }]);
 
   expect(
@@ -49,9 +49,9 @@ test("union_member", () => {
       s(
         "union_member",
         t.union(t.string, t.union(t.struct("foo"), t.number)),
-        v.t
-      )
-    )
+        $.t,
+      ),
+    ),
   ).toEqual([{ t: t.string }, { t: t.struct("foo") }, { t: t.number }]);
 });
 
@@ -64,21 +64,21 @@ test("subtype_supertype match", () => {
       s(
         "subtype_supertype",
         t.number,
-        t.union(t.union(t.struct("foo"), t.number), t.string)
+        t.union(t.union(t.struct("foo"), t.number), t.string),
       ),
       s(
         "subtype_supertype",
         t.number,
-        t.union(t.string, t.union(t.struct("foo"), t.number))
+        t.union(t.string, t.union(t.struct("foo"), t.number)),
       ),
       s("subtype_supertype", t.number, t.top),
 
       s(
         "subtype_supertype",
         t.struct("foo", t.number, t.string),
-        t.struct("foo", t.union(t.string, t.number), t.top)
-      )
-    )
+        t.struct("foo", t.union(t.string, t.number), t.top),
+      ),
+    ),
   ).toEqual([{}]);
 });
 

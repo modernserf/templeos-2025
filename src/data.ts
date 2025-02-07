@@ -1,4 +1,4 @@
-import { l, r, s, v, Expr, Struct, Id, List, AnyStruct, __ } from "./expr";
+import { l, r, s, $, Expr, Struct, Id, List, AnyStruct } from "./expr";
 import { typeRecs } from "./type";
 import { schemas, SchemaId } from "./schema";
 import { fields, Field, f } from "./field";
@@ -12,7 +12,10 @@ export type Location =
   | Struct<"location", [id: Id, view: Id]>
   | Struct<"location", [id: Id, view: Id, params: List<AnyStruct>]>;
 
-export type FormatText = string | Struct<"link", [string, Location]>;
+export type FormatText =
+  | string
+  | Struct<"link", [string, Location]>
+  | Struct<"section", [List<FormatText>, List<FormatText>]>;
 
 type SchemaField =
   | Struct<"field", [Field]>
@@ -31,13 +34,12 @@ export type Rec = Record<string, Expr> & {
   db__fields?: List<SchemaField>;
   db__type?: TypeId;
   db__index?: IndexType;
+  db__default_view?: Id;
 
   rule__params?: List<Expr>;
   rule__rest_params?: Expr;
   rule__body?: AnyStruct;
   view__schema?: SchemaId;
-  view__field?: Field;
-  view__type?: TypeId;
 
   test__group?: string;
 
@@ -65,10 +67,28 @@ const files = {
     file__description: l("this is the home card"),
     file__tags: l("example_tag"),
     text__content: l(
-      "content that ",
-      s("link", "links", s("location", "example__folder")),
-      " to another record.",
-      s("link", "omnibox", s("location", "omnibox"))
+      s(
+        "section",
+        l("a heading"),
+        l(
+          s(
+            "section",
+            l("subhed"),
+            l(
+              s(
+                "section",
+                l("heading 3"),
+                l(
+                  "content that ",
+                  s("link", "links", s("location", "example__folder")),
+                  " to another record. ",
+                  s("link", "omnibox", s("location", "omnibox")),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     ),
   },
   example_tag: {
@@ -79,27 +99,27 @@ const files = {
   omnibox: {
     db__schema: "schema__form",
     file__name: "Omnibox",
-    rule__params: l(v.id, v.state),
+    rule__params: l($.id, $.state),
     rule__body: r(
-      s("get_default", v.state, "data__omnibox", v.omnibox, ""),
+      s("get_default", $.state, "data__omnibox", $.omnibox, ""),
       view.column(
         view.input(
-          v.omnibox,
-          v.next,
-          db.with_tx(v.tx, db.update(v.tx, v.state, "data__omnibox", v.next))
+          $.omnibox,
+          $.next,
+          db.with_tx($.tx, db.update($.tx, $.state, "data__omnibox", $.next)),
         ),
         r(
           s(
             "limit",
             10,
             r(
-              f.file__name(v.result, v.result_name),
-              s("string_substring", v.result_name, v.omnibox)
-            )
+              f.file__name($.result, $.result_name),
+              s("string_substring", $.result_name, $.omnibox),
+            ),
           ),
-          view.file_info(v.result)
-        )
-      )
+          view.file_info($.result),
+        ),
+      ),
     ),
   },
   example__folder: {
@@ -109,18 +129,18 @@ const files = {
     folder__items: l("home", "schema__text", "view__type__text"),
   },
   view__test_result: {
-    rule__params: l(v.test_id),
+    rule__params: l($.test_id),
     rule__body: s(
       "try_error_catch",
-      r(s("call", v.test_id), view.string("ok")),
-      v.error,
-      view.type__any(v.error)
+      r(s("call", $.test_id), view.string("ok")),
+      $.error,
+      view.any($.error),
     ),
   },
   test_runner: {
     db__schema: "schema__form",
     file__name: "Unit tests",
-    rule__params: l(__, __),
+    rule__params: l($.self, $.state),
     rule__body: view.column(
       view.string("todo: sort & filter tests"),
       view.table(
@@ -129,41 +149,41 @@ const files = {
           l(),
           view.string("group"),
           view.string("test"),
-          view.string("result")
+          view.string("result"),
         ),
         r(
-          f.test__group(v.id, v.group),
+          f.test__group($.id, $.group),
           view.table_row(
             l(),
-            view.string(v.group),
-            view.file_link(v.id),
-            view.test_result(v.id)
-          )
-        )
-      )
+            view.string($.group),
+            view.file_link($.id),
+            view.test_result($.id),
+          ),
+        ),
+      ),
     ),
   },
 
   test_local_state: {
     db__schema: "schema__form",
     file__name: "Test local state",
-    rule__params: l(v.id, v.state),
+    rule__params: l($.id, $.state),
     rule__body: view.column(
       view.string("test local state"),
       view.local_state(
         "init",
-        v.value,
-        v.next,
-        v.on_change,
-        r(view.input(v.value, v.next, v.on_change))
+        $.value,
+        $.next,
+        $.on_change,
+        r(view.input($.value, $.next, $.on_change)),
       ),
       view.local_state(
         "other",
-        v.value1,
-        v.next1,
-        v.on_change1,
-        r(view.input(v.value1, v.next1, v.on_change1))
-      )
+        $.value1,
+        $.next1,
+        $.on_change1,
+        r(view.input($.value1, $.next1, $.on_change1)),
+      ),
     ),
   },
 } satisfies Record<string, Rec>;

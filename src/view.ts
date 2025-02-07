@@ -1,5 +1,5 @@
 import { Rec } from "./data";
-import { l, r, s, v, Expr, __, AnyStruct } from "./expr";
+import { l, r, s, $, Expr, __, AnyStruct } from "./expr";
 import { f } from "./field";
 import { cond, db } from "./rule";
 import { test } from "./test_utils";
@@ -10,79 +10,83 @@ export const view = new Proxy(
     get(_, key: string) {
       return (...args: Expr[]) => s(`view__${key}`, ...args);
     },
-  }
+  },
 ) as Record<string, (...args: Expr[]) => AnyStruct>;
 
 export const rootView = r(
   view.app_menu(),
-  f.db__schema(v.window, "schema__window"),
-  view.window(v.window)
+  f.db__schema($.window, "schema__window"),
+  view.window($.window),
 );
 
 const baseViews = {
   // primitives
+  spacer: {
+    rule__params: l($.space),
+    rule__body: s("view", s("Spacer", $.space)),
+  },
   row: {
     rule__params: l(),
-    rule__rest_params: v.children_list,
+    rule__rest_params: $.children_list,
     rule__body: r(
-      s("struct_tag_list", v.children, ";", v.children_list),
-      s("view", s("Row", v.children))
+      s("struct_tag_list", $.children, ";", $.children_list),
+      s("view", s("Row", $.children)),
     ),
   },
   column: {
     rule__params: l(),
-    rule__rest_params: v.children_list,
+    rule__rest_params: $.children_list,
     rule__body: r(
-      s("struct_tag_list", v.children, ";", v.children_list),
-      s("view", s("Column", v.children))
+      s("struct_tag_list", $.children, ";", $.children_list),
+      s("view", s("Column", $.children)),
     ),
   },
   local_state: {
-    rule__params: l(v.init_value, v.value, v.next, v.on_change, v.children),
+    rule__params: l($.init_value, $.value, $.next, $.on_change, $.children),
     rule__body: s(
       "view",
-      s("LocalState", v.init_value, v.value, v.next, v.on_change, v.children)
+      s("LocalState", $.init_value, $.value, $.next, $.on_change, $.children),
     ),
   },
   string: {
-    rule__params: l(v.string),
-    rule__body: s("view", s("String", v.string)),
+    rule__params: l($.string),
+    rule__body: s("view", s("String", $.string)),
   },
   button: {
-    rule__params: l(v.string, v.on_click),
-    rule__body: s("view", s("Button", v.string, "", __, v.on_click)),
+    rule__params: l($.string, $.on_click),
+    rule__body: s("view", s("Button", $.string, "", __, $.on_click)),
   },
   input: {
-    rule__params: l(v.value, v.next, v.on_change),
-    rule__body: s("view", s("Input", v.value, "", v.next, v.on_change)),
+    rule__params: l($.value, $.next, $.on_change),
+    rule__body: s("view", s("Input", $.value, "", $.next, $.on_change)),
   },
   select: {
-    rule__params: l(v.value, v.options, v.next, v.on_change),
-    rule__body: s("view", s("Select", v.value, v.options, v.next, v.on_change)),
+    rule__params: l($.value, $.options, $.next, $.on_change),
+    rule__body: s("view", s("Select", $.value, $.options, $.next, $.on_change)),
   },
   link: {
-    rule__params: l(v.label, v.location),
-    rule__rest_params: v.rest_params,
+    rule__params: l($.label, $.location),
+    rule__rest_params: $.rest_params,
     rule__body: r(
-      s("match", l(v.params), v.rest_params, l(l())),
-      s("get_context", "window_id", v.window),
+      s("match", l($.params), $.rest_params, l(l())),
+      s("get_context", "window_id", $.window),
       s(
         "view",
         s(
           "Button",
-          v.label,
+          $.label,
           "Link",
-          v.event,
+          $.event,
           cond(
-            l(s("=", v.event, s("click", 1)), s("on__newWindow", v.location)),
+            l(s("=", $.event, s("click", 1)), s("on__newWindow", $.location)),
             l(
-              s("list_item", v.params, s("target", "new")),
-              s("on__newWindow", v.location)
+              s("list_item", $.params, s("target", "new")),
+              s("on__newWindow", $.location),
             ),
-            l(s("ok"), s("on__push", v.window, v.location))
-          )
-        )
-      )
+            l(s("ok"), s("on__push", $.window, $.location)),
+          ),
+        ),
+      ),
     ),
   },
   test__link: {
@@ -92,29 +96,29 @@ const baseViews = {
       test.view(
         r(
           s("set_context", "window_id", "test_window_id"),
-          view.link("hello", s("location", "test_link"))
+          view.link("hello", s("location", "test_link")),
         ),
         s(
           "Button",
           "hello",
           "Link",
-          v.event,
+          $.event,
           cond(
             l(
-              s("=", v.event, s("click", 1)),
-              s("on__newWindow", s("location", "test_link"))
+              s("=", $.event, s("click", 1)),
+              s("on__newWindow", s("location", "test_link")),
             ),
             l(
               s("list_item", l(), s("target", "new")),
-              s("on__newWindow", s("location", "test_link"))
+              s("on__newWindow", s("location", "test_link")),
             ),
             l(
               s("ok"),
-              s("on__push", "test_window_id", s("location", "test_link"))
-            )
-          )
-        )
-      )
+              s("on__push", "test_window_id", s("location", "test_link")),
+            ),
+          ),
+        ),
+      ),
     ),
   },
   icon: {
@@ -122,7 +126,7 @@ const baseViews = {
     rule__body: s("view", s("Icon")),
   },
   table: {
-    rule__params: l(v.params, v.header, v.body),
+    rule__params: l($.params, $.header, $.body),
     rule__body: s(
       "view",
       s(
@@ -130,15 +134,15 @@ const baseViews = {
         "table",
         l(),
         r.or(
-          s("view", s("Html", "thead", l(), v.header)),
-          s("view", s("Html", "tbody", l(), v.body))
-        )
-      )
+          s("view", s("Html", "thead", l(), $.header)),
+          s("view", s("Html", "tbody", l(), $.body)),
+        ),
+      ),
     ),
   },
   table_header: {
-    rule__params: l(v.params),
-    rule__rest_params: v.items,
+    rule__params: l($.params),
+    rule__rest_params: $.items,
     rule__body: s(
       "view",
       s(
@@ -146,15 +150,15 @@ const baseViews = {
         "tr",
         l(),
         r(
-          s("list_item", v.items, v.item),
-          s("view", s("Html", "th", l(), v.item))
-        )
-      )
+          s("list_item", $.items, $.item),
+          s("view", s("Html", "th", l(), $.item)),
+        ),
+      ),
     ),
   },
   table_row: {
-    rule__params: l(v.params),
-    rule__rest_params: v.items,
+    rule__params: l($.params),
+    rule__rest_params: $.items,
     rule__body: s(
       "view",
       s(
@@ -162,210 +166,295 @@ const baseViews = {
         "tr",
         l(),
         r(
-          s("list_item", v.items, v.item),
-          s("view", s("Html", "td", l(), v.item))
-        )
-      )
+          s("list_item", $.items, $.item),
+          s("view", s("Html", "td", l(), $.item)),
+        ),
+      ),
     ),
   },
-  // type views
-  type__any: {
-    file__name: "Any : View",
-    view__type: "type__any",
-    rule__params: l(v.data),
-    rule__body: r.or(
-      r(s("var_name", v.data, v.var_name), view.string(v.var_name)),
-      r(
-        s("string", v.data),
-        view.row(view.string('"'), view.string(v.data), view.string('"'))
+  menu: {
+    rule__params: l($.label, $.options, $.next, $.on_change),
+    rule__body: r(
+      s(
+        "list_list_append",
+        l(s("option", "", $.label)),
+        $.options,
+        $.menu_options,
       ),
-      r(s("number", v.data), view.string(v.data)),
+      view.select("", $.menu_options, $.next, $.on_change),
+    ),
+  },
+  text_section: {
+    rule__params: l($.header, $.body),
+    rule__body: s(
+      "view",
+      s(
+        "Html",
+        "section",
+        l(),
+        r(
+          s("view", s("Html", "header", l(), view.text($.header))),
+          view.text($.body),
+        ),
+      ),
+    ),
+  },
+  text_node: {
+    rule__params: l($.node),
+    rule__body: s(
+      "match_cond",
+      $.node,
+      l(s("link", $.label, $.location), view.link($.label, $.location)),
+      l(s("section", $.header, $.body), view.text_section($.header, $.body)),
+      l(__, r(s("string", $.node), view.string($.node))),
+    ),
+  },
+  text: {
+    rule__params: l($.text),
+    rule__body: view.row(
+      r(s("list_item", $.text, $.node), view.text_node($.node)),
+    ),
+  },
+  // view utilities
+  id_field: {
+    rule__params: l($.entity, $.field),
+    rule__body: cond(
+      l(
+        s("get_field_value", $.field, "db__default_view", $.view),
+        s("call", $.view, $.entity, $.field),
+      ),
+      l(
+        r(
+          db.get($.field, "db__type", $.type),
+          db.get($.type, "db__default_view", $.view),
+        ),
+        s("call", $.view, $.entity, $.field),
+      ),
+      l(
+        db.get("type__any", "db__default_view", $.view),
+        s("call", $.view, $.entity, $.field),
+      ),
+    ),
+  },
+
+  rule: {
+    file__description: l("renders a struct formatted as a rule"),
+    rule__params: l($.data),
+    rule__body: cond(
+      l(
+        s("struct", $.data),
+        r(
+          s("struct_tag_list", $.data, $.tag, $.list),
+          s("%", "Todo: get these from db"),
+          cond(
+            l(s("match", $.tag, ",", ";"), view.rule__postfix($.tag, $.list)),
+            l(s("match", $.tag, "=", "/="), view.rule__infix($.tag, $.list)),
+            l(
+              s(
+                "match",
+                $.tag,
+                "view__row",
+                "view__column",
+                "view__table",
+                "view__table_header",
+                "view__table_row",
+                "view__table_column",
+              ),
+              view.rule__tuple($.tag, l(), $.list),
+            ),
+            l(s("ok"), view.rule__tuple($.tag, $.list, l())),
+          ),
+        ),
+      ),
+      l(s("ok"), view.expr($.data)),
+    ),
+  },
+  rule__postfix: {
+    rule__params: l($.tag, $.list),
+    rule__body: view.column(
       r(
-        s("struct", v.data),
-        s("struct_tag_list", v.data, v.tag, v.args),
-        cond(
-          l(s("match", v.tag, ";", ","), view.operator_chain(v.tag, v.args)),
-          l(s("match", v.tag, "="), view.operator_binary(v.tag, v.args)),
-          l(s("ok"), view.tuple(v.tag, v.args))
-        )
-      )
+        s("list_item", $.list, $.item),
+        view.row(view.rule($.item), view.file_link($.tag)),
+      ),
+    ),
+  },
+  rule__infix: {
+    rule__params: l($.tag, $.list),
+    rule__body: r(
+      s("list_list_append", $.rest, l($.last), $.list),
+      view.row(
+        r(
+          s("list_item", $.rest, $.item),
+          view.expr($.item),
+          view.string(" "),
+          view.file_link($.tag),
+          view.string(" "),
+        ),
+        view.expr($.last),
+      ),
+    ),
+  },
+  rule__tuple: {
+    rule__params: l($.tag, $.list, $.rest),
+    rule__body: view.row(
+      view.file_link($.tag),
+      view.string("( "),
+      view.column(
+        view.row(
+          r(
+            s("list_item", $.list, $.item),
+            view.expr($.item),
+            view.string(" "),
+          ),
+        ),
+        r(s("list_item", $.rest, $.rest_item), view.rule($.rest_item)),
+      ),
+      view.string(")"),
+    ),
+  },
+
+  expr: {
+    file__name: "Any : View",
+    rule__params: l($.data),
+    rule__body: r.or(
+      r(s("var_name", $.data, $.var_name), view.string($.var_name)),
+      r(
+        s("string", $.data),
+        view.row(view.string('"'), view.string($.data), view.string('"')),
+      ),
+      r(s("number", $.data), view.string($.data)),
+      r(s("struct", $.data), view.struct($.data)),
+    ),
+  },
+  struct: {
+    rule__params: l($.data),
+    rule__body: r(
+      s("struct_tag_list", $.data, $.tag, $.args),
+      cond(
+        l(s("match", $.tag, ";", ","), view.rule($.data)),
+        l(s("match", $.tag, "="), view.operator_binary($.tag, $.args)),
+        l(s("ok"), view.tuple($.tag, $.args)),
+      ),
     ),
   },
   operator_binary: {
-    rule__params: l(v.id, l(v.l, v.r)),
-    rule__body: view.row(
-      view.type__any(v.l),
-      view.string(v.id),
-      view.type__any(v.r)
-    ),
+    rule__params: l($.id, l($.l, $.r)),
+    rule__body: view.row(view.expr($.l), view.string($.id), view.expr($.r)),
   },
   operator_chain: {
-    rule__params: l(v.op, v.args),
+    rule__params: l($.op, $.args),
     rule__body: s(
       "match_cond",
-      v.args,
+      $.args,
       l(l(), s("ok")),
-      l(l(v.single), view.type__any(v.single)),
+      l(l($.single), view.expr($.single)),
       l(
         __,
         r(
-          s("list_list_append", l(v.head), v.tail, v.args),
+          s("list_list_append", l($.head), $.tail, $.args),
           view.column(
-            view.type__any(v.head),
+            view.expr($.head),
             r(
-              s("list_item", v.tail, v.item),
-              view.row(view.string(v.op), view.type__any(v.item))
-            )
-          )
-        )
-      )
-    ),
-  },
-  operator_vertical: {
-    rule__params: l(v.id, v.args),
-    rule__body: view.column(
-      r(
-        s("list_item", v.args, v.arg),
-        view.row(view.string(v.id), view.type__any(v.arg))
-      )
+              s("list_item", $.tail, $.item),
+              view.row(view.string($.op), view.expr($.item)),
+            ),
+          ),
+        ),
+      ),
     ),
   },
   tuple: {
-    rule__params: l(v.id, v.args),
+    rule__params: l($.id, $.args),
     rule__body: view.row(
-      view.string(v.id),
-      view.string("("),
+      view.string($.id),
+      view.string("( "),
       r(
-        s("list_item", v.args, v.arg), //
-        view.type__any(v.arg)
+        s("list_item", $.args, $.arg), //
+        view.expr($.arg),
+        view.string(" "),
       ),
-      view.string(")")
+      view.string(")"),
     ),
   },
-  // test
 
-  type__string: {
-    view__type: "type__string",
-    rule__params: l(v.string),
-    rule__body: view.string(v.string),
-  },
-  type__time: {
-    view__type: "type__time",
-    rule__params: l(v.ts),
-    rule__body: view.string(v.ts),
-  },
-  type__ref: {
-    view__type: "type__ref",
-    rule__params: l(v.ref),
-    rule__body: view.file_link(v.ref),
-  },
-  type__text: {
-    view__type: "type__text",
-    rule__params: l(v.text),
-    rule__body: r(
-      s("list_item", v.text, v.node),
-      r.or(
-        r(s("string", v.node), view.string(v.node)),
-        r(
-          s("=", v.node, s("link", v.label, v.location)),
-          view.link(v.label, v.location)
-        )
-      )
-    ),
-  },
   // type editors
   fit_content_input: {
-    rule__params: l(v.value, v.next, v.on_change),
+    rule__params: l($.value, $.next, $.on_change),
     rule__body: s(
       "view",
-      s("Input", v.value, "Input--fitContent", v.next, v.on_change)
+      s("Input", $.value, "Input--fitContent", $.next, $.on_change),
     ),
   },
-  type__any_edit: {
+  expr_edit: {
     file__name: "Any : Edit",
-    rule__params: l(v.data, v.next, v.on_change),
+    rule__params: l($.data, $.next, $.on_change),
     rule__body: r.or(
       r(
-        s("var_name", v.data, v.var_name),
-        view.fit_content_input(v.var_name, v.next, v.on_change)
+        s("var_name", $.data, $.var_name),
+        view.fit_content_input($.var_name, $.next, $.on_change),
       ),
       r(
-        s("string", v.data),
-        view.fit_content_input(v.data, v.next, v.on_change)
+        s("string", $.data),
+        view.fit_content_input($.data, $.next, $.on_change),
       ),
       r(
-        s("number", v.data),
+        s("number", $.data),
         view.fit_content_input(
-          v.data,
-          v.next_str,
-          r(s("string_number", v.next_str, v.next), v.on_change)
-        )
+          $.data,
+          $.next_str,
+          r(s("string_number", $.next_str, $.next), $.on_change),
+        ),
       ),
-      r(
-        s("struct", v.data),
-        view.type__struct_edit(v.data, v.next, v.on_change)
-      )
+      r(s("struct", $.data), view.struct_edit($.data, $.next, $.on_change)),
     ),
   },
-  type__struct_edit: {
+  struct_edit: {
     file__name: "Any Struct : Edit",
-    rule__params: l(v.data, v.next, v.on_change),
+    rule__params: l($.data, $.next, $.on_change),
     rule__body: r(
-      s("struct_tag_list", v.data, v.id, v.args),
+      s("struct_tag_list", $.data, $.id, $.args),
       view.row(
         view.fit_content_input(
-          v.id,
-          v.next_id,
-          r(s("struct_tag_list", v.next, v.next_id, v.args), v.on_change)
+          $.id,
+          $.next_id,
+          r(s("struct_tag_list", $.next, $.next_id, $.args), $.on_change),
         ),
         view.string("("),
         view.column(
           r(
-            s("struct_at_value", v.data, v.i, v.arg),
+            s("struct_at_value", $.data, $.i, $.arg),
             view.row(
               view.button(
                 "×",
                 r(
-                  s("list_at_removed_splice", v.args, v.i, l(__), v.next),
-                  s("struct_tag_list", v.next, v.id, v.next_args),
-                  v.on_change
-                )
+                  s("list_at_removed_splice", $.args, $.i, l(__), $.next),
+                  s("struct_tag_list", $.next, $.id, $.next_args),
+                  $.on_change,
+                ),
               ),
-              view.type__any_edit(
-                v.arg,
-                v.arg_next,
+              view.expr_edit(
+                $.arg,
+                $.arg_next,
                 r(
-                  s("struct_at_value_updated", v.data, v.i, v.arg_next, v.next),
-                  v.on_change
-                )
-              )
-            )
-          )
+                  s("struct_at_value_updated", $.data, $.i, $.arg_next, $.next),
+                  $.on_change,
+                ),
+              ),
+            ),
+          ),
+          view.struct_add_field(
+            $.next_arg,
+            r(s("_struct_push", $.data, $.next_arg, $.next), $.on_change),
+          ),
         ),
-        view.type__struct_add_field(
-          v.next_arg,
-          r(s("_struct_push", v.data, v.next_arg, v.next), v.on_change)
-        ),
-        view.string(")")
-      )
-    ),
-  },
 
-  menu: {
-    rule__params: l(v.label, v.options, v.next, v.on_change),
-    rule__body: r(
-      s(
-        "list_list_append",
-        l(s("option", "", v.label)),
-        v.options,
-        v.menu_options
+        view.string(")"),
       ),
-      view.select("", v.menu_options, v.next, v.on_change)
     ),
   },
 
-  type__struct_add_field: {
-    rule__params: l(v.next, v.on_change),
+  struct_add_field: {
+    rule__params: l($.next, $.on_change),
     rule__body: r(
       view.menu(
         "+",
@@ -373,329 +462,393 @@ const baseViews = {
           s("option", "string", "string"),
           s("option", "number", "number"),
           s("option", "struct", "struct"),
-          s("option", "var", "var")
+          s("option", "var", "var"),
         ),
-        v.next_type,
+        $.next_type,
         r(
           s(
             "match",
-            l(v.next_type, v.next),
+            l($.next_type, $.next),
             l("string", ""),
             l("number", 0),
             l("struct", l()),
-            l("var", v(""))
+            l("var", $("")),
           ),
-          v.on_change
-        )
-      )
+          $.on_change,
+        ),
+      ),
     ),
   },
+
+  // type views
+  type__any: {
+    rule__params: l($.id, $.field),
+    rule__body: r(db.get($.id, $.field, $.value), view.expr($.value)),
+  },
+  type__string: {
+    rule__params: l($.id, $.field),
+    rule__body: r(
+      db.get($.id, $.field, $.value), //
+      view.string($.value),
+    ),
+  },
+  type__time: {
+    rule__params: l($.id, $.field),
+    rule__body: r(
+      db.get($.id, $.field, $.value), //
+      view.string($.value),
+    ),
+  },
+  type__ref: {
+    rule__params: l($.id, $.field),
+    rule__body: r(
+      db.get($.id, $.field, $.value), //
+      view.file_link($.value),
+    ),
+  },
+  type__text: {
+    rule__params: l($.id, $.field),
+    rule__body: r(db.get($.id, $.field, $.text), view.text($.text)),
+  },
+
+  tag_edit: {
+    rule__params: l($.tag, $.on_delete),
+    rule__body: view.row(view.button("x", $.on_delete), view.file_link($.tag)),
+  },
+  add_tag_menu: {
+    rule__params: l($.selected, $.on_add),
+    rule__body: r(
+      s(
+        "collect",
+        s("option", $.tag_opt, $.name),
+        r(
+          f.db__schema($.tag_opt, "schema__tag"),
+          f.file__name($.tag_opt, $.name),
+        ),
+        $.tag_opts,
+      ),
+      view.menu("Add tag", $.tag_opts, $.selected, $.on_add),
+    ),
+  },
+
   // field views
   file__tags: {
-    view__field: "file__tags",
-    rule__params: l(v.id, v.field),
+    rule__params: l($.id, $.field),
     rule__body: view.row(
       r(
-        f.file__tags(v.id, v.tag),
-        view.button(
-          "x",
-          db.with_tx(v.tx, db.delete(v.tx, v.id, "file__tags", v.tag))
+        f.file__tags($.id, $.tag),
+        view.tag_edit(
+          $.tag,
+          db.with_tx($.tx, db.delete($.tx, $.id, "file__tags", $.tag)),
         ),
-        view.file_link(v.tag)
+        view.spacer("0.25rem"),
       ),
-      r(
-        s(
-          "collect",
-          s("option", v.tag_opt, v.name),
-          r(
-            f.db__schema(v.tag_opt, "schema__tag"),
-            f.file__name(v.tag_opt, v.name)
-          ),
-          v.tag_opts
-        ),
-        view.menu(
-          "Add tag",
-          v.tag_opts,
-          v.selected,
-          db.with_tx(v.tx, db.update(v.tx, v.id, "file__tags", v.selected))
-        )
-      )
+      view.add_tag_menu(
+        $.selected,
+        db.with_tx($.tx, db.update($.tx, $.id, "file__tags", $.selected)),
+      ),
     ),
+  },
+  rule__body: {
+    rule__params: l($.id, $.field),
+    rule__body: r(db.get($.id, $.field, $.body), view.rule($.body)),
   },
 
   // schema views
   schema__any: {
     file__name: "Default viewer",
     view__schema: "schema__any",
-    rule__params: l(v.id, v.state),
+    rule__params: l($.id, $.state),
     rule__body: view.column(
-      view.row(view.string("id:"), view.string(v.id)),
-      r(
-        view.string("Fields"),
-        s("get_field_value", v.id, v.field, __),
-        view.row(
-          view.file_link(v.field),
-          s(
-            "first",
-            r(f.view__field(v.view, v.field), s("call", v.view, v.id, v.field)),
-            r(
-              s("rule__field_view", v.field, v.view),
-              s("get_field_value", v.id, v.field, v.value),
-              s("call", v.view, v.value)
-            )
-          )
-        )
+      view.table(
+        l(),
+        view.table_header(l(), view.string("Field"), view.string("Value")),
+        r(
+          view.table_row(l(), view.string("id"), view.string($.id)),
+          s("get_field_value", $.id, $.field, __),
+          view.table_row(
+            l(),
+            view.file_link($.field),
+            view.id_field($.id, $.field),
+          ),
+        ),
       ),
       r(
         view.string("References"),
-        r.or(f.db__index(v.f, s("ref")), f.db__index(v.f, s("multiRef"))),
-        s("get_field_value", v.ref, v.f, v.id),
-        view.row(view.file_link(v.f), view.file_link(v.ref))
-      )
+        view.table(
+          l(),
+          view.table_header(l(), view.string("Field"), view.string("Ref")),
+          r(
+            r.or(f.db__index($.f, s("ref")), f.db__index($.f, s("multiRef"))),
+            s("get_field_value", $.ref, $.f, $.id),
+            view.table_row(l(), view.file_link($.f), view.file_link($.ref)),
+          ),
+        ),
+      ),
+    ),
+  },
+  schema__any_add_field: {
+    rule__params: l($.id),
+    rule__body: r(
+      s(
+        "collect",
+        s("option", $.field_id, $.field_name),
+        r(
+          f.db__schema($.field_id, "schema__field"),
+          f.file__name($.field_id, $.field_name),
+        ),
+        $.fields,
+      ),
+      view.menu(
+        "Add field...",
+        $.fields,
+        $.new_field_id,
+        s("_add_field", $.id, $.new_field_id),
+      ),
     ),
   },
   schema__any_edit: {
     file__name: "Default editor",
     view__schema: "schema__any",
-    rule__params: l(v.id, v.state),
+    rule__params: l($.id, $.state),
     rule__body: view.column(
-      view.row(view.string("id:"), view.string(v.id)),
-      view.string("Fields"),
-      view.column(
+      view.table(
+        l(),
+        view.table_header(l(), view.string("Field"), view.string("Value")),
         r(
-          s("get_field_value", v.id, v.field, v.value),
-          view.row(
-            view.button("×", db.with_tx(v.tx, db.delete(v.tx, v.id, v.field))),
-            view.file_link(v.field),
-            view.type__any_edit(
-              v.value,
-              v.next,
-              db.with_tx(v.tx, db.update(v.tx, v.id, v.field, v.next))
-            )
-          )
-        )
-      ),
-      view.column(
-        r(
-          s(
-            "collect",
-            s("option", v.field_id, v.field_name),
-            r(
-              f.db__schema(v.field_id, "schema__field"),
-              f.file__name(v.field_id, v.field_name)
+          view.table_row(l(), view.string("id"), view.string($.id)),
+          r(
+            s("get_field_value", $.id, $.field, $.value),
+            view.table_row(
+              l(),
+              view.row(
+                view.button(
+                  "×",
+                  db.with_tx($.tx, db.delete($.tx, $.id, $.field)),
+                ),
+                view.file_link($.field),
+              ),
+              view.expr_edit(
+                $.value,
+                $.next,
+                db.with_tx($.tx, db.update($.tx, $.id, $.field, $.next)),
+              ),
             ),
-            v.fields
           ),
-          view.menu(
-            "Add field...",
-            v.fields,
-            v.new_field_id,
-            s("_add_field", v.id, v.new_field_id)
-          )
-        )
-      )
+        ),
+      ),
+      view.schema__any_add_field($.id),
     ),
   },
   schema__schema: {
     file__name: "Schema viewer",
     view__schema: "schema__schema",
-    rule__params: l(v.id, v.state),
+    rule__params: l($.id, $.state),
     rule__body: view.column(
-      view.row(f.file__description(v.id, v.desc), view.type__text(v.desc)),
+      view.row(f.file__description($.id, $.desc), view.text($.desc)),
       view.column(
         r(
           view.string("Fields:"),
-          f.db__fields(v.id, v.fields),
-          s("list_item", v.fields, v.field),
+          f.db__fields($.id, $.fields),
+          s("list_item", $.fields, $.field),
           s(
             "match_cond",
-            v.field,
-            l(s("field", v.field_id), view.file_link(v.field_id)),
+            $.field,
+            l(s("field", $.field_id), view.file_link($.field_id)),
             l(
-              s("field_optional", v.field_id),
-              view.row(view.file_link(v.field_id), view.string("(optional)"))
-            )
-          )
-        )
+              s("field_optional", $.field_id),
+              view.row(view.file_link($.field_id), view.string("(optional)")),
+            ),
+          ),
+        ),
       ),
       view.column(
         r(
           view.string("Views:"),
-          f.view__schema(v.view, v.id),
-          view.row(view.file_info(v.view))
-        )
+          f.view__schema($.view, $.id),
+          view.row(view.file_info($.view)),
+        ),
       ),
       view.column(
         r(
           view.string("Items:"),
-          f.db__schema(v.record, v.id),
-          view.row(view.file_info(v.record))
-        )
+          f.db__schema($.record, $.id),
+          view.row(view.file_info($.record)),
+        ),
       ),
       view.button(
         "New item",
         s(
           "with_tx",
-          v.tx,
+          $.tx,
           r(
-            s("new__default", v.tx, v.item_id, v.id),
-            s("new__window", v.tx, __, s("location", v.item_id))
-          )
-        )
-      )
+            s("new__default", $.tx, $.item_id, $.id),
+            s("new__window", $.tx, __, s("location", $.item_id)),
+          ),
+        ),
+      ),
     ),
   },
   schema__form: {
     file__name: "Form",
     view__schema: "schema__form",
-    rule__params: l(v.id, v.state),
-    rule__body: s("call", v.id, v.id, v.state),
+    rule__params: l($.id, $.state),
+    rule__body: s("call", $.id, $.id, $.state),
   },
   schema__text: {
     file__name: "Text viewer",
     view__schema: "schema__text",
-    rule__params: l(v.id, v.state),
-    rule__body: r(
-      f.text__content(v.id, v.text),
-      view.row(view.type__text(v.text))
+    rule__params: l($.id, $.state),
+    rule__body: view.column(
+      view.spacer("2rem"),
+      view.row(
+        view.spacer("2rem"),
+        r(f.text__content($.id, $.text), view.row(view.text($.text))),
+        view.spacer("2rem"),
+      ),
+      view.spacer("2rem"),
     ),
   },
   schema__tag: {
     file__name: "Tag items",
     view__schema: "schema__tag",
-    rule__params: l(v.tag, v.state),
+    rule__params: l($.tag, $.state),
     rule__body: view.column(
-      r(f.file__description(v.tag, v.desc), view.type__text(v.desc)),
-      r(f.file__tags(v.file, v.tag), view.row(view.file_info(v.file)))
+      r(f.file__description($.tag, $.desc), view.text($.desc)),
+      r(f.file__tags($.file, $.tag), view.row(view.file_info($.file))),
     ),
   },
   schema__folder_list: {
     file__name: "Folder - List",
     view__schema: "schema__folder",
-    rule__params: l(v.id, v.state),
+    rule__params: l($.id, $.state),
     rule__body: view.column(
-      r(f.file__description(v.id, v.desc), view.type__text(v.desc)),
-      r(f.folder__items(v.id, v.item), view.row(view.file_info(v.item)))
+      r(f.file__description($.id, $.desc), view.text($.desc)),
+      r(f.folder__items($.id, $.item), view.row(view.file_info($.item))),
     ),
   },
   schema__folder_icon: {
     file__name: "Folder - Icon",
     view__schema: "schema__folder",
-    rule__params: l(v.id, v.state),
+    rule__params: l($.id, $.state),
     rule__body: view.column(
-      r(f.file__description(v.id, v.desc), view.type__text(v.desc)),
+      r(f.file__description($.id, $.desc), view.text($.desc)),
       view.row(
         r(
-          f.folder__items(v.id, v.item),
-          view.column(view.icon(), view.file_link(v.item))
-        )
-      )
+          f.folder__items($.id, $.item),
+          view.column(view.icon(), view.file_link($.item)),
+        ),
+      ),
     ),
   },
   schema__window: {
     file__name: "Window - History",
     view__schema: "schema__window",
-    rule__params: l(v.id, v.state),
+    rule__params: l($.id, $.state),
     rule__body: view.column(
       r(
-        f.history__window(v.history, v.id),
+        f.history__window($.history, $.id),
         view.row(
-          r(f.history__location(v.history, v.h_id), view.file_link(v.h_id)),
+          r(f.history__location($.history, $.h_id), view.file_link($.h_id)),
           r(
-            f.history__view(v.history, v.h_view),
+            f.history__view($.history, $.h_view),
             view.string(":"),
-            view.file_link(v.h_view)
+            view.file_link($.h_view),
           ),
           r(
-            f.time__created(v.history, v.ts),
+            f.time__created($.history, $.ts),
             // TODO: adjust for timezone
             s(
               "timestamp_date",
-              v.ts,
-              s("date", __, __, __, v.hour, v.minute, v.second, __)
+              $.ts,
+              s("date", __, __, __, $.hour, $.minute, $.second, __),
             ),
             view.string("-"),
-            view.string(v.hour),
+            view.string($.hour),
             view.string(":"),
-            view.string(v.minute),
+            view.string($.minute),
             view.string(":"),
-            view.string(v.second)
-          )
-        )
-      )
+            view.string($.second),
+          ),
+        ),
+      ),
     ),
   },
   // built in UI elements
 
   file_link: {
-    rule__params: l(v.id),
+    rule__params: l($.id),
     rule__body: r(
-      s("get_default", v.id, "file__name", v.name, v.id),
-      view.link(v.name, s("location", v.id))
+      s("get_default", $.id, "file__name", $.name, $.id),
+      view.link($.name, s("location", $.id)),
     ),
   },
   file_info: {
-    rule__params: l(v.id),
+    rule__params: l($.id),
     rule__body: r.or(
-      view.file_link(v.id),
-      r(
-        f.file__description(v.id, v.description),
-        view.type__text(v.description)
-      )
+      view.row(
+        r(
+          f.db__schema($.id, $.schema),
+          view.file_link($.schema),
+          view.string(": "),
+        ),
+        view.file_link($.id),
+      ),
+      r(f.file__description($.id, $.description), view.text($.description)),
     ),
   },
   view_menu: {
     file__name: "View menu",
     file__description: l("the view selection menu on window chrome"),
-    rule__params: l(v.window, v.id, v.selectedView),
+    rule__params: l($.window, $.id, $.selectedView),
     rule__body: r(
       s(
         "collect",
-        s("option", v.view, v.name),
-        r(s("rule__location_view", v.id, v.view), f.file__name(v.view, v.name)),
-        v.options
+        s("option", $.view, $.name),
+        r(s("rule__location_view", $.id, $.view), f.file__name($.view, $.name)),
+        $.options,
       ),
       view.select(
-        v.selectedView,
-        v.options,
-        v.nextView,
+        $.selectedView,
+        $.options,
+        $.nextView,
         db.with_tx(
-          v.tx,
-          f.window__currentHistory(v.window, v.history),
-          db.update(v.tx, v.history, "history__view", v.nextView)
-        )
-      )
+          $.tx,
+          f.window__currentHistory($.window, $.history),
+          db.update($.tx, $.history, "history__view", $.nextView),
+        ),
+      ),
     ),
   },
   window: {
     file__name: "Window",
-    rule__params: l(v.window),
+    rule__params: l($.window),
     rule__body: r(
-      f.window__currentHistory(v.window, v.history),
-      f.browser__currentWindow("browser", v.currentWindow),
-      f.history__location(v.history, v.id),
-      s("set_context", "window_id", v.window),
-      s("set_context", "history_id", v.history),
-      s("get_default", v.id, "file__name", v.name, v.id),
+      f.window__currentHistory($.window, $.history),
+      f.browser__currentWindow("browser", $.currentWindow),
+      f.history__location($.history, $.id),
+      s("set_context", "window_id", $.window),
+      s("set_context", "history_id", $.history),
+      s("get_default", $.id, "file__name", $.name, $.id),
       s(
         "first",
         // view from params
-        f.history__view(v.history, v.view),
+        f.history__view($.history, $.view),
         // view from id
-        s("rule__location_view", v.id, v.view)
+        s("rule__location_view", $.id, $.view),
       ),
       s(
         "view",
         s(
           "WindowContainer",
-          v.window,
-          v.currentWindow,
+          $.window,
+          $.currentWindow,
           r(
-            s("view", s("WindowBar", v.window, v.id, v.view, v.name)),
-            s("call", v.view, v.id, v.history)
-          )
-        )
-      )
+            s("view", s("WindowBar", $.window, $.id, $.view, $.name)),
+            s("call", $.view, $.id, $.history),
+          ),
+        ),
+      ),
     ),
   },
   app_menu: {
@@ -705,22 +858,25 @@ const baseViews = {
       view.button(
         "←",
         r(
-          f.browser__currentWindow("browser", v.window),
-          s("on__back", v.window)
-        )
+          f.browser__currentWindow("browser", $.window),
+          s("on__back", $.window),
+        ),
       ),
       view.button(
         "→",
         r(
-          f.browser__currentWindow("browser", v.window),
-          s("on__forward", v.window)
-        )
+          f.browser__currentWindow("browser", $.window),
+          s("on__forward", $.window),
+        ),
       ),
-      view.button("new window", r(s("on__newWindow", s("location", "omnibox"))))
+      view.button(
+        "new window",
+        r(s("on__newWindow", s("location", "omnibox"))),
+      ),
     ),
   },
 } satisfies Record<string, Rec>;
 
 export const views = Object.fromEntries(
-  Object.entries(baseViews).map(([key, value]) => [`view__${key}`, value])
+  Object.entries(baseViews).map(([key, value]) => [`view__${key}`, value]),
 );

@@ -1,9 +1,11 @@
 import { Rec } from "./data";
-import { l, r, s, v, Expr, __, Struct } from "./expr";
+import { l, r, s, $, Expr, __, Struct } from "./expr";
 import { Field, f } from "./field";
 import { test } from "./test_utils";
 
 export const db = {
+  get: (id: Expr, field: Field, value: Expr) =>
+    s("get_field_value", id, field, value),
   update: (tx: Expr, id: Expr, field: Field, value: Expr) =>
     s("tx_update_field_value", tx, id, field, value),
   delete: (tx: Expr, id: Expr, field?: Field, value?: Expr) =>
@@ -21,8 +23,8 @@ export const rules = {
     rule__body: r(
       test.throw(
         s("doesNotExist", 123), //
-        s("unknown_rule", "doesNotExist")
-      )
+        s("unknown_rule", "doesNotExist"),
+      ),
     ),
   },
   test__invalid_clause: {
@@ -31,8 +33,8 @@ export const rules = {
     rule__body: r(
       test.throw(
         r(1), //
-        s("expected_type", "struct", 1)
-      )
+        s("expected_type", "struct", 1),
+      ),
     ),
   },
   test__not_callable_example: {
@@ -44,8 +46,8 @@ export const rules = {
     rule__body: r(
       test.throw(
         s("test__not_callable_example"),
-        s("invalid_rule", "test__not_callable_example")
-      )
+        s("invalid_rule", "test__not_callable_example"),
+      ),
     ),
   },
   test__wrong_args: {
@@ -54,13 +56,13 @@ export const rules = {
     rule__body: r(
       test.throw(
         s("=", 123),
-        s("expected_received", s("=", __, __), s("=", 123))
-      )
+        s("expected_received", s("=", __, __), s("=", 123)),
+      ),
     ),
   },
   "%": {
     rule__params: l(),
-    rule__rest_params: v.comments,
+    rule__rest_params: $.comments,
     rule__body: r(),
   },
   // primitives
@@ -71,7 +73,7 @@ export const rules = {
     test__group: "primitives",
     rule__params: l(),
     rule__body: r(
-      test.fail(s("fail")) //
+      test.fail(s("fail")), //
     ),
   },
   ok: {
@@ -81,11 +83,11 @@ export const rules = {
     test__group: "primitives",
     rule__params: l(),
     rule__body: r(
-      test.ok(s("ok")) //
+      test.ok(s("ok")), //
     ),
   },
   "=": {
-    rule__params: l(v.left, v.right),
+    rule__params: l($.left, $.right),
   },
   "test__=": {
     test__group: "primitives",
@@ -94,14 +96,14 @@ export const rules = {
       test.ok(s("=", 1, 1)),
       test.ok(s("=", 1, __)),
       test.collect(
-        l(v.left, v.right), //
-        s("=", l(v.left, 456), l(123, v.right)),
-        l(123, 456)
-      )
+        l($.left, $.right), //
+        s("=", l($.left, 456), l(123, $.right)),
+        l(123, 456),
+      ),
     ),
   },
   "/=": {
-    rule__params: l(v.left, v.right),
+    rule__params: l($.left, $.right),
   },
   "test__/=": {
     test__group: "primitives",
@@ -112,38 +114,38 @@ export const rules = {
       test.fail(s("/=", 1, 1)),
 
       test.ok(
-        s("/=", 1, v.x) //
+        s("/=", 1, $.x), //
       ),
       test.collect(
-        v.x,
+        $.x,
         r(
-          s("/=", 1, v.x), //
-          s("=", v.x, 2)
+          s("/=", 1, $.x), //
+          s("=", $.x, 2),
         ),
-        2
+        2,
       ),
       test.fail(
-        s("/=", 1, v.x), //
-        s("=", v.y, 1),
-        s("=", v.x, v.y)
+        s("/=", 1, $.x), //
+        s("=", $.y, 1),
+        s("=", $.x, $.y),
       ),
 
       test.ok(
-        s("/=", s("foo", 1), s("foo", v.x)) //
+        s("/=", s("foo", 1), s("foo", $.x)), //
       ),
       test.ok(
-        s("/=", s("foo", 1), s("foo", v.x)), //
-        s("=", v.x, 2)
+        s("/=", s("foo", 1), s("foo", $.x)), //
+        s("=", $.x, 2),
       ),
       test.fail(
-        s("/=", s("foo", 1), s("foo", v.x)), //
-        s("=", v.x, 1)
-      )
+        s("/=", s("foo", 1), s("foo", $.x)), //
+        s("=", $.x, 1),
+      ),
     ),
   },
   ",": {
     rule__params: l(),
-    rule__rest_params: v.items,
+    rule__rest_params: $.items,
   },
   "test__,": {
     test__group: "primitives",
@@ -155,15 +157,15 @@ export const rules = {
 
       test.fail(
         r(
-          s("=", v.x, 1), //
-          s("=", v.x, 2)
-        )
-      )
+          s("=", $.x, 1), //
+          s("=", $.x, 2),
+        ),
+      ),
     ),
   },
   ";": {
     rule__params: l(),
-    rule__rest_params: v.items,
+    rule__rest_params: $.items,
   },
   "test__;": {
     test__group: "primitives",
@@ -174,106 +176,106 @@ export const rules = {
       test.ok(s(";", s("ok"), s("fail"))),
 
       test.collect(
-        v.x,
+        $.x,
         s(
           ";",
-          s("=", v.x, 1), //
-          s("=", v.x, 2)
+          s("=", $.x, 1), //
+          s("=", $.x, 2),
         ),
         1,
-        2
-      )
+        2,
+      ),
     ),
   },
   "¬": {
-    rule__params: l(v.goal),
+    rule__params: l($.goal),
   },
   "test__¬": {
     test__group: "primitives",
     rule__params: l(),
     rule__body: r(
       test.fail(s("¬", s("ok"))), //
-      test.ok(s("¬", s("fail")))
+      test.ok(s("¬", s("fail"))),
     ),
   },
   if_then_else: {
-    rule__params: l(v.if, v.then, v.else),
+    rule__params: l($.if, $.then, $.else),
   },
   test__if_then_else: {
     test__group: "primitives",
     rule__params: l(),
     rule__body: r(
       test.collect(
-        v.result,
+        $.result,
         s(
           "if_then_else",
           s("ok"),
-          s("=", v.result, 123),
-          s("=", v.result, 456)
+          s("=", $.result, 123),
+          s("=", $.result, 456),
         ),
-        123
+        123,
       ),
       test.collect(
-        v.result,
+        $.result,
         s(
           "if_then_else",
           s("fail"),
-          s("=", v.result, 123),
-          s("=", v.result, 456)
+          s("=", $.result, 123),
+          s("=", $.result, 456),
         ),
-        456
+        456,
       ),
       test.collect(
-        v.result,
+        $.result,
         s(
           "if_then_else",
           s("ok"),
-          r.or(s("=", v.result, 123), s("=", v.result, 789)),
-          s("=", v.result, 456)
+          r.or(s("=", $.result, 123), s("=", $.result, 789)),
+          s("=", $.result, 456),
         ),
         123,
-        789
+        789,
       ),
       test.collect(
-        v.result,
+        $.result,
         s(
           "if_then_else",
-          s("list_item", l(123, 789), v.item),
-          s("=", v.result, s("item", v.item)),
-          s("=", v.result, 456)
+          s("list_item", l(123, 789), $.item),
+          s("=", $.result, s("item", $.item)),
+          s("=", $.result, 456),
         ),
         s("item", 123),
-        s("item", 789)
+        s("item", 789),
       ),
       test.collect(
-        v.result,
+        $.result,
         s(
           "if_then_else",
-          s("list_item", l(), v.item),
-          s("=", v.result, s("item", v.item)),
-          s("=", v.result, s("empty"))
+          s("list_item", l(), $.item),
+          s("=", $.result, s("item", $.item)),
+          s("=", $.result, s("empty")),
         ),
-        s("empty")
-      )
+        s("empty"),
+      ),
     ),
   },
   call: {
-    rule__params: l(v.id),
-    rule__rest_params: v.args,
+    rule__params: l($.id),
+    rule__rest_params: $.args,
   },
   test__call: {
     test__group: "primitives",
     rule__params: l(),
     rule__body: r(
       test.collect(
-        v.result, //
-        s("call", "=", 123, v.result),
-        123
-      )
+        $.result, //
+        s("call", "=", 123, $.result),
+        123,
+      ),
     ),
   },
   throw: {
-    rule__params: l(v.error),
+    rule__params: l($.error),
   },
   test__throw: {
     test__group: "primitives",
@@ -281,37 +283,37 @@ export const rules = {
     rule__body: r(
       test.throw(
         s("throw", s("foo", 123)), //
-        s("foo", 123)
-      )
+        s("foo", 123),
+      ),
     ),
   },
   try_error_catch: {
-    rule__params: l(v.try, v.error, v.catch),
+    rule__params: l($.try, $.error, $.catch),
   },
   test__try_error_catch: {
     test__group: "primitives",
     rule__params: l(),
     rule__body: r(
       test.collect(
-        v.result,
+        $.result,
         s(
           "try_error_catch", //
           s("throw", s("foo", 123)),
-          s("foo", v.arg),
-          s("=", v.result, v.arg)
+          s("foo", $.arg),
+          s("=", $.result, $.arg),
         ),
-        123
+        123,
       ),
 
       test.throw(
         s(
           "try_error_catch", //
           s("throw", s("foo", 123)),
-          s("bar", v.arg),
-          s("=", v.result, v.arg)
+          s("bar", $.arg),
+          s("=", $.result, $.arg),
         ),
-        s("foo", 123)
-      )
+        s("foo", 123),
+      ),
     ),
   },
 
@@ -319,15 +321,15 @@ export const rules = {
     test__group: "db",
     rule__params: l(),
     rule__body: r(
-      s("id", v.id),
+      s("id", $.id),
       test.db(
-        v.tx,
-        db.update(v.tx, v.id, "test__field" as Field, 123),
+        $.tx,
+        db.update($.tx, $.id, "test__field" as Field, 123),
 
-        s("get_field_value", v.id, "test__field", v.value),
-        test.eq(v.value, 123)
+        s("get_field_value", $.id, "test__field", $.value),
+        test.eq($.value, 123),
       ),
-      test.fail(s("get_field_value", v.id, "test__field", v.value))
+      test.fail(s("get_field_value", $.id, "test__field", $.value)),
     ),
   },
 
@@ -337,34 +339,34 @@ export const rules = {
     rule__params: l(),
     rule__body: r(
       test.ok(s("value_type", __, s("var"))),
-      test.ok(s("value_type", v.x, s("var"))),
+      test.ok(s("value_type", $.x, s("var"))),
       test.ok(s("value_type", 123, s("number"))),
       test.ok(s("value_type", "hello", s("string"))),
       test.ok(s("value_type", s("id", 123, "hello"), s("struct"))),
       test.ok(s("value_type", l(__, __), s("struct"))),
 
-      s("=", v.y, 123),
-      test.ok(s("value_type", v.y, s("number")))
+      s("=", $.y, 123),
+      test.ok(s("value_type", $.y, s("number"))),
     ),
   },
   var: {
-    rule__params: l(v.item),
-    rule__body: s("value_type", v.item, s("var")),
+    rule__params: l($.item),
+    rule__body: s("value_type", $.item, s("var")),
   },
   test__var: {
     test__group: "rules",
     rule__params: l(),
     rule__body: r(
-      test.ok(s("var", v.x)),
+      test.ok(s("var", $.x)),
       test.ok(s("var", __)),
-      test.fail(s("var", 123))
+      test.fail(s("var", 123)),
     ),
   },
   nonvar: {
-    rule__params: l(v.item),
+    rule__params: l($.item),
     rule__body: r(
-      s("value_type", v.item, v.type), //
-      s("/=", v.type, s("var"))
+      s("value_type", $.item, $.type), //
+      s("/=", $.type, s("var")),
     ),
   },
   test__nonvar: {
@@ -372,22 +374,22 @@ export const rules = {
     rule__params: l(),
     rule__body: r(
       test.ok(s("nonvar", 123)),
-      test.ok(s("nonvar", l(v.x))),
+      test.ok(s("nonvar", l($.x))),
       test.fail(s("nonvar", __)),
-      test.fail(s("nonvar", v.x))
+      test.fail(s("nonvar", $.x)),
     ),
   },
   string: {
-    rule__params: l(v.item),
-    rule__body: s("value_type", v.item, s("string")),
+    rule__params: l($.item),
+    rule__body: s("value_type", $.item, s("string")),
   },
   number: {
-    rule__params: l(v.item),
-    rule__body: s("value_type", v.item, s("number")),
+    rule__params: l($.item),
+    rule__body: s("value_type", $.item, s("number")),
   },
   struct: {
-    rule__params: l(v.item),
-    rule__body: s("value_type", v.item, s("struct")),
+    rule__params: l($.item),
+    rule__body: s("value_type", $.item, s("struct")),
   },
   test__typechecks: {
     test__group: "rules",
@@ -399,40 +401,40 @@ export const rules = {
       test.ok(s("struct", s("atom"))),
       test.fail(s("string", s("atom"))),
       test.fail(s("number", "123")),
-      test.fail(s("struct", ""))
+      test.fail(s("struct", "")),
     ),
   },
   constrain_type: {
-    rule__params: l(v.item, v.type),
-    rule__body: s("value_constraint", v.item, s("value_type", v.item, v.type)),
+    rule__params: l($.item, $.type),
+    rule__body: s("value_constraint", $.item, s("value_type", $.item, $.type)),
   },
   test__constraints: {
     test__group: "rules",
     rule__params: l(),
     rule__body: r(
-      test.ok(r(s("constrain_type", v.x, s("string")), s("=", v.x, "hello"))),
-      test.fail(r(s("constrain_type", v.x, s("string")), s("=", v.x, 123))),
+      test.ok(r(s("constrain_type", $.x, s("string")), s("=", $.x, "hello"))),
+      test.fail(r(s("constrain_type", $.x, s("string")), s("=", $.x, 123))),
       // odd that this fails here but not in the other test
       test.fail(
-        s("constrain_type", v.x, s("string")),
-        s("constrain_type", v.x, s("number"))
+        s("constrain_type", $.x, s("string")),
+        s("constrain_type", $.x, s("number")),
       ),
       test.fail(
-        s("constrain_type", v.x, s("number")),
-        s("constrain_type", v.x, s("string")),
-        s("=", v.x, 1)
+        s("constrain_type", $.x, s("number")),
+        s("constrain_type", $.x, s("string")),
+        s("=", $.x, 1),
       ),
       test.fail(
-        s("constrain_type", v.x, s("string")),
-        s("constrain_type", v.x, s("number")),
-        s("=", v.x, 1)
+        s("constrain_type", $.x, s("string")),
+        s("constrain_type", $.x, s("number")),
+        s("=", $.x, 1),
       ),
       test.fail(
-        s("constrain_type", v.x, s("string")),
-        s("constrain_type", v.y, s("number")),
-        s("=", v.x, v.y),
-        s("=", v.y, 1)
-      )
+        s("constrain_type", $.x, s("string")),
+        s("constrain_type", $.y, s("number")),
+        s("=", $.x, $.y),
+        s("=", $.y, 1),
+      ),
     ),
   },
   // structs
@@ -440,8 +442,11 @@ export const rules = {
     test__group: "struct",
     rule__params: l(),
     rule__body: r(
-      test.collect(v.len, s("struct_arity", s("pair", 123, __), v.len), 2),
-      test.throw(s("struct_arity", "foo", __), s("expected_type", "struct", __))
+      test.collect($.len, s("struct_arity", s("pair", 123, __), $.len), 2),
+      test.throw(
+        s("struct_arity", "foo", __),
+        s("expected_type", "struct", __),
+      ),
     ),
   },
   test__struct_id_args: {
@@ -449,15 +454,15 @@ export const rules = {
     rule__params: l(),
     rule__body: r(
       test.collect(
-        l(v.id, v.args),
-        s("struct_tag_list", s("pair", 123, 456), v.id, v.args),
-        l("pair", l(123, 456))
+        l($.id, $.args),
+        s("struct_tag_list", s("pair", 123, 456), $.id, $.args),
+        l("pair", l(123, 456)),
       ),
       test.collect(
-        v.struct,
-        s("struct_tag_list", v.struct, "pair", l(123, 456)),
-        s("pair", 123, 456)
-      )
+        $.struct,
+        s("struct_tag_list", $.struct, "pair", l(123, 456)),
+        s("pair", 123, 456),
+      ),
     ),
   },
   test__struct_at_value: {
@@ -466,30 +471,30 @@ export const rules = {
     rule__body: r(
       // get
       test.collect(
-        v.value,
-        s("struct_at_value", s("pair", 123, 456), 0, v.value),
-        123
+        $.value,
+        s("struct_at_value", s("pair", 123, 456), 0, $.value),
+        123,
       ),
       s("set_context", "trace_enabled", l()),
       // iter
       test.collect(
-        l(v.index, v.value),
-        s("struct_at_value", s("pair", 123, 456), v.index, v.value),
+        l($.index, $.value),
+        s("struct_at_value", s("pair", 123, 456), $.index, $.value),
         l(0, 123),
-        l(1, 456)
+        l(1, 456),
       ),
       // find
       test.collect(
-        v.index,
-        s("struct_at_value", s("pair", 123, 456), v.index, 456),
-        1
+        $.index,
+        s("struct_at_value", s("pair", 123, 456), $.index, 456),
+        1,
       ),
       // unique states
       test.collect(
-        v.id,
+        $.id,
         s("struct_at_value", s("pair", 123, 456), __, __),
-        "pair"
-      )
+        "pair",
+      ),
     ),
   },
   test__struct_at_value_updated: {
@@ -497,10 +502,10 @@ export const rules = {
     rule__params: l(),
     rule__body: r(
       test.collect(
-        v.value,
-        s("struct_at_value_updated", s("foo", "a", "b"), 0, 123, v.value),
-        s("foo", 123, "b")
-      )
+        $.value,
+        s("struct_at_value_updated", s("foo", "a", "b"), 0, 123, $.value),
+        s("foo", 123, "b"),
+      ),
     ),
   },
   // lists
@@ -510,16 +515,16 @@ export const rules = {
     rule__body: r(
       // all outputs
       test.collect(
-        l(v.from, v.to, v.slice),
-        s("list_from_to_slice", l("a", "b", "c"), v.from, v.to, v.slice),
-        l(0, 3, l("a", "b", "c"))
+        l($.from, $.to, $.slice),
+        s("list_from_to_slice", l("a", "b", "c"), $.from, $.to, $.slice),
+        l(0, 3, l("a", "b", "c")),
       ),
       // subset
       test.collect(
-        v.slice,
-        s("list_from_to_slice", l("a", "b", "c"), 1, __, v.slice),
-        l("b", "c")
-      )
+        $.slice,
+        s("list_from_to_slice", l("a", "b", "c"), 1, __, $.slice),
+        l("b", "c"),
+      ),
     ),
   },
   test__list_list_append: {
@@ -528,72 +533,72 @@ export const rules = {
     rule__body: r(
       // concat
       test.collect(
-        v.append,
-        s("list_list_append", l("a"), l("b", "c"), v.append),
-        l("a", "b", "c")
+        $.append,
+        s("list_list_append", l("a"), l("b", "c"), $.append),
+        l("a", "b", "c"),
       ),
       // cons
       test.collect(
-        l(v.head, v.tail),
-        s("list_list_append", l(v.head), v.tail, l("a", "b", "c")),
-        l("a", l("b", "c"))
+        l($.head, $.tail),
+        s("list_list_append", l($.head), $.tail, l("a", "b", "c")),
+        l("a", l("b", "c")),
       ),
       // stack
       test.collect(
-        l(v.stack, v.pop),
-        s("list_list_append", v.stack, l(v.pop), l("a", "b", "c")),
-        l(l("a", "b"), "c")
+        l($.stack, $.pop),
+        s("list_list_append", $.stack, l($.pop), l("a", "b", "c")),
+        l(l("a", "b"), "c"),
       ),
       // scan
       test.collect(
-        v.left,
-        s("list_list_append", v.left, __, l("a", "b", "c")),
+        $.left,
+        s("list_list_append", $.left, __, l("a", "b", "c")),
         l(),
         l("a"),
         l("a", "b"),
-        l("a", "b", "c")
-      )
+        l("a", "b", "c"),
+      ),
     ),
   },
 
   list_length: {
-    rule__params: l(v.list, v.length),
+    rule__params: l($.list, $.length),
     rule__body: s(
       "if_then_else",
-      s("var", v.list),
-      s("_list_length_gen", l(), v.length, v.list),
-      s("struct_arity", v.list, v.length)
+      s("var", $.list),
+      s("_list_length_gen", l(), $.length, $.list),
+      s("struct_arity", $.list, $.length),
     ),
   },
   _list_length_gen: {
-    rule__params: l(v.list, v.length, v.out),
+    rule__params: l($.list, $.length, $.out),
     rule__body: s(
       "if_then_else",
-      s("struct_arity", v.list, v.length),
-      s("=", v.list, v.out),
+      s("struct_arity", $.list, $.length),
+      s("=", $.list, $.out),
       r(
-        s("list_list_append", v.list, l(__), v.next),
-        s("_list_length_gen", v.next, v.length, v.out)
-      )
+        s("list_list_append", $.list, l(__), $.next),
+        s("_list_length_gen", $.next, $.length, $.out),
+      ),
     ),
   },
   test__list_length: {
     test__group: "list",
     rule__params: l(),
     rule__body: r(
-      test.collect(v.len, s("list_length", l(), v.len), 0),
-      test.collect(v.len, s("list_length", l(__), v.len), 1),
-      test.collect(v.len, s("list_length", l(1, 2, 3), v.len), 3),
+      test.collect($.len, s("list_length", l(), $.len), 0),
+      test.collect($.len, s("list_length", l(__), $.len), 1),
+      test.collect($.len, s("list_length", l(1, 2, 3), $.len), 3),
 
-      test.collect(v.list, s("list_length", v.list, 0), l()),
-      test.collect(v.list, s("list_length", v.list, 3), l(__, __, __))
+      test.collect($.list, s("list_length", $.list, 0), l()),
+      test.collect($.list, s("list_length", $.list, 3), l(__, __, __)),
     ),
   },
   list_item: {
-    rule__params: l(v.list, v.item),
+    rule__params: l($.list, $.item),
     rule__body: r(
-      s("struct_tag_list", v.list, "", __),
-      s("struct_at_value", v.list, __, v.item)
+      s("struct_tag_list", $.list, "", __),
+      s("struct_at_value", $.list, __, $.item),
     ),
   },
   test__list_item: {
@@ -605,27 +610,27 @@ export const rules = {
       test.fail(s("list_item", l(), __)),
       test.fail(s("list_item", s("tuple", 1, 2, 3), __)),
 
-      test.collect(v.x, s("list_item", l(1, 2, 3), v.x), 1, 2, 3),
+      test.collect($.x, s("list_item", l(1, 2, 3), $.x), 1, 2, 3),
 
-      s("=", v.plist, l(s("foo", 123), s("bar", 456))),
+      s("=", $.plist, l(s("foo", 123), s("bar", 456))),
       test.collect(
-        v.value, //
-        s("list_item", v.plist, s("foo", v.value)),
-        123
-      )
+        $.value, //
+        s("list_item", $.plist, s("foo", $.value)),
+        123,
+      ),
     ),
   },
   list_at_removed_splice: {
-    rule__params: l(v.list, v.at, v.removed, v.splice),
+    rule__params: l($.list, $.at, $.removed, $.splice),
     rule__body: r(
       // if at is not provided, scan across list for match on removed
-      s("list_length", v.list, v.len),
-      s("number_min_max", v.at, 0, v.len),
+      s("list_length", $.list, $.len),
+      s("number_min_max", $.at, 0, $.len),
 
-      s("list_from_to_slice", v.list, __, v.at, v.prefix),
-      s("list_from_to_slice", v.list, v.at, __, v.rest),
-      s("list_list_append", v.removed, v.suffix, v.rest),
-      s("list_list_append", v.prefix, v.suffix, v.splice)
+      s("list_from_to_slice", $.list, __, $.at, $.prefix),
+      s("list_from_to_slice", $.list, $.at, __, $.rest),
+      s("list_list_append", $.removed, $.suffix, $.rest),
+      s("list_list_append", $.prefix, $.suffix, $.splice),
     ),
   },
   test__list_at_removed_splice: {
@@ -633,91 +638,91 @@ export const rules = {
     rule__params: l(),
     rule__body: r(
       test.collect(
-        l(v.removed, v.splice),
-        s("list_at_removed_splice", l(1, 2, 3), 1, l(v.removed), v.splice),
-        l(2, l(1, 3))
+        l($.removed, $.splice),
+        s("list_at_removed_splice", l(1, 2, 3), 1, l($.removed), $.splice),
+        l(2, l(1, 3)),
       ),
 
       test.collect(
-        l(v.first, v.second, v.splice),
+        l($.first, $.second, $.splice),
         s(
           "list_at_removed_splice",
           l(1, 2, 3, 4, 5),
           1,
-          l(v.first, v.second),
-          v.splice
+          l($.first, $.second),
+          $.splice,
         ),
-        l(2, 3, l(1, 4, 5))
+        l(2, 3, l(1, 4, 5)),
       ),
 
       test.collect(
-        v.splice,
-        s("list_at_removed_splice", l(1, 2, 3, 4, 5), __, l(3, 4), v.splice),
-        l(1, 2, 5)
+        $.splice,
+        s("list_at_removed_splice", l(1, 2, 3, 4, 5), __, l(3, 4), $.splice),
+        l(1, 2, 5),
       ),
       test.collect(
-        l(v.l, v.r),
-        s("list_at_removed_splice", l(1, 2, 3, 4, 5), __, l(v.l, v.r), __),
+        l($.l, $.r),
+        s("list_at_removed_splice", l(1, 2, 3, 4, 5), __, l($.l, $.r), __),
         l(1, 2),
         l(2, 3),
         l(3, 4),
-        l(4, 5)
+        l(4, 5),
       ),
 
       test.collect(
-        l(v.removed, v.splice),
-        s("list_at_removed_splice", l(1, 2, 3, 4, 5), 2, v.removed, v.splice),
+        l($.removed, $.splice),
+        s("list_at_removed_splice", l(1, 2, 3, 4, 5), 2, $.removed, $.splice),
         l(l(), l(1, 2, 3, 4, 5)),
         l(l(3), l(1, 2, 4, 5)),
         l(l(3, 4), l(1, 2, 5)),
-        l(l(3, 4, 5), l(1, 2))
+        l(l(3, 4, 5), l(1, 2)),
       ),
 
       test.collect(
-        l(v.at, v.removed),
+        l($.at, $.removed),
         s(
           "list_at_removed_splice",
           l(1, 2, 3, 4, 5),
-          v.at,
-          v.removed,
-          l(1, 2, 5)
+          $.at,
+          $.removed,
+          l(1, 2, 5),
         ),
-        l(2, v(3, 4))
-      )
+        l(2, $(3, 4)),
+      ),
     ),
   },
   apply: {
     file__description: l("run a rule with a list of params"),
-    rule__params: l(v.id),
-    rule__rest_params: v.param_lists,
+    rule__params: l($.id),
+    rule__rest_params: $.param_lists,
     rule__body: r(
       s(
         "collect",
-        v.param,
+        $.param,
         r(
-          s("list_item", v.param_lists, v.param_list),
-          s("list_item", v.param_list, v.param)
+          s("list_item", $.param_lists, $.param_list),
+          s("list_item", $.param_list, $.param),
         ),
-        v.params
+        $.params,
       ),
-      s("struct_tag_list", v.call, v.id, v.params),
-      v.call
+      s("struct_tag_list", $.call, $.id, $.params),
+      $.call,
     ),
   },
   cond: {
     file__description: l("pattern match on a list of (if, then) pairs"),
-    rule__params: l(l(v.if, v.then)),
-    rule__rest_params: v.else,
+    rule__params: l(l($.if, $.then)),
+    rule__rest_params: $.else,
     rule__body: s(
       "if_then_else",
-      v.if,
-      v.then,
+      $.if,
+      $.then,
       s(
         "if_then_else",
-        s("=", v.else, l()),
+        s("=", $.else, l()),
         s("fail"),
-        s("apply", "cond", v.else)
-      )
+        s("apply", "cond", $.else),
+      ),
     ),
   },
   test__cond: {
@@ -725,53 +730,53 @@ export const rules = {
     rule__params: l(),
     rule__body: r(
       test.collect(
-        v.result,
+        $.result,
         cond(
-          l(s("=", 123, 456), s("=", v.result, "foo")),
-          l(s("=", 456, 456), s("=", v.result, "bar")),
-          l(s("ok"), s("=", v.result, "baz"))
+          l(s("=", 123, 456), s("=", $.result, "foo")),
+          l(s("=", 456, 456), s("=", $.result, "bar")),
+          l(s("ok"), s("=", $.result, "baz")),
         ),
-        "bar"
+        "bar",
       ),
       test.collect(
-        v.result,
+        $.result,
         cond(
-          l(s("=", 123, 789), s("=", v.result, "foo")),
-          l(s("=", 456, 789), s("=", v.result, "bar")),
-          l(s("ok"), s("=", v.result, "baz"))
+          l(s("=", 123, 789), s("=", $.result, "foo")),
+          l(s("=", 456, 789), s("=", $.result, "bar")),
+          l(s("ok"), s("=", $.result, "baz")),
         ),
-        "baz"
+        "baz",
       ),
       test.fail(
         cond(
-          l(s("=", 123, 789), s("=", v.result, "foo")),
-          l(s("=", 456, 789), s("=", v.result, "bar"))
-        )
-      )
+          l(s("=", 123, 789), s("=", $.result, "foo")),
+          l(s("=", 456, 789), s("=", $.result, "bar")),
+        ),
+      ),
     ),
   },
   nonempty: {
-    rule__params: l(v.list),
-    rule__body: s("/=", v.list, l()),
+    rule__params: l($.list),
+    rule__body: s("/=", $.list, l()),
   },
   match: {
-    rule__params: l(v.pattern, v.match),
-    rule__rest_params: v.rest,
+    rule__params: l($.pattern, $.match),
+    rule__rest_params: $.rest,
     rule__body: s(
       "if_then_else",
-      s("=", v.pattern, v.match),
+      s("=", $.pattern, $.match),
       s("ok"),
-      r(s("nonempty", v.rest), s("apply", "match", l(v.pattern), v.rest))
+      r(s("nonempty", $.rest), s("apply", "match", l($.pattern), $.rest)),
     ),
   },
   match_cond: {
-    rule__params: l(v.pattern, l(v.match, v.then)),
-    rule__rest_params: v.rest,
+    rule__params: l($.pattern, l($.match, $.then)),
+    rule__rest_params: $.rest,
     rule__body: s(
       "if_then_else",
-      s("=", v.pattern, v.match),
-      v.then,
-      r(s("nonempty", v.rest), s("apply", "match_cond", l(v.pattern), v.rest))
+      s("=", $.pattern, $.match),
+      $.then,
+      r(s("nonempty", $.rest), s("apply", "match_cond", l($.pattern), $.rest)),
     ),
   },
   test__match: {
@@ -779,16 +784,16 @@ export const rules = {
     rule__params: l(),
     rule__body: r(
       test.collect(
-        v.result,
-        s("match", s("foo", v.result), s("foo", 123), s("bar", 456)),
-        123
+        $.result,
+        s("match", s("foo", $.result), s("foo", 123), s("bar", 456)),
+        123,
       ),
       test.collect(
-        v.result,
-        s("match", s("bar", v.result), s("foo", 123), s("bar", 456)),
-        456
+        $.result,
+        s("match", s("bar", $.result), s("foo", 123), s("bar", 456)),
+        456,
       ),
-      test.fail(s("match", s("baz", v.result), s("foo", 123), s("bar", 456)))
+      test.fail(s("match", s("baz", $.result), s("foo", 123), s("bar", 456))),
     ),
   },
   test__match_cond: {
@@ -796,298 +801,274 @@ export const rules = {
     rule__params: l(),
     rule__body: r(
       test.collect(
-        v.result,
+        $.result,
         s(
           "match_cond",
-          s("foo", v.pat),
-          l(s("foo", 123), s("=", v.result, l(v.pat))),
-          l(s("bar", 456), s("=", v.result, l(v.pat, v.pat))),
-          l(__, s("=", v.result, l()))
+          s("foo", $.pat),
+          l(s("foo", 123), s("=", $.result, l($.pat))),
+          l(s("bar", 456), s("=", $.result, l($.pat, $.pat))),
+          l(__, s("=", $.result, l())),
         ),
-        l(123)
+        l(123),
       ),
 
       test.collect(
-        v.result,
+        $.result,
         s(
           "match_cond",
-          s("bar", v.pat),
-          l(s("foo", 123), s("=", v.result, l(v.pat))),
-          l(s("bar", 456), s("=", v.result, l(v.pat, v.pat))),
-          l(__, s("=", v.result, l()))
+          s("bar", $.pat),
+          l(s("foo", 123), s("=", $.result, l($.pat))),
+          l(s("bar", 456), s("=", $.result, l($.pat, $.pat))),
+          l(__, s("=", $.result, l())),
         ),
-        l(456, 456)
+        l(456, 456),
       ),
 
       test.collect(
-        v.result,
+        $.result,
         s(
           "match_cond",
-          s("baz", v.pat),
-          l(s("foo", 123), s("=", v.result, l(v.pat))),
-          l(s("bar", 456), s("=", v.result, l(v.pat, v.pat))),
-          l(__, s("=", v.result, "ok"))
+          s("baz", $.pat),
+          l(s("foo", 123), s("=", $.result, l($.pat))),
+          l(s("bar", 456), s("=", $.result, l($.pat, $.pat))),
+          l(__, s("=", $.result, "ok")),
         ),
-        "ok"
+        "ok",
       ),
 
       test.fail(
         s(
           "match_cond",
-          s("baz", v.pat),
-          l(s("foo", 123), s("=", v.result, l(v.pat))),
-          l(s("bar", 456), s("=", v.result, l(v.pat, v.pat)))
-        )
-      )
+          s("baz", $.pat),
+          l(s("foo", 123), s("=", $.result, l($.pat))),
+          l(s("bar", 456), s("=", $.result, l($.pat, $.pat))),
+        ),
+      ),
     ),
   },
   first: {
     rule__params: l(),
-    rule__rest_params: v.rest,
+    rule__rest_params: $.rest,
     rule__body: r(
-      s("struct_tag_list", v.body, ";", v.rest),
-      s("limit", 1, v.body)
+      s("struct_tag_list", $.body, ";", $.rest),
+      s("limit", 1, $.body),
     ),
   },
   if_var: {
     file__description: l("if arg is var, run body"),
-    rule__params: l(v.arg, v.body),
-    rule__body: s("if_then_else", s("var", v.arg), v.body, r()),
+    rule__params: l($.arg, $.body),
+    rule__body: s("if_then_else", s("var", $.arg), $.body, r()),
   },
   get_default: {
-    rule__params: l(v.id, v.field, v.value, v.default),
+    rule__params: l($.id, $.field, $.value, $.default),
     rule__body: s(
       "if_then_else",
-      s("get_field_value", v.id, v.field, v.value),
+      s("get_field_value", $.id, $.field, $.value),
       s("ok"),
-      s("=", v.value, v.default)
+      s("=", $.value, $.default),
     ),
   },
   params_default_match: {
-    rule__params: l(v.params, v.default, v.match),
+    rule__params: l($.params, $.default, $.match),
     rule__body: s(
       "if_then_else",
-      s("list_item", v.params, v.match),
+      s("list_item", $.params, $.match),
       s("ok"),
-      s("=", v.default, v.match)
+      s("=", $.default, $.match),
     ),
   },
   location_id_view_params: {
-    rule__params: l(v.location, v.id, v.view, v.params),
+    rule__params: l($.location, $.id, $.view, $.params),
     rule__body: r(
-      s("nonvar", v.location),
+      s("nonvar", $.location),
       s(
         "match",
-        v.location,
-        s("location", v.id),
-        s("location", v.id, v.view),
-        s("location", v.id, v.view, v.params)
+        $.location,
+        s("location", $.id),
+        s("location", $.id, $.view),
+        s("location", $.id, $.view, $.params),
       ),
-      s("if_var", v.params, s("=", v.params, l()))
+      s("if_var", $.params, s("=", $.params, l())),
     ),
   },
   with_tx: {
-    rule__params: l(v.tx, v.goal),
+    rule__params: l($.tx, $.goal),
     rule__body: r(
-      s("tx", v.tx),
+      s("tx", $.tx),
       s(
         "if_then_else",
-        s("collect", __, v.goal, __),
-        s("commit", v.tx),
-        s("rollback", v.tx)
-      )
+        s("collect", __, $.goal, __),
+        s("commit", $.tx),
+        s("rollback", $.tx),
+      ),
     ),
   },
   _struct_push: {
-    rule__params: l(v.struct, v.added, v.updated),
+    rule__params: l($.struct, $.added, $.updated),
     rule__body: r(
-      s("struct_tag_list", v.struct, v.tag, v.list),
-      s("list_list_append", v.list, l(v.added), v.next_list),
-      s("struct_tag_list", v.updated, v.tag, v.next_list)
+      s("struct_tag_list", $.struct, $.tag, $.list),
+      s("list_list_append", $.list, l($.added), $.next_list),
+      s("struct_tag_list", $.updated, $.tag, $.next_list),
     ),
   },
   _add_field: {
-    rule__params: l(v.id, v.field),
+    rule__params: l($.id, $.field),
     rule__body: db.with_tx(
-      v.tx,
-      f.db__type(v.field, v.field_type),
-      s("get_default", v.field_type, "db__default_value", v.default_value, l()),
-      db.update(v.tx, v.id, v.field, v.default_value)
+      $.tx,
+      f.db__type($.field, $.field_type),
+      s("get_default", $.field_type, "db__default_value", $.default_value, l()),
+      db.update($.tx, $.id, $.field, $.default_value),
     ),
   },
   each_item_do: {
     file__description: l(
-      "for each item in collection, run do block but discard results (e.g. for side effects). succeed if collection is empty."
+      "for each item in collection, run do block but discard results (e.g. for side effects). succeed if collection is empty.",
     ),
-    rule__params: l(v.collection, v.item, v.do),
+    rule__params: l($.collection, $.item, $.do),
     rule__body: s(
       "if_then_else",
-      s("=", v.collection, l()),
+      s("=", $.collection, l()),
       s("ok"),
-      s("collect", __, r(s("list_item", v.collection, v.item), v.do), __)
+      s("collect", __, r(s("list_item", $.collection, $.item), $.do), __),
     ),
   },
   // view helpers
   // utilities
   rule__location_view: {
-    rule__params: l(v.location, v.view),
+    rule__params: l($.location, $.view),
     rule__body: r.or(
       // location for view type
       r(
-        s("nonvar", v.view),
-        f.view__schema(v.view, v.schema),
-        f.db__schema(v.location, v.schema)
+        s("nonvar", $.view),
+        f.view__schema($.view, $.schema),
+        f.db__schema($.location, $.schema),
       ),
       // view for location type
       r(
-        s("nonvar", v.location),
-        f.db__schema(v.location, v.schema),
-        f.view__schema(v.view, v.schema)
+        s("nonvar", $.location),
+        f.db__schema($.location, $.schema),
+        f.view__schema($.view, $.schema),
       ),
       // view for any type
-      f.view__schema(v.view, "schema__any")
-    ),
-  },
-  rule__field_view: {
-    rule__params: l(v.field, v.view),
-    rule__body: r.or(
-      // f.view__field(v.view, v.field),
-      r(
-        s("nonvar", v.field),
-        f.db__type(v.field, v.type),
-        f.view__type(v.view, v.type)
-      ),
-      r(
-        s("nonvar", v.view),
-        f.db__type(v.field, v.type),
-        f.view__type(v.view, v.type)
-      ),
-      f.view__type(v.view, "type__any")
-    ),
-  },
-  rule__type_view: {
-    rule__params: l(v.type, v.view),
-    rule__body: r.or(
-      f.view__type(v.view, v.type),
-      f.view__type(v.view, "type__any")
+      f.view__schema($.view, "schema__any"),
     ),
   },
   // event handlers
   on__selectWindow: {
-    rule__params: l(v.window),
+    rule__params: l($.window),
     rule__body: db.with_tx(
-      v.tx,
-      db.update(v.tx, "browser", "browser__currentWindow", v.window)
+      $.tx,
+      db.update($.tx, "browser", "browser__currentWindow", $.window),
     ),
   },
   on__newWindow: {
-    rule__params: l(v.location),
-    rule__body: db.with_tx(v.tx, s("new__window", v.tx, __, v.location)),
+    rule__params: l($.location),
+    rule__body: db.with_tx($.tx, s("new__window", $.tx, __, $.location)),
   },
   on__closeWindow: {
-    rule__params: l(v.window),
-    rule__body: db.with_tx(v.tx, db.delete(v.tx, v.window)),
+    rule__params: l($.window),
+    rule__body: db.with_tx($.tx, db.delete($.tx, $.window)),
   },
   on__push: {
-    rule__params: l(v.window, v.location),
+    rule__params: l($.window, $.location),
     rule__body: db.with_tx(
-      v.tx,
-      f.window__currentHistory(v.window, v.prev),
-      s("new__history", v.tx, v.next, v.window, v.location),
-      db.update(v.tx, v.next, "history__back", v.prev),
-      db.update(v.tx, v.prev, "history__forward", v.next),
-      db.update(v.tx, v.window, "window__currentHistory", v.next)
+      $.tx,
+      f.window__currentHistory($.window, $.prev),
+      s("new__history", $.tx, $.next, $.window, $.location),
+      db.update($.tx, $.next, "history__back", $.prev),
+      db.update($.tx, $.prev, "history__forward", $.next),
+      db.update($.tx, $.window, "window__currentHistory", $.next),
     ),
   },
 
   on__back: {
-    rule__params: l(v.window),
+    rule__params: l($.window),
     rule__body: db.with_tx(
-      v.tx,
-      f.window__currentHistory(v.window, v.forward),
-      f.history__back(v.forward, v.back),
-      db.update(v.tx, v.window, "window__currentHistory", v.back),
-      db.update(v.tx, v.back, "history__forward", v.forward),
-      db.delete(v.tx, v.forward, "history__back")
+      $.tx,
+      f.window__currentHistory($.window, $.forward),
+      f.history__back($.forward, $.back),
+      db.update($.tx, $.window, "window__currentHistory", $.back),
+      db.update($.tx, $.back, "history__forward", $.forward),
+      db.delete($.tx, $.forward, "history__back"),
     ),
   },
   on__forward: {
-    rule__params: l(v.window),
+    rule__params: l($.window),
     rule__body: db.with_tx(
-      v.tx,
-      f.window__currentHistory(v.window, v.back),
-      f.history__forward(v.back, v.forward),
+      $.tx,
+      f.window__currentHistory($.window, $.back),
+      f.history__forward($.back, $.forward),
 
-      db.update(v.tx, v.window, "window__currentHistory", v.forward),
-      db.update(v.tx, v.forward, "history__back", v.back),
-      db.delete(v.tx, v.back, "history__forward")
+      db.update($.tx, $.window, "window__currentHistory", $.forward),
+      db.update($.tx, $.forward, "history__back", $.back),
+      db.delete($.tx, $.back, "history__forward"),
     ),
   },
 
   // constructors
   new__default: {
-    rule__params: l(v.tx, v.id, v.schema),
+    rule__params: l($.tx, $.id, $.schema),
     rule__body: r(
-      s("if_var", v.id, s("id", v.id)),
-      db.update(v.tx, v.id, "db__schema", v.schema),
-      f.db__fields(v.schema, v.fields),
+      s("if_var", $.id, s("id", $.id)),
+      db.update($.tx, $.id, "db__schema", $.schema),
+      f.db__fields($.schema, $.fields),
       s(
         "each_item_do",
-        v.fields,
-        s("field", v.field),
+        $.fields,
+        s("field", $.field),
         r(
-          f.db__type(v.field, v.field_type),
+          f.db__type($.field, $.field_type),
           s(
             "get_default",
-            v.field_type,
+            $.field_type,
             "db__default_value",
-            v.default_value,
-            l()
+            $.default_value,
+            l(),
           ),
-          db.update(v.tx, v.id, v.field, v.default_value)
-        )
-      )
+          db.update($.tx, $.id, $.field, $.default_value),
+        ),
+      ),
     ),
   },
 
   new__rule: {
-    rule__params: l(v.tx, v.id, v.params, v.body),
+    rule__params: l($.tx, $.id, $.params, $.body),
     rule__body: r(
-      db.update(v.tx, v.id, "rule__params", v.params),
-      db.update(v.tx, v.id, "rule__body", v.body)
+      db.update($.tx, $.id, "rule__params", $.params),
+      db.update($.tx, $.id, "rule__body", $.body),
     ),
   },
   new__window: {
-    rule__params: l(v.tx, v.window, v.location),
+    rule__params: l($.tx, $.window, $.location),
     rule__body: r(
-      s("if_var", v.window, s("id", v.window)),
-      s("new__history", v.tx, v.history, v.window, v.location),
-      db.update(v.tx, v.window, "db__schema", "schema__window"),
-      db.update(v.tx, v.window, "window__currentHistory", v.history)
+      s("if_var", $.window, s("id", $.window)),
+      s("new__history", $.tx, $.history, $.window, $.location),
+      db.update($.tx, $.window, "db__schema", "schema__window"),
+      db.update($.tx, $.window, "window__currentHistory", $.history),
     ),
   },
   new__history: {
-    rule__params: l(v.tx, v.history, v.window, v.location),
+    rule__params: l($.tx, $.history, $.window, $.location),
     rule__body: r(
-      s("if_var", v.history, s("id", v.history)),
-      s("timestamp", v.ts),
-      s("location_id_view_params", v.location, v.id, v.view, v.params),
-      db.update(v.tx, v.history, "db__schema", "schema__history"),
-      db.update(v.tx, v.history, "time__created", v.ts),
-      db.update(v.tx, v.history, "history__window", v.window),
-      db.update(v.tx, v.history, "history__location", v.id),
+      s("if_var", $.history, s("id", $.history)),
+      s("timestamp", $.ts),
+      s("location_id_view_params", $.location, $.id, $.view, $.params),
+      db.update($.tx, $.history, "db__schema", "schema__history"),
+      db.update($.tx, $.history, "time__created", $.ts),
+      db.update($.tx, $.history, "history__window", $.window),
+      db.update($.tx, $.history, "history__location", $.id),
       s(
         "if_then_else",
-        s("nonvar", v.view),
-        db.update(v.tx, v.history, "history__view", v.view),
-        r()
+        s("nonvar", $.view),
+        db.update($.tx, $.history, "history__view", $.view),
+        r(),
       ),
       s(
         "each_item_do",
-        v.params,
-        s("param", v.param_field, v.param_value),
-        db.update(v.tx, v.history, v.param_field, v.param_value)
-      )
+        $.params,
+        s("param", $.param_field, $.param_value),
+        db.update($.tx, $.history, $.param_field, $.param_value),
+      ),
     ),
   },
 } satisfies Record<string, Rec>;
