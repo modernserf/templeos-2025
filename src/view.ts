@@ -30,7 +30,8 @@ const baseViews = {
     rule__rest_params: $.children_list,
     rule__body: r(
       s.struct_tag_list($.children, ";", $.children_list),
-      s.view(s.Row($.children)),
+      view.children($.children, $.children_rendered),
+      s.view(s.Row($.children_rendered)),
     ),
   },
   column: {
@@ -38,7 +39,8 @@ const baseViews = {
     rule__rest_params: $.children_list,
     rule__body: r(
       s.struct_tag_list($.children, ";", $.children_list),
-      s.view(s.Column($.children)),
+      view.children($.children, $.children_rendered),
+      s.view(s.Column($.children_rendered)),
     ),
   },
   local_state: {
@@ -118,15 +120,20 @@ const baseViews = {
     rule__params: l(),
     rule__body: s.view(s.Icon()),
   },
+
   table: {
+    file__description: l("Render a table. Fails if there are no rows."),
     rule__params: l($.params, $.header, $.body),
-    rule__body: s.view(
-      s.Html(
-        "table",
-        l(),
-        fork(
-          s.view(s.Html("thead", l(), $.header)),
-          s.view(s.Html("tbody", l(), $.body)),
+    rule__body: r(
+      view.children($.body, $.body_rendered),
+      s.view(
+        s.Html(
+          "table",
+          l(),
+          fork(
+            s.view(s.Html("thead", l(), $.header)),
+            s.view(s.Html("tbody", l(), $.body_rendered)),
+          ),
         ),
       ),
     ),
@@ -189,6 +196,16 @@ const baseViews = {
     ),
   },
   // view utilities
+  children: {
+    file__description: l(
+      "Runs a goal, collects emitted views, and fails if no views are yielded. This is useful for preventing wrapper components from rendering if are empty.",
+    ),
+    rule__params: l($.get_children, $.children),
+    rule__body: r(
+      s.collect_view($.get_children, $.children_collected),
+      eq($.children, r(s.list_item($.children_collected, $.v), s.view($.v))),
+    ),
+  },
   id_field: {
     rule__params: l($.entity, $.field),
     rule__body: s.cond(
