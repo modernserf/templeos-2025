@@ -1,4 +1,4 @@
-import { l, r, s, $, Expr, Struct, Id, List, AnyStruct } from "./expr";
+import { l, r, s, $, Expr, Struct, Id, List, AnyStruct, eq } from "./expr";
 import { typeRecs } from "./type";
 import { schemas, SchemaId } from "./schema";
 import { fields, Field, f } from "./field";
@@ -16,6 +16,10 @@ export type FormatText =
   | string
   | Struct<"link", [string, Location]>
   | Struct<"section", [List<FormatText>, List<FormatText>]>;
+
+export type HtmlProp =
+  | Struct<"class", [string]>
+  | Struct<"style", [key: string, value: string]>;
 
 type SchemaField =
   | Struct<"field", [Field]>
@@ -101,19 +105,24 @@ const files = {
       s.get_default($.state, "data__omnibox", $.omnibox, ""),
       view.column(
         view.input(
+          l(s.placeholder("Search..."), s.style("width", "100%")),
           $.omnibox,
           $.next,
           db.with_tx($.tx, db.update($.tx, $.state, "data__omnibox", $.next)),
         ),
-        r(
-          s.limit(
-            10,
-            r(
-              f.file__name($.result, $.result_name),
-              s.string_substring($.result_name, $.omnibox),
+        s.cond(
+          l(eq("", $.omnibox), s.ok()),
+          l(
+            s.limit(
+              10,
+              r(
+                f.file__name($.result, $.result_name),
+                s.string_substring($.result_name, $.omnibox),
+              ),
             ),
+            r(view.file_info($.result), view.spacer("0.5rem")),
           ),
-          view.file_info($.result),
+          l(s.ok(), view.string("no results")),
         ),
       ),
     ),

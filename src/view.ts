@@ -23,7 +23,9 @@ const baseViews = {
   // primitives
   spacer: {
     rule__params: l($.space),
-    rule__body: s.view(s.Spacer($.space)),
+    rule__body: s.view(
+      s.Html("div", l(s.class("Spacer"), s.style("flexBasis", $.space)), r()),
+    ),
   },
   row: {
     rule__params: l(),
@@ -31,7 +33,7 @@ const baseViews = {
     rule__body: r(
       s.struct_tag_list($.children, ";", $.children_list),
       view.children($.children, $.children_rendered),
-      s.view(s.Row($.children_rendered)),
+      s.view(s.Html("div", l(s.class("Row")), $.children_rendered)),
     ),
   },
   column: {
@@ -40,7 +42,7 @@ const baseViews = {
     rule__body: r(
       s.struct_tag_list($.children, ";", $.children_list),
       view.children($.children, $.children_rendered),
-      s.view(s.Column($.children_rendered)),
+      s.view(s.Html("div", l(s.class("Column")), $.children_rendered)),
     ),
   },
   local_state: {
@@ -55,15 +57,15 @@ const baseViews = {
   },
   button: {
     rule__params: l($.string, $.on_click),
-    rule__body: s.view(s.Button($.string, "", __, $.on_click)),
+    rule__body: s.view(s.Button(l(), $.string, __, $.on_click)),
   },
   input: {
-    rule__params: l($.value, $.next, $.on_change),
-    rule__body: s.view(s.Input($.value, "", $.next, $.on_change)),
+    rule__params: l($.props, $.value, $.next, $.on_change),
+    rule__body: s.view(s.Input($.props, $.value, $.next, $.on_change)),
   },
   select: {
     rule__params: l($.value, $.options, $.next, $.on_change),
-    rule__body: s.view(s.Select($.value, $.options, $.next, $.on_change)),
+    rule__body: s.view(s.Select(l(), $.value, $.options, $.next, $.on_change)),
   },
   link: {
     rule__params: l($.label, $.location),
@@ -73,8 +75,8 @@ const baseViews = {
       s.get_context("window_id", $.window),
       s.view(
         s.Button(
+          l(s.class("Link")),
           $.label,
-          "Link",
           $.event,
           s.cond(
             l(eq($.event, s.click(1)), s.on__newWindow($.location)),
@@ -98,8 +100,8 @@ const baseViews = {
           view.link("hello", s.location("test_link")),
         ),
         s.Button(
+          l(s.class("Link")),
           "hello",
-          "Link",
           $.event,
           s.cond(
             l(
@@ -123,13 +125,13 @@ const baseViews = {
 
   table: {
     file__description: l("Render a table. Fails if there are no rows."),
-    rule__params: l($.params, $.header, $.body),
+    rule__params: l($.props, $.header, $.body),
     rule__body: r(
       view.children($.body, $.body_rendered),
       s.view(
         s.Html(
           "table",
-          l(),
+          $.props,
           fork(
             s.view(s.Html("thead", l(), $.header)),
             s.view(s.Html("tbody", l(), $.body_rendered)),
@@ -139,23 +141,23 @@ const baseViews = {
     ),
   },
   table_header: {
-    rule__params: l($.params),
+    rule__params: l($.props),
     rule__rest_params: $.items,
     rule__body: s.view(
       s.Html(
         "tr",
-        l(),
+        $.props,
         r(s.list_item($.items, $.item), s.view(s.Html("th", l(), $.item))),
       ),
     ),
   },
   table_row: {
-    rule__params: l($.params),
+    rule__params: l($.props),
     rule__rest_params: $.items,
     rule__body: s.view(
       s.Html(
         "tr",
-        l(),
+        $.props,
         r(s.list_item($.items, $.item), s.view(s.Html("td", l(), $.item))),
       ),
     ),
@@ -191,8 +193,12 @@ const baseViews = {
   },
   text: {
     rule__params: l($.text),
-    rule__body: view.row(
-      r(s.list_item($.text, $.node), view.text_node($.node)),
+    rule__body: s.view(
+      s.Html(
+        "div",
+        l(s.class("Text")),
+        r(s.list_item($.text, $.node), view.text_node($.node)),
+      ),
     ),
   },
   // view utilities
@@ -364,8 +370,11 @@ const baseViews = {
   // type editors
   fit_content_input: {
     rule__params: l($.value, $.next, $.on_change),
-    rule__body: s.view(
-      s.Input($.value, "Input--fitContent", $.next, $.on_change),
+    rule__body: view.input(
+      l(s.class("Input--fitContent")),
+      $.value,
+      $.next,
+      $.on_change,
     ),
   },
   expr_edit: {
@@ -759,12 +768,12 @@ const baseViews = {
   },
   file_info: {
     rule__params: l($.id),
-    rule__body: fork(
+    rule__body: view.column(
       view.row(
         r(
           f.db__schema($.id, $.schema),
           view.file_link($.schema),
-          view.string(": "),
+          view.string(": "),
         ),
         view.file_link($.id),
       ),
@@ -814,9 +823,36 @@ const baseViews = {
           $.window,
           $.currentWindow,
           r(
-            s.view(s.WindowBar($.window, $.id, $.view, $.name)),
+            view.window_bar($.window, $.id, $.view, $.name),
             s.call($.view, $.id, $.history),
           ),
+        ),
+      ),
+    ),
+  },
+  window_close_button: {
+    rule__params: l($.window),
+    rule__body: s.view(
+      s.Button(
+        l(s.class("AppWindow__closeButton")),
+        "",
+        __,
+        s.on__closeWindow($.window),
+      ),
+    ),
+  },
+  window_bar: {
+    rule__params: l($.window, $.id, $.view, $.name),
+    rule__body: s.view(
+      s.Html(
+        "header",
+        l(s.class("AppWindow__header")),
+        fork(
+          view.window_close_button($.window),
+          s.view(
+            s.Html("h1", l(s.class("AppWindow__title")), view.string($.name)),
+          ),
+          view.view_menu($.window, $.id, $.view),
         ),
       ),
     ),

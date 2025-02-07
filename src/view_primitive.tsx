@@ -11,31 +11,35 @@ type VC = FC<{
   values: Value[];
 }>;
 
-const Spacer: VC = ({ state, values: [space] }) => {
-  return (
-    <div className="Spacer" style={{ flexBasis: state.resolveString(space) }} />
-  );
-};
+function getProps(state: State, props: Value) {
+  const out: Record<string, unknown> = {};
+  const classList: string[] = [];
+  const style: Record<string, string> = {};
+  for (const arg of state.resolveStruct(props).args) {
+    const { id, args } = state.resolveStruct(arg);
+    switch (id) {
+      case "class":
+        classList.push(state.resolveString(args[0]));
+        break;
+      case "style":
+        style[state.resolveString(args[0])] = state.resolveString(args[1]);
+        break;
+      case "placeholder":
+        out.placeholder = state.resolveString(args[0]);
+        break;
+    }
+  }
+  return { ...out, className: classList.join(" "), style };
+}
 
 const Html: VC = ({ state, values: [tag, props, children] }) => {
   const El = state.resolveString(tag);
   return (
-    <El>
+    <El {...getProps(state, props)}>
       <Children state={state} children={children} />
     </El>
   );
 };
-
-const Row: VC = ({ state, values: [children] }) => (
-  <div className="Row">
-    <Children state={state} children={children} />
-  </div>
-);
-const Column: VC = ({ state, values: [children] }) => (
-  <div className="Column">
-    <Children state={state} children={children} />
-  </div>
-);
 
 const LocalState: VC = ({
   state,
@@ -58,15 +62,13 @@ const LocalState: VC = ({
   return <Children state={localState} children={children} />;
 };
 
-const String: VC = ({ values: [value] }) => (
-  <span className="String">{value.value}</span>
-);
+const String: VC = ({ values: [value] }) => value.value;
 
-const Button: VC = ({ state, values: [label, className, next, onClick] }) => {
+const Button: VC = ({ state, values: [props, label, next, onClick] }) => {
   const handle = useStateCallback(state);
   return (
     <button
-      className={state.resolveString(className)}
+      {...getProps(state, props)}
       type="button"
       onClick={(e) => {
         handle(next, onClick, s.click(Number(e.metaKey)));
@@ -77,11 +79,11 @@ const Button: VC = ({ state, values: [label, className, next, onClick] }) => {
   );
 };
 
-const Input: VC = ({ state, values: [value, className, next, onChange] }) => {
+const Input: VC = ({ state, values: [props, value, next, onChange] }) => {
   const handle = useStateCallback(state);
   return (
     <input
-      className={state.resolveString(className)}
+      {...getProps(state, props)}
       value={value.value}
       onChange={(e) => {
         handle(next, onChange, e.target.value);
@@ -90,10 +92,14 @@ const Input: VC = ({ state, values: [value, className, next, onChange] }) => {
   );
 };
 
-const Select: VC = ({ state, values: [value, options, next, onChange] }) => {
+const Select: VC = ({
+  state,
+  values: [props, value, options, next, onChange],
+}) => {
   const handle = useStateCallback(state);
   return (
     <select
+      {...getProps(state, props)}
       value={state.resolveString(value)}
       onChange={(e) => {
         handle(next, onChange, e.target.value);
@@ -150,39 +156,14 @@ const WindowContainer: VC = ({
   );
 };
 
-const WindowBar: VC = ({ state, values }) => {
-  const [windowId, id, view, fileName] = values.map((val) =>
-    state.resolveString(val),
-  );
-
-  const handle = useEventHandler(state);
-  return (
-    <header className="AppWindow__header">
-      <button
-        className="AppWindow__closeButton"
-        type="button"
-        onClick={() => {
-          handle(s.on__closeWindow(windowId));
-        }}
-      ></button>
-      <h1 className="AppWindow__title">{fileName}</h1>
-      <Query state={state} clause={s.view__view_menu(windowId, id, view)} />
-    </header>
-  );
-};
-
 const viewPrimitives: Record<string, VC> = {
   Html,
-  Spacer,
-  Row,
-  Column,
   LocalState,
   String,
   Button,
   Select,
   Icon,
   Input,
-  WindowBar,
   WindowContainer,
 };
 
