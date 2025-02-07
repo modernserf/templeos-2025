@@ -26,10 +26,10 @@ test("sort", () => {
     "goodbye",
     "hello",
     "hello, world",
-    s("hello"),
-    s("hello", 123),
-    s("hello", 123),
-    s("hello", "goodbye"),
+    s.hello(),
+    s.hello(123),
+    s.hello(123),
+    s.hello("goodbye"),
   ];
 
   for (let i = 0; i < 100; i++) {

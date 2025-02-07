@@ -16,12 +16,12 @@ function runAll(...clauses: Expr[]) {
 //   expect(
 //     runAll(
 //       ///
-//       s("value_type", "hello", t.string),
-//       s("value_type", 123, t.number),
-//       s("value_type", s("foo"), t.struct("foo")),
+//       s.value_type( "hello", t.string),
+//       s.value_type( 123, t.number),
+//       s.value_type( s.foo(), t.struct("foo")),
 //       s(
 //         "value_type",
-//         s("pair", "hello", 123),
+//         s.pair( "hello", 123),
 //         t.struct("pair", t.string, t.number)
 //       )
 //     )
@@ -31,23 +31,22 @@ function runAll(...clauses: Expr[]) {
 test("union_member", () => {
   expect(
     //
-    runAll(s("union_member", t.bottom, $.t)),
+    runAll(s.union_member(t.bottom, $.t)),
   ).toEqual([]);
   expect(
     //
-    runAll(s("union_member", t.number, s("number"))),
+    runAll(s.union_member(t.number, s.number())),
   ).toEqual([{}]);
 
   expect(
     //
-    runAll(s("union_member", t.union(t.string, t.number), $.t)),
+    runAll(s.union_member(t.union(t.string, t.number), $.t)),
   ).toEqual([{ t: t.string }, { t: t.number }]);
 
   expect(
     //
     runAll(
-      s(
-        "union_member",
+      s.union_member(
         t.union(t.string, t.union(t.struct("foo"), t.number)),
         $.t,
       ),
@@ -59,22 +58,19 @@ test("subtype_supertype match", () => {
   expect(
     runAll(
       //
-      s("subtype_supertype", t.number, t.number),
-      s("subtype_supertype", t.number, t.union(t.number, t.string)),
-      s(
-        "subtype_supertype",
+      s.subtype_supertype(t.number, t.number),
+      s.subtype_supertype(t.number, t.union(t.number, t.string)),
+      s.subtype_supertype(
         t.number,
         t.union(t.union(t.struct("foo"), t.number), t.string),
       ),
-      s(
-        "subtype_supertype",
+      s.subtype_supertype(
         t.number,
         t.union(t.string, t.union(t.struct("foo"), t.number)),
       ),
-      s("subtype_supertype", t.number, t.top),
+      s.subtype_supertype(t.number, t.top),
 
-      s(
-        "subtype_supertype",
+      s.subtype_supertype(
         t.struct("foo", t.number, t.string),
         t.struct("foo", t.union(t.string, t.number), t.top),
       ),
@@ -86,9 +82,9 @@ test("subtype_supertype match", () => {
 //   expect(
 //     runAll(
 //       ///
-//       s("list_type", l(), t.bottom),
-//       s("list_type", l(123, 456), t.number),
-//       s("list_type", l(123, "hello", 456), t.union(t.number, t.string))
+//       s.list_type( l(), t.bottom),
+//       s.list_type( l(123, 456), t.number),
+//       s.list_type( l(123, "hello", 456), t.union(t.number, t.string))
 //     )
 //   );
 // });

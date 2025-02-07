@@ -17,8 +17,31 @@ export type Struct<Id, Args extends Expr[]> = {
 export type List<T extends Expr> = Struct<"", T[]>;
 export type AnyStruct = Struct<string, Expr[]>;
 
-export const s = <T extends Id, Args extends Expr[]>(id: T, ...args: Args) =>
-  ({ tag: "struct", id, args } as const);
+export const s = new Proxy(
+  <T extends Id, Args extends Expr[]>(id: T, ...args: Args) =>
+    ({ tag: "struct", id, args } as const),
+  {
+    get<T extends string>(_: unknown, tag: T) {
+      return (...args: Expr[]) => s(tag, ...args);
+    },
+  },
+) as (<T extends Id, Args extends Expr[]>(
+  id: T,
+  ...args: Args
+) => Struct<T, Args>) & { [Tag in Id]: S<Tag> } & Ss<"call"> &
+  Ss<"apply"> &
+  Ss<"section"> &
+  Ss<"link"> &
+  Ss<"location"> &
+  Ss<"ref"> &
+  Ss<"multiRef"> &
+  Ss<"sorted">;
+
+type Ss<Tag extends string> = { [t in Tag]: S<Tag> };
+
+type S<Tag extends string> = <Args extends Expr[]>(
+  ...args: Args
+) => Struct<Tag, Args>;
 
 export const __ = { tag: "placeholder" } as const;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -40,7 +63,8 @@ export function r<Args extends Expr[]>(...args: Args) {
   if (args.length === 1) return args[0] as AnyStruct;
   return s(",", ...args);
 }
-r.or = <Args extends Expr[]>(...args: Args) => s(";", ...args);
+export const fork = <Args extends Expr[]>(...args: Args) => s(";", ...args);
+export const eq = (l: Expr, r: Expr) => s("=", l, r);
 
 function sameTypeExpr<T extends Expr>(l: T, r: Expr): r is T {
   if (typeof l === "object" && typeof r === "object") {

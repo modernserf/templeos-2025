@@ -48,7 +48,7 @@ test("ref index", () => {
   const db = init({
     parent__id: {
       db__schema: "schema__field",
-      db__index: s("ref"),
+      db__index: s.ref(),
     },
     root: { value: 1 },
     foo: { value: 123, parent__id: "root" },

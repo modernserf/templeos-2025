@@ -1,7 +1,7 @@
 import { Rec } from "./data";
-import { l, r, s, $, Expr, __, AnyStruct } from "./expr";
+import { l, r, s, $, Expr, __, AnyStruct, fork, eq } from "./expr";
 import { f } from "./field";
-import { cond, db } from "./rule";
+import { db } from "./rule";
 import { test } from "./test_utils";
 
 export const view = new Proxy(
@@ -23,67 +23,64 @@ const baseViews = {
   // primitives
   spacer: {
     rule__params: l($.space),
-    rule__body: s("view", s("Spacer", $.space)),
+    rule__body: s.view(s.Spacer($.space)),
   },
   row: {
     rule__params: l(),
     rule__rest_params: $.children_list,
     rule__body: r(
-      s("struct_tag_list", $.children, ";", $.children_list),
-      s("view", s("Row", $.children)),
+      s.struct_tag_list($.children, ";", $.children_list),
+      s.view(s.Row($.children)),
     ),
   },
   column: {
     rule__params: l(),
     rule__rest_params: $.children_list,
     rule__body: r(
-      s("struct_tag_list", $.children, ";", $.children_list),
-      s("view", s("Column", $.children)),
+      s.struct_tag_list($.children, ";", $.children_list),
+      s.view(s.Column($.children)),
     ),
   },
   local_state: {
     rule__params: l($.init_value, $.value, $.next, $.on_change, $.children),
-    rule__body: s(
-      "view",
-      s("LocalState", $.init_value, $.value, $.next, $.on_change, $.children),
+    rule__body: s.view(
+      s.LocalState($.init_value, $.value, $.next, $.on_change, $.children),
     ),
   },
   string: {
     rule__params: l($.string),
-    rule__body: s("view", s("String", $.string)),
+    rule__body: s.view(s.String($.string)),
   },
   button: {
     rule__params: l($.string, $.on_click),
-    rule__body: s("view", s("Button", $.string, "", __, $.on_click)),
+    rule__body: s.view(s.Button($.string, "", __, $.on_click)),
   },
   input: {
     rule__params: l($.value, $.next, $.on_change),
-    rule__body: s("view", s("Input", $.value, "", $.next, $.on_change)),
+    rule__body: s.view(s.Input($.value, "", $.next, $.on_change)),
   },
   select: {
     rule__params: l($.value, $.options, $.next, $.on_change),
-    rule__body: s("view", s("Select", $.value, $.options, $.next, $.on_change)),
+    rule__body: s.view(s.Select($.value, $.options, $.next, $.on_change)),
   },
   link: {
     rule__params: l($.label, $.location),
     rule__rest_params: $.rest_params,
     rule__body: r(
-      s("match", l($.params), $.rest_params, l(l())),
-      s("get_context", "window_id", $.window),
-      s(
-        "view",
-        s(
-          "Button",
+      s.match(l($.params), $.rest_params, l(l())),
+      s.get_context("window_id", $.window),
+      s.view(
+        s.Button(
           $.label,
           "Link",
           $.event,
-          cond(
-            l(s("=", $.event, s("click", 1)), s("on__newWindow", $.location)),
+          s.cond(
+            l(eq($.event, s.click(1)), s.on__newWindow($.location)),
             l(
-              s("list_item", $.params, s("target", "new")),
-              s("on__newWindow", $.location),
+              s.list_item($.params, s.target("new")),
+              s.on__newWindow($.location),
             ),
-            l(s("ok"), s("on__push", $.window, $.location)),
+            l(s.ok(), s.on__push($.window, $.location)),
           ),
         ),
       ),
@@ -95,27 +92,23 @@ const baseViews = {
     rule__body: r(
       test.view(
         r(
-          s("set_context", "window_id", "test_window_id"),
-          view.link("hello", s("location", "test_link")),
+          s.set_context("window_id", "test_window_id"),
+          view.link("hello", s.location("test_link")),
         ),
-        s(
-          "Button",
+        s.Button(
           "hello",
           "Link",
           $.event,
-          cond(
+          s.cond(
             l(
-              s("=", $.event, s("click", 1)),
-              s("on__newWindow", s("location", "test_link")),
+              eq($.event, s.click(1)),
+              s.on__newWindow(s.location("test_link")),
             ),
             l(
-              s("list_item", l(), s("target", "new")),
-              s("on__newWindow", s("location", "test_link")),
+              s.list_item(l(), s.target("new")),
+              s.on__newWindow(s.location("test_link")),
             ),
-            l(
-              s("ok"),
-              s("on__push", "test_window_id", s("location", "test_link")),
-            ),
+            l(s.ok(), s.on__push("test_window_id", s.location("test_link"))),
           ),
         ),
       ),
@@ -123,19 +116,17 @@ const baseViews = {
   },
   icon: {
     rule__params: l(),
-    rule__body: s("view", s("Icon")),
+    rule__body: s.view(s.Icon()),
   },
   table: {
     rule__params: l($.params, $.header, $.body),
-    rule__body: s(
-      "view",
-      s(
-        "Html",
+    rule__body: s.view(
+      s.Html(
         "table",
         l(),
-        r.or(
-          s("view", s("Html", "thead", l(), $.header)),
-          s("view", s("Html", "tbody", l(), $.body)),
+        fork(
+          s.view(s.Html("thead", l(), $.header)),
+          s.view(s.Html("tbody", l(), $.body)),
         ),
       ),
     ),
@@ -143,57 +134,40 @@ const baseViews = {
   table_header: {
     rule__params: l($.params),
     rule__rest_params: $.items,
-    rule__body: s(
-      "view",
-      s(
-        "Html",
+    rule__body: s.view(
+      s.Html(
         "tr",
         l(),
-        r(
-          s("list_item", $.items, $.item),
-          s("view", s("Html", "th", l(), $.item)),
-        ),
+        r(s.list_item($.items, $.item), s.view(s.Html("th", l(), $.item))),
       ),
     ),
   },
   table_row: {
     rule__params: l($.params),
     rule__rest_params: $.items,
-    rule__body: s(
-      "view",
-      s(
-        "Html",
+    rule__body: s.view(
+      s.Html(
         "tr",
         l(),
-        r(
-          s("list_item", $.items, $.item),
-          s("view", s("Html", "td", l(), $.item)),
-        ),
+        r(s.list_item($.items, $.item), s.view(s.Html("td", l(), $.item))),
       ),
     ),
   },
   menu: {
     rule__params: l($.label, $.options, $.next, $.on_change),
     rule__body: r(
-      s(
-        "list_list_append",
-        l(s("option", "", $.label)),
-        $.options,
-        $.menu_options,
-      ),
+      s.list_list_append(l(s.option("", $.label)), $.options, $.menu_options),
       view.select("", $.menu_options, $.next, $.on_change),
     ),
   },
   text_section: {
     rule__params: l($.header, $.body),
-    rule__body: s(
-      "view",
-      s(
-        "Html",
+    rule__body: s.view(
+      s.Html(
         "section",
         l(),
         r(
-          s("view", s("Html", "header", l(), view.text($.header))),
+          s.view(s.Html("header", l(), view.text($.header))),
           view.text($.body),
         ),
       ),
@@ -201,38 +175,37 @@ const baseViews = {
   },
   text_node: {
     rule__params: l($.node),
-    rule__body: s(
-      "match_cond",
+    rule__body: s.match_cond(
       $.node,
-      l(s("link", $.label, $.location), view.link($.label, $.location)),
-      l(s("section", $.header, $.body), view.text_section($.header, $.body)),
-      l(__, r(s("string", $.node), view.string($.node))),
+      l(s.link($.label, $.location), view.link($.label, $.location)),
+      l(s.section($.header, $.body), view.text_section($.header, $.body)),
+      l(__, r(s.string($.node), view.string($.node))),
     ),
   },
   text: {
     rule__params: l($.text),
     rule__body: view.row(
-      r(s("list_item", $.text, $.node), view.text_node($.node)),
+      r(s.list_item($.text, $.node), view.text_node($.node)),
     ),
   },
   // view utilities
   id_field: {
     rule__params: l($.entity, $.field),
-    rule__body: cond(
+    rule__body: s.cond(
       l(
-        s("get_field_value", $.field, "db__default_view", $.view),
-        s("call", $.view, $.entity, $.field),
+        s.get_field_value($.field, "db__default_view", $.view),
+        s.call($.view, $.entity, $.field),
       ),
       l(
         r(
           db.get($.field, "db__type", $.type),
           db.get($.type, "db__default_view", $.view),
         ),
-        s("call", $.view, $.entity, $.field),
+        s.call($.view, $.entity, $.field),
       ),
       l(
         db.get("type__any", "db__default_view", $.view),
-        s("call", $.view, $.entity, $.field),
+        s.call($.view, $.entity, $.field),
       ),
     ),
   },
@@ -240,18 +213,17 @@ const baseViews = {
   rule: {
     file__description: l("renders a struct formatted as a rule"),
     rule__params: l($.data),
-    rule__body: cond(
+    rule__body: s.cond(
       l(
-        s("struct", $.data),
+        s.struct($.data),
         r(
-          s("struct_tag_list", $.data, $.tag, $.list),
+          s.struct_tag_list($.data, $.tag, $.list),
           s("%", "Todo: get these from db"),
-          cond(
-            l(s("match", $.tag, ",", ";"), view.rule__postfix($.tag, $.list)),
-            l(s("match", $.tag, "=", "/="), view.rule__infix($.tag, $.list)),
+          s.cond(
+            l(s.match($.tag, ",", ";"), view.rule__postfix($.tag, $.list)),
+            l(s.match($.tag, "=", "/="), view.rule__infix($.tag, $.list)),
             l(
-              s(
-                "match",
+              s.match(
                 $.tag,
                 "view__row",
                 "view__column",
@@ -262,18 +234,18 @@ const baseViews = {
               ),
               view.rule__tuple($.tag, l(), $.list),
             ),
-            l(s("ok"), view.rule__tuple($.tag, $.list, l())),
+            l(s.ok(), view.rule__tuple($.tag, $.list, l())),
           ),
         ),
       ),
-      l(s("ok"), view.expr($.data)),
+      l(s.ok(), view.expr($.data)),
     ),
   },
   rule__postfix: {
     rule__params: l($.tag, $.list),
     rule__body: view.column(
       r(
-        s("list_item", $.list, $.item),
+        s.list_item($.list, $.item),
         view.row(view.rule($.item), view.file_link($.tag)),
       ),
     ),
@@ -281,10 +253,10 @@ const baseViews = {
   rule__infix: {
     rule__params: l($.tag, $.list),
     rule__body: r(
-      s("list_list_append", $.rest, l($.last), $.list),
+      s.list_list_append($.rest, l($.last), $.list),
       view.row(
         r(
-          s("list_item", $.rest, $.item),
+          s.list_item($.rest, $.item),
           view.expr($.item),
           view.string(" "),
           view.file_link($.tag),
@@ -301,13 +273,9 @@ const baseViews = {
       view.string("( "),
       view.column(
         view.row(
-          r(
-            s("list_item", $.list, $.item),
-            view.expr($.item),
-            view.string(" "),
-          ),
+          r(s.list_item($.list, $.item), view.expr($.item), view.string(" ")),
         ),
-        r(s("list_item", $.rest, $.rest_item), view.rule($.rest_item)),
+        r(s.list_item($.rest, $.rest_item), view.rule($.rest_item)),
       ),
       view.string(")"),
     ),
@@ -316,24 +284,24 @@ const baseViews = {
   expr: {
     file__name: "Any : View",
     rule__params: l($.data),
-    rule__body: r.or(
-      r(s("var_name", $.data, $.var_name), view.string($.var_name)),
+    rule__body: fork(
+      r(s.var_name($.data, $.var_name), view.string($.var_name)),
       r(
-        s("string", $.data),
+        s.string($.data),
         view.row(view.string('"'), view.string($.data), view.string('"')),
       ),
-      r(s("number", $.data), view.string($.data)),
-      r(s("struct", $.data), view.struct($.data)),
+      r(s.number($.data), view.string($.data)),
+      r(s.struct($.data), view.struct($.data)),
     ),
   },
   struct: {
     rule__params: l($.data),
     rule__body: r(
-      s("struct_tag_list", $.data, $.tag, $.args),
-      cond(
-        l(s("match", $.tag, ";", ","), view.rule($.data)),
-        l(s("match", $.tag, "="), view.operator_binary($.tag, $.args)),
-        l(s("ok"), view.tuple($.tag, $.args)),
+      s.struct_tag_list($.data, $.tag, $.args),
+      s.cond(
+        l(s.match($.tag, ";", ","), view.rule($.data)),
+        l(s.match($.tag, "="), view.operator_binary($.tag, $.args)),
+        l(s.ok(), view.tuple($.tag, $.args)),
       ),
     ),
   },
@@ -343,19 +311,18 @@ const baseViews = {
   },
   operator_chain: {
     rule__params: l($.op, $.args),
-    rule__body: s(
-      "match_cond",
+    rule__body: s.match_cond(
       $.args,
-      l(l(), s("ok")),
+      l(l(), s.ok()),
       l(l($.single), view.expr($.single)),
       l(
         __,
         r(
-          s("list_list_append", l($.head), $.tail, $.args),
+          s.list_list_append(l($.head), $.tail, $.args),
           view.column(
             view.expr($.head),
             r(
-              s("list_item", $.tail, $.item),
+              s.list_item($.tail, $.item),
               view.row(view.string($.op), view.expr($.item)),
             ),
           ),
@@ -369,7 +336,7 @@ const baseViews = {
       view.string($.id),
       view.string("( "),
       r(
-        s("list_item", $.args, $.arg), //
+        s.list_item($.args, $.arg), //
         view.expr($.arg),
         view.string(" "),
       ),
@@ -380,55 +347,51 @@ const baseViews = {
   // type editors
   fit_content_input: {
     rule__params: l($.value, $.next, $.on_change),
-    rule__body: s(
-      "view",
-      s("Input", $.value, "Input--fitContent", $.next, $.on_change),
+    rule__body: s.view(
+      s.Input($.value, "Input--fitContent", $.next, $.on_change),
     ),
   },
   expr_edit: {
     file__name: "Any : Edit",
     rule__params: l($.data, $.next, $.on_change),
-    rule__body: r.or(
+    rule__body: fork(
       r(
-        s("var_name", $.data, $.var_name),
+        s.var_name($.data, $.var_name),
         view.fit_content_input($.var_name, $.next, $.on_change),
       ),
+      r(s.string($.data), view.fit_content_input($.data, $.next, $.on_change)),
       r(
-        s("string", $.data),
-        view.fit_content_input($.data, $.next, $.on_change),
-      ),
-      r(
-        s("number", $.data),
+        s.number($.data),
         view.fit_content_input(
           $.data,
           $.next_str,
-          r(s("string_number", $.next_str, $.next), $.on_change),
+          r(s.string_number($.next_str, $.next), $.on_change),
         ),
       ),
-      r(s("struct", $.data), view.struct_edit($.data, $.next, $.on_change)),
+      r(s.struct($.data), view.struct_edit($.data, $.next, $.on_change)),
     ),
   },
   struct_edit: {
     file__name: "Any Struct : Edit",
     rule__params: l($.data, $.next, $.on_change),
     rule__body: r(
-      s("struct_tag_list", $.data, $.id, $.args),
+      s.struct_tag_list($.data, $.id, $.args),
       view.row(
         view.fit_content_input(
           $.id,
           $.next_id,
-          r(s("struct_tag_list", $.next, $.next_id, $.args), $.on_change),
+          r(s.struct_tag_list($.next, $.next_id, $.args), $.on_change),
         ),
         view.string("("),
         view.column(
           r(
-            s("struct_at_value", $.data, $.i, $.arg),
+            s.struct_at_value($.data, $.i, $.arg),
             view.row(
               view.button(
                 "×",
                 r(
-                  s("list_at_removed_splice", $.args, $.i, l(__), $.next),
-                  s("struct_tag_list", $.next, $.id, $.next_args),
+                  s.list_at_removed_splice($.args, $.i, l(__), $.next),
+                  s.struct_tag_list($.next, $.id, $.next_args),
                   $.on_change,
                 ),
               ),
@@ -436,7 +399,7 @@ const baseViews = {
                 $.arg,
                 $.arg_next,
                 r(
-                  s("struct_at_value_updated", $.data, $.i, $.arg_next, $.next),
+                  s.struct_at_value_updated($.data, $.i, $.arg_next, $.next),
                   $.on_change,
                 ),
               ),
@@ -444,7 +407,7 @@ const baseViews = {
           ),
           view.struct_add_field(
             $.next_arg,
-            r(s("_struct_push", $.data, $.next_arg, $.next), $.on_change),
+            r(s._struct_push($.data, $.next_arg, $.next), $.on_change),
           ),
         ),
 
@@ -459,15 +422,14 @@ const baseViews = {
       view.menu(
         "+",
         l(
-          s("option", "string", "string"),
-          s("option", "number", "number"),
-          s("option", "struct", "struct"),
-          s("option", "var", "var"),
+          s.option("string", "string"),
+          s.option("number", "number"),
+          s.option("struct", "struct"),
+          s.option("var", "var"),
         ),
         $.next_type,
         r(
-          s(
-            "match",
+          s.match(
             l($.next_type, $.next),
             l("string", ""),
             l("number", 0),
@@ -518,9 +480,8 @@ const baseViews = {
   add_tag_menu: {
     rule__params: l($.selected, $.on_add),
     rule__body: r(
-      s(
-        "collect",
-        s("option", $.tag_opt, $.name),
+      s.collect(
+        s.option($.tag_opt, $.name),
         r(
           f.db__schema($.tag_opt, "schema__tag"),
           f.file__name($.tag_opt, $.name),
@@ -565,7 +526,7 @@ const baseViews = {
         view.table_header(l(), view.string("Field"), view.string("Value")),
         r(
           view.table_row(l(), view.string("id"), view.string($.id)),
-          s("get_field_value", $.id, $.field, __),
+          s.get_field_value($.id, $.field, __),
           view.table_row(
             l(),
             view.file_link($.field),
@@ -579,8 +540,8 @@ const baseViews = {
           l(),
           view.table_header(l(), view.string("Field"), view.string("Ref")),
           r(
-            r.or(f.db__index($.f, s("ref")), f.db__index($.f, s("multiRef"))),
-            s("get_field_value", $.ref, $.f, $.id),
+            fork(f.db__index($.f, s.ref()), f.db__index($.f, s.multiRef())),
+            s.get_field_value($.ref, $.f, $.id),
             view.table_row(l(), view.file_link($.f), view.file_link($.ref)),
           ),
         ),
@@ -590,9 +551,8 @@ const baseViews = {
   schema__any_add_field: {
     rule__params: l($.id),
     rule__body: r(
-      s(
-        "collect",
-        s("option", $.field_id, $.field_name),
+      s.collect(
+        s.option($.field_id, $.field_name),
         r(
           f.db__schema($.field_id, "schema__field"),
           f.file__name($.field_id, $.field_name),
@@ -603,7 +563,7 @@ const baseViews = {
         "Add field...",
         $.fields,
         $.new_field_id,
-        s("_add_field", $.id, $.new_field_id),
+        s._add_field($.id, $.new_field_id),
       ),
     ),
   },
@@ -618,7 +578,7 @@ const baseViews = {
         r(
           view.table_row(l(), view.string("id"), view.string($.id)),
           r(
-            s("get_field_value", $.id, $.field, $.value),
+            s.get_field_value($.id, $.field, $.value),
             view.table_row(
               l(),
               view.row(
@@ -650,13 +610,12 @@ const baseViews = {
         r(
           view.string("Fields:"),
           f.db__fields($.id, $.fields),
-          s("list_item", $.fields, $.field),
-          s(
-            "match_cond",
+          s.list_item($.fields, $.field),
+          s.match_cond(
             $.field,
-            l(s("field", $.field_id), view.file_link($.field_id)),
+            l(s.field($.field_id), view.file_link($.field_id)),
             l(
-              s("field_optional", $.field_id),
+              s.field_optional($.field_id),
               view.row(view.file_link($.field_id), view.string("(optional)")),
             ),
           ),
@@ -678,12 +637,11 @@ const baseViews = {
       ),
       view.button(
         "New item",
-        s(
-          "with_tx",
+        s.with_tx(
           $.tx,
           r(
-            s("new__default", $.tx, $.item_id, $.id),
-            s("new__window", $.tx, __, s("location", $.item_id)),
+            s.new__default($.tx, $.item_id, $.id),
+            s.new__window($.tx, __, s.location($.item_id)),
           ),
         ),
       ),
@@ -693,7 +651,7 @@ const baseViews = {
     file__name: "Form",
     view__schema: "schema__form",
     rule__params: l($.id, $.state),
-    rule__body: s("call", $.id, $.id, $.state),
+    rule__body: s.call($.id, $.id, $.state),
   },
   schema__text: {
     file__name: "Text viewer",
@@ -758,10 +716,9 @@ const baseViews = {
           r(
             f.time__created($.history, $.ts),
             // TODO: adjust for timezone
-            s(
-              "timestamp_date",
+            s.timestamp_date(
               $.ts,
-              s("date", __, __, __, $.hour, $.minute, $.second, __),
+              s.date(__, __, __, $.hour, $.minute, $.second, __),
             ),
             view.string("-"),
             view.string($.hour),
@@ -779,13 +736,13 @@ const baseViews = {
   file_link: {
     rule__params: l($.id),
     rule__body: r(
-      s("get_default", $.id, "file__name", $.name, $.id),
-      view.link($.name, s("location", $.id)),
+      s.get_default($.id, "file__name", $.name, $.id),
+      view.link($.name, s.location($.id)),
     ),
   },
   file_info: {
     rule__params: l($.id),
-    rule__body: r.or(
+    rule__body: fork(
       view.row(
         r(
           f.db__schema($.id, $.schema),
@@ -802,10 +759,9 @@ const baseViews = {
     file__description: l("the view selection menu on window chrome"),
     rule__params: l($.window, $.id, $.selectedView),
     rule__body: r(
-      s(
-        "collect",
-        s("option", $.view, $.name),
-        r(s("rule__location_view", $.id, $.view), f.file__name($.view, $.name)),
+      s.collect(
+        s.option($.view, $.name),
+        r(s.rule__location_view($.id, $.view), f.file__name($.view, $.name)),
         $.options,
       ),
       view.select(
@@ -827,25 +783,22 @@ const baseViews = {
       f.window__currentHistory($.window, $.history),
       f.browser__currentWindow("browser", $.currentWindow),
       f.history__location($.history, $.id),
-      s("set_context", "window_id", $.window),
-      s("set_context", "history_id", $.history),
-      s("get_default", $.id, "file__name", $.name, $.id),
-      s(
-        "first",
+      s.set_context("window_id", $.window),
+      s.set_context("history_id", $.history),
+      s.get_default($.id, "file__name", $.name, $.id),
+      s.first(
         // view from params
         f.history__view($.history, $.view),
         // view from id
-        s("rule__location_view", $.id, $.view),
+        s.rule__location_view($.id, $.view),
       ),
-      s(
-        "view",
-        s(
-          "WindowContainer",
+      s.view(
+        s.WindowContainer(
           $.window,
           $.currentWindow,
           r(
-            s("view", s("WindowBar", $.window, $.id, $.view, $.name)),
-            s("call", $.view, $.id, $.history),
+            s.view(s.WindowBar($.window, $.id, $.view, $.name)),
+            s.call($.view, $.id, $.history),
           ),
         ),
       ),
@@ -857,22 +810,16 @@ const baseViews = {
     rule__body: view.row(
       view.button(
         "←",
-        r(
-          f.browser__currentWindow("browser", $.window),
-          s("on__back", $.window),
-        ),
+        r(f.browser__currentWindow("browser", $.window), s.on__back($.window)),
       ),
       view.button(
         "→",
         r(
           f.browser__currentWindow("browser", $.window),
-          s("on__forward", $.window),
+          s.on__forward($.window),
         ),
       ),
-      view.button(
-        "new window",
-        r(s("on__newWindow", s("location", "omnibox"))),
-      ),
+      view.button("new window", r(s.on__newWindow(s.location("omnibox")))),
     ),
   },
 } satisfies Record<string, Rec>;

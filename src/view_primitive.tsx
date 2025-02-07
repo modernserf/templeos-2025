@@ -69,7 +69,7 @@ const Button: VC = ({ state, values: [label, className, next, onClick] }) => {
       className={state.resolveString(className)}
       type="button"
       onClick={(e) => {
-        handle(next, onClick, s("click", Number(e.metaKey)));
+        handle(next, onClick, s.click(Number(e.metaKey)));
       }}
     >
       {state.resolveString(label)}
@@ -132,16 +132,16 @@ const WindowContainer: VC = ({
         .filter(Boolean)
         .join(" ")}
       onMouseDownCapture={() => {
-        if (!isCurrent) handle(s("on__selectWindow", windowId));
+        if (!isCurrent) handle(s.on__selectWindow(windowId));
       }}
       onKeyDownCapture={(e) => {
         if (e.key == "[" && e.metaKey) {
           e.preventDefault();
-          handle(s("on__back", windowId));
+          handle(s.on__back(windowId));
         }
         if (e.key == "]" && e.metaKey) {
           e.preventDefault();
-          handle(s("on__forward", windowId));
+          handle(s.on__forward(windowId));
         }
       }}
     >
@@ -152,7 +152,7 @@ const WindowContainer: VC = ({
 
 const WindowBar: VC = ({ state, values }) => {
   const [windowId, id, view, fileName] = values.map((val) =>
-    state.resolveString(val)
+    state.resolveString(val),
   );
 
   const handle = useEventHandler(state);
@@ -162,11 +162,11 @@ const WindowBar: VC = ({ state, values }) => {
         className="AppWindow__closeButton"
         type="button"
         onClick={() => {
-          handle(s("on__closeWindow", windowId));
+          handle(s.on__closeWindow(windowId));
         }}
       ></button>
       <h1 className="AppWindow__title">{fileName}</h1>
-      <Query state={state} clause={s("view__view_menu", windowId, id, view)} />
+      <Query state={state} clause={s.view__view_menu(windowId, id, view)} />
     </header>
   );
 };
@@ -224,7 +224,7 @@ function Children({ state, children }: { state: State; children: Value }) {
       if (res.tag === "view") children.push(res);
       return children;
     },
-    state.eval(children)
+    state.eval(children),
   );
   return (
     <>

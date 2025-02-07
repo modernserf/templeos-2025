@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { State } from "./state";
-import { Expr, AnyStruct, r, s, $, __ } from "./expr";
+import { Expr, AnyStruct, r, s, $, __, fork } from "./expr";
 import { data } from "./data";
 import { f } from "./field";
 
@@ -10,9 +10,9 @@ function runAll(...clauses: Expr[]) {
 }
 
 function ll(...xs: Expr[]): Expr {
-  let list: AnyStruct = s("nil");
+  let list: AnyStruct = s.nil();
   for (let i = xs.length - 1; i >= 0; i--) {
-    list = s("cons", xs[i], list);
+    list = s.cons(xs[i], list);
   }
   return list;
 }
@@ -20,31 +20,29 @@ function ll(...xs: Expr[]): Expr {
 test("db get", () => {
   expect(
     runAll(
-      s(
-        "with_tx",
+      s.with_tx(
         $.tx,
         r(
-          s("tx_update_field_value", $.tx, "test1", "field1", 123),
-          s("tx_update_field_value", $.tx, "test1", "field2", 456),
-          s("tx_update_field_value", $.tx, "test2", "field1", 789),
+          s.tx_update_field_value($.tx, "test1", "field1", 123),
+          s.tx_update_field_value($.tx, "test1", "field2", 456),
+          s.tx_update_field_value($.tx, "test2", "field1", 789),
         ),
       ),
-      s("get_field_value", "test1", "field1", $.val),
+      s.get_field_value("test1", "field1", $.val),
     ),
   ).toMatchObject([{ val: 123 }]);
 
   expect(
     runAll(
-      s(
-        "with_tx",
+      s.with_tx(
         $.tx,
         r(
-          s("tx_update_field_value", $.tx, "test1", "field1", 123),
-          s("tx_update_field_value", $.tx, "test1", "field2", 456),
-          s("tx_update_field_value", $.tx, "test2", "field1", 789),
+          s.tx_update_field_value($.tx, "test1", "field1", 123),
+          s.tx_update_field_value($.tx, "test1", "field2", 456),
+          s.tx_update_field_value($.tx, "test2", "field1", 789),
         ),
       ),
-      s("get_field_value", "test1", $.field, $.val),
+      s.get_field_value("test1", $.field, $.val),
     ),
   ).toMatchObject([
     { field: "field1", val: 123 },
@@ -53,16 +51,15 @@ test("db get", () => {
 
   expect(
     runAll(
-      s(
-        "with_tx",
+      s.with_tx(
         $.tx,
         r(
-          s("tx_update_field_value", $.tx, "test1", "field1", 123),
-          s("tx_update_field_value", $.tx, "test1", "field2", 456),
-          s("tx_update_field_value", $.tx, "test2", "field1", 789),
+          s.tx_update_field_value($.tx, "test1", "field1", 123),
+          s.tx_update_field_value($.tx, "test1", "field2", 456),
+          s.tx_update_field_value($.tx, "test2", "field1", 789),
         ),
       ),
-      s("get_field_value", $.id, "field1", $.val),
+      s.get_field_value($.id, "field1", $.val),
     ),
   ).toMatchObject([
     { id: "test1", val: 123 },
@@ -71,33 +68,31 @@ test("db get", () => {
 
   expect(
     runAll(
-      s(
-        "with_tx",
+      s.with_tx(
         $.tx,
         r(
-          s("tx_update_field_value", $.tx, "test1", "field1", 123),
-          s("tx_update_field_value", $.tx, "test1", "field2", 456),
-          s("tx_update_field_value", $.tx, "test2", "field1", 789),
-          s("tx_delete_field_value", $.tx, "test1", "field1", __),
+          s.tx_update_field_value($.tx, "test1", "field1", 123),
+          s.tx_update_field_value($.tx, "test1", "field2", 456),
+          s.tx_update_field_value($.tx, "test2", "field1", 789),
+          s.tx_delete_field_value($.tx, "test1", "field1", __),
         ),
       ),
 
-      s("get_field_value", "test1", $.field, $.val),
+      s.get_field_value("test1", $.field, $.val),
     ),
   ).toMatchObject([{ field: "field2", val: 456 }]);
 
   expect(
     runAll(
-      s(
-        "with_tx",
+      s.with_tx(
         $.tx,
         r(
-          s("tx_update_field_value", $.tx, "test1", "field1", 123),
-          s("tx_update_field_value", $.tx, "test1", "field2", 456),
-          s("tx_update_field_value", $.tx, "test2", "field1", 789),
+          s.tx_update_field_value($.tx, "test1", "field1", 123),
+          s.tx_update_field_value($.tx, "test1", "field2", 456),
+          s.tx_update_field_value($.tx, "test2", "field1", 789),
         ),
       ),
-      s("get_field_value", $.id, __, __),
+      s.get_field_value($.id, __, __),
     ),
   ).toMatchObject([
     ...Object.keys(data).map((id) => ({ id })),
@@ -110,31 +105,29 @@ test("db get", () => {
 test("db transact", () => {
   expect(
     runAll(
-      r.or(
+      fork(
         // setup
         r(
-          s(
-            "with_tx",
+          s.with_tx(
             $.tx,
-            s("tx_update_field_value", $.tx, "test1", "field1", 123),
+            s.tx_update_field_value($.tx, "test1", "field1", 123),
           ),
-          s("fail"), // suppress results
+          s.fail(), // suppress results
         ),
         // change
         r(
-          s(
-            "with_tx",
+          s.with_tx(
             $.tx,
             r(
-              s("tx_update_field_value", $.tx, "test1", "field1", 456),
+              s.tx_update_field_value($.tx, "test1", "field1", 456),
               // tx succeeds
             ),
           ),
-          s("fail"), // suppress results (but keep tx committed)
+          s.fail(), // suppress results (but keep tx committed)
         ),
 
         // verify
-        s("get_field_value", "test1", "field1", $.value),
+        s.get_field_value("test1", "field1", $.value),
       ),
     ),
   ).toMatchObject([{ value: 456 }]);
@@ -146,53 +139,49 @@ test("db transact", () => {
         // setup
         s(
           ",",
-          s(
-            "with_tx",
+          s.with_tx(
             $.tx,
-            s("tx_update_field_value", $.tx, "test1", "field1", 123),
+            s.tx_update_field_value($.tx, "test1", "field1", 123),
           ),
-          s("fail"), // suppress results
+          s.fail(), // suppress results
         ),
         // change
         s(
           ",",
-          s(
-            "with_tx",
+          s.with_tx(
             $.tx,
             s(
               ",",
-              s("tx_update_field_value", $.tx, "test1", "field1", 456),
-              s("fail"), // tx fails
+              s.tx_update_field_value($.tx, "test1", "field1", 456),
+              s.fail(), // tx fails
             ),
           ),
-          s("fail"), // suppress results (but keep tx committed)
+          s.fail(), // suppress results (but keep tx committed)
         ),
 
         // verify
-        s("get_field_value", "test1", "field1", $.value),
+        s.get_field_value("test1", "field1", $.value),
       ),
     ),
   ).toMatchObject([{ value: 123 }]);
 });
 
 test("define rules", () => {
-  const define = s(
-    "with_tx",
+  const define = s.with_tx(
     $.tx,
     r(
-      s(
-        "new__rule",
+      s.new__rule(
         $.tx,
         "cons_cons_append",
         s("", $.left, $.right, $.append),
-        r.or(
+        fork(
           // []
-          r(s("=", $.left, s("nil")), s("=", $.right, $.append)),
+          r(s("=", $.left, s.nil()), s("=", $.right, $.append)),
           // [head | tail]
           r(
-            s("=", $.left, s("cons", $.head, $.tail)),
-            s("=", s("cons", $.head, $.append_tail), $.append),
-            s("cons_cons_append", $.tail, $.right, $.append_tail),
+            s("=", $.left, s.cons($.head, $.tail)),
+            s("=", s.cons($.head, $.append_tail), $.append),
+            s.cons_cons_append($.tail, $.right, $.append_tail),
           ),
         ),
       ),
@@ -202,10 +191,9 @@ test("define rules", () => {
   expect(
     runAll(
       define,
-      s(
-        "cons_cons_append",
-        s("cons", 123, s("nil")),
-        s("cons", 456, s("cons", 789, s("nil"))),
+      s.cons_cons_append(
+        s.cons(123, s.nil()),
+        s.cons(456, s.cons(789, s.nil())),
         $.joined,
       ),
     ),
@@ -214,11 +202,10 @@ test("define rules", () => {
   expect(
     runAll(
       define,
-      s(
-        "cons_cons_append",
-        s("cons", 123, s("nil")),
+      s.cons_cons_append(
+        s.cons(123, s.nil()),
         $.right,
-        s("cons", 123, s("cons", 456, s("cons", 789, s("nil")))),
+        s.cons(123, s.cons(456, s.cons(789, s.nil()))),
       ),
     ),
   ).toMatchObject([{ right: ll(456, 789) }]);
@@ -229,12 +216,11 @@ test("internal tests", () => {
     runAll(
       //
       f.test__group($.id, $.group),
-      s("log", "testing", $.group, $.id),
-      s(
-        "try_error_catch",
-        s("call", $.id),
+      s.log("testing", $.group, $.id),
+      s.try_error_catch(
+        s.call($.id),
         $.error,
-        r(s("log", $.error), s("throw", $.error)),
+        r(s.log($.error), s.throw($.error)),
       ),
     ),
   ).not.toEqual([]);

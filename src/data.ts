@@ -67,22 +67,19 @@ const files = {
     file__description: l("this is the home card"),
     file__tags: l("example_tag"),
     text__content: l(
-      s(
-        "section",
+      s.section(
         l("a heading"),
         l(
-          s(
-            "section",
+          s.section(
             l("subhed"),
             l(
-              s(
-                "section",
+              s.section(
                 l("heading 3"),
                 l(
                   "content that ",
-                  s("link", "links", s("location", "example__folder")),
+                  s.link("links", s.location("example__folder")),
                   " to another record. ",
-                  s("link", "omnibox", s("location", "omnibox")),
+                  s.link("omnibox", s.location("omnibox")),
                 ),
               ),
             ),
@@ -101,7 +98,7 @@ const files = {
     file__name: "Omnibox",
     rule__params: l($.id, $.state),
     rule__body: r(
-      s("get_default", $.state, "data__omnibox", $.omnibox, ""),
+      s.get_default($.state, "data__omnibox", $.omnibox, ""),
       view.column(
         view.input(
           $.omnibox,
@@ -109,12 +106,11 @@ const files = {
           db.with_tx($.tx, db.update($.tx, $.state, "data__omnibox", $.next)),
         ),
         r(
-          s(
-            "limit",
+          s.limit(
             10,
             r(
               f.file__name($.result, $.result_name),
-              s("string_substring", $.result_name, $.omnibox),
+              s.string_substring($.result_name, $.omnibox),
             ),
           ),
           view.file_info($.result),
@@ -130,9 +126,8 @@ const files = {
   },
   view__test_result: {
     rule__params: l($.test_id),
-    rule__body: s(
-      "try_error_catch",
-      r(s("call", $.test_id), view.string("ok")),
+    rule__body: s.try_error_catch(
+      r(s.call($.test_id), view.string("ok")),
       $.error,
       view.any($.error),
     ),

@@ -12,7 +12,7 @@ import {
 } from "./state";
 
 function semidet<Args extends unknown[]>(
-  fn: (...args: Args) => State | null | undefined
+  fn: (...args: Args) => State | null | undefined,
 ) {
   return function* (...args: Args) {
     const res = fn(...args);
@@ -276,17 +276,16 @@ export const primitives: Record<string, RulePrimitive> = {
     if (ts.tag === "number") {
       const d = new Date(ts.value);
       const dateValue = state.exprValue(
-        s(
-          "date",
+        s.date(
           d.getFullYear(),
           d.getMonth() + 1,
           d.getDate(),
           d.getHours(),
           d.getMinutes(),
           d.getSeconds(),
-          d.getMilliseconds()
+          d.getMilliseconds(),
         ),
-        {}
+        {},
       );
       return state.unify(date, dateValue);
     } else {
@@ -299,7 +298,7 @@ export const primitives: Record<string, RulePrimitive> = {
         state.resolveNumber(args[3]),
         state.resolveNumber(args[4]),
         state.resolveNumber(args[5]),
-        state.resolveNumber(args[6])
+        state.resolveNumber(args[6]),
       );
       return state.unify(ts, k(d.getTime()));
     }
@@ -424,14 +423,14 @@ export const primitives: Record<string, RulePrimitive> = {
         state.resolveNumber(tx),
         idValue,
         fieldValue,
-        valueList
+        valueList,
       );
     } else {
       state.db.updateTx(
         state.resolveNumber(tx),
         idValue,
         fieldValue,
-        valueExpr
+        valueExpr,
       );
     }
 
@@ -454,7 +453,7 @@ export const primitives: Record<string, RulePrimitive> = {
 
       if (isMany) {
         const filtered = ((val as Value & { tag: "struct" }).args ?? []).filter(
-          (arg) => !state.unify(arg, value)
+          (arg) => !state.unify(arg, value),
         );
         const nextValue = filtered.length
           ? state.valueExpr({ tag: "struct", id: "", args: filtered })
@@ -519,7 +518,7 @@ export const primitives: Record<string, RulePrimitive> = {
         if (idx) {
           yield* uniqueStates(function* () {
             for (const [{ entityId }] of idx.tree.where(
-              whereValue(state.valueExpr(value))
+              whereValue(state.valueExpr(value)),
             )) {
               const ns = state.unify(id, k(entityId));
               if (ns) yield ns.yield();
