@@ -95,6 +95,117 @@ const baseViews = {
     ),
     rule__body: r(),
   },
+  output: {
+    rule__params: l($.out, $.out),
+    rule__body: r(),
+  },
+  render: {
+    rule__params: l($.expr, $.out),
+    rule__body: r(
+      s.struct_tag_list($.expr, $.tag, $.args),
+      s.collect_empty(
+        $.result,
+        r(
+          s.list_item($.args, $.arg),
+          s.cond(
+            l(
+              s.struct_tag_list($.arg, "children", $.children),
+              r(
+                s.collect_empty(
+                  $.view,
+                  r(
+                    s.list_item($.children, $.child),
+                    view.render($.child, $.view),
+                  ),
+                  $.result,
+                ),
+              ),
+            ),
+            l(s.ok(), eq($.arg, $.result)),
+          ),
+        ),
+        $.rendered_args,
+      ),
+      s.apply($.tag, $.rendered_args, l($.out)),
+    ),
+  },
+  test_render: {
+    test__group: "views",
+    rule__params: l(),
+    rule__body: r(
+      test.collect(
+        $.result,
+        view.render(view.string("foo"), $.result),
+        s.String("foo"),
+      ),
+      test.collect(
+        $.result,
+        view.render(
+          view.row(l(), s.children(view.string("foo"), view.string("bar"))),
+          $.result,
+        ),
+        s.Html("div", l(s.class("Row")), l(s.String("foo"), s.String("bar"))),
+      ),
+    ),
+  },
+  iter: {
+    rule__params: l($.iter, $.children, $.out),
+    rule__body: r(
+      $.iter,
+      s.list_item($.children, $.child),
+      view.render($.child, $.out),
+    ),
+  },
+  iter_else: {
+    rule__params: l($.iter, $.children, $.else, $.out),
+    rule__body: s.if_then_else(
+      $.iter,
+      r(s.list_item($.children, $.child), view.render($.child, $.out)),
+      r(s.list_item($.else, $.child), view.render($.child, $.out)),
+    ),
+  },
+  foreach: {
+    rule__params: l($.list, $.item, $.children, $.out),
+    rule__body: view.iter(s.list_item($.list, $.item), $.children, $.out),
+  },
+  test_foreach: {
+    test__group: "views",
+    rule__params: l(),
+    rule__body: r(
+      test.collect(
+        $.result,
+        view.render(
+          view.row(
+            l(),
+            s.children(
+              view.string("( "),
+              view.foreach(
+                l("foo", "bar", "baz"),
+                $.expr,
+                l(view.string($.expr), view.string(" ")),
+              ),
+              view.string(")"),
+            ),
+          ),
+          $.result,
+        ),
+        s.Html(
+          "div",
+          l(s.class("Row")),
+          l(
+            s.String("( "),
+            s.String("foo"),
+            s.String(" "),
+            s.String("bar"),
+            s.String(" "),
+            s.String("baz"),
+            s.String(" "),
+            s.String(")"),
+          ),
+        ),
+      ),
+    ),
+  },
   link: {
     rule__params: l($.props, $.label, $.location, $.out),
     rule__body: r(
@@ -148,12 +259,13 @@ const baseViews = {
   table: {
     rule__params: l($.props, $.header, $.rows, $.out),
     rule__body: r(
+      s("/=", $.rows, l()),
       eq(
         $.out,
         s.Html(
           "table",
           $.props,
-          l(s.Html("thead", l(), l($.header)), s.Html("tbody", l(), $.rows)),
+          l(s.Html("thead", l(), $.header), s.Html("tbody", l(), $.rows)),
         ),
       ),
     ),
@@ -242,22 +354,24 @@ const baseViews = {
       ),
     ),
   },
+
   expr_tuple: {
     rule__params: l($.tag, $.list, $.out),
-    rule__body: r(
-      s.collect(
-        $.view,
-        fork(
-          view.file_link($.tag, $.view),
-          view.string("( ", $.view),
-          r(
-            s.list_item($.list, $.expr),
-            fork(view.expr($.expr, $.view), view.string(" ", $.view)),
-          ),
-          view.string(")", $.view),
+    rule__body: view.render(
+      view.row(
+        l(),
+        s.children(
+          view.file_link($.tag),
+          view.string("( "),
+          view.foreach($.list, $.expr, l(view.expr($.expr), view.string(" "))),
+          view.string(")"),
         ),
-        $.row,
       ),
+      $.out,
+    ),
+    __rule__body: r(
+      s.collect($.view, fork(), $.row),
+
       view.row(l(), $.row, $.out),
     ),
   },
@@ -336,7 +450,6 @@ const baseViews = {
       ),
       r(s.number($.data), view.string($.data, $.out)),
       r(
-        s.struct($.data),
         s.struct_tag_list($.data, $.tag, $.list),
         view.expr_struct($.tag, $.list, $.out),
       ),
@@ -554,49 +667,61 @@ const baseViews = {
   // schema views
   schema__any_fields: {
     rule__params: l($.id, $.state, $.out),
-    rule__body: r(
-      s.collect(
-        $.view,
-        fork(
-          r(
-            view.string("id", $.label),
-            view.string($.id, $.value),
-            view.table_row(l(), l($.label, $.value), $.view),
-          ),
-          r(
-            s.get_field_value($.id, $.field, __),
-            view.file_link($.field, $.label),
-            view.id_field($.id, $.field, $.value),
-            view.table_row(l(), l($.label, $.value), $.view),
+    rule__body: view.render(
+      view.table(
+        l(),
+        s.children(
+          view.table_header(
+            l(),
+            s.children(view.string("Field"), view.string("Value")),
           ),
         ),
-        $.fields,
+        s.children(
+          view.table_row(view.string("id"), view.string($.id)),
+          view.iter(
+            s.get_field_value($.id, $.field, __),
+            l(
+              view.table_row(
+                l(),
+                s.children(
+                  view.file_link($.field),
+                  view.id_field($.id, $.field),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
-      view.string("Field", $.label),
-      view.string("Value", $.value),
-      view.table_header(l(), l($.label, $.value), $.header),
-      view.table(l(), $.header, $.fields, $.out),
+      $.out,
     ),
   },
   schema__any_refs: {
     rule__params: l($.id, $.state, $.out),
-    rule__body: r(
-      s.collect(
-        $.view,
-        r(
-          fork(f.db__index($.f, s.ref()), f.db__index($.f, s.multiRef())),
-          s.get_field_value($.ref, $.f, $.id),
-          view.file_link($.f, $.label),
-          view.file_link($.ref, $.value),
-          view.table_row(l(), l($.label, $.value), $.view),
+    rule__body: view.render(
+      view.table(
+        l(),
+        s.children(
+          view.table_header(
+            l(),
+            s.children(view.string("Field"), view.string("Ref")),
+          ),
         ),
-        $.references,
+        s.children(
+          view.iter(
+            r(
+              fork(f.db__index($.f, s.ref()), f.db__index($.f, s.multiRef())),
+              s.get_field_value($.ref, $.f, $.id),
+            ),
+            l(
+              view.table_row(
+                l(),
+                s.children(view.file_link($.f), view.file_link($.ref)),
+              ),
+            ),
+          ),
+        ),
       ),
-
-      view.string("Field", $.label),
-      view.string("Ref", $.value),
-      view.table_header(l(), l($.label, $.value), $.header),
-      view.table(l(), $.header, $.references, $.out),
+      $.out,
     ),
   },
 
@@ -604,10 +729,15 @@ const baseViews = {
     file__name: "Default viewer",
     view__schema: "schema__any",
     rule__params: l($.id, $.state, $.out),
-    rule__body: r(
-      view.schema__any_fields($.id, $.state, $.fields),
-      view.schema__any_refs($.id, $.state, $.refs),
-      view.column(l(), l($.fields, $.refs), $.out),
+    rule__body: view.render(
+      view.column(
+        l(),
+        s.children(
+          view.schema__any_fields($.id, $.state),
+          view.schema__any_refs($.id, $.state),
+        ),
+      ),
+      $.out,
     ),
   },
 
@@ -669,7 +799,7 @@ const baseViews = {
       view.string("Field", $.k),
       view.string("Value", $.v),
       view.table_header(l(), l($.k, $.v), $.header),
-      view.table(l(), $.header, $.rows, $.table),
+      view.table(l(), l($.header), $.rows, $.table),
       view.schema__any_add_field($.id, $.add_menu),
       view.column(l(), l($.table, $.add_menu), $.out),
     ),
@@ -759,25 +889,47 @@ const baseViews = {
   schema__folder_list: {
     file__name: "Folder - List",
     view__schema: "schema__folder",
-    rule__params: l($.id, $.state),
-    rule__body: view.column(
-      r(f.file__description($.id, $.desc), view.text($.desc)),
-      r(f.folder__items($.id, $.item), view.row(view.file_info($.item))),
+    rule__params: l($.id, $.state, $.out),
+    rule__body: view.render(
+      view.column(
+        l(),
+        s.children(
+          view.iter(f.file__description($.id, $.desc), l(view.text($.desc))),
+          view.iter(
+            f.folder__items($.id, $.item),
+            l(view.row(l(), s.children(view.file_info($.item)))),
+          ),
+        ),
+      ),
+      $.out,
     ),
   },
-  // FIXME
   schema__folder_icon: {
     file__name: "Folder - Icon",
     view__schema: "schema__folder",
-    rule__params: l($.id, $.state),
-    rule__body: view.column(
-      r(f.file__description($.id, $.desc), view.text($.desc)),
-      view.row(
-        r(
-          f.folder__items($.id, $.item),
-          view.column(view.icon(), view.file_link($.item)),
+    rule__params: l($.id, $.state, $.out),
+    rule__body: view.render(
+      view.column(
+        l(),
+        s.children(
+          view.iter(f.file__description($.id, $.desc), l(view.text($.desc))),
+          view.row(
+            l(),
+            s.children(
+              view.iter(
+                f.folder__items($.id, $.item),
+                l(
+                  view.column(
+                    l(),
+                    s.children(view.icon(), view.file_link($.item)),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
+      $.out,
     ),
   },
   // FIXME
@@ -889,13 +1041,30 @@ const baseViews = {
         s.rule__location_view($.id, $.view),
       ),
       view.window_bar($.window, $.id, $.view, $.name, $.window_bar),
-      s.call($.view, $.id, $.history, $.main_content),
-      eq(
-        $.out,
-        s.WindowContainer(
-          $.window,
-          $.currentWindow,
-          l($.window_bar, $.main_content),
+      s.try_error_catch(
+        r(
+          s.call($.view, $.id, $.history, $.main_content),
+          eq(
+            $.out,
+            s.WindowContainer(
+              $.window,
+              $.currentWindow,
+              l($.window_bar, $.main_content),
+            ),
+          ),
+        ),
+        $.error,
+        r(
+          s.log("error", $.error),
+          view.string("Error, see console for details", $.error_message),
+          eq(
+            $.out,
+            s.WindowContainer(
+              $.window,
+              $.currentWindow,
+              l($.window_bar, $.error_message),
+            ),
+          ),
         ),
       ),
     ),

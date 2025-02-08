@@ -98,6 +98,7 @@ const Input: VC = ({ state, values: [props, value_, next, onChange] }) => {
       {...jsProps}
       defaultValue={value}
       onChange={debounce(db, (e) => {
+        console.log(e.target.value, next, onChange);
         handle(next, onChange, e.target.value);
       })}
     />
@@ -187,7 +188,7 @@ const DefaultRenderer: VC = ({ id, values }) => {
   );
 };
 
-class ErrorBoundary extends Component<
+export class ErrorBoundary extends Component<
   { children: ReactNode },
   { error: Error | null }
 > {

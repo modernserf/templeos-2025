@@ -1,4 +1,4 @@
-import { l, r, s, $, Expr, Struct, Id, List, AnyStruct, fork } from "./expr";
+import { l, r, s, $, Expr, Struct, Id, List, AnyStruct, eq } from "./expr";
 import { typeRecs } from "./type";
 import { schemas, SchemaId } from "./schema";
 import { fields, Field, f } from "./field";
@@ -103,18 +103,22 @@ const files = {
     rule__params: l($.id, $.state, $.out),
     rule__body: r(
       s.get_default($.state, "data__omnibox", $.omnibox, ""),
-      s.collect(
-        $.view,
-        fork(
-          view.input(
-            l(s.placeholder("Search..."), s.style("width", "100%")),
-            $.omnibox,
-            $.next,
-            db.with_tx($.tx, db.update($.tx, $.state, "data__omnibox", $.next)),
-            $.view,
-          ),
-          s.cond(
-            l(
+      s.if_var($.omnibox, eq($.omnibox, "")),
+
+      view.input(
+        l(s.placeholder("Search..."), s.style("width", "100%")),
+        $.omnibox,
+        $.next,
+        db.with_tx($.tx, db.update($.tx, $.state, "data__omnibox", $.next)),
+        $.input,
+      ),
+      view.render(
+        view.column(
+          l(),
+          s.children(
+            // TODO: why doesnt this work inline?
+            view.output($.input),
+            view.iter_else(
               s.limit(
                 10,
                 r(
@@ -122,17 +126,13 @@ const files = {
                   s.string_substring($.result_name, $.omnibox),
                 ),
               ),
-              fork(
-                view.file_info($.result, $.view),
-                view.spacer("0.5rem", $.view),
-              ),
+              l(view.file_info($.result), view.spacer("0.5rem")),
+              l(view.string("no results")),
             ),
-            l(s.ok(), view.string("no results", $.view)),
           ),
         ),
-        $.results,
+        $.out,
       ),
-      view.column(l(), $.results, $.out),
     ),
   },
   example__folder: {
@@ -153,29 +153,36 @@ const files = {
     db__schema: "schema__form",
     file__name: "Unit tests",
     rule__params: l($.self, $.state, $.out),
-    rule__body: r(
-      s.collect(
-        $.v,
-        fork(
-          view.string("group", $.v),
-          view.string("test", $.v),
-          view.string("result", $.v),
+    rule__body: view.render(
+      view.table(
+        l(),
+        s.children(
+          view.table_header(
+            l(),
+            s.children(
+              view.string("group"),
+              view.string("test"),
+              view.string("result"),
+            ),
+          ),
         ),
-        $.h,
-      ),
-      view.table_header(l(), $.h, $.header),
-      s.collect(
-        $.v,
-        r(
-          f.test__group($.id, $.group),
-          view.string($.group, $.a),
-          view.file_link($.id, $.b),
-          view.test_result($.id, $.c),
-          view.table_row(l(), l($.a, $.b, $.c), $.v),
+        s.children(
+          view.iter(
+            f.test__group($.id, $.group),
+            l(
+              view.table_row(
+                l(),
+                s.children(
+                  view.string($.group),
+                  view.file_link($.id),
+                  view.test_result($.id),
+                ),
+              ),
+            ),
+          ),
         ),
-        $.rows,
       ),
-      view.table(l(), $.header, $.rows, $.out),
+      $.out,
     ),
   },
 

@@ -1,5 +1,5 @@
 import { State } from "./state";
-import { clearState, loadState } from "./storage";
+import { loadState } from "./storage";
 import { Primitive } from "./view_primitive";
 import { useEventSource } from "./event_source";
 import { rootView } from "./view";
@@ -17,9 +17,6 @@ export function App() {
       {res.map((view, i) => (
         <Primitive key={i} state={state} id={view.id} values={view.args} />
       ))}
-      <button style={{ marginTop: "1rem" }} onClick={clearState}>
-        Clear state
-      </button>
     </>
   );
 }

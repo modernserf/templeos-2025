@@ -884,6 +884,14 @@ export const rules = {
       s.collect(__, r(s.list_item($.collection, $.item), $.do), __),
     ),
   },
+  collect_empty: {
+    rule__params: l($.pattern, $.goal, $.result),
+    rule__body: s.if_then_else(
+      s.collect($.pattern, $.goal, $.result),
+      s.ok(),
+      eq($.result, l()),
+    ),
+  },
   // view helpers
   // utilities
   rule__location_view: {
