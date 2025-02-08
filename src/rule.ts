@@ -423,13 +423,16 @@ export const rules = {
     rule__body: r(
       s.value_type($.value, $.type),
       s.match_cond(
-        l($.type, $.expr),
-        l(l(s.var(), s.var($.name)), s.var_name($.value, $.name)),
-        l(l(s.number(), s.number($.value)), s.ok()),
-        l(l(s.string(), s.string($.value)), s.ok()),
+        $.type,
+        l(s.var(), r(s.var_name($.value, $.name), eq($.expr, s.var($.name)))),
+        l(s.number(), eq($.expr, s.number($.value))),
+        l(s.string(), eq($.expr, s.string($.value))),
         l(
-          l(s.struct(), s.struct($.tag, $.list)),
-          s.struct_tag_list($.value, $.tag, $.list),
+          s.struct(),
+          r(
+            s.struct_tag_list($.value, $.tag, $.list),
+            eq($.expr, s.struct($.tag, $.list)),
+          ),
         ),
       ),
     ),

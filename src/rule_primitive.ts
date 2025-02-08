@@ -315,8 +315,16 @@ export const primitives: Record<string, RulePrimitive> = {
   list_list_append: function* (state, left, right, append) {
     if (left.tag == "struct" && right.tag == "struct") {
       if (left.tag !== right.tag) return null;
-      const ns = state.unify(append, sv(left.id, ...left.args, ...right.args));
-      if (ns) yield ns.yield();
+      if (left.args.length === 0) {
+        const ns = state.unify(right, append);
+        if (ns) yield ns.yield();
+      } else {
+        const ns = state.unify(
+          append,
+          sv(left.id, ...left.args, ...right.args),
+        );
+        if (ns) yield ns.yield();
+      }
       return;
     }
     const { id, args } = state.resolveStruct(append);

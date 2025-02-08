@@ -57,7 +57,7 @@ export function* uniqueStates(gen: () => Generator<StateNext>) {
   }
 }
 
-export function printFact(fact: Fact): string {
+export function printFact(fact: Fact, indent = ""): string {
   switch (fact.tag) {
     case "placeholder":
       return "__";
@@ -69,7 +69,9 @@ export function printFact(fact: Fact): string {
     case "number":
       return JSON.stringify(fact.value);
     case "struct":
-      return `${fact.id}(${fact.args.map(printFact).join(", ")})`;
+      return `${fact.id}(\n${indent}  ${fact.args
+        .map((f) => printFact(f, indent + "  "))
+        .join("\n" + indent + "  ")}\n${indent})`;
   }
 }
 

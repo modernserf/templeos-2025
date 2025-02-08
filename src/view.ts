@@ -31,28 +31,37 @@ export const rootView = (output: Expr) =>
 
 const baseViews = {
   // functional views
+  html: {
+    rule__params: l($.tag, $.props, $.children, $.out),
+    rule__body: r(eq($.out, s.Html($.tag, $.props, $.children))),
+  },
   spacer: {
     rule__params: l(
       $.space,
-      s.Html("div", l(s.class("Spacer"), s.style("flexBasis", $.space)), r()),
+      s.Html("div", l(s.class("Spacer"), s.style("flexBasis", $.space)), l()),
     ),
     rule__body: r(),
   },
   row: {
-    rule__params: l(
-      $.props,
-      $.children,
-      s.Html("div", l(s.class("Row")), $.children),
+    rule__params: l($.props, $.children, $.out),
+    rule__body: r(
+      s.list_list_append($.props, l(s.class("Row")), $.node_props),
+      eq($.out, s.Html("div", $.node_props, $.children)),
     ),
-    rule__body: r(),
   },
   column: {
-    rule__params: l(
-      $.props,
-      $.children,
-      s.Html("div", l(s.class("Column")), $.children),
+    rule__params: l($.props, $.children, $.out),
+    rule__body: r(
+      s.list_list_append($.props, l(s.class("Column")), $.node_props),
+      eq($.out, s.Html("div", $.node_props, $.children)),
     ),
-    rule__body: r(),
+  },
+  wrap: {
+    rule__params: l($.props, $.children, $.out),
+    rule__body: r(
+      s.list_list_append($.props, l(s.class("Wrap")), $.node_props),
+      eq($.out, s.Html("div", $.node_props, $.children)),
+    ),
   },
   // local_state: {
   //   rule__params: l($.init_value, $.value, $.next, $.on_change, $.children),
@@ -62,6 +71,15 @@ const baseViews = {
   // },
   string: {
     rule__params: l($.string, s.String($.string)),
+    rule__body: r(),
+  },
+  button__: {
+    rule__params: l(
+      $.params,
+      $.label,
+      l($.event, $.on_click),
+      s.Button($.params, $.label, $.event, $.on_click),
+    ),
     rule__body: r(),
   },
   button: {
@@ -74,6 +92,15 @@ const baseViews = {
     ),
     rule__body: r(),
   },
+  input__: {
+    rule__params: l(
+      $.props,
+      $.value,
+      l($.next, $.handler),
+      s.Input($.props, $.value, $.next, $.handler),
+    ),
+    rule__body: r(),
+  },
   input: {
     rule__params: l(
       $.props,
@@ -81,6 +108,16 @@ const baseViews = {
       $.next,
       $.on_change,
       s.Input($.props, $.value, $.next, $.on_change),
+    ),
+    rule__body: r(),
+  },
+  select__: {
+    rule__params: l(
+      $.params,
+      $.value,
+      $.options,
+      l($.next, $.on_change),
+      s.Select(l(), $.value, $.options, $.next, $.on_change),
     ),
     rule__body: r(),
   },
@@ -297,6 +334,13 @@ const baseViews = {
       eq($.out, s.Html("tr", $.props, $.cells)),
     ),
   },
+  menu__: {
+    rule__params: l($.label, $.options, $.on_change, $.out),
+    rule__body: r(
+      s.list_list_append(l(s.option("", $.label)), $.options, $.menu_options),
+      view.select__(l(), $.label, $.menu_options, $.on_change, $.out),
+    ),
+  },
   menu: {
     rule__params: l($.label, $.options, $.next, $.on_change, $.out),
     rule__body: r(
@@ -439,7 +483,6 @@ const baseViews = {
   expr: {
     rule__params: l($.data, $.out),
     rule__body: fork(
-      r(s.var_name($.data, $.var_name), view.string($.var_name, $.out)),
       r(
         s.string($.data),
         s.collect(
@@ -458,6 +501,7 @@ const baseViews = {
         s.struct_tag_list($.data, $.tag, $.list),
         view.expr_struct($.tag, $.list, $.out),
       ),
+      r(s.var_name($.data, $.var_name), view.string($.var_name, $.out)),
     ),
   },
 
@@ -872,6 +916,263 @@ const baseViews = {
       view.text($.text, $.content),
       view.row(l(), l($.margin, $.content, $.margin), $.row),
       view.column(l(), l($.margin, $.row, $.margin), $.out),
+    ),
+  },
+  dispatch: {
+    rule__params: l(l($.param, $.handler), $.message),
+    rule__body: r(eq($.param, $.message), $.handler),
+  },
+  schema__text_base_edit: {
+    rule__params: l($.text, $.on_change, $.out),
+    rule__body: r(
+      view.input__(
+        l(
+          s.debounce(1000),
+          s.class("Input--fitContent"),
+          s.style("border", "none"),
+        ),
+        $.text,
+        l($.next, r(view.dispatch($.on_change, s.update($.next)))),
+        $.out,
+      ),
+    ),
+  },
+  schema__text_link_edit: {
+    rule__params: l(l($.label, $.location), $.on_change, $.out),
+    rule__body: r(
+      s.match(
+        $.location,
+        s.location($.id),
+        s.location($.id, __),
+        s.location($.id, __, __),
+      ),
+      view.render(
+        view.row(
+          l(),
+          s.children(
+            view.input__(
+              l(
+                s.debounce(1000),
+                s.class("Input--fitContent"),
+                s.style("border", "none"),
+                s.style("borderBottom", "1px dotted black"),
+              ),
+              $.label,
+              l(
+                $.message,
+                s.match_cond(
+                  $.message,
+                  l(
+                    s.update($.next),
+                    view.dispatch(
+                      $.on_change,
+                      s.update(s.link($.next, $.location)),
+                    ),
+                  ),
+                  l(__, view.dispatch($.on_change, $.message)),
+                ),
+              ),
+            ),
+            view.input__(
+              l(s.debounce(1000), s.class("Input--fitContent")),
+              $.id,
+              l(
+                $.message,
+                s.match_cond(
+                  $.message,
+                  l(
+                    s.update($.next),
+                    view.dispatch(
+                      $.on_change,
+                      s.update(s.link($.label, s.location($.next))),
+                    ),
+                  ),
+                  l(__, view.dispatch($.on_change, $.message)),
+                ),
+              ),
+            ),
+            // view.string("TODO: view & params"),
+          ),
+        ),
+        $.out,
+      ),
+    ),
+  },
+  schema__text_section_edit: {
+    rule__params: l(l($.header, $.content), $.on_change, $.out),
+    rule__body: r(
+      view.render(
+        view.html(
+          "section",
+          l(),
+          s.children(
+            view.html(
+              "header",
+              l(),
+              s.children(
+                view.wrap(
+                  l(),
+                  s.children(
+                    view.schema__text_list_edit(
+                      $.header,
+                      l(
+                        $.message,
+                        s.match_cond(
+                          $.message,
+                          l(
+                            s.update($.next),
+                            view.dispatch(
+                              $.on_change,
+                              s.update(s.section($.next, $.content)),
+                            ),
+                          ),
+                          l(__, view.dispatch($.on_change, $.message)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            view.wrap(
+              l(),
+              s.children(
+                view.schema__text_list_edit(
+                  $.content,
+                  l(
+                    $.message,
+                    s.match_cond(
+                      $.message,
+                      l(
+                        s.update($.next),
+                        view.dispatch(
+                          $.on_change,
+                          s.update(s.section($.header, $.next)),
+                        ),
+                      ),
+                      l(__, view.dispatch($.on_change, $.message)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        $.out,
+      ),
+    ),
+  },
+  schema__text_list_edit: {
+    rule__params: l($.list, $.on_change, $.out),
+    rule__body: r(
+      s.struct_at_value($.list, $.i, $.node),
+      view.schema__text_node_edit(
+        $.node,
+        l(
+          $.message,
+          s.match_cond(
+            $.message,
+            l(
+              s.update($.next),
+              r(
+                s.struct_at_value_updated($.list, $.i, $.next, $.updated),
+                view.dispatch($.on_change, s.update($.updated)),
+              ),
+            ),
+            l(__, view.dispatch($.on_change, $.message)),
+          ),
+        ),
+        $.out,
+      ),
+    ),
+  },
+  schema__text_node_edit: {
+    rule__params: l($.node, $.on_change, $.out),
+    rule__body: r(
+      s.value_expr($.node, $.expr),
+      s.match_cond(
+        $.expr,
+        l(
+          s.string($.str),
+          view.schema__text_base_edit($.str, $.on_change, $.out),
+        ),
+        l(
+          s.struct("link", $.link),
+          view.schema__text_link_edit($.link, $.on_change, $.out),
+        ),
+        l(
+          s.struct("section", $.section),
+          view.schema__text_section_edit($.section, $.on_change, $.out),
+        ),
+      ),
+    ),
+  },
+  schema__text_edit_menu: {
+    rule__params: l($.id, $.state, $.out),
+    rule__body: r(
+      view.menu__(
+        "insert",
+        l(
+          s.option("text", "Text"),
+          s.option("link", "Link"),
+          s.option("section", "Section"),
+        ),
+        l(
+          $.selected,
+          r(
+            s.match(
+              l($.selected, $.empty_value),
+              l("text", ""),
+              l("link", s.link("", s.location(""))),
+              l("section", s.section(l(""), l(""))),
+            ),
+            f.text__content($.id, $.prev),
+            s._struct_push($.prev, $.empty_value, $.next),
+            db.with_tx($.tx, db.update($.tx, $.id, "text__content", $.next)),
+          ),
+        ),
+        $.out,
+      ),
+    ),
+  },
+  schema__text_edit: {
+    file__name: "Text editor",
+    view__schema: "schema__text",
+    rule__params: l($.id, $.state, $.out),
+    rule__body: r(
+      f.text__content($.id, $.text),
+
+      view.render(
+        view.column(
+          l(s.style("margin", "1rem")),
+          s.children(
+            view.schema__text_edit_menu($.id, $.state),
+            view.schema__text_list_edit(
+              $.text,
+              l(
+                $.message,
+                s.match_cond(
+                  $.message,
+                  l(
+                    s.update($.next),
+                    db.with_tx(
+                      $.tx,
+                      db.update($.tx, $.id, "text__content", $.next),
+                    ),
+                  ),
+                  l(
+                    s.focus($.cursor),
+                    r(
+                      s.log("todo move cursor", $.cursor), //
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        $.out,
+      ),
     ),
   },
   schema__tag: {

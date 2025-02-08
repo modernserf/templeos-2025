@@ -65,33 +65,6 @@ export type Rec = Record<string, Expr> & {
 };
 
 const files = {
-  home: {
-    db__schema: "schema__text",
-    file__name: "home",
-    file__description: l("this is the home card"),
-    file__tags: l("example_tag"),
-    text__content: l(
-      s.section(
-        l("a heading"),
-        l(
-          s.section(
-            l("subhed"),
-            l(
-              s.section(
-                l("heading 3"),
-                l(
-                  "content that ",
-                  s.link("links", s.location("example__folder")),
-                  " to another record. ",
-                  s.link("omnibox", s.location("omnibox")),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  },
   example_tag: {
     db__schema: "schema__tag",
     file__name: "Example Tag",
@@ -242,5 +215,32 @@ export const initState = {
     db__schema: "schema__browser",
     file__name: "Browser state",
     browser__currentWindow: "rootWindow",
+  },
+  home: {
+    db__schema: "schema__text",
+    file__name: "home",
+    file__description: l("this is the home card"),
+    file__tags: l("example_tag"),
+    text__content: l(
+      s.section(
+        l("a heading"),
+        l(
+          s.section(
+            l("subhed"),
+            l(
+              s.section(
+                l("heading 3"),
+                l(
+                  "content that ",
+                  s.link("links", s.location("example__folder")),
+                  " to another record. ",
+                  s.link("omnibox", s.location("omnibox")),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
   },
 } satisfies Record<string, Rec>;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Value, State } from "./state";
+import { Value, State, Exception, printFact } from "./state";
 import { Expr } from "./expr";
 import { DB } from "./db";
 import { Rec } from "./data";
@@ -27,11 +27,17 @@ export function useStateCallback(state: State) {
   return (params: Value, body: Value, arg: Expr) => {
     const ns = state.unify(params, state.exprValue(arg, {}));
     if (!ns) throw new Error("todo");
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const _ of ns.eval(body)) {
-      // do nothing
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for (const _ of ns.eval(body)) {
+        // do nothing
+      }
+      eventSource.notifyEventListeners(state.db);
+    } catch (e) {
+      if (e instanceof Exception) {
+        console.error(printFact(e.error));
+      }
     }
-    eventSource.notifyEventListeners(state.db);
   };
 }
 

@@ -79,7 +79,7 @@
   flex-direction: row;
   align-items: flex-start;
   align-self: stretch;
-  flex-wrap: wrap;
+  /* flex-wrap: wrap; */
 }
 
 .Column {
@@ -87,6 +87,14 @@
   flex-direction: column;
   align-items: flex-start;
   align-self: stretch;
+}
+
+.Wrap {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  align-self: stretch;
+  flex-wrap: wrap;
 }
 
 table {
