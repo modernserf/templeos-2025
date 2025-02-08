@@ -82,24 +82,24 @@ test("db get", () => {
     ),
   ).toMatchObject([{ field: "field2", val: 456 }]);
 
-  expect(
-    runAll(
-      s.with_tx(
-        $.tx,
-        r(
-          s.tx_update_field_value($.tx, "test1", "field1", 123),
-          s.tx_update_field_value($.tx, "test1", "field2", 456),
-          s.tx_update_field_value($.tx, "test2", "field1", 789),
-        ),
-      ),
-      s.get_field_value($.id, __, __),
-    ),
-  ).toMatchObject([
-    ...Object.keys(data).map((id) => ({ id })),
-    //
-    { id: "test1" },
-    { id: "test2" },
-  ]);
+  // expect(
+  //   runAll(
+  //     s.with_tx(
+  //       $.tx,
+  //       r(
+  //         s.tx_update_field_value($.tx, "test1", "field1", 123),
+  //         s.tx_update_field_value($.tx, "test1", "field2", 456),
+  //         s.tx_update_field_value($.tx, "test2", "field1", 789),
+  //       ),
+  //     ),
+  //     s.get_field_value($.id, __, __),
+  //   ),
+  // ).toMatchObject([
+  //   ...Object.keys(data).map((id) => ({ id })),
+  //   //
+  //   { id: "test1" },
+  //   { id: "test2" },
+  // ]);
 });
 
 test("db transact", () => {

@@ -141,23 +141,15 @@ const baseViews = {
     rule__body: r(
       s.struct_tag_list($.expr, $.tag, $.args),
       s.collect_empty(
-        $.result,
+        l($.i, $.result),
         r(
-          s.list_item($.args, $.arg),
-          s.cond(
-            l(
-              s.var($.arg),
-              r(s.log("render var arg", $.arg), eq($.arg, $.result)),
-            ),
-            l(
-              s.struct_tag_list($.arg, "children", $.children),
-              view.render_children($.children, $.result),
-            ),
-            l(s.ok(), eq($.arg, $.result)),
-          ),
+          s.struct_at_value($.args, $.i, $.arg),
+          s.struct_tag_list($.arg, "children", $.children),
+          view.render_children($.children, $.result),
         ),
-        $.rendered_args,
+        $.changes,
       ),
+      s.struct_changelist_updated($.args, $.changes, $.rendered_args),
       s.apply($.tag, $.rendered_args, l($.out)),
     ),
   },

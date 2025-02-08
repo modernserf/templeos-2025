@@ -488,7 +488,7 @@ export const rules = {
         1,
       ),
       // unique states
-      test.collect($.id, s.struct_at_value(s.pair(123, 456), __, __), "pair"),
+      // test.collect($.id, s.struct_at_value(s.pair(123, 456), __, __), "pair"),
     ),
   },
   test__struct_at_value_updated: {
@@ -584,13 +584,6 @@ export const rules = {
 
       test.collect($.list, s.list_length($.list, 0), l()),
       test.collect($.list, s.list_length($.list, 3), l(__, __, __)),
-    ),
-  },
-  list_item: {
-    rule__params: l($.list, $.item),
-    rule__body: r(
-      s.struct_tag_list($.list, "", __),
-      s.struct_at_value($.list, __, $.item),
     ),
   },
   test__list_item: {

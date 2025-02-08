@@ -79,6 +79,9 @@ export type StateNext = { tag: "state"; state: State };
 
 let varCount = 0;
 
+// const stateProfile = new Profile();
+// globalThis.stateProfile = stateProfile;
+
 export class State {
   private constructor(
     public db: TransactDB<Rec>,
@@ -162,14 +165,6 @@ export class State {
         };
     }
   }
-  private addValue(id: FactId, value: Value): State {
-    return new State(
-      this.db,
-      { ...this.facts, [id]: value },
-      this.context,
-      this.eventSource,
-    );
-  }
   addConstraint(id: FactId, predicate: Value) {
     const prev = this.facts[id];
     if (prev?.tag === "constraint") {
@@ -187,20 +182,31 @@ export class State {
   }
   private unifyVar(left: Value & { tag: "var" }, right: Value): State | null {
     const constraint = this.facts[left.id];
-    const ns = this.addValue(left.id, right);
-    if (!ns) return null;
+
+    // mutation
+    // TODO: why do I need to fully resolve here?
+    this.facts[left.id] = this.resolve(right);
+
     if (constraint?.tag === "constraint") {
-      for (const res of ns.eval(constraint.predicate)) {
+      for (const res of this.eval(constraint.predicate)) {
         return res.state;
       }
       return null;
     }
-    return ns;
+    return this;
+  }
+  fork(): State {
+    return new State(
+      this.db,
+      { ...this.facts },
+      this.context,
+      this.eventSource,
+    );
   }
   unify(left: Value, right: Value): State | null {
     if (left === right) return this;
-    left = this.resolve(left);
-    right = this.resolve(right);
+    left = this.resolveVar(left);
+    right = this.resolveVar(right);
     // handle placeholders
     if (left.tag == "placeholder" || right.tag === "placeholder") return this;
 
@@ -296,7 +302,7 @@ export class State {
       }
     }
   }
-  private resolveShallow(fact: Value): Value {
+  private resolveVar(fact: Value): Value {
     switch (fact.tag) {
       case "string":
       case "number":
@@ -304,10 +310,13 @@ export class State {
       case "struct":
         return fact;
       case "var": {
-        const next = this.facts[fact.id];
-        if (!next || next.tag === "constraint") return fact;
-        if (next.tag === "var") return this.resolveShallow(next);
-        return next;
+        let val = fact;
+        while (true) {
+          const next = this.facts[val.id];
+          if (!next || next.tag === "constraint") return val;
+          if (next.tag !== "var") return next;
+          val = next;
+        }
       }
     }
   }
@@ -323,26 +332,42 @@ export class State {
     );
   }
   *eval(fact: Value): Generator<StateNext> {
-    fact = this.resolveShallow(fact);
+    fact = this.resolveVar(fact);
     ensure(fact, "struct");
-    const args = fact.args.map((arg) => this.resolveShallow(arg));
+    const args = fact.args.map((arg) => this.resolveVar(arg));
     yield* this.call(fact.id, args);
   }
-  resolve(value: Value): Value {
+  resolve(value: Value, maxDepth = -1): Value {
     switch (value.tag) {
       case "var": {
-        const next = this.facts[value.id];
-        if (!next) return value;
-        if (next.tag === "var") return this.resolve(next);
-        if (next.tag === "constraint") return value;
-        return next;
+        let val = value;
+        while (true) {
+          const next = this.facts[val.id];
+          if (!next || next.tag === "constraint") return val;
+          if (next.tag !== "var") return next;
+          val = next;
+        }
       }
       case "placeholder":
       case "string":
       case "number":
         return value;
       case "struct": {
-        return { ...value, args: value.args.map((arg) => this.resolve(arg)) };
+        if (maxDepth === 0) return value;
+
+        let didChange = false;
+        const out: Value[] = [];
+        for (let i = 0; i < value.args.length; i++) {
+          const prev = value.args[i];
+          const next = this.resolve(prev, maxDepth - 1);
+          if (next !== prev) didChange = true;
+          out.push(next);
+        }
+        if (didChange) {
+          return { tag: "struct", id: value.id, args: out };
+        } else {
+          return value;
+        }
       }
     }
   }
@@ -358,6 +383,8 @@ export class State {
   }
 
   *call(id: string, args: Value[]): Generator<StateNext> {
+    // stateProfile.call(id);
+    // try {
     const rule = this.db.get(id);
     // TODO: check db__schema instead of presence in primitives table
     if (primitives[id]) {
@@ -378,12 +405,7 @@ export class State {
 
     const { params, body } = this.check_call(id, rule, args);
 
-    let ruleState = new State(
-      this.db,
-      this.facts,
-      this.context,
-      this.eventSource,
-    );
+    let ruleState = this.fork();
     const symbolTable = {};
 
     if (rule.rule__rest_params) {
@@ -414,5 +436,8 @@ export class State {
         this.eventSource,
       ).yield();
     }
+    // } finally {
+    // stateProfile.return();
+    // }
   }
 }

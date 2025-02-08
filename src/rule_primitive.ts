@@ -59,12 +59,12 @@ export const primitives: Record<string, RulePrimitive> = {
   ";": function* (state, ...items) {
     yield* uniqueStates(function* () {
       for (const arg of items) {
-        yield* state.eval(arg);
+        yield* state.fork().eval(arg);
       }
     });
   },
   "¬": semidet((state, goal) => {
-    for (const _ of state.eval(goal)) {
+    for (const _ of state.fork().eval(goal)) {
       // success -> failure
       return null;
     }
@@ -74,12 +74,21 @@ export const primitives: Record<string, RulePrimitive> = {
     const value = state.resolveString(id);
     yield* state.call(value, args);
   },
+  apply: function* (state, id, ...argLists) {
+    const value = state.resolveString(id);
+    let argsConcat: Value[] = [];
+    for (let i = 0; i < argLists.length; i++) {
+      const { args } = state.resolveStruct(argLists[i]);
+      argsConcat = argsConcat.concat(args);
+    }
+    yield* state.call(value, argsConcat);
+  },
   throw: (state, exception) => {
     throw new Exception(state.resolve(exception));
   },
   try_error_catch: function* (state, tryGoal, exception, catchGoal) {
     try {
-      yield* state.eval(tryGoal);
+      yield* state.fork().eval(tryGoal);
     } catch (e) {
       if (e instanceof Exception) {
         const ns = state.unify(exception, e.error);
@@ -92,7 +101,7 @@ export const primitives: Record<string, RulePrimitive> = {
   },
   if_then_else: function* (state, cond, ifSuccess, ifFail) {
     let didSucceed = false;
-    for (const res0 of state.eval(cond)) {
+    for (const res0 of state.fork().eval(cond)) {
       didSucceed = true;
       yield* res0.state.eval(ifSuccess);
     }
@@ -103,10 +112,10 @@ export const primitives: Record<string, RulePrimitive> = {
   collect: semidet((state, into, goal, out) => {
     let didSucceed = false;
     const results: Value[] = [];
-    for (const res of state.eval(goal)) {
+    for (const res of state.fork().eval(goal)) {
       didSucceed = true;
       if (out.tag !== "placeholder") {
-        const val = res.state.resolve(into);
+        const val = res.state.resolve(into, 1);
         results.push(val);
       }
     }
@@ -121,7 +130,7 @@ export const primitives: Record<string, RulePrimitive> = {
   limit: function* (state, limit, clause) {
     const value = state.resolveNumber(limit);
     let count = 0;
-    for (const res of state.eval(clause)) {
+    for (const res of state.fork().eval(clause)) {
       yield res;
       if (res.tag === "state") count++;
       if (count >= value) return;
@@ -228,7 +237,7 @@ export const primitives: Record<string, RulePrimitive> = {
       const maxVal = max.tag == "number" ? max.value : Infinity;
       if (minVal > maxVal) return;
       for (let i = minVal; i <= maxVal; i++) {
-        const ns = state.unify(num, k(i));
+        const ns = state.fork().unify(num, k(i));
         if (!ns) return;
         yield ns.yield();
       }
@@ -279,6 +288,14 @@ export const primitives: Record<string, RulePrimitive> = {
     }
     return null;
   }),
+  list_item: function* (state, list, item) {
+    const { id, args } = state.resolveStruct(list);
+    if (id !== "" || args.length === 0) return;
+    for (let i = 0; i < args.length; i++) {
+      const res = state.fork()?.unify(item, args[i]);
+      if (res) yield res.yield();
+    }
+  },
   struct_at_value: function* (state, struct, index, value) {
     const { args } = state.resolveStruct(struct);
     if (index.tag == "number") {
@@ -289,7 +306,7 @@ export const primitives: Record<string, RulePrimitive> = {
     } else {
       yield* uniqueStates(function* () {
         for (let i = 0; i < args.length; i++) {
-          const res = state.unify(index, k(i))?.unify(value, args[i]);
+          const res = state.fork().unify(index, k(i))?.unify(value, args[i]);
           if (res) yield res.yield();
         }
       });
@@ -301,6 +318,21 @@ export const primitives: Record<string, RulePrimitive> = {
     if (i < 0 || i >= args.length) return null;
     const nextArgs = args.slice();
     nextArgs[i] = value;
+    return state.unify(updated, { tag: "struct", id, args: nextArgs });
+  }),
+  struct_changelist_updated: semidet((state, struct, changelist, updated) => {
+    const { id, args } = state.resolveStruct(struct);
+    const nextArgs = args.slice();
+    const { args: changes } = state.resolveStruct(changelist);
+    for (let i = 0; i < changes.length; i++) {
+      const {
+        args: [index, value],
+      } = state.resolveStruct(changes[i]);
+      const i_ = state.resolveNumber(index);
+      if (i_ < 0 || i_ >= args.length) return null;
+      nextArgs[i_] = value;
+    }
+
     return state.unify(updated, { tag: "struct", id, args: nextArgs });
   }),
   list_from_to_slice: semidet((state, list, from, to, slice) => {
@@ -328,8 +360,8 @@ export const primitives: Record<string, RulePrimitive> = {
       return;
     }
     const { id, args } = state.resolveStruct(append);
-    const unifySplit = (split: number) =>
-      state
+    const unifySplit = (st: State, split: number) =>
+      st
         .unify(left, {
           tag: "struct",
           id: id,
@@ -342,15 +374,15 @@ export const primitives: Record<string, RulePrimitive> = {
         });
 
     if (left.tag == "struct") {
-      const ns = unifySplit(left.args.length);
+      const ns = unifySplit(state, left.args.length);
       if (ns) yield ns.yield();
     } else if (right.tag == "struct") {
-      const ns = unifySplit(args.length - right.args.length);
+      const ns = unifySplit(state, args.length - right.args.length);
       if (ns) yield ns.yield();
     } else {
       yield* uniqueStates(function* () {
         for (let i = 0; i <= args.length; i++) {
-          const ns = unifySplit(i);
+          const ns = unifySplit(state.fork(), i);
           if (ns) yield ns.yield();
         }
       });
@@ -449,6 +481,7 @@ export const primitives: Record<string, RulePrimitive> = {
         if (!prevValue) continue;
         const val = state.exprValue(prevValue, {});
         const ns = state
+          .fork()
           .unify(k(f), field) //
           ?.unify(val, value);
         if (!ns) return;
@@ -472,7 +505,7 @@ export const primitives: Record<string, RulePrimitive> = {
         if (isMany) {
           yield* uniqueStates(function* () {
             for (const arg of (val as AnyStruct).args) {
-              const ns = state.unify(value, state.exprValue(arg, {}));
+              const ns = state.fork().unify(value, state.exprValue(arg, {}));
               if (ns) yield ns.yield();
             }
           });
@@ -490,7 +523,7 @@ export const primitives: Record<string, RulePrimitive> = {
             for (const [{ entityId }] of idx.tree.where(
               whereValue(state.valueExpr(value)),
             )) {
-              const ns = state.unify(id, k(entityId));
+              const ns = state.fork().unify(id, k(entityId));
               if (ns) yield ns.yield();
             }
           });
@@ -505,7 +538,7 @@ export const primitives: Record<string, RulePrimitive> = {
       if (!rec) return;
       yield* uniqueStates(function* () {
         for (const f in rec) {
-          const ns = state.unify(field, k(f));
+          const ns = state.fork().unify(field, k(f));
           if (ns) yield* primitives.get_field_value(ns, id, k(f), value);
         }
       });
@@ -515,7 +548,7 @@ export const primitives: Record<string, RulePrimitive> = {
     // get everything
     yield* uniqueStates(function* () {
       for (const key of state.db.keys()) {
-        const ns = state.unify(id, k(key));
+        const ns = state.fork().unify(id, k(key));
         const rec = state.db.get(key)!;
         for (const f in rec) {
           const nns = ns?.unify(field, k(f));
