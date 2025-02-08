@@ -97,27 +97,31 @@ const files = {
     file__name: "Example Tag",
     file__description: l("A tag with some items"),
   },
+  view__safe_input: {
+    rule__params: l($.props, $.value, l($.next, $.on_change), $.out),
+    rule__body: view.input($.props, $.value, $.next, $.on_change, $.out),
+  },
   omnibox: {
     db__schema: "schema__form",
     file__name: "Omnibox",
     rule__params: l($.id, $.state, $.out),
     rule__body: r(
       s.get_default($.state, "data__omnibox", $.omnibox, ""),
-      s.if_var($.omnibox, eq($.omnibox, "")),
-
-      view.input(
-        l(s.placeholder("Search..."), s.style("width", "100%")),
-        $.omnibox,
-        $.next,
-        db.with_tx($.tx, db.update($.tx, $.state, "data__omnibox", $.next)),
-        $.input,
-      ),
       view.render(
         view.column(
           l(),
           s.children(
-            // TODO: why doesnt this work inline?
-            view.output($.input),
+            view.safe_input(
+              l(s.placeholder("Search..."), s.style("width", "100%")),
+              $.omnibox,
+              l(
+                $.next,
+                db.with_tx(
+                  $.tx,
+                  db.update($.tx, $.state, "data__omnibox", $.next),
+                ),
+              ),
+            ),
             view.iter_else(
               s.limit(
                 10,

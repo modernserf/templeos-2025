@@ -1,8 +1,8 @@
 import { Component, FC, ReactNode, useEffect, useMemo, useState } from "react";
-import { s } from "./expr";
+import { __, s } from "./expr";
 import { k, printFact, State, sv, Value } from "./state";
 import "./view_primitive.css";
-import { useStateCallback, useEventHandler } from "./event_source";
+import { useStateCallback } from "./event_source";
 import { debounce } from "./util";
 
 type VC = FC<{
@@ -98,7 +98,6 @@ const Input: VC = ({ state, values: [props, value_, next, onChange] }) => {
       {...jsProps}
       defaultValue={value}
       onChange={debounce(db, (e) => {
-        console.log(e.target.value, next, onChange);
         handle(next, onChange, e.target.value);
       })}
     />
@@ -138,11 +137,11 @@ const Icon: VC = () => (
 
 const WindowContainer: VC = ({
   state,
-  values: [windowId_, currentWindowId_, children],
+  values: [windowId_, currentWindowId_, onSelect, onBack, onForward, children],
 }) => {
   const windowId = state.resolveString(windowId_);
   const currentWindowId = state.resolveString(currentWindowId_);
-  const handle = useEventHandler(state);
+  const handle = useStateCallback(state);
   const isCurrent = windowId === currentWindowId;
   return (
     <div
@@ -151,16 +150,16 @@ const WindowContainer: VC = ({
         .filter(Boolean)
         .join(" ")}
       onMouseDownCapture={() => {
-        if (!isCurrent) handle(s.on__selectWindow(windowId));
+        if (!isCurrent) handle(__, onSelect, __);
       }}
       onKeyDownCapture={(e) => {
         if (e.key == "[" && e.metaKey) {
           e.preventDefault();
-          handle(s.on__back(windowId));
+          handle(__, onBack, __);
         }
         if (e.key == "]" && e.metaKey) {
           e.preventDefault();
-          handle(s.on__forward(windowId));
+          handle(__, onForward, __);
         }
       }}
     >

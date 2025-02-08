@@ -47,11 +47,6 @@ export const primitives: Record<string, RulePrimitive> = {
         continue;
       }
 
-      if (res.value.tag === "view") {
-        yield res.value;
-        continue;
-      }
-
       const nextClause = items[stack.length];
 
       if (nextClause) {
@@ -64,19 +59,7 @@ export const primitives: Record<string, RulePrimitive> = {
   ";": function* (state, ...items) {
     yield* uniqueStates(function* () {
       for (const arg of items) {
-        // buffer views until there's a result
-        let views = [];
-        for (const res of state.eval(arg)) {
-          switch (res.tag) {
-            case "view":
-              views.push(res);
-              continue;
-            case "state":
-              yield* views;
-              views = [];
-              yield res;
-          }
-        }
+        yield* state.eval(arg);
       }
     });
   },
@@ -110,10 +93,6 @@ export const primitives: Record<string, RulePrimitive> = {
   if_then_else: function* (state, cond, ifSuccess, ifFail) {
     let didSucceed = false;
     for (const res0 of state.eval(cond)) {
-      if (res0.tag === "view") {
-        yield res0;
-        continue;
-      }
       didSucceed = true;
       yield* res0.state.eval(ifSuccess);
     }
@@ -125,7 +104,6 @@ export const primitives: Record<string, RulePrimitive> = {
     let didSucceed = false;
     const results: Value[] = [];
     for (const res of state.eval(goal)) {
-      if (res.tag === "view") throw "todo";
       didSucceed = true;
       if (out.tag !== "placeholder") {
         const val = res.state.resolve(into);
@@ -139,22 +117,6 @@ export const primitives: Record<string, RulePrimitive> = {
       return state.unify(out, { tag: "struct", id: "", args: results });
     }
     return null;
-  }),
-  collect_view: semidet((state, goal, out) => {
-    let didSucceed = false;
-    const results: Value[] = [];
-    for (const res of state.eval(goal)) {
-      switch (res.tag) {
-        case "state":
-          didSucceed = true;
-          continue;
-        case "view":
-          results.push({ tag: "struct", id: res.id, args: res.values });
-      }
-    }
-    if (didSucceed) {
-      return state.unify(out, { tag: "struct", id: "", args: results });
-    }
   }),
   limit: function* (state, limit, clause) {
     const value = state.resolveNumber(limit);
@@ -553,17 +515,6 @@ export const primitives: Record<string, RulePrimitive> = {
         }
       }
     });
-  },
-  // TODO: this is no longer _needed_ for views, but may be useful as general control flow thing
-  view: function* (state, view) {
-    const { id, args } = state.resolveStruct(view);
-    yield {
-      tag: "view",
-      state,
-      id,
-      values: args.map((val) => state.resolve(val)),
-    };
-    yield state.yield();
   },
   dispatch: semidet((state, id, value) => {
     state.eventSource.notifyEventListeners({

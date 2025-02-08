@@ -50,10 +50,6 @@ function ensure<T extends Value["tag"]>(
 export function* uniqueStates(gen: () => Generator<StateNext>) {
   const visited = new WeakSet<State>();
   for (const res of gen()) {
-    if (res.tag === "view") {
-      yield res;
-      continue;
-    }
     if (!visited.has(res.state)) {
       visited.add(res.state);
       yield res;
@@ -77,15 +73,7 @@ export function printFact(fact: Fact): string {
   }
 }
 
-type ViewPrimitive = string;
-export type View = {
-  tag: "view";
-  id: ViewPrimitive;
-  values: Value[];
-  state: State;
-};
-
-export type StateNext = { tag: "state"; state: State } | View;
+export type StateNext = { tag: "state"; state: State };
 
 let varCount = 0;
 
@@ -101,11 +89,6 @@ export class State {
     db.bulkInsert(rules);
     return new State(db, {}, {}, new EventSource());
   }
-  *render(expr: Expr): Generator<View> {
-    for (const res of this.eval(this.exprValue(expr, {}))) {
-      if (res.tag === "view") yield res;
-    }
-  }
   render_(expr: Expr, out: Expr): Value[] {
     const results: Value[] = [];
     const rootSymbolTable: SymbolTable = {};
@@ -115,14 +98,6 @@ export class State {
       results.push(state.resolve(state.exprValue(out, rootSymbolTable)));
     }
     return results;
-  }
-  runCallback(params: Value, body: Value, arg: Expr) {
-    const ns = this.unify(params, this.exprValue(arg, {}));
-    if (!ns) throw new Error("todo");
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const _ of ns.eval(body)) {
-      // do nothing
-    }
   }
   *runAll(expr: Expr): Generator<Record<Ident, Expr | undefined>> {
     const rootSymbolTable: SymbolTable = {};
@@ -214,7 +189,6 @@ export class State {
     if (!ns) return null;
     if (constraint?.tag === "constraint") {
       for (const res of ns.eval(constraint.predicate)) {
-        if (res.tag === "view") throw new Error();
         return res.state;
       }
       return null;
@@ -431,10 +405,6 @@ export class State {
     }
 
     for (const res of ruleState.eval(ruleState.exprValue(body, symbolTable))) {
-      if (res.tag === "view") {
-        yield res;
-        continue;
-      }
       yield new State(
         this.db,
         res.state.facts,

@@ -109,17 +109,12 @@ const baseViews = {
           s.list_item($.args, $.arg),
           s.cond(
             l(
+              s.var($.arg),
+              r(s.log("render var arg", $.arg), eq($.arg, $.result)),
+            ),
+            l(
               s.struct_tag_list($.arg, "children", $.children),
-              r(
-                s.collect_empty(
-                  $.view,
-                  r(
-                    s.list_item($.children, $.child),
-                    view.render($.child, $.view),
-                  ),
-                  $.result,
-                ),
-              ),
+              view.render_children($.children, $.result),
             ),
             l(s.ok(), eq($.arg, $.result)),
           ),
@@ -127,6 +122,16 @@ const baseViews = {
         $.rendered_args,
       ),
       s.apply($.tag, $.rendered_args, l($.out)),
+    ),
+  },
+  render_children: {
+    rule__params: l($.children, $.rendered),
+    rule__body: r(
+      s.collect_empty(
+        $.view,
+        r(s.list_item($.children, $.child), view.render($.child, $.view)),
+        $.rendered,
+      ),
     ),
   },
   test_render: {
@@ -1049,6 +1054,9 @@ const baseViews = {
             s.WindowContainer(
               $.window,
               $.currentWindow,
+              s.on__selectWindow($.window),
+              s.on__back($.window),
+              s.on__forward($.window),
               l($.window_bar, $.main_content),
             ),
           ),

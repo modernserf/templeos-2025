@@ -418,6 +418,23 @@ export const rules = {
       ),
     ),
   },
+  value_expr: {
+    rule__params: l($.value, $.expr),
+    rule__body: r(
+      s.value_type($.value, $.type),
+      s.match_cond(
+        l($.type, $.expr),
+        l(l(s.var(), s.var($.name)), s.var_name($.value, $.name)),
+        l(l(s.number(), s.number($.value)), s.ok()),
+        l(l(s.string(), s.string($.value)), s.ok()),
+        l(
+          l(s.struct(), s.struct($.tag, $.list)),
+          s.struct_tag_list($.value, $.tag, $.list),
+        ),
+      ),
+    ),
+  },
+
   // structs
   test__struct_arity: {
     test__group: "struct",

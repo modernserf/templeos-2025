@@ -25,15 +25,10 @@ export const eventSource = new EventSource<DB<Rec>>();
 
 export function useStateCallback(state: State) {
   return (params: Value, body: Value, arg: Expr) => {
-    state.runCallback(params, body, arg);
-    eventSource.notifyEventListeners(state.db);
-  };
-}
-
-export function useEventHandler(state: State) {
-  return (rule: Expr) => {
+    const ns = state.unify(params, state.exprValue(arg, {}));
+    if (!ns) throw new Error("todo");
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const _ of state.runAll(rule)) {
+    for (const _ of ns.eval(body)) {
       // do nothing
     }
     eventSource.notifyEventListeners(state.db);
