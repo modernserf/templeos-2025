@@ -8,11 +8,10 @@ export type ValueType<Rest extends Expr> =
   | Struct<"number", []>
   | Struct<"union", [ValueType<Rest>, ValueType<Rest>]>
   // | Struct<"intersection", [ValueType<Rest>, ValueType<Rest>]>
-  | Struct<"any_struct", []>
+  | Struct<"any_box", []>
   | Struct<"list", [ValueType<Rest>]>
-  | Struct<"struct", [string, ...ValueType<Rest>[]]>
+  | Struct<"box", [string, ...ValueType<Rest>[]]>
   | Rest;
-//
 
 export const t = {
   bottom: s.bottom(),
@@ -27,10 +26,10 @@ export const t = {
   //   if (xs.length === 0) return t.top;
   //   return xs.reduce((l, r) => s.intersection( l, r));
   // },
-  struct: <T extends Expr>(tag: string, ...args: ValueType<T>[]) =>
-    s.struct(tag, ...args),
+  box: <T extends Expr>(tag: string, ...args: ValueType<T>[]) =>
+    s.box(tag, ...args),
   list: <T extends Expr>(item: ValueType<T>) => s.list(item),
-  anyStruct: s.any_struct(),
+  anyStruct: s.any_box(),
 };
 
 export type TypeId = keyof typeof coreTypes;
@@ -80,7 +79,7 @@ export const coreTypes = {
     db__default_view: "view__type__text",
     // db__type: s(
     //   "list",
-    //   s.oneof( s.string(), s.struct( "link", s.string(), s.ref()))
+    //   s.oneof( s.string(), s.box( "link", s.string(), s.ref()))
     // ),
   },
 } satisfies Record<string, Rec>;
@@ -90,18 +89,18 @@ export const typeRecs = {
   value_type: {
     file__description: l(
       "semidet.",
-      "get narrowest value of type. lists are treated as structs",
+      "get narrowest value of type. lists are treated as boxes",
     ),
     rule__params: l($.value, $.type),
     rule__body: s.fork(
       r(s.number($.value), s("=", $.type, t.number)),
       r(s.string($.value), s("=", $.type, t.string)),
       r(
-        s.struct($.value),
-        s.struct_tag_list($.value, $.id, $.args),
+        s.box($.value),
+        s.box_tag_list($.value, $.id, $.args),
         s._maplist(s.value_type(), $.args, $.t_args),
-        s.list_list_append(l($.id), $.t_args, $.t_body),
-        s.struct_tag_list($.type, "struct", $.t_body),
+        s.box_box_append(l($.id), $.t_args, $.t_body),
+        s.box_tag_list($.type, "box", $.t_body),
       ),
     ),
   },
@@ -110,8 +109,8 @@ export const typeRecs = {
     rule__body: s.fork(
       // exact type
       s("=", $.sub, $.super),
-      // struct items
-      s.struct_supertype($.sub, $.super),
+      // box items
+      s.box_supertype($.sub, $.super),
       // any type
       s("=", l($.sub, $.super), l(__, t.top)),
       // union membership
@@ -124,20 +123,20 @@ export const typeRecs = {
       ),
     ),
   },
-  struct_supertype: {
+  box_supertype: {
     rule__params: l($.sub, $.super),
     rule__body: r(
-      s.structType_id_args($.sub, $.id, $.sub_args),
-      s.structType_id_args($.super, $.id, $.super_args),
+      s.boxType_id_args($.sub, $.id, $.sub_args),
+      s.boxType_id_args($.super, $.id, $.super_args),
       s.sublist_superlist($.sub_args, $.super_args),
       s("/=", $.sub, $.super),
     ),
   },
-  structType_id_args: {
-    rule__params: l($.struct, $.id, $.args),
+  boxType_id_args: {
+    rule__params: l($.box_1, $.id, $.args),
     rule__body: r(
-      s.struct_tag_list($.struct, "struct", $.body),
-      s.list_list_append(l($.id), $.args, $.body),
+      s.box_tag_list($.box_1, "box", $.body),
+      s.box_box_append(l($.id), $.args, $.body),
     ),
   },
   sublist_superlist: {
@@ -145,8 +144,8 @@ export const typeRecs = {
     rule__body: s.fork(
       s("=", l($.sub, $.super), l(l(), l())),
       r(
-        s.list_list_append($.sub_stack, l($.sub_pop), $.sub),
-        s.list_list_append($.super_stack, l($.super_pop), $.super),
+        s.box_box_append($.sub_stack, l($.sub_pop), $.sub),
+        s.box_box_append($.super_stack, l($.super_pop), $.super),
         s.subtype_supertype($.sub_pop, $.super_pop),
         s.sublist_superlist($.sub_stack, $.super_stack),
       ),
@@ -224,9 +223,9 @@ export const typeRecs = {
   _apply: {
     rule__params: l($.fn, $.args),
     rule__body: r(
-      s.struct_tag_list($.fn, $.id, $.base_args),
-      s.list_list_append($.base_args, $.args, $.full_args),
-      s.struct_tag_list($.fn1, $.id, $.full_args),
+      s.box_tag_list($.fn, $.id, $.base_args),
+      s.box_box_append($.base_args, $.args, $.full_args),
+      s.box_tag_list($.fn1, $.id, $.full_args),
       $.fn1,
     ),
   },
@@ -235,10 +234,10 @@ export const typeRecs = {
     rule__body: s.fork(
       r(s("=", l(), $.xs), s("=", l(), $.ys)),
       r(
-        s.list_list_append(l($.x), $.x_rest, $.xs),
+        s.box_box_append(l($.x), $.x_rest, $.xs),
         s._apply($.f, l($.x, $.y)),
         s._maplist($.f, $.x_rest, $.y_rest),
-        s.list_list_append(l($.y), $.y_rest, $.ys),
+        s.box_box_append(l($.y), $.y_rest, $.ys),
       ),
     ),
   },

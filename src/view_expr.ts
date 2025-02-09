@@ -3,7 +3,7 @@ import { l, r, s, $, __, view } from "./expr";
 
 export const viewExpr = {
   expr_tuple: {
-    rule__params: l($.tag, $.list, $.out),
+    rule__params: l($.tag, $.list_2, $.out),
     rule__body: r(
       view.render(
         view.wrap(
@@ -14,7 +14,10 @@ export const viewExpr = {
               l(s.class("Parens")),
               s.children(
                 view.iter(
-                  r(s.list_item($.list, $.expr), view.expr($.expr, $.rendered)),
+                  r(
+                    s.list_item($.list_2, $.expr),
+                    view.expr($.expr, $.rendered),
+                  ),
                   l(view.output($.rendered), view.string(" ")),
                 ),
               ),
@@ -26,7 +29,7 @@ export const viewExpr = {
     ),
   },
   expr_tuple_block: {
-    rule__params: l($.tag, $.list, $.out),
+    rule__params: l($.tag, $.list_2, $.out),
     rule__body: r(
       view.render(
         view.row(
@@ -37,7 +40,10 @@ export const viewExpr = {
               l(s.class("Parens")),
               s.children(
                 view.iter(
-                  r(s.list_item($.list, $.item), view.expr($.item, $.expr_out)),
+                  r(
+                    s.list_item($.list_2, $.item),
+                    view.expr($.item, $.expr_out),
+                  ),
                   l(
                     view.row(
                       l(s.class("TupleBlockRow")),
@@ -54,13 +60,13 @@ export const viewExpr = {
     ),
   },
   expr_struct: {
-    rule__params: l($.tag, $.list, $.out),
+    rule__params: l($.tag, $.list_2, $.out),
     rule__body: s.cond(
       l(
         s.match($.tag, "do", "fork", "children", "cond", "match_cond"),
-        view.expr_tuple_block($.tag, $.list, $.out),
+        view.expr_tuple_block($.tag, $.list_2, $.out),
       ),
-      l(s.ok(), view.expr_tuple($.tag, $.list, $.out)),
+      l(s.ok(), view.expr_tuple($.tag, $.list_2, $.out)),
     ),
   },
   expr: {
@@ -79,8 +85,8 @@ export const viewExpr = {
       ),
       r(s.number($.data), view.string($.data, $.out)),
       r(
-        s.struct_tag_list($.data, $.tag, $.list),
-        view.expr_struct($.tag, $.list, $.out),
+        s.struct_tag_list($.data, $.tag, $.list_2),
+        view.expr_struct($.tag, $.list_2, $.out),
       ),
       r(
         s.var_name($.data, $.var_name),
@@ -151,7 +157,7 @@ export const viewExpr = {
               l(
                 s.click(__),
                 r(
-                  s.list_at_removed_splice($.args, $.i, l(__), $.next_args),
+                  s.box_at_removed_splice($.args, $.i, l(__), $.next_args),
                   s.struct_tag_list($.next, $.id, $.next_args),
                   view.dispatch($.on_change, $.next),
                 ),
@@ -196,7 +202,7 @@ export const viewExpr = {
                 l(
                   $.next_arg,
                   r(
-                    s._struct_push($.data, $.next_arg, $.next),
+                    s.box_list_append($.data, l($.next_arg), $.next),
                     view.dispatch($.on_change, $.next),
                   ),
                 ),

@@ -96,8 +96,7 @@ test("db get", () => {
   //   ),
   // ).toMatchObject([
   //   ...Object.keys(data).map((id) => ({ id })),
-  //   //
-  //   { id: "test1" },
+  //     //   { id: "test1" },
   //   { id: "test2" },
   // ]);
 });
@@ -214,7 +213,6 @@ test("define rules", () => {
 test("internal tests", () => {
   expect(
     runAll(
-      //
       f.test__group($.id, $.group),
       s.log("testing", $.group, $.id),
       s.try_error_catch(

@@ -131,9 +131,9 @@ const Select: VC = ({
       }}
     >
       {state.resolveStruct(options).args.map((opt) => {
-        const struct = state.resolveStruct(opt);
-        const id = state.resolveString(struct.args[0]);
-        const label = state.resolveString(struct.args[1]);
+        const box = state.resolveStruct(opt);
+        const id = state.resolveString(box.args[0]);
+        const label = state.resolveString(box.args[1]);
         return (
           <option key={id} value={id}>
             {label}
@@ -195,7 +195,7 @@ const viewPrimitives: Record<string, VC> = {
 const DefaultRenderer: VC = ({ id, values }) => {
   return (
     <div style={{ backgroundColor: "pink" }}>
-      <pre>{printFact({ tag: "struct", id, args: values ?? [] })}</pre>
+      <pre>{printFact({ tag: "box", id, args: values ?? [] })}</pre>
     </div>
   );
 };
@@ -233,7 +233,7 @@ function Children({ state, children }: { state: State; children: Value }) {
   }
   return (
     <>
-      {(children.args as (Value & { tag: "struct" })[]).map((arg, i) => (
+      {(children.args as (Value & { tag: "box" })[]).map((arg, i) => (
         <Primitive key={i} state={state} id={arg.id} values={arg.args} />
       ))}
     </>

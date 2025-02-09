@@ -33,9 +33,9 @@ export const fields = {
     //   "list",
     //   s(
     //     "oneof",
-    //     s.struct( "field", fieldRef),
-    //     s.struct( "field__optional", fieldRef),
-    //     s.struct( "field__default", fieldRef, s.any())
+    //     s.box( "field", fieldRef),
+    //     s.box( "field__optional", fieldRef),
+    //     s.box( "field__default", fieldRef, s.any())
     //   )
     // ),
   },
@@ -54,10 +54,10 @@ export const fields = {
     ),
     // db__type: s(
     //   "oneof",
-    //   s.struct( "ref"),
-    //   s.struct( "multiRef"),
-    //   s.struct( "sorted"),
-    //   s.struct( "unique")
+    //   s.box( "ref"),
+    //   s.box( "multiRef"),
+    //   s.box( "sorted"),
+    //   s.box( "unique")
     // ),
     db__index: s.sorted(),
   },
@@ -86,7 +86,7 @@ export const fields = {
     db__schema: "schema__field",
     file__name: "Rule body",
     db__default_view: "view__rule__body",
-    // db__type: s.struct(),
+    // db__type: s.box(),
   },
   test__group: {
     db__schema: "schema__field",

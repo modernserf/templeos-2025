@@ -1,7 +1,7 @@
 import { l, r, s, $, __, view, u } from "./expr";
 import { Rec } from "./data";
-import { db } from "./rule";
 import { f } from "./field";
+import { db } from "./rule_db";
 
 export const viewText = {
   text_section_layout: {
@@ -184,9 +184,9 @@ export const viewText = {
     ),
   },
   schema__text_list_edit: {
-    rule__params: l($.list, $.on_change, $.out),
+    rule__params: l($.list_2, $.on_change, $.out),
     rule__body: r(
-      s.struct_at_value($.list, $.i, $.node),
+      s.box_at_value($.list_2, $.i, $.node),
       view.schema__text_node_edit(
         $.node,
         l(
@@ -197,7 +197,7 @@ export const viewText = {
             l(
               s.update($.next_value),
               s.update($.next_list),
-              s.struct_at_value_updated($.list, $.i, $.next_value, $.next_list),
+              s.box_at_value_updated($.list_2, $.i, $.next_value, $.next_list),
             ),
           ),
         ),
@@ -210,10 +210,7 @@ export const viewText = {
     rule__body: r(
       view.expr_edit(
         $.code,
-        l(
-          $.updated, //
-          view.dispatch($.on_change, s.update(s.code($.updated))),
-        ),
+        l($.updated, view.dispatch($.on_change, s.update(s.code($.updated)))),
         $.out,
       ),
     ),
@@ -229,15 +226,15 @@ export const viewText = {
           view.schema__text_base_edit($.str, $.on_change, $.out),
         ),
         l(
-          s.struct("link", $.link),
+          s.box("link", $.link),
           view.schema__text_link_edit($.link, $.on_change, $.out),
         ),
         l(
-          s.struct("section", $.section),
+          s.box("section", $.section),
           view.schema__text_section_edit($.section, $.on_change, $.out),
         ),
         l(
-          s.struct("code", l($.code)),
+          s.box("code", l($.code)),
           view.schema__text_code_edit($.code, $.on_change, $.out),
         ),
       ),
@@ -278,7 +275,7 @@ export const viewText = {
               l("code", s.code(s.tuple("foo", "bar"))),
             ),
             f.text__content($.id, $.prev),
-            s._struct_push($.prev, $.empty_value, $.next),
+            s.box_list_append($.prev, l($.empty_value), $.next),
             db.with_tx($.tx, db.update($.tx, $.id, "text__content", $.next)),
           ),
         ),
@@ -286,12 +283,7 @@ export const viewText = {
           s.update($.next),
           db.with_tx($.tx, db.update($.tx, $.id, "text__content", $.next)),
         ),
-        l(
-          s.focus($.cursor),
-          r(
-            s.log("todo move cursor", $.cursor), //
-          ),
-        ),
+        l(s.focus($.cursor), r(s.log("todo move cursor", $.cursor))),
       ),
     ),
   },

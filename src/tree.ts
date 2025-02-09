@@ -49,7 +49,7 @@ export class Tree<K, V> {
   }
   private *whereNode(
     node: Node<K, V> | null,
-    where: Where<K>
+    where: Where<K>,
   ): Generator<[K, V]> {
     if (!node) return;
     switch (where.cmp(node.key)) {
@@ -82,7 +82,7 @@ export class Tree<K, V> {
   private setNode(
     node: Node<K, V> | null,
     key: K,
-    value: V
+    value: V,
   ): { node: Node<K, V>; prevValue: V | null } {
     if (!node) {
       return { node: { key, value, prev: null, next: null }, prevValue: null };
@@ -117,7 +117,7 @@ export class Tree<K, V> {
   }
   private deleteNode(
     node: Node<K, V> | null,
-    key: K
+    key: K,
   ): { node: Node<K, V> | null; prevValue: V | null } {
     if (!node) return { node: null, prevValue: null };
     switch (this.ord.cmp(key, node.key)) {

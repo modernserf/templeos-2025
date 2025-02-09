@@ -16,11 +16,11 @@ export const viewRender = {
       s.collect_empty(
         l($.i, $.rendered),
         r(
-          s.struct_at_value($.expr, $.i, $.arg),
+          s.box_at_value($.expr, $.i, $.arg),
 
           s.cond(
             l(
-              s.struct_tag_list($.arg, "children", $.children),
+              s.box_tag_list($.arg, "children", $.children),
               s.collect_empty(
                 $.view,
                 r(
@@ -35,7 +35,7 @@ export const viewRender = {
         ),
         $.changes,
       ),
-      s.struct_changelist_updated($.expr, $.changes, $.updated),
+      s.box_changelist_updated($.expr, $.changes, $.updated),
       s.apply($.updated, l($.out)),
     ),
   },

@@ -42,7 +42,7 @@ export const viewForm = {
   menu: {
     rule__params: l($.label, $.options, $.on_change, $.out),
     rule__body: r(
-      s.list_list_append(l(s.option("", $.label)), $.options, $.menu_options),
+      s.box_box_append(l(s.option("", $.label)), $.options, $.menu_options),
       view.select(l(), $.label, $.menu_options, $.on_change, $.out),
     ),
   },

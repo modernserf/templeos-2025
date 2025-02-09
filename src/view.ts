@@ -1,7 +1,7 @@
 import { Rec } from "./data";
 import { l, r, s, $, Expr, __, view, u } from "./expr";
 import { f } from "./field";
-import { db } from "./rule";
+import { db } from "./rule_db";
 import { viewCore } from "./view_core";
 import { viewExpr } from "./view_expr";
 import { viewForm } from "./view_form";
@@ -61,22 +61,16 @@ const baseViews = {
   },
   type__string: {
     rule__params: l($.id, $.field, $.out),
-    rule__body: r(
-      db.get($.id, $.field, $.value), //
-      view.string($.value, $.out),
-    ),
+    rule__body: r(db.get($.id, $.field, $.value), view.string($.value, $.out)),
   },
   type__time: {
     rule__params: l($.id, $.field, $.out),
-    rule__body: r(
-      db.get($.id, $.field, $.ts), //
-      view.time($.ts, $.out),
-    ),
+    rule__body: r(db.get($.id, $.field, $.ts), view.time($.ts, $.out)),
   },
   type__ref: {
     rule__params: l($.id, $.field, $.out),
     rule__body: r(
-      db.get($.id, $.field, $.value), //
+      db.get($.id, $.field, $.value),
       view.file_link($.value, $.out),
     ),
   },

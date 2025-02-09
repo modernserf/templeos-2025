@@ -123,7 +123,7 @@ export const primitives: Record<string, RulePrimitive> = {
       if (out.tag === "placeholder") {
         return state;
       }
-      return state.unify(out, { tag: "struct", id: "", args: results });
+      return state.unify(out, { tag: "box", id: "", args: results });
     }
     return null;
   }),
@@ -161,15 +161,15 @@ export const primitives: Record<string, RulePrimitive> = {
       case "placeholder":
       case "var":
         return state.unify(type, sv("var"));
-      case "struct":
-        return state.unify(type, sv("struct"));
+      case "box":
+        return state.unify(type, sv("box"));
     }
   }),
   value_constraint: function* (state, value, constraint) {
     switch (value.tag) {
       case "string":
       case "number":
-      case "struct":
+      case "box":
         yield* state.eval(constraint);
         return;
       case "placeholder":
@@ -184,7 +184,7 @@ export const primitives: Record<string, RulePrimitive> = {
         return state.unify(k("__"), name);
       case "var":
         return state.unify(k(value.name), name);
-      case "struct":
+      case "box":
       case "string":
       case "number":
         return null;
@@ -275,29 +275,22 @@ export const primitives: Record<string, RulePrimitive> = {
     }
     return null;
   }),
-  struct_arity: semidet((state, struct, arity) => {
-    return state.unify(k(state.resolveStruct(struct).args.length), arity);
+  box_length: semidet((state, box, arity) => {
+    return state.unify(k(state.resolveStruct(box).args.length), arity);
   }),
-  struct_tag_list: semidet((state, struct, tag, list) => {
-    if (struct.tag == "struct") {
-      const { id, args } = struct;
+  box_tag_list: semidet((state, box, tag, list) => {
+    if (box.tag == "box") {
+      const { id, args } = box;
       return state.unify(k(id), tag)?.unify(sv("", ...args), list);
     }
-    if (tag.tag == "string" && list.tag == "struct") {
-      return state.unify(struct, sv(tag.value, ...list.args));
+    if (tag.tag == "string" && list.tag == "box") {
+      return state.unify(box, sv(tag.value, ...list.args));
     }
     return null;
   }),
-  list_item: function* (state, list, item) {
-    const { id, args } = state.resolveStruct(list);
-    if (id !== "" || args.length === 0) return;
-    for (let i = 0; i < args.length; i++) {
-      const res = state.fork()?.unify(item, args[i]);
-      if (res) yield res.yield();
-    }
-  },
-  struct_at_value: function* (state, struct, index, value) {
-    const { args } = state.resolveStruct(struct);
+
+  box_at_value: function* (state, box, index, value) {
+    const { args } = state.resolveStruct(box);
     if (index.tag == "number") {
       const i = index.value;
       if (i < 0 || i >= args.length) return;
@@ -312,16 +305,16 @@ export const primitives: Record<string, RulePrimitive> = {
       });
     }
   },
-  struct_at_value_updated: semidet((state, struct, index, value, updated) => {
-    const { id, args } = state.resolveStruct(struct);
+  box_at_value_updated: semidet((state, box, index, value, updated) => {
+    const { id, args } = state.resolveStruct(box);
     const i = state.resolveNumber(index);
     if (i < 0 || i >= args.length) return null;
     const nextArgs = args.slice();
     nextArgs[i] = value;
-    return state.unify(updated, { tag: "struct", id, args: nextArgs });
+    return state.unify(updated, { tag: "box", id, args: nextArgs });
   }),
-  struct_changelist_updated: semidet((state, struct, changelist, updated) => {
-    const { id, args } = state.resolveStruct(struct);
+  box_changelist_updated: semidet((state, box, changelist, updated) => {
+    const { id, args } = state.resolveStruct(box);
     const nextArgs = args.slice();
     const { args: changes } = state.resolveStruct(changelist);
     for (let i = 0; i < changes.length; i++) {
@@ -333,19 +326,28 @@ export const primitives: Record<string, RulePrimitive> = {
       nextArgs[i_] = value;
     }
 
-    return state.unify(updated, { tag: "struct", id, args: nextArgs });
+    return state.unify(updated, { tag: "box", id, args: nextArgs });
   }),
-  list_from_to_slice: semidet((state, list, from, to, slice) => {
+
+  box_from_to_slice: semidet((state, list, from, to, slice) => {
     const { id, args } = state.resolveStruct(list);
     const fromVal = from.tag == "number" ? from.value : 0;
     const toVal = to.tag == "number" ? to.value : args.length;
     return state
       .unify(from, k(fromVal))
       ?.unify(to, k(toVal))
-      ?.unify(slice, { tag: "struct", id, args: args.slice(fromVal, toVal) });
+      ?.unify(slice, { tag: "box", id, args: args.slice(fromVal, toVal) });
   }),
-  list_list_append: function* (state, left, right, append) {
-    if (left.tag == "struct" && right.tag == "struct") {
+  list_item: function* (state, list, item) {
+    const { id, args } = state.resolveStruct(list);
+    if (id !== "" || args.length === 0) return;
+    for (let i = 0; i < args.length; i++) {
+      const res = state.fork()?.unify(item, args[i]);
+      if (res) yield res.yield();
+    }
+  },
+  box_box_append: function* (state, left, right, append) {
+    if (left.tag == "box" && right.tag == "box") {
       if (left.tag !== right.tag) return null;
       if (left.args.length === 0) {
         const ns = state.unify(right, append);
@@ -363,20 +365,20 @@ export const primitives: Record<string, RulePrimitive> = {
     const unifySplit = (st: State, split: number) =>
       st
         .unify(left, {
-          tag: "struct",
+          tag: "box",
           id: id,
           args: args.slice(0, split),
         })
         ?.unify(right, {
-          tag: "struct",
+          tag: "box",
           id: id,
           args: args.slice(split),
         });
 
-    if (left.tag == "struct") {
+    if (left.tag == "box") {
       const ns = unifySplit(state, left.args.length);
       if (ns) yield ns.yield();
-    } else if (right.tag == "struct") {
+    } else if (right.tag == "box") {
       const ns = unifySplit(state, args.length - right.args.length);
       if (ns) yield ns.yield();
     } else {
@@ -454,11 +456,11 @@ export const primitives: Record<string, RulePrimitive> = {
       const val = state.exprValue(prev[field.value], {});
 
       if (isMany) {
-        const filtered = ((val as Value & { tag: "struct" }).args ?? []).filter(
+        const filtered = ((val as Value & { tag: "box" }).args ?? []).filter(
           (arg) => !state.unify(arg, value),
         );
         const nextValue = filtered.length
-          ? state.valueExpr({ tag: "struct", id: "", args: filtered })
+          ? state.valueExpr({ tag: "box", id: "", args: filtered })
           : null;
 
         state.db.updateTx(tx_, id_, field.value, nextValue);
@@ -480,10 +482,7 @@ export const primitives: Record<string, RulePrimitive> = {
         const prevValue = prev[f];
         if (!prevValue) continue;
         const val = state.exprValue(prevValue, {});
-        const ns = state
-          .fork()
-          .unify(k(f), field) //
-          ?.unify(val, value);
+        const ns = state.fork().unify(k(f), field)?.unify(val, value);
         if (!ns) return;
         yield ns.yield();
       }

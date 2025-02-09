@@ -1,9 +1,30 @@
 import { Rec } from "./data";
 import { l, r, s, $, __, view, u } from "./expr";
 import { f } from "./field";
-import { db } from "./rule";
+import { db } from "./rule_db";
 
 export const viewSystem = {
+  // view helpers
+  // utilities
+  location_view: {
+    rule__params: l($.location, $.view),
+    rule__body: s.fork(
+      // location for view type
+      r(
+        s.nonvar($.view),
+        f.view__schema($.view, $.schema),
+        f.db__schema($.location, $.schema),
+      ),
+      // view for location type
+      r(
+        s.nonvar($.location),
+        f.db__schema($.location, $.schema),
+        f.view__schema($.view, $.schema),
+      ),
+      // view for any type
+      f.view__schema($.view, "schema__any"),
+    ),
+  },
   view_menu: {
     file__name: "View menu",
     file__description: l("the view selection menu on window chrome"),
@@ -11,7 +32,7 @@ export const viewSystem = {
     rule__body: r(
       s.collect(
         s.option($.view, $.name),
-        r(s.rule__location_view($.id, $.view), f.file__name($.view, $.name)),
+        r(view.location_view($.id, $.view), f.file__name($.view, $.name)),
         $.options,
       ),
       view.select(
@@ -40,11 +61,14 @@ export const viewSystem = {
       s.set_context("window_id", $.window),
       s.set_context("history_id", $.history),
       s.get_default($.id, "file__name", $.name, $.id),
-      s.first(
-        // view from params
-        f.history__view($.history, $.view),
-        // view from id
-        s.rule__location_view($.id, $.view),
+      s.limit(
+        1,
+        s.fork(
+          // view from params
+          f.history__view($.history, $.view),
+          // view from id
+          view.location_view($.id, $.view),
+        ),
       ),
       view.window_bar($.window, $.id, $.view, $.name, $.window_bar),
       s.try_error_catch(

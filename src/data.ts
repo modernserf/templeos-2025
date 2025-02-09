@@ -16,8 +16,9 @@ import { schemas, SchemaId } from "./schema";
 import { fields, Field, f } from "./field";
 import { TypeId, coreTypes } from "./type";
 import { views } from "./view";
-import { db, rules } from "./rule";
+import { rules } from "./rule";
 import { testUtils } from "./test_utils";
+import { db } from "./rule_db";
 
 export type Location =
   | Struct<"location", [id: Id]>
@@ -154,11 +155,11 @@ const files = {
                   f.rule__params($.id, $.params),
                   s("¬", f.test__group($.id, __)),
                   s.string_substring($.id, $.omnibox),
-                  s.struct_tag_list($.struct, $.id, $.params),
+                  s.box_tag_list($.box_1, $.id, $.params),
                   s.get_default($.id, "file__description", $.desc, l("")),
                 ),
               ),
-              l(view.expr($.struct), view.text($.desc), view.spacer("0.5rem")),
+              l(view.expr($.box_1), view.text($.desc), view.spacer("0.5rem")),
               l(view.string("no results")),
             ),
           ),

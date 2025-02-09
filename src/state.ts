@@ -10,14 +10,14 @@ export const k = (value: string | number) =>
     : ({ tag: "number", value } as const);
 
 export const sv = <T extends Id, Args extends Value[]>(id: T, ...args: Args) =>
-  ({ tag: "struct", id, args } as const);
+  ({ tag: "box", id, args } as const);
 
 export type Value =
   | { tag: "placeholder" }
   | { tag: "var"; id: FactId; name: string }
   | { tag: "string"; value: string }
   | { tag: "number"; value: number }
-  | { tag: "struct"; id: Id; args: Value[] };
+  | { tag: "box"; id: Id; args: Value[] };
 
 type Constraint = { tag: "constraint"; predicate: Value };
 
@@ -68,7 +68,7 @@ export function printFact(fact: Fact, indent = ""): string {
     case "string":
     case "number":
       return JSON.stringify(fact.value);
-    case "struct":
+    case "box":
       return `${fact.id}(\n${indent}  ${fact.args
         .map((f) => printFact(f, indent + "  "))
         .join("\n" + indent + "  ")}\n${indent})`;
@@ -138,9 +138,9 @@ export class State {
       case "string":
       case "number":
         return value.value;
-      case "struct":
+      case "box":
         return {
-          tag: "struct",
+          tag: "box",
           id: value.id,
           args: value.args.map((arg) => this.valueExpr(arg)),
         };
@@ -158,7 +158,7 @@ export class State {
         localSymbols[expr.ident] = id;
         return { tag: "var", id, name: expr.ident };
       }
-      case "struct":
+      case "box":
         return {
           ...expr,
           args: expr.args.map((arg) => this.exprValue(arg, localSymbols)),
@@ -218,21 +218,21 @@ export class State {
         switch (right.tag) {
           case "var":
             return this.unifyVar(right, left);
-          case "struct":
+          case "box":
             return null;
           case "string":
           case "number":
             return left.value === right.value ? this : null;
         }
         break;
-      case "struct":
+      case "box":
         switch (right.tag) {
           case "var":
             return this.unifyVar(right, left);
           case "string":
           case "number":
             return null;
-          case "struct": {
+          case "box": {
             let nextState = this as State;
             if (left.id !== right.id) return null;
             if (left.args.length !== right.args.length) return null;
@@ -258,7 +258,7 @@ export class State {
     return next.value;
   }
   resolveStruct(next: Value): { id: string; args: Value[] } {
-    ensure(next, "struct");
+    ensure(next, "box");
     return next;
   }
   *dif(l: Value, r: Value): Generator<StateNext> {
@@ -286,7 +286,7 @@ export class State {
       case "number":
         if (l.value !== (r as typeof l).value) yield this.yield();
         return;
-      case "struct": {
+      case "box": {
         const { id, args } = r as typeof l;
         if (l.id !== id || l.args.length !== args.length) {
           yield this.yield();
@@ -307,7 +307,7 @@ export class State {
       case "string":
       case "number":
       case "placeholder":
-      case "struct":
+      case "box":
         return fact;
       case "var": {
         let val = fact;
@@ -333,7 +333,7 @@ export class State {
   }
   *eval(fact: Value): Generator<StateNext> {
     fact = this.resolveVar(fact);
-    ensure(fact, "struct");
+    ensure(fact, "box");
     const args = fact.args.map((arg) => this.resolveVar(arg));
     yield* this.call(fact.id, args);
   }
@@ -352,7 +352,7 @@ export class State {
       case "string":
       case "number":
         return value;
-      case "struct": {
+      case "box": {
         if (maxDepth === 0) return value;
 
         let didChange = false;
@@ -364,7 +364,7 @@ export class State {
           out.push(next);
         }
         if (didChange) {
-          return { tag: "struct", id: value.id, args: out };
+          return { tag: "box", id: value.id, args: out };
         } else {
           return value;
         }
@@ -412,7 +412,7 @@ export class State {
       const param = ruleState.exprValue(rule.rule__rest_params, symbolTable);
       const restArgs = args.slice(params.length);
       const ns = ruleState.unify(param, {
-        tag: "struct",
+        tag: "box",
         id: "",
         args: restArgs,
       });

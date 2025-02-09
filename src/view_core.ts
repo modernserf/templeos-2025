@@ -21,21 +21,21 @@ export const viewCore = {
   row: {
     rule__params: l($.props, $.children, $.out),
     rule__body: r(
-      s.list_list_append($.props, l(s.class("Row")), $.node_props),
+      s.box_box_append($.props, l(s.class("Row")), $.node_props),
       u($.out, s.Html("div", $.node_props, $.children)),
     ),
   },
   column: {
     rule__params: l($.props, $.children, $.out),
     rule__body: r(
-      s.list_list_append($.props, l(s.class("Column")), $.node_props),
+      s.box_box_append($.props, l(s.class("Column")), $.node_props),
       u($.out, s.Html("div", $.node_props, $.children)),
     ),
   },
   wrap: {
     rule__params: l($.props, $.children, $.out),
     rule__body: r(
-      s.list_list_append($.props, l(s.class("Wrap")), $.node_props),
+      s.box_box_append($.props, l(s.class("Wrap")), $.node_props),
       u($.out, s.Html("div", $.node_props, $.children)),
     ),
   },

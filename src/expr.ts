@@ -7,10 +7,10 @@ export type Expr =
   | number
   | { tag: "placeholder" }
   | { tag: "ident"; ident: Ident }
-  | { tag: "struct"; id: Id; args: Expr[] };
+  | { tag: "box"; id: Id; args: Expr[] };
 
 export type Struct<Id, Args extends Expr[]> = {
-  tag: "struct";
+  tag: "box";
   id: Id;
   args: Args;
 };
@@ -19,7 +19,7 @@ export type AnyStruct = Struct<string, Expr[]>;
 
 export const s = new Proxy(
   <T extends Id, Args extends Expr[]>(id: T, ...args: Args) =>
-    ({ tag: "struct", id, args } as const),
+    ({ tag: "box", id, args } as const),
   {
     get<T extends string>(_: unknown, tag: T) {
       return (...args: Expr[]) => s(tag, ...args);
@@ -94,7 +94,7 @@ function exprTypeOrd(expr: Expr) {
           return 0;
         case "ident":
           return 1;
-        case "struct":
+        case "box":
           return 4;
       }
   }
@@ -120,7 +120,7 @@ export const exprOrd: Ord<Expr> = {
               return defaultOrd.cmp(l.ident, r.ident);
             }
             break;
-          case "struct":
+          case "box":
             if (sameTypeExpr(l as AnyStruct, r)) {
               const ord =
                 defaultOrd.cmp(l.id, r.id) ||
@@ -150,7 +150,7 @@ export function printExpr(expr: Expr): string {
           return "__";
         case "ident":
           return expr.ident;
-        case "struct":
+        case "box":
           return `${expr.id}(${expr.args.map(printExpr).join(", ")})`;
       }
   }
