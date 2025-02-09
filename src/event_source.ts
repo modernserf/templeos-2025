@@ -26,7 +26,7 @@ export const eventSource = new EventSource<DB<Rec>>();
 export function useStateCallback(state: State) {
   return (params: Value, body: Value, arg: Expr) => {
     const ns = state.unify(params, state.exprValue(arg, {}));
-    if (!ns) throw new Error("todo");
+    if (!ns) return;
     try {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       for (const _ of ns.eval(body)) {

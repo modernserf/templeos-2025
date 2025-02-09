@@ -1,5 +1,5 @@
 import { Component, FC, ReactNode, useEffect, useMemo, useState } from "react";
-import { __, s } from "./expr";
+import { __, l, s } from "./expr";
 import { k, printFact, State, sv, Value } from "./state";
 import "./view_primitive.css";
 import { useStateCallback } from "./event_source";
@@ -80,7 +80,8 @@ const Button: VC = ({ state, values: [props, label, next, onClick] }) => {
       {...getProps(state, props)}
       type="button"
       onClick={(e) => {
-        handle(next, onClick, s.click(Number(e.metaKey)));
+        const event = e.metaKey ? s.click(l(s.meta_key())) : s.click(l());
+        handle(next, onClick, event);
       }}
     >
       {state.resolveString(label)}
@@ -98,8 +99,14 @@ const Input: VC = ({ state, values: [props, value_, next, onChange] }) => {
       {...jsProps}
       defaultValue={value}
       onChange={debounce(db, (e) => {
-        handle(next, onChange, e.target.value);
+        handle(next, onChange, s.change(e.target.value));
       })}
+      onFocus={() => {
+        handle(next, onChange, s.focus());
+      }}
+      onBlur={() => {
+        handle(next, onChange, s.blur());
+      }}
     />
   );
 };
@@ -114,7 +121,13 @@ const Select: VC = ({
       {...getProps(state, props)}
       value={state.resolveString(value)}
       onChange={(e) => {
-        handle(next, onChange, e.target.value);
+        handle(next, onChange, s.change(e.target.value));
+      }}
+      onFocus={() => {
+        handle(next, onChange, s.focus());
+      }}
+      onBlur={() => {
+        handle(next, onChange, s.blur());
       }}
     >
       {state.resolveStruct(options).args.map((opt) => {
@@ -211,6 +224,13 @@ export class ErrorBoundary extends Component<
 }
 
 function Children({ state, children }: { state: State; children: Value }) {
+  if (!children) {
+    return (
+      <div style={{ backgroundColor: "pink" }}>
+        <pre>error: children is undefined</pre>
+      </div>
+    );
+  }
   return (
     <>
       {(children.args as (Value & { tag: "struct" })[]).map((arg, i) => (

@@ -1,17 +1,13 @@
 import { Rec } from "./data";
-import { l, r, s, $, Expr, __, AnyStruct, fork, eq } from "./expr";
+import { l, r, s, $, Expr, __, view, fork, eq } from "./expr";
 import { f } from "./field";
 import { db } from "./rule";
-import { test } from "./test_utils";
-
-export const view = new Proxy(
-  {},
-  {
-    get(_, key: string) {
-      return (...args: Expr[]) => s(`view__${key}`, ...args);
-    },
-  },
-) as Record<string, (...args: Expr[]) => AnyStruct>;
+import { viewCore } from "./view_core";
+import { viewExpr } from "./view_expr";
+import { viewForm } from "./view_form";
+import { viewRender } from "./view_render";
+import { viewSystem } from "./view_system";
+import { viewText } from "./view_text";
 
 export const rootView = (output: Expr) =>
   r(
@@ -30,351 +26,13 @@ export const rootView = (output: Expr) =>
   );
 
 const baseViews = {
-  // functional views
-  html: {
-    rule__params: l($.tag, $.props, $.children, $.out),
-    rule__body: r(eq($.out, s.Html($.tag, $.props, $.children))),
-  },
-  spacer: {
-    rule__params: l(
-      $.space,
-      s.Html("div", l(s.class("Spacer"), s.style("flexBasis", $.space)), l()),
-    ),
-    rule__body: r(),
-  },
-  row: {
-    rule__params: l($.props, $.children, $.out),
-    rule__body: r(
-      s.list_list_append($.props, l(s.class("Row")), $.node_props),
-      eq($.out, s.Html("div", $.node_props, $.children)),
-    ),
-  },
-  column: {
-    rule__params: l($.props, $.children, $.out),
-    rule__body: r(
-      s.list_list_append($.props, l(s.class("Column")), $.node_props),
-      eq($.out, s.Html("div", $.node_props, $.children)),
-    ),
-  },
-  wrap: {
-    rule__params: l($.props, $.children, $.out),
-    rule__body: r(
-      s.list_list_append($.props, l(s.class("Wrap")), $.node_props),
-      eq($.out, s.Html("div", $.node_props, $.children)),
-    ),
-  },
-  // local_state: {
-  //   rule__params: l($.init_value, $.value, $.next, $.on_change, $.children),
-  //   rule__body: s.view(
-  //     s.LocalState($.init_value, $.value, $.next, $.on_change, $.children),
-  //   ),
-  // },
-  string: {
-    rule__params: l($.string, s.String($.string)),
-    rule__body: r(),
-  },
-  button__: {
-    rule__params: l(
-      $.params,
-      $.label,
-      l($.event, $.on_click),
-      s.Button($.params, $.label, $.event, $.on_click),
-    ),
-    rule__body: r(),
-  },
-  button: {
-    rule__params: l(
-      $.params,
-      $.label,
-      $.event,
-      $.on_click,
-      s.Button($.params, $.label, $.event, $.on_click),
-    ),
-    rule__body: r(),
-  },
-  input__: {
-    rule__params: l(
-      $.props,
-      $.value,
-      l($.next, $.handler),
-      s.Input($.props, $.value, $.next, $.handler),
-    ),
-    rule__body: r(),
-  },
-  input: {
-    rule__params: l(
-      $.props,
-      $.value,
-      $.next,
-      $.on_change,
-      s.Input($.props, $.value, $.next, $.on_change),
-    ),
-    rule__body: r(),
-  },
-  select__: {
-    rule__params: l(
-      $.params,
-      $.value,
-      $.options,
-      l($.next, $.on_change),
-      s.Select(l(), $.value, $.options, $.next, $.on_change),
-    ),
-    rule__body: r(),
-  },
-  select: {
-    rule__params: l(
-      $.params,
-      $.value,
-      $.options,
-      $.next,
-      $.on_change,
-      s.Select(l(), $.value, $.options, $.next, $.on_change),
-    ),
-    rule__body: r(),
-  },
-  output: {
-    rule__params: l($.out, $.out),
-    rule__body: r(),
-  },
-  render: {
-    rule__params: l($.expr, $.out),
-    rule__body: r(
-      s.struct_tag_list($.expr, $.tag, $.args),
-      s.collect_empty(
-        l($.i, $.result),
-        r(
-          s.struct_at_value($.args, $.i, $.arg),
-          s.struct_tag_list($.arg, "children", $.children),
-          view.render_children($.children, $.result),
-        ),
-        $.changes,
-      ),
-      s.struct_changelist_updated($.args, $.changes, $.rendered_args),
-      s.apply($.tag, $.rendered_args, l($.out)),
-    ),
-  },
-  render_children: {
-    rule__params: l($.children, $.rendered),
-    rule__body: r(
-      s.collect_empty(
-        $.view,
-        r(s.list_item($.children, $.child), view.render($.child, $.view)),
-        $.rendered,
-      ),
-    ),
-  },
-  test_render: {
-    test__group: "views",
-    rule__params: l(),
-    rule__body: r(
-      test.collect(
-        $.result,
-        view.render(view.string("foo"), $.result),
-        s.String("foo"),
-      ),
-      test.collect(
-        $.result,
-        view.render(
-          view.row(l(), s.children(view.string("foo"), view.string("bar"))),
-          $.result,
-        ),
-        s.Html("div", l(s.class("Row")), l(s.String("foo"), s.String("bar"))),
-      ),
-    ),
-  },
-  iter: {
-    rule__params: l($.iter, $.children, $.out),
-    rule__body: r(
-      $.iter,
-      s.list_item($.children, $.child),
-      view.render($.child, $.out),
-    ),
-  },
-  iter_else: {
-    rule__params: l($.iter, $.children, $.else, $.out),
-    rule__body: s.if_then_else(
-      $.iter,
-      r(s.list_item($.children, $.child), view.render($.child, $.out)),
-      r(s.list_item($.else, $.child), view.render($.child, $.out)),
-    ),
-  },
-  foreach: {
-    rule__params: l($.list, $.item, $.children, $.out),
-    rule__body: view.iter(s.list_item($.list, $.item), $.children, $.out),
-  },
-  test_foreach: {
-    test__group: "views",
-    rule__params: l(),
-    rule__body: r(
-      test.collect(
-        $.result,
-        view.render(
-          view.row(
-            l(),
-            s.children(
-              view.string("( "),
-              view.foreach(
-                l("foo", "bar", "baz"),
-                $.expr,
-                l(view.string($.expr), view.string(" ")),
-              ),
-              view.string(")"),
-            ),
-          ),
-          $.result,
-        ),
-        s.Html(
-          "div",
-          l(s.class("Row")),
-          l(
-            s.String("( "),
-            s.String("foo"),
-            s.String(" "),
-            s.String("bar"),
-            s.String(" "),
-            s.String("baz"),
-            s.String(" "),
-            s.String(")"),
-          ),
-        ),
-      ),
-    ),
-  },
-  link: {
-    rule__params: l($.props, $.label, $.location, $.out),
-    rule__body: r(
-      s.get_context("window_id", $.window),
-      view.button(
-        l(s.class("Link")),
-        $.label,
-        $.event,
-        s.cond(
-          l(eq($.event, s.click(1)), s.on__newWindow($.location)),
-          l(s.list_item($.props, s.target("new")), s.on__newWindow($.location)),
-          l(s.ok(), s.on__push($.window, $.location)),
-        ),
-        $.out,
-      ),
-    ),
-  },
-  test__link: {
-    test__group: "views",
-    rule__params: l(),
-    rule__body: r(
-      test.collect(
-        $.out,
-        r(
-          s.set_context("window_id", "test_window_id"),
-          view.link(l(), "hello", s.location("test_link"), $.out),
-        ),
-        s.Button(
-          l(s.class("Link")),
-          "hello",
-          $.event,
-          s.cond(
-            l(
-              eq($.event, s.click(1)),
-              s.on__newWindow(s.location("test_link")),
-            ),
-            l(
-              s.list_item(l(), s.target("new")),
-              s.on__newWindow(s.location("test_link")),
-            ),
-            l(s.ok(), s.on__push("test_window_id", s.location("test_link"))),
-          ),
-        ),
-      ),
-    ),
-  },
-  icon: {
-    rule__params: l(s.Icon()),
-    rule__body: r(),
-  },
-  table: {
-    rule__params: l($.props, $.header, $.rows, $.out),
-    rule__body: r(
-      s("/=", $.rows, l()),
-      eq(
-        $.out,
-        s.Html(
-          "table",
-          $.props,
-          l(s.Html("thead", l(), $.header), s.Html("tbody", l(), $.rows)),
-        ),
-      ),
-    ),
-  },
-  table_header: {
-    rule__params: l($.props, $.items, $.out),
-    rule__body: r(
-      s.collect(
-        s.Html("th", l(), l($.item)),
-        s.list_item($.items, $.item),
-        $.cells,
-      ),
-      eq($.out, s.Html("tr", $.props, $.cells)),
-    ),
-  },
-  table_row: {
-    rule__params: l($.props, $.items, $.out),
-    rule__body: r(
-      s.collect(
-        s.Html("td", l(), l($.item)),
-        s.list_item($.items, $.item),
-        $.cells,
-      ),
-      eq($.out, s.Html("tr", $.props, $.cells)),
-    ),
-  },
-  menu__: {
-    rule__params: l($.label, $.options, $.on_change, $.out),
-    rule__body: r(
-      s.list_list_append(l(s.option("", $.label)), $.options, $.menu_options),
-      view.select__(l(), $.label, $.menu_options, $.on_change, $.out),
-    ),
-  },
-  menu: {
-    rule__params: l($.label, $.options, $.next, $.on_change, $.out),
-    rule__body: r(
-      s.list_list_append(l(s.option("", $.label)), $.options, $.menu_options),
-      view.select(l(), $.label, $.menu_options, $.next, $.on_change, $.out),
-    ),
-  },
-  text_section: {
-    rule__params: l($.header, $.body, $.out),
-    rule__body: r(
-      s.list_rule_mapped($.header, "view__text_node", $.header_out),
-      s.list_rule_mapped($.body, "view__text_node", $.body_out),
-      s.list_list_append(
-        l(s.Html("header", l(), $.header_out)),
-        $.body_out,
-        $.joined,
-      ),
-      eq(s.Html("section", l(), $.joined), $.out),
-    ),
-  },
-  text_node: {
-    rule__params: l($.node, $.out),
-    rule__body: s.match_cond(
-      $.node,
-      l(
-        s.link($.label, $.location),
-        view.link(l(), $.label, $.location, $.out),
-      ),
-      l(
-        s.section($.header, $.body),
-        view.text_section($.header, $.body, $.out),
-      ),
-      l(__, r(s.string($.node), view.string($.node, $.out))),
-    ),
-  },
-  text: {
-    rule__params: l($.text, $.out),
-    rule__body: r(
-      s.list_rule_mapped($.text, "view__text_node", $.nodes),
-      eq(s.Html("div", l(s.class("Text")), $.nodes), $.out),
-    ),
-  },
+  ...viewForm,
+  ...viewRender,
+  ...viewCore,
+  ...viewText,
+  ...viewExpr,
+  ...viewSystem,
+
   id_field: {
     rule__params: l($.entity, $.field, $.out),
     rule__body: s.cond(
@@ -396,229 +54,6 @@ const baseViews = {
     ),
   },
 
-  expr_tuple: {
-    rule__params: l($.tag, $.list, $.out),
-    rule__body: view.render(
-      view.row(
-        l(),
-        s.children(
-          view.file_link($.tag),
-          view.string("( "),
-          view.foreach($.list, $.expr, l(view.expr($.expr), view.string(" "))),
-          view.string(")"),
-        ),
-      ),
-      $.out,
-    ),
-    __rule__body: r(
-      s.collect($.view, fork(), $.row),
-
-      view.row(l(), $.row, $.out),
-    ),
-  },
-  expr_block: {
-    rule__params: l($.tag, $.list, $.out),
-    rule__body: r(
-      s.collect(
-        $.view,
-        r(
-          s.list_item($.list, $.expr),
-          view.expr($.expr, $.e),
-          view.string($.tag, $.t),
-          view.row(l(), l($.e, $.t), $.view),
-        ),
-        $.column,
-      ),
-      view.column(l(), $.column, $.out),
-    ),
-  },
-  expr_tuple_block: {
-    rule__params: l($.tag, $.list, $.out),
-    rule__body: r(
-      s.collect(
-        $.view,
-        r(s.list_item($.list, $.expr), view.expr($.expr, $.view)),
-        $.column,
-      ),
-      s.collect(
-        $.view,
-        fork(
-          view.file_link($.tag, $.view),
-          view.string("( ", $.view),
-          view.column(l(), $.column, $.view),
-          view.string(" )", $.view),
-        ),
-        $.row,
-      ),
-      view.row(l(), $.row, $.out),
-    ),
-  },
-  expr_struct: {
-    rule__params: l($.tag, $.list, $.out),
-    rule__body: s.cond(
-      l(s.match($.tag, ",", ";"), view.expr_block($.tag, $.list, $.out)),
-      l(
-        s.match(
-          $.tag,
-          "view__row",
-          "view__column",
-          "view__table",
-          "view__table_header",
-          "view__table_row",
-          "view__table_column",
-        ),
-        view.expr_tuple_block($.tag, $.list, $.out),
-      ),
-      l(s.ok(), view.expr_tuple($.tag, $.list, $.out)),
-    ),
-  },
-  expr: {
-    rule__params: l($.data, $.out),
-    rule__body: fork(
-      r(
-        s.string($.data),
-        s.collect(
-          $.view,
-          fork(
-            view.string('"', $.view),
-            view.string($.data, $.view),
-            view.string('"', $.view),
-          ),
-          $.row,
-        ),
-        view.row(l(), $.row, $.out),
-      ),
-      r(s.number($.data), view.string($.data, $.out)),
-      r(
-        s.struct_tag_list($.data, $.tag, $.list),
-        view.expr_struct($.tag, $.list, $.out),
-      ),
-      r(s.var_name($.data, $.var_name), view.string($.var_name, $.out)),
-    ),
-  },
-
-  fit_content_input: {
-    rule__params: l($.value, $.next, $.on_change, $.out),
-    rule__body: view.input(
-      l(s.class("Input--fitContent"), s.debounce(300)),
-      $.value,
-      $.next,
-      $.on_change,
-      $.out,
-    ),
-  },
-  struct_add_field: {
-    rule__params: l($.next, $.on_change, $.out),
-    rule__body: r(
-      view.menu(
-        "+",
-        l(
-          s.option("string", "string"),
-          s.option("number", "number"),
-          s.option("struct", "struct"),
-          s.option("var", "var"),
-        ),
-        $.next_type,
-        r(
-          s.match(
-            l($.next_type, $.next),
-            l("string", ""),
-            l("number", 0),
-            l("struct", l()),
-            l("var", $("")),
-          ),
-          $.on_change,
-        ),
-        $.out,
-      ),
-    ),
-  },
-  struct_nodes_edit: {
-    rule__params: l($.data, $.next, $.on_change, $.view),
-    rule__body: r(
-      s.struct_tag_list($.data, $.id, $.args),
-      s.struct_at_value($.data, $.i, $.arg),
-      view.button(
-        l(),
-        "×",
-        __,
-        r(
-          s.list_at_removed_splice($.args, $.i, l(__), $.next_args),
-          s.struct_tag_list($.next, $.id, $.next_args),
-          $.on_change,
-        ),
-        $.delete_button,
-      ),
-      view.expr_edit(
-        $.arg,
-        $.arg_next,
-        r(
-          s.struct_at_value_updated($.data, $.i, $.arg_next, $.next),
-          $.on_change,
-        ),
-        $.expr,
-      ),
-      view.row(l(), l($.delete_button, $.expr), $.view),
-    ),
-  },
-  struct_edit: {
-    rule__params: l($.data, $.next, $.on_change, $.out),
-    rule__body: r(
-      s.struct_tag_list($.data, $.id, $.args),
-      s.collect(
-        $.view,
-        fork(
-          view.struct_nodes_edit($.data, $.next, $.on_change, $.view),
-          view.struct_add_field(
-            $.next_arg,
-            r(s._struct_push($.data, $.next_arg, $.next), $.on_change),
-            $.view,
-          ),
-        ),
-        $.arg_nodes,
-      ),
-      s.collect(
-        $.view,
-        fork(
-          view.fit_content_input(
-            $.id,
-            $.next_id,
-            r(s.struct_tag_list($.next, $.next_id, $.args), $.on_change),
-            $.view,
-          ),
-          view.string("(", $.view),
-          view.column(l(), $.arg_nodes, $.view),
-          view.string(")", $.view),
-        ),
-        $.row,
-      ),
-      view.row(l(), $.row, $.out),
-    ),
-  },
-
-  expr_edit: {
-    rule__params: l($.data, $.next, $.on_change, $.out),
-    rule__body: fork(
-      r(
-        s.var_name($.data, $.var_name),
-        view.fit_content_input($.var_name, $.next, $.on_change, $.out),
-      ),
-      r(
-        s.string($.data),
-        view.fit_content_input($.data, $.next, $.on_change, $.out),
-      ),
-      r(
-        s.number($.data),
-        view.fit_content_input(
-          $.data,
-          $.next_str,
-          r(s.string_number($.next_str, $.next), $.on_change),
-          $.out,
-        ),
-      ),
-      r(s.struct($.data), view.struct_edit($.data, $.next, $.on_change, $.out)),
-    ),
-  },
   // type views
   type__any: {
     rule__params: l($.id, $.field, $.out),
@@ -634,8 +69,8 @@ const baseViews = {
   type__time: {
     rule__params: l($.id, $.field, $.out),
     rule__body: r(
-      db.get($.id, $.field, $.value), //
-      view.string($.value, $.out),
+      db.get($.id, $.field, $.ts), //
+      view.time($.ts, $.out),
     ),
   },
   type__ref: {
@@ -653,7 +88,7 @@ const baseViews = {
   tag_edit: {
     rule__params: l($.tag, $.on_delete, $.out),
     rule__body: r(
-      view.button(l(), "x", __, $.on_delete, $.button),
+      view.button(l(), "x", l(s.click(__), $.on_delete), $.button),
       view.file_link($.tag, $.link),
       view.row(l(), l($.button, $.link), $.out),
     ),
@@ -669,7 +104,12 @@ const baseViews = {
         ),
         $.tag_opts,
       ),
-      view.menu("Add tag", $.tag_opts, $.selected, $.on_add, $.out),
+      view.menu(
+        "Add tag",
+        $.tag_opts,
+        l(s.change($.selected), $.on_add),
+        $.out,
+      ),
     ),
   },
 
@@ -796,8 +236,7 @@ const baseViews = {
       view.menu(
         "Add field...",
         $.fields,
-        $.new_field_id,
-        s._add_field($.id, $.new_field_id),
+        l(s.change($.new_field_id), s._add_field($.id, $.new_field_id)),
         $.out,
       ),
     ),
@@ -820,16 +259,17 @@ const baseViews = {
             view.button(
               l(),
               "×",
-              __,
-              db.with_tx($.tx, db.delete($.tx, $.id, $.field)),
+              l(s.click(__), db.with_tx($.tx, db.delete($.tx, $.id, $.field))),
               $.button,
             ),
             view.file_link($.field, $.link),
             view.row(l(), l($.button, $.link), $.field_label),
             view.expr_edit(
               $.value,
-              $.next,
-              db.with_tx($.tx, db.update($.tx, $.id, $.field, $.next)),
+              l(
+                $.next,
+                db.with_tx($.tx, db.update($.tx, $.id, $.field, $.next)),
+              ),
               $.field_value,
             ),
             view.table_row(l(), l($.field_label, $.field_value), $.row),
@@ -845,51 +285,60 @@ const baseViews = {
       view.column(l(), l($.table, $.add_menu), $.out),
     ),
   },
+  schema__schema_field: {
+    rule__params: l($.field_def, $.out),
+    rule__body: s.match_cond(
+      $.field_def,
+      l(s.field($.field_id), view.file_link($.field_id, $.out)),
+      l(
+        s.field_optional($.field_id),
+        view.render(
+          view.row(
+            l(),
+            s.children(view.file_link($.field_id), view.string("(optional)")),
+          ),
+          $.out,
+        ),
+      ),
+    ),
+  },
   schema__schema: {
     file__name: "Schema viewer",
     view__schema: "schema__schema",
     rule__params: l($.id, $.state, $.out),
-    rule__body: view.column(
-      view.row(f.file__description($.id, $.desc), view.text($.desc)),
+    rule__body: view.render(
       view.column(
-        r(
+        l(),
+        s.children(
           view.string("Fields:"),
-          f.db__fields($.id, $.fields),
-          s.list_item($.fields, $.field),
-          s.match_cond(
-            $.field,
-            l(s.field($.field_id), view.file_link($.field_id)),
+          view.iter(
+            r(f.db__fields($.id, $.fields), s.list_item($.fields, $.field)),
+            l(view.schema__schema_field($.field)),
+          ),
+          view.spacer("1rem"),
+          view.string("Views:"),
+          view.iter(f.view__schema($.view, $.id), l(view.file_info($.view))),
+          view.spacer("1rem"),
+          view.string("Items:"),
+          view.iter(f.db__schema($.record, $.id), l(view.file_info($.record))),
+
+          view.button(
+            l(),
+            "New item",
             l(
-              s.field_optional($.field_id),
-              view.row(view.file_link($.field_id), view.string("(optional)")),
+              s.click(__),
+              s.with_tx(
+                $.tx,
+                r(
+                  s.new__default($.tx, $.item_id, $.id),
+                  s.new__window($.tx, __, s.location($.item_id)),
+                ),
+              ),
             ),
           ),
         ),
       ),
-      view.column(
-        r(
-          view.string("Views:"),
-          f.view__schema($.view, $.id),
-          view.row(view.file_info($.view)),
-        ),
-      ),
-      view.column(
-        r(
-          view.string("Items:"),
-          f.db__schema($.record, $.id),
-          view.row(view.file_info($.record)),
-        ),
-      ),
-      view.button(
-        "New item",
-        s.with_tx(
-          $.tx,
-          r(
-            s.new__default($.tx, $.item_id, $.id),
-            s.new__window($.tx, __, s.location($.item_id)),
-          ),
-        ),
-      ),
+      $.out,
     ),
   },
   schema__form: {
@@ -898,275 +347,45 @@ const baseViews = {
     rule__params: l($.id, $.state, $.out),
     rule__body: s.call($.id, $.id, $.state, $.out),
   },
-  schema__text: {
-    file__name: "Text viewer",
-    view__schema: "schema__text",
-    rule__params: l($.id, $.state, $.out),
-    rule__body: r(
-      view.spacer("2rem", $.margin),
-      f.text__content($.id, $.text),
-      view.text($.text, $.content),
-      view.row(l(), l($.margin, $.content, $.margin), $.row),
-      view.column(l(), l($.margin, $.row, $.margin), $.out),
-    ),
-  },
+
   dispatch: {
     rule__params: l(l($.param, $.handler), $.message),
     rule__body: r(eq($.param, $.message), $.handler),
   },
-  schema__text_base_edit: {
-    rule__params: l($.text, $.on_change, $.out),
-    rule__body: r(
-      view.input__(
-        l(
-          s.debounce(1000),
-          s.class("Input--fitContent"),
-          s.style("border", "none"),
-        ),
-        $.text,
-        l($.next, r(view.dispatch($.on_change, s.update($.next)))),
-        $.out,
-      ),
+  __match_dispatch_next: {
+    rule__params: l($.on_change, $.message, $.rest),
+    rule__body: s.if_then_else(
+      eq($.rest, l()),
+      view.dispatch($.on_change, $.message),
+      s.apply(view.match_dispatch($.on_change, $.message), $.rest),
     ),
   },
-  schema__text_link_edit: {
-    rule__params: l(l($.label, $.location), $.on_change, $.out),
+  match_dispatch: {
+    rule__params: l($.on_change, $.message, $.case),
+    rule__rest_params: $.rest,
     rule__body: r(
-      s.match(
-        $.location,
-        s.location($.id),
-        s.location($.id, __),
-        s.location($.id, __, __),
-      ),
-      view.render(
-        view.row(
-          l(),
-          s.children(
-            view.input__(
-              l(
-                s.debounce(1000),
-                s.class("Input--fitContent"),
-                s.style("border", "none"),
-                s.style("borderBottom", "1px dotted black"),
-              ),
-              $.label,
-              l(
-                $.message,
-                s.match_cond(
-                  $.message,
-                  l(
-                    s.update($.next),
-                    view.dispatch(
-                      $.on_change,
-                      s.update(s.link($.next, $.location)),
-                    ),
-                  ),
-                  l(__, view.dispatch($.on_change, $.message)),
-                ),
-              ),
-            ),
-            view.input__(
-              l(s.debounce(1000), s.class("Input--fitContent")),
-              $.id,
-              l(
-                $.message,
-                s.match_cond(
-                  $.message,
-                  l(
-                    s.update($.next),
-                    view.dispatch(
-                      $.on_change,
-                      s.update(s.link($.label, s.location($.next))),
-                    ),
-                  ),
-                  l(__, view.dispatch($.on_change, $.message)),
-                ),
-              ),
-            ),
-            // view.string("TODO: view & params"),
-          ),
-        ),
-        $.out,
-      ),
-    ),
-  },
-  schema__text_section_edit: {
-    rule__params: l(l($.header, $.content), $.on_change, $.out),
-    rule__body: r(
-      view.render(
-        view.html(
-          "section",
-          l(),
-          s.children(
-            view.html(
-              "header",
-              l(),
-              s.children(
-                view.wrap(
-                  l(),
-                  s.children(
-                    view.schema__text_list_edit(
-                      $.header,
-                      l(
-                        $.message,
-                        s.match_cond(
-                          $.message,
-                          l(
-                            s.update($.next),
-                            view.dispatch(
-                              $.on_change,
-                              s.update(s.section($.next, $.content)),
-                            ),
-                          ),
-                          l(__, view.dispatch($.on_change, $.message)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            view.wrap(
-              l(),
-              s.children(
-                view.schema__text_list_edit(
-                  $.content,
-                  l(
-                    $.message,
-                    s.match_cond(
-                      $.message,
-                      l(
-                        s.update($.next),
-                        view.dispatch(
-                          $.on_change,
-                          s.update(s.section($.header, $.next)),
-                        ),
-                      ),
-                      l(__, view.dispatch($.on_change, $.message)),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        $.out,
-      ),
-    ),
-  },
-  schema__text_list_edit: {
-    rule__params: l($.list, $.on_change, $.out),
-    rule__body: r(
-      s.struct_at_value($.list, $.i, $.node),
-      view.schema__text_node_edit(
-        $.node,
-        l(
-          $.message,
-          s.match_cond(
-            $.message,
-            l(
-              s.update($.next),
-              r(
-                s.struct_at_value_updated($.list, $.i, $.next, $.updated),
-                view.dispatch($.on_change, s.update($.updated)),
-              ),
-            ),
-            l(__, view.dispatch($.on_change, $.message)),
-          ),
-        ),
-        $.out,
-      ),
-    ),
-  },
-  schema__text_node_edit: {
-    rule__params: l($.node, $.on_change, $.out),
-    rule__body: r(
-      s.value_expr($.node, $.expr),
       s.match_cond(
-        $.expr,
+        $.case,
         l(
-          s.string($.str),
-          view.schema__text_base_edit($.str, $.on_change, $.out),
-        ),
-        l(
-          s.struct("link", $.link),
-          view.schema__text_link_edit($.link, $.on_change, $.out),
-        ),
-        l(
-          s.struct("section", $.section),
-          view.schema__text_section_edit($.section, $.on_change, $.out),
-        ),
-      ),
-    ),
-  },
-  schema__text_edit_menu: {
-    rule__params: l($.id, $.state, $.out),
-    rule__body: r(
-      view.menu__(
-        "insert",
-        l(
-          s.option("text", "Text"),
-          s.option("link", "Link"),
-          s.option("section", "Section"),
-        ),
-        l(
-          $.selected,
-          r(
-            s.match(
-              l($.selected, $.empty_value),
-              l("text", ""),
-              l("link", s.link("", s.location(""))),
-              l("section", s.section(l(""), l(""))),
-            ),
-            f.text__content($.id, $.prev),
-            s._struct_push($.prev, $.empty_value, $.next),
-            db.with_tx($.tx, db.update($.tx, $.id, "text__content", $.next)),
+          l($.pattern, $.mapped),
+          s.if_then_else(
+            eq($.message, $.pattern),
+            view.dispatch($.on_change, $.mapped),
+            s.__match_dispatch_next($.on_change, $.message, $.rest),
           ),
         ),
-        $.out,
+        l(
+          l($.pattern, $.mapped, $.body),
+          s.if_then_else(
+            eq($.message, $.pattern),
+            r($.body, view.dispatch($.on_change, $.mapped)),
+            s.__match_dispatch_next($.on_change, $.message, $.rest),
+          ),
+        ),
       ),
     ),
   },
-  schema__text_edit: {
-    file__name: "Text editor",
-    view__schema: "schema__text",
-    rule__params: l($.id, $.state, $.out),
-    rule__body: r(
-      f.text__content($.id, $.text),
 
-      view.render(
-        view.column(
-          l(s.style("margin", "1rem")),
-          s.children(
-            view.schema__text_edit_menu($.id, $.state),
-            view.schema__text_list_edit(
-              $.text,
-              l(
-                $.message,
-                s.match_cond(
-                  $.message,
-                  l(
-                    s.update($.next),
-                    db.with_tx(
-                      $.tx,
-                      db.update($.tx, $.id, "text__content", $.next),
-                    ),
-                  ),
-                  l(
-                    s.focus($.cursor),
-                    r(
-                      s.log("todo move cursor", $.cursor), //
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        $.out,
-      ),
-    ),
-  },
   schema__tag: {
     file__name: "Tag items",
     view__schema: "schema__tag",
@@ -1183,7 +402,6 @@ const baseViews = {
       view.column(l(), l($.header, $.tag_section), $.out),
     ),
   },
-  // FIXME
   schema__folder_list: {
     file__name: "Folder - List",
     view__schema: "schema__folder",
@@ -1230,37 +448,43 @@ const baseViews = {
       $.out,
     ),
   },
-  // FIXME
   schema__window: {
     file__name: "Window - History",
     view__schema: "schema__window",
-    rule__params: l($.id, $.state),
-    rule__body: view.column(
-      r(
-        f.history__window($.history, $.id),
-        view.row(
-          r(f.history__location($.history, $.h_id), view.file_link($.h_id)),
-          r(
-            f.history__view($.history, $.h_view),
-            view.string(":"),
-            view.file_link($.h_view),
-          ),
-          r(
-            f.time__created($.history, $.ts),
-            // TODO: adjust for timezone
-            s.timestamp_date(
-              $.ts,
-              s.date(__, __, __, $.hour, $.minute, $.second, __),
+    rule__params: l($.id, $.state, $.out),
+    rule__body: view.render(
+      view.table(
+        l(),
+        s.children(
+          view.table_header(
+            l(),
+            s.children(
+              view.string("id"),
+              view.string("view"),
+              view.string("time"),
             ),
-            view.string("-"),
-            view.string($.hour),
-            view.string(":"),
-            view.string($.minute),
-            view.string(":"),
-            view.string($.second),
+          ),
+        ),
+        s.children(
+          view.iter(
+            f.history__window($.history, $.id),
+            l(
+              view.table_row(
+                l(),
+                s.children(
+                  view.id_field($.history, "history__location"),
+                  view.or_default(
+                    view.id_field($.history, "history__view"),
+                    view.string(""),
+                  ),
+                  view.id_field($.history, "time__created"),
+                ),
+              ),
+            ),
           ),
         ),
       ),
+      $.out,
     ),
   },
   // built in UI elements
@@ -1296,144 +520,6 @@ const baseViews = {
         ),
         l(s.ok(), view.column(l(), l($.row), $.out)),
       ),
-    ),
-  },
-  view_menu: {
-    file__name: "View menu",
-    file__description: l("the view selection menu on window chrome"),
-    rule__params: l($.window, $.id, $.selectedView, $.out),
-    rule__body: r(
-      s.collect(
-        s.option($.view, $.name),
-        r(s.rule__location_view($.id, $.view), f.file__name($.view, $.name)),
-        $.options,
-      ),
-      view.select(
-        l(),
-        $.selectedView,
-        $.options,
-        $.nextView,
-        db.with_tx(
-          $.tx,
-          f.window__currentHistory($.window, $.history),
-          db.update($.tx, $.history, "history__view", $.nextView),
-        ),
-        $.out,
-      ),
-    ),
-  },
-  window: {
-    file__name: "Window",
-    rule__params: l($.window, $.out),
-    rule__body: r(
-      f.window__currentHistory($.window, $.history),
-      f.browser__currentWindow("browser", $.currentWindow),
-      f.history__location($.history, $.id),
-      s.set_context("window_id", $.window),
-      s.set_context("history_id", $.history),
-      s.get_default($.id, "file__name", $.name, $.id),
-      s.first(
-        // view from params
-        f.history__view($.history, $.view),
-        // view from id
-        s.rule__location_view($.id, $.view),
-      ),
-      view.window_bar($.window, $.id, $.view, $.name, $.window_bar),
-      s.try_error_catch(
-        r(
-          s.call($.view, $.id, $.history, $.main_content),
-          eq(
-            $.out,
-            s.WindowContainer(
-              $.window,
-              $.currentWindow,
-              s.on__selectWindow($.window),
-              s.on__back($.window),
-              s.on__forward($.window),
-              l($.window_bar, $.main_content),
-            ),
-          ),
-        ),
-        $.error,
-        r(
-          s.log("error", $.error),
-          view.string("Error, see console for details", $.error_message),
-          eq(
-            $.out,
-            s.WindowContainer(
-              $.window,
-              $.currentWindow,
-              l($.window_bar, $.error_message),
-            ),
-          ),
-        ),
-      ),
-    ),
-  },
-  window_bar: {
-    rule__params: l($.window, $.id, $.view, $.name, $.out),
-    rule__body: r(
-      view.view_menu($.window, $.id, $.view, $.menu),
-      view.string($.name, $.window_title),
-      view.button(
-        l(s.class("AppWindow__closeButton")),
-        "",
-        __,
-        s.on__closeWindow($.window),
-        $.close_button,
-      ),
-      eq(
-        $.out,
-        s.Html(
-          "header",
-          l(s.class("AppWindow__header")),
-          l(
-            $.close_button,
-            s.Html("h1", l(s.class("AppWindow__title")), l($.window_title)),
-            $.menu,
-          ),
-        ),
-      ),
-    ),
-  },
-  app_menu: {
-    file__name: "App menu",
-    rule__params: l($.out),
-    rule__body: r(
-      s.collect(
-        $.view,
-        fork(
-          view.button(
-            l(),
-            "←",
-            __,
-            r(
-              f.browser__currentWindow("browser", $.window),
-              s.on__back($.window),
-            ),
-            $.view,
-          ),
-          view.button(
-            l(),
-            "→",
-            __,
-            r(
-              f.browser__currentWindow("browser", $.window),
-              s.on__forward($.window),
-            ),
-            $.view,
-          ),
-          view.button(
-            l(),
-            "new window",
-            __,
-            r(s.on__newWindow(s.location("omnibox"))),
-            $.view,
-          ),
-        ),
-        $.items,
-      ),
-      view.row(l(), $.items, $.out),
     ),
   },
 } satisfies Record<string, Rec>;

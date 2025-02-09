@@ -74,14 +74,14 @@ export const primitives: Record<string, RulePrimitive> = {
     const value = state.resolveString(id);
     yield* state.call(value, args);
   },
-  apply: function* (state, id, ...argLists) {
-    const value = state.resolveString(id);
-    let argsConcat: Value[] = [];
+  apply: function* (state, head, ...argLists) {
+    const { id, args } = state.resolveStruct(head);
+    let argsConcat = args.slice();
     for (let i = 0; i < argLists.length; i++) {
       const { args } = state.resolveStruct(argLists[i]);
       argsConcat = argsConcat.concat(args);
     }
-    yield* state.call(value, argsConcat);
+    yield* state.call(id, argsConcat);
   },
   throw: (state, exception) => {
     throw new Exception(state.resolve(exception));

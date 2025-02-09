@@ -66,6 +66,15 @@ export function r<Args extends Expr[]>(...args: Args) {
 export const fork = <Args extends Expr[]>(...args: Args) => s(";", ...args);
 export const eq = (l: Expr, r: Expr) => s("=", l, r);
 
+export const view = new Proxy(
+  {},
+  {
+    get(_, key: string) {
+      return (...args: Expr[]) => s(`view__${key}`, ...args);
+    },
+  },
+) as Record<string, (...args: Expr[]) => AnyStruct>;
+
 function sameTypeExpr<T extends Expr>(l: T, r: Expr): r is T {
   if (typeof l === "object" && typeof r === "object") {
     return l.tag === r.tag;

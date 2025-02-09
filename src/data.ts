@@ -1,9 +1,21 @@
-import { l, r, s, $, Expr, Struct, Id, List, AnyStruct, eq, __ } from "./expr";
+import {
+  l,
+  r,
+  s,
+  $,
+  Expr,
+  Struct,
+  Id,
+  List,
+  AnyStruct,
+  view,
+  __,
+} from "./expr";
 import { typeRecs } from "./type";
 import { schemas, SchemaId } from "./schema";
 import { fields, Field, f } from "./field";
 import { TypeId, coreTypes } from "./type";
-import { view, views } from "./view";
+import { views } from "./view";
 import { db, rules } from "./rule";
 import { testUtils } from "./test_utils";
 
@@ -70,10 +82,6 @@ const files = {
     file__name: "Example Tag",
     file__description: l("A tag with some items"),
   },
-  view__safe_input: {
-    rule__params: l($.props, $.value, l($.next, $.on_change), $.out),
-    rule__body: view.input($.props, $.value, $.next, $.on_change, $.out),
-  },
   omnibox: {
     db__schema: "schema__form",
     file__name: "Omnibox",
@@ -84,11 +92,11 @@ const files = {
         view.column(
           l(),
           s.children(
-            view.safe_input(
+            view.input(
               l(s.placeholder("Search..."), s.style("width", "100%")),
               $.omnibox,
               l(
-                $.next,
+                s.change($.next),
                 db.with_tx(
                   $.tx,
                   db.update($.tx, $.state, "data__omnibox", $.next),
@@ -123,7 +131,7 @@ const files = {
         view.column(
           l(),
           s.children(
-            view.input__(
+            view.input(
               l(
                 s.debounce(300),
                 s.placeholder("Search..."),
@@ -131,7 +139,7 @@ const files = {
               ),
               $.omnibox,
               l(
-                $.next,
+                s.change($.next),
                 db.with_tx(
                   $.tx,
                   db.update($.tx, $.state, "data__omnibox", $.next),
@@ -200,29 +208,6 @@ const files = {
         ),
       ),
       $.out,
-    ),
-  },
-
-  test_local_state: {
-    db__schema: "schema__form",
-    file__name: "Test local state",
-    rule__params: l($.id, $.state),
-    rule__body: view.column(
-      view.string("test local state"),
-      view.local_state(
-        "init",
-        $.value,
-        $.next,
-        $.on_change,
-        r(view.input($.value, $.next, $.on_change)),
-      ),
-      view.local_state(
-        "other",
-        $.value1,
-        $.next1,
-        $.on_change1,
-        r(view.input($.value1, $.next1, $.on_change1)),
-      ),
     ),
   },
 } satisfies Record<string, Rec>;

@@ -673,25 +673,8 @@ export const rules = {
     rule__params: l($.list, $.rule, $.mapped),
     rule__body: s.collect(
       $.out,
-      r(s.list_item($.list, $.item), s.call($.rule, $.item, $.out)),
+      r(s.list_item($.list, $.item), s.apply($.rule, l($.item, $.out))),
       $.mapped,
-    ),
-  },
-  apply: {
-    file__description: l("run a rule with a list of params"),
-    rule__params: l($.id),
-    rule__rest_params: $.param_lists,
-    rule__body: r(
-      s.collect(
-        $.param,
-        r(
-          s.list_item($.param_lists, $.param_list),
-          s.list_item($.param_list, $.param),
-        ),
-        $.params,
-      ),
-      s.struct_tag_list($.call, $.id, $.params),
-      $.call,
     ),
   },
   cond: {
@@ -701,7 +684,7 @@ export const rules = {
     rule__body: s.if_then_else(
       $.if,
       $.then,
-      s.if_then_else(eq($.else, l()), s.fail(), s.apply("cond", $.else)),
+      s.if_then_else(eq($.else, l()), s.fail(), s.apply(s.cond(), $.else)),
     ),
   },
   test__cond: {
@@ -744,7 +727,7 @@ export const rules = {
     rule__body: s.if_then_else(
       eq($.pattern, $.match),
       s.ok(),
-      r(s.nonempty($.rest), s.apply("match", l($.pattern), $.rest)),
+      r(s.nonempty($.rest), s.apply(s.match($.pattern), $.rest)),
     ),
   },
   match_cond: {
@@ -753,7 +736,7 @@ export const rules = {
     rule__body: s.if_then_else(
       eq($.pattern, $.match),
       $.then,
-      r(s.nonempty($.rest), s.apply("match_cond", l($.pattern), $.rest)),
+      r(s.nonempty($.rest), s.apply(s.match_cond($.pattern), $.rest)),
     ),
   },
   test__match: {

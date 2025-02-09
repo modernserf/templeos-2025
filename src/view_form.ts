@@ -1,0 +1,58 @@
+import { Rec } from "./data";
+import { l, r, s, $, Expr, view, Struct, List } from "./expr";
+
+type ClickParam = Struct<"meta_key", []>;
+type ClickEvent = Struct<"click", [List<ClickParam>]>;
+export type ButtonEvent = ClickEvent;
+
+export type ChangeEvent = Struct<"change", [Expr]>;
+export type FocusEvent = Struct<"focus", []>;
+export type BlurEvent = Struct<"blur", []>;
+export type InputEvent = ChangeEvent | FocusEvent | BlurEvent;
+
+export const viewForm = {
+  button: {
+    rule__params: l(
+      $.params,
+      $.label,
+      l($.event, $.handler),
+      s.Button($.params, $.label, $.event, $.handler),
+    ),
+    rule__body: r(),
+  },
+  input: {
+    rule__params: l(
+      $.props,
+      $.value,
+      l($.next, $.handler),
+      s.Input($.props, $.value, $.next, $.handler),
+    ),
+    rule__body: r(),
+  },
+  select: {
+    rule__params: l(
+      $.params,
+      $.value,
+      $.options,
+      l($.next, $.handler),
+      s.Select(l(), $.value, $.options, $.next, $.handler),
+    ),
+    rule__body: r(),
+  },
+  menu: {
+    rule__params: l($.label, $.options, $.on_change, $.out),
+    rule__body: r(
+      s.list_list_append(l(s.option("", $.label)), $.options, $.menu_options),
+      view.select(l(), $.label, $.menu_options, $.on_change, $.out),
+    ),
+  },
+  fit_content_input: {
+    rule__params: l($.value, $.on_change, $.out),
+    rule__body: view.input(
+      l(s.class("Input--fitContent"), s.debounce(300)),
+      $.value,
+      $.on_change,
+      $.out,
+    ),
+  },
+} satisfies Record<string, Rec>;
