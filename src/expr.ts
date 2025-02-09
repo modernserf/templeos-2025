@@ -62,10 +62,9 @@ export function l<Args extends Expr[]>(...args: Args) {
 }
 export function r<Args extends Expr[]>(...args: Args) {
   if (args.length === 1) return args[0] as AnyStruct;
-  return s(",", ...args);
+  return s("do", ...args);
 }
-export const fork = <Args extends Expr[]>(...args: Args) => s(";", ...args);
-export const eq = (l: Expr, r: Expr) => s("=", l, r);
+export const u = (l: Expr, r: Expr) => s("=", l, r);
 
 export const view = new Proxy(
   {},

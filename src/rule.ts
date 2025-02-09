@@ -1,5 +1,5 @@
 import { Rec } from "./data";
-import { l, r, s, $, Expr, __, fork, eq } from "./expr";
+import { l, r, s, $, Expr, __, u } from "./expr";
 import { Field, f } from "./field";
 import { test } from "./test_utils";
 
@@ -10,7 +10,7 @@ export const db = {
     s.tx_update_field_value(tx, id, field, value),
   delete: (tx: Expr, id: Expr, field?: Field, value?: Expr) =>
     s.tx_delete_field_value(tx, id, field ?? __, value ?? __),
-  with_tx: (tx: Expr, ...body: Expr[]) => s.with_tx(tx, s(",", ...body)),
+  with_tx: (tx: Expr, ...body: Expr[]) => s.with_tx(tx, r(...body)),
 };
 
 export const rules = {
@@ -51,7 +51,7 @@ export const rules = {
     test__group: "primitives",
     rule__params: l(),
     rule__body: r(
-      test.throw(s("=", 123), s.expected_received(eq(__, __), s("=", 123))),
+      test.throw(s("=", 123), s.expected_received(u(__, __), s("=", 123))),
     ),
   },
   "%": {
@@ -87,11 +87,11 @@ export const rules = {
     test__group: "primitives",
     rule__params: l(),
     rule__body: r(
-      test.ok(eq(1, 1)),
-      test.ok(eq(1, __)),
+      test.ok(u(1, 1)),
+      test.ok(u(1, __)),
       test.collect(
         l($.left, $.right), //
-        eq(l($.left, 456), l(123, $.right)),
+        u(l($.left, 456), l(123, $.right)),
         l(123, 456),
       ),
     ),
@@ -114,14 +114,14 @@ export const rules = {
         $.x,
         r(
           s("/=", 1, $.x), //
-          eq($.x, 2),
+          u($.x, 2),
         ),
         2,
       ),
       test.fail(
         s("/=", 1, $.x), //
-        eq($.y, 1),
-        eq($.x, $.y),
+        u($.y, 1),
+        u($.x, $.y),
       ),
 
       test.ok(
@@ -129,19 +129,19 @@ export const rules = {
       ),
       test.ok(
         s("/=", s.foo(1), s.foo($.x)), //
-        eq($.x, 2),
+        u($.x, 2),
       ),
       test.fail(
         s("/=", s.foo(1), s.foo($.x)), //
-        eq($.x, 1),
+        u($.x, 1),
       ),
     ),
   },
-  ",": {
+  do: {
     rule__params: l(),
     rule__rest_params: $.items,
   },
-  "test__,": {
+  test__do: {
     test__group: "primitives",
     rule__params: l(),
     rule__body: r(
@@ -151,30 +151,30 @@ export const rules = {
 
       test.fail(
         r(
-          eq($.x, 1), //
-          eq($.x, 2),
+          u($.x, 1), //
+          u($.x, 2),
         ),
       ),
     ),
   },
-  ";": {
+  fork: {
     rule__params: l(),
     rule__rest_params: $.items,
   },
-  "test__;": {
+  test__fork: {
     test__group: "primitives",
     rule__params: l(),
     rule__body: r(
-      test.fail(s(";")), //
-      test.ok(s(";", s.ok())),
-      test.ok(s(";", s.ok(), s.fail())),
+      test.fail(s("fork")), //
+      test.ok(s("fork", s.ok())),
+      test.ok(s("fork", s.ok(), s.fail())),
 
       test.collect(
         $.x,
         s(
-          ";",
-          eq($.x, 1), //
-          eq($.x, 2),
+          "fork",
+          u($.x, 1), //
+          u($.x, 2),
         ),
         1,
         2,
@@ -201,20 +201,20 @@ export const rules = {
     rule__body: r(
       test.collect(
         $.result,
-        s.if_then_else(s.ok(), eq($.result, 123), eq($.result, 456)),
+        s.if_then_else(s.ok(), u($.result, 123), u($.result, 456)),
         123,
       ),
       test.collect(
         $.result,
-        s.if_then_else(s.fail(), eq($.result, 123), eq($.result, 456)),
+        s.if_then_else(s.fail(), u($.result, 123), u($.result, 456)),
         456,
       ),
       test.collect(
         $.result,
         s.if_then_else(
           s.ok(),
-          fork(eq($.result, 123), eq($.result, 789)),
-          eq($.result, 456),
+          s.fork(u($.result, 123), u($.result, 789)),
+          u($.result, 456),
         ),
         123,
         789,
@@ -223,8 +223,8 @@ export const rules = {
         $.result,
         s.if_then_else(
           s.list_item(l(123, 789), $.item),
-          eq($.result, s.item($.item)),
-          eq($.result, 456),
+          u($.result, s.item($.item)),
+          u($.result, 456),
         ),
         s.item(123),
         s.item(789),
@@ -233,8 +233,8 @@ export const rules = {
         $.result,
         s.if_then_else(
           s.list_item(l(), $.item),
-          eq($.result, s.item($.item)),
-          eq($.result, s.empty()),
+          u($.result, s.item($.item)),
+          u($.result, s.empty()),
         ),
         s.empty(),
       ),
@@ -281,7 +281,7 @@ export const rules = {
           //
           s.throw(s.foo(123)),
           s.foo($.arg),
-          eq($.result, $.arg),
+          u($.result, $.arg),
         ),
         123,
       ),
@@ -291,7 +291,7 @@ export const rules = {
           //
           s.throw(s.foo(123)),
           s.bar($.arg),
-          eq($.result, $.arg),
+          u($.result, $.arg),
         ),
         s.foo(123),
       ),
@@ -326,7 +326,7 @@ export const rules = {
       test.ok(s.value_type(s.id(123, "hello"), s.struct())),
       test.ok(s.value_type(l(__, __), s.struct())),
 
-      eq($.y, 123),
+      u($.y, 123),
       test.ok(s.value_type($.y, s.number())),
     ),
   },
@@ -393,8 +393,8 @@ export const rules = {
     test__group: "rules",
     rule__params: l(),
     rule__body: r(
-      test.ok(r(s.constrain_type($.x, s.string()), eq($.x, "hello"))),
-      test.fail(r(s.constrain_type($.x, s.string()), eq($.x, 123))),
+      test.ok(r(s.constrain_type($.x, s.string()), u($.x, "hello"))),
+      test.fail(r(s.constrain_type($.x, s.string()), u($.x, 123))),
       // odd that this fails here but not in the other test
       test.fail(
         s.constrain_type($.x, s.string()),
@@ -403,18 +403,18 @@ export const rules = {
       test.fail(
         s.constrain_type($.x, s.number()),
         s.constrain_type($.x, s.string()),
-        eq($.x, 1),
+        u($.x, 1),
       ),
       test.fail(
         s.constrain_type($.x, s.string()),
         s.constrain_type($.x, s.number()),
-        eq($.x, 1),
+        u($.x, 1),
       ),
       test.fail(
         s.constrain_type($.x, s.string()),
         s.constrain_type($.y, s.number()),
-        eq($.x, $.y),
-        eq($.y, 1),
+        u($.x, $.y),
+        u($.y, 1),
       ),
     ),
   },
@@ -424,14 +424,14 @@ export const rules = {
       s.value_type($.value, $.type),
       s.match_cond(
         $.type,
-        l(s.var(), r(s.var_name($.value, $.name), eq($.expr, s.var($.name)))),
-        l(s.number(), eq($.expr, s.number($.value))),
-        l(s.string(), eq($.expr, s.string($.value))),
+        l(s.var(), r(s.var_name($.value, $.name), u($.expr, s.var($.name)))),
+        l(s.number(), u($.expr, s.number($.value))),
+        l(s.string(), u($.expr, s.string($.value))),
         l(
           s.struct(),
           r(
             s.struct_tag_list($.value, $.tag, $.list),
-            eq($.expr, s.struct($.tag, $.list)),
+            u($.expr, s.struct($.tag, $.list)),
           ),
         ),
       ),
@@ -567,7 +567,7 @@ export const rules = {
     rule__params: l($.list, $.length, $.out),
     rule__body: s.if_then_else(
       s.struct_arity($.list, $.length),
-      eq($.list, $.out),
+      u($.list, $.out),
       r(
         s.list_list_append($.list, l(__), $.next),
         s._list_length_gen($.next, $.length, $.out),
@@ -597,7 +597,7 @@ export const rules = {
 
       test.collect($.x, s.list_item(l(1, 2, 3), $.x), 1, 2, 3),
 
-      eq($.plist, l(s.foo(123), s.bar(456))),
+      u($.plist, l(s.foo(123), s.bar(456))),
       test.collect(
         $.value, //
         s.list_item($.plist, s.foo($.value)),
@@ -684,7 +684,7 @@ export const rules = {
     rule__body: s.if_then_else(
       $.if,
       $.then,
-      s.if_then_else(eq($.else, l()), s.fail(), s.apply(s.cond(), $.else)),
+      s.if_then_else(u($.else, l()), s.fail(), s.apply(s.cond(), $.else)),
     ),
   },
   test__cond: {
@@ -694,25 +694,25 @@ export const rules = {
       test.collect(
         $.result,
         s.cond(
-          l(eq(123, 456), eq($.result, "foo")),
-          l(eq(456, 456), eq($.result, "bar")),
-          l(s.ok(), eq($.result, "baz")),
+          l(u(123, 456), u($.result, "foo")),
+          l(u(456, 456), u($.result, "bar")),
+          l(s.ok(), u($.result, "baz")),
         ),
         "bar",
       ),
       test.collect(
         $.result,
         s.cond(
-          l(eq(123, 789), eq($.result, "foo")),
-          l(eq(456, 789), eq($.result, "bar")),
-          l(s.ok(), eq($.result, "baz")),
+          l(u(123, 789), u($.result, "foo")),
+          l(u(456, 789), u($.result, "bar")),
+          l(s.ok(), u($.result, "baz")),
         ),
         "baz",
       ),
       test.fail(
         s.cond(
-          l(eq(123, 789), eq($.result, "foo")),
-          l(eq(456, 789), eq($.result, "bar")),
+          l(u(123, 789), u($.result, "foo")),
+          l(u(456, 789), u($.result, "bar")),
         ),
       ),
     ),
@@ -725,7 +725,7 @@ export const rules = {
     rule__params: l($.pattern, $.match),
     rule__rest_params: $.rest,
     rule__body: s.if_then_else(
-      eq($.pattern, $.match),
+      u($.pattern, $.match),
       s.ok(),
       r(s.nonempty($.rest), s.apply(s.match($.pattern), $.rest)),
     ),
@@ -734,7 +734,7 @@ export const rules = {
     rule__params: l($.pattern, l($.match, $.then)),
     rule__rest_params: $.rest,
     rule__body: s.if_then_else(
-      eq($.pattern, $.match),
+      u($.pattern, $.match),
       $.then,
       r(s.nonempty($.rest), s.apply(s.match_cond($.pattern), $.rest)),
     ),
@@ -764,9 +764,9 @@ export const rules = {
         $.result,
         s.match_cond(
           s.foo($.pat),
-          l(s.foo(123), eq($.result, l($.pat))),
-          l(s.bar(456), eq($.result, l($.pat, $.pat))),
-          l(__, eq($.result, l())),
+          l(s.foo(123), u($.result, l($.pat))),
+          l(s.bar(456), u($.result, l($.pat, $.pat))),
+          l(__, u($.result, l())),
         ),
         l(123),
       ),
@@ -775,9 +775,9 @@ export const rules = {
         $.result,
         s.match_cond(
           s.bar($.pat),
-          l(s.foo(123), eq($.result, l($.pat))),
-          l(s.bar(456), eq($.result, l($.pat, $.pat))),
-          l(__, eq($.result, l())),
+          l(s.foo(123), u($.result, l($.pat))),
+          l(s.bar(456), u($.result, l($.pat, $.pat))),
+          l(__, u($.result, l())),
         ),
         l(456, 456),
       ),
@@ -786,9 +786,9 @@ export const rules = {
         $.result,
         s.match_cond(
           s.baz($.pat),
-          l(s.foo(123), eq($.result, l($.pat))),
-          l(s.bar(456), eq($.result, l($.pat, $.pat))),
-          l(__, eq($.result, "ok")),
+          l(s.foo(123), u($.result, l($.pat))),
+          l(s.bar(456), u($.result, l($.pat, $.pat))),
+          l(__, u($.result, "ok")),
         ),
         "ok",
       ),
@@ -796,8 +796,8 @@ export const rules = {
       test.fail(
         s.match_cond(
           s.baz($.pat),
-          l(s.foo(123), eq($.result, l($.pat))),
-          l(s.bar(456), eq($.result, l($.pat, $.pat))),
+          l(s.foo(123), u($.result, l($.pat))),
+          l(s.bar(456), u($.result, l($.pat, $.pat))),
         ),
       ),
     ),
@@ -805,7 +805,10 @@ export const rules = {
   first: {
     rule__params: l(),
     rule__rest_params: $.rest,
-    rule__body: r(s.struct_tag_list($.body, ";", $.rest), s.limit(1, $.body)),
+    rule__body: r(
+      s.struct_tag_list($.body, "fork", $.rest),
+      s.limit(1, $.body),
+    ),
   },
   if_var: {
     file__description: l("if arg is var, run body"),
@@ -817,7 +820,7 @@ export const rules = {
     rule__body: s.if_then_else(
       s.get_field_value($.id, $.field, $.value),
       s.ok(),
-      eq($.value, $.default),
+      u($.value, $.default),
     ),
   },
   params_default_match: {
@@ -825,7 +828,7 @@ export const rules = {
     rule__body: s.if_then_else(
       s.list_item($.params, $.match),
       s.ok(),
-      eq($.default, $.match),
+      u($.default, $.match),
     ),
   },
   location_id_view_params: {
@@ -838,7 +841,7 @@ export const rules = {
         s.location($.id, $.view),
         s.location($.id, $.view, $.params),
       ),
-      s.if_var($.params, eq($.params, l())),
+      s.if_var($.params, u($.params, l())),
     ),
   },
   with_tx: {
@@ -875,7 +878,7 @@ export const rules = {
     ),
     rule__params: l($.collection, $.item, $.do),
     rule__body: s.if_then_else(
-      eq($.collection, l()),
+      u($.collection, l()),
       s.ok(),
       s.collect(__, r(s.list_item($.collection, $.item), $.do), __),
     ),
@@ -885,14 +888,14 @@ export const rules = {
     rule__body: s.if_then_else(
       s.collect($.pattern, $.goal, $.result),
       s.ok(),
-      eq($.result, l()),
+      u($.result, l()),
     ),
   },
   // view helpers
   // utilities
   rule__location_view: {
     rule__params: l($.location, $.view),
-    rule__body: fork(
+    rule__body: s.fork(
       // location for view type
       r(
         s.nonvar($.view),

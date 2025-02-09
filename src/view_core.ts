@@ -1,5 +1,5 @@
 import { Rec } from "./data";
-import { l, r, s, $, view, eq, __ } from "./expr";
+import { l, r, s, $, view, u, __ } from "./expr";
 import { test } from "./test_utils";
 
 export const viewCore = {
@@ -9,7 +9,7 @@ export const viewCore = {
   },
   html: {
     rule__params: l($.tag, $.props, $.children, $.out),
-    rule__body: r(eq($.out, s.Html($.tag, $.props, $.children))),
+    rule__body: r(u($.out, s.Html($.tag, $.props, $.children))),
   },
   spacer: {
     rule__params: l(
@@ -22,21 +22,21 @@ export const viewCore = {
     rule__params: l($.props, $.children, $.out),
     rule__body: r(
       s.list_list_append($.props, l(s.class("Row")), $.node_props),
-      eq($.out, s.Html("div", $.node_props, $.children)),
+      u($.out, s.Html("div", $.node_props, $.children)),
     ),
   },
   column: {
     rule__params: l($.props, $.children, $.out),
     rule__body: r(
       s.list_list_append($.props, l(s.class("Column")), $.node_props),
-      eq($.out, s.Html("div", $.node_props, $.children)),
+      u($.out, s.Html("div", $.node_props, $.children)),
     ),
   },
   wrap: {
     rule__params: l($.props, $.children, $.out),
     rule__body: r(
       s.list_list_append($.props, l(s.class("Wrap")), $.node_props),
-      eq($.out, s.Html("div", $.node_props, $.children)),
+      u($.out, s.Html("div", $.node_props, $.children)),
     ),
   },
   // local_state: {
@@ -93,7 +93,7 @@ export const viewCore = {
     rule__params: l($.props, $.header, $.rows, $.out),
     rule__body: r(
       s("/=", $.rows, l()),
-      eq(
+      u(
         $.out,
         s.Html(
           "table",
@@ -111,7 +111,7 @@ export const viewCore = {
         s.list_item($.items, $.item),
         $.cells,
       ),
-      eq($.out, s.Html("tr", $.props, $.cells)),
+      u($.out, s.Html("tr", $.props, $.cells)),
     ),
   },
   table_row: {
@@ -122,7 +122,7 @@ export const viewCore = {
         s.list_item($.items, $.item),
         $.cells,
       ),
-      eq($.out, s.Html("tr", $.props, $.cells)),
+      u($.out, s.Html("tr", $.props, $.cells)),
     ),
   },
   time: {

@@ -1,12 +1,12 @@
 import { expect, test } from "vitest";
 import { State } from "./state";
-import { Expr, AnyStruct, r, s, $, __, fork } from "./expr";
+import { Expr, AnyStruct, r, s, $, __ } from "./expr";
 import { data } from "./data";
 import { f } from "./field";
 
 function runAll(...clauses: Expr[]) {
   const state = State.root(data);
-  return Array.from(state.runAll(s(",", ...clauses)));
+  return Array.from(state.runAll(s("do", ...clauses)));
 }
 
 function ll(...xs: Expr[]): Expr {
@@ -105,7 +105,7 @@ test("db get", () => {
 test("db transact", () => {
   expect(
     runAll(
-      fork(
+      s.fork(
         // setup
         r(
           s.with_tx(
@@ -135,10 +135,10 @@ test("db transact", () => {
   expect(
     runAll(
       s(
-        ";",
+        "fork",
         // setup
         s(
-          ",",
+          "do",
           s.with_tx(
             $.tx,
             s.tx_update_field_value($.tx, "test1", "field1", 123),
@@ -147,11 +147,11 @@ test("db transact", () => {
         ),
         // change
         s(
-          ",",
+          "do",
           s.with_tx(
             $.tx,
             s(
-              ",",
+              "do",
               s.tx_update_field_value($.tx, "test1", "field1", 456),
               s.fail(), // tx fails
             ),
@@ -174,7 +174,7 @@ test("define rules", () => {
         $.tx,
         "cons_cons_append",
         s("", $.left, $.right, $.append),
-        fork(
+        s.fork(
           // []
           r(s("=", $.left, s.nil()), s("=", $.right, $.append)),
           // [head | tail]

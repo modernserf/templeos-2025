@@ -1,5 +1,5 @@
 import { Rec } from "./data";
-import { l, r, s, $, Expr, Struct, __, fork } from "./expr";
+import { l, r, s, $, Expr, Struct, __ } from "./expr";
 
 export type ValueType<Rest extends Expr> =
   | Struct<"bottom", []>
@@ -93,7 +93,7 @@ export const typeRecs = {
       "get narrowest value of type. lists are treated as structs",
     ),
     rule__params: l($.value, $.type),
-    rule__body: fork(
+    rule__body: s.fork(
       r(s.number($.value), s("=", $.type, t.number)),
       r(s.string($.value), s("=", $.type, t.string)),
       r(
@@ -107,7 +107,7 @@ export const typeRecs = {
   },
   subtype_supertype: {
     rule__params: l($.sub, $.super),
-    rule__body: fork(
+    rule__body: s.fork(
       // exact type
       s("=", $.sub, $.super),
       // struct items
@@ -117,7 +117,7 @@ export const typeRecs = {
       // union membership
       r(
         s("=", $.super, t.union($.l, $.r)),
-        fork(
+        s.fork(
           r(s.subtype_supertype($.sub, $.l)),
           r(s.subtype_supertype($.sub, $.r)),
         ),
@@ -142,7 +142,7 @@ export const typeRecs = {
   },
   sublist_superlist: {
     rule__params: l($.sub, $.super),
-    rule__body: fork(
+    rule__body: s.fork(
       s("=", l($.sub, $.super), l(l(), l())),
       r(
         s.list_list_append($.sub_stack, l($.sub_pop), $.sub),
@@ -158,7 +158,7 @@ export const typeRecs = {
       "get the concrete types that inhabit type u.",
     ),
     rule__params: l(t.union($.l, $.r), $.x),
-    rule__body: fork(
+    rule__body: s.fork(
       s("=", $.l, $.x),
       s("=", $.r, $.x),
       r(s.nonvar($.l), s.union_subset($.l, $.x)),
@@ -174,7 +174,7 @@ export const typeRecs = {
     rule__params: l($.u, $.x),
     rule__body: s.if_then_else(
       s("=", $.u, t.union($.l, $.r)),
-      fork(s.union_member($.l, $.x), s.union_member($.r, $.x)),
+      s.fork(s.union_member($.l, $.x), s.union_member($.r, $.x)),
       r(s("/=", $.u, t.bottom), s("=", $.u, $.x)),
     ),
   },
@@ -232,7 +232,7 @@ export const typeRecs = {
   },
   _maplist: {
     rule__params: l($.f, $.xs, $.ys),
-    rule__body: fork(
+    rule__body: s.fork(
       r(s("=", l(), $.xs), s("=", l(), $.ys)),
       r(
         s.list_list_append(l($.x), $.x_rest, $.xs),

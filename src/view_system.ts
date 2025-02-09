@@ -1,5 +1,5 @@
 import { Rec } from "./data";
-import { l, r, s, $, __, view, fork, eq } from "./expr";
+import { l, r, s, $, __, view, u } from "./expr";
 import { f } from "./field";
 import { db } from "./rule";
 
@@ -50,7 +50,7 @@ export const viewSystem = {
       s.try_error_catch(
         r(
           s.call($.view, $.id, $.history, $.main_content),
-          eq(
+          u(
             $.out,
             s.WindowContainer(
               $.window,
@@ -66,7 +66,7 @@ export const viewSystem = {
         r(
           s.log("error", $.error),
           view.string("Error, see console for details", $.error_message),
-          eq(
+          u(
             $.out,
             s.WindowContainer(
               $.window,
@@ -89,7 +89,7 @@ export const viewSystem = {
         l(__, s.on__closeWindow($.window)),
         $.close_button,
       ),
-      eq(
+      u(
         $.out,
         s.Html(
           "header",
@@ -109,7 +109,7 @@ export const viewSystem = {
     rule__body: r(
       s.collect(
         $.view,
-        fork(
+        s.fork(
           view.button(
             l(),
             "←",

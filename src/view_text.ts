@@ -1,4 +1,4 @@
-import { l, r, s, $, __, view, eq } from "./expr";
+import { l, r, s, $, __, view, u } from "./expr";
 import { Rec } from "./data";
 import { db } from "./rule";
 import { f } from "./field";
@@ -301,7 +301,7 @@ export const viewText = {
     rule__params: l($.id, $.state, $.out),
     rule__body: r(
       f.text__content($.id, $.text),
-      eq(
+      u(
         $.on_change,
         l($.message, view.schema__text_edit_handler($.id, $.state, $.message)),
       ),

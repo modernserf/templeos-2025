@@ -9,7 +9,7 @@ const _t: any = { tag: "ident" };
 
 function runAll(...clauses: Expr[]) {
   const state = State.root(data);
-  return Array.from(state.runAll(s(",", ...clauses)));
+  return Array.from(state.runAll(s("do", ...clauses)));
 }
 
 // test("value_type", () => {

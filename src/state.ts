@@ -168,7 +168,7 @@ export class State {
   addConstraint(id: FactId, predicate: Value) {
     const prev = this.facts[id];
     if (prev?.tag === "constraint") {
-      predicate = sv(",", prev.predicate, predicate);
+      predicate = sv("do", prev.predicate, predicate);
     }
     return new State(
       this.db,
@@ -379,7 +379,7 @@ export class State {
     if (params.length !== args.length && !rule.rule__rest_params) {
       expected(this.exprValue(s(id, ...params), {}), sv(id, ...args));
     }
-    return { params, body: rule.rule__body ?? sv(",") };
+    return { params, body: rule.rule__body ?? sv("do") };
   }
 
   *call(id: string, args: Value[]): Generator<StateNext> {

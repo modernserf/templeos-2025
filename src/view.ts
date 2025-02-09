@@ -1,5 +1,5 @@
 import { Rec } from "./data";
-import { l, r, s, $, Expr, __, view, fork, eq } from "./expr";
+import { l, r, s, $, Expr, __, view, u } from "./expr";
 import { f } from "./field";
 import { db } from "./rule";
 import { viewCore } from "./view_core";
@@ -13,7 +13,7 @@ export const rootView = (output: Expr) =>
   r(
     s.collect(
       $.view,
-      fork(
+      s.fork(
         view.app_menu($.view),
         r(
           f.db__schema($.window, "schema__window"),
@@ -22,7 +22,7 @@ export const rootView = (output: Expr) =>
       ),
       $.content,
     ),
-    eq(s.Html("div", l(), $.content), output),
+    u(s.Html("div", l(), $.content), output),
   );
 
 const baseViews = {
@@ -124,7 +124,7 @@ const baseViews = {
     rule__body: r(
       s.collect(
         $.view,
-        fork(
+        s.fork(
           r(
             f.file__tags($.id, $.tag),
             view.tag_edit(
@@ -195,7 +195,7 @@ const baseViews = {
         s.children(
           view.iter(
             r(
-              fork(f.db__index($.f, s.ref()), f.db__index($.f, s.multiRef())),
+              s.fork(f.db__index($.f, s.ref()), f.db__index($.f, s.multiRef())),
               s.get_field_value($.ref, $.f, $.id),
             ),
             l(
@@ -253,7 +253,7 @@ const baseViews = {
     rule__body: r(
       s.collect(
         $.row,
-        fork(
+        s.fork(
           r(
             view.string("id", $.field_label),
             view.string($.id, $.field_value),
@@ -355,12 +355,12 @@ const baseViews = {
 
   dispatch: {
     rule__params: l(l($.param, $.handler), $.message),
-    rule__body: r(eq($.param, $.message), $.handler),
+    rule__body: r(u($.param, $.message), $.handler),
   },
   __match_dispatch_next: {
     rule__params: l($.on_change, $.message, $.rest),
     rule__body: s.if_then_else(
-      eq($.rest, l()),
+      u($.rest, l()),
       view.dispatch($.on_change, $.message),
       s.apply(view.match_dispatch($.on_change, $.message), $.rest),
     ),
@@ -374,7 +374,7 @@ const baseViews = {
         l(
           l($.pattern, $.mapped),
           s.if_then_else(
-            eq($.message, $.pattern),
+            u($.message, $.pattern),
             view.dispatch($.on_change, $.mapped),
             s.__match_dispatch_next($.on_change, $.message, $.rest),
           ),
@@ -382,7 +382,7 @@ const baseViews = {
         l(
           l($.pattern, $.mapped, $.body),
           s.if_then_else(
-            eq($.message, $.pattern),
+            u($.message, $.pattern),
             r($.body, view.dispatch($.on_change, $.mapped)),
             s.__match_dispatch_next($.on_change, $.message, $.rest),
           ),
@@ -505,10 +505,10 @@ const baseViews = {
     rule__body: r(
       s.collect(
         $.view,
-        fork(
+        s.fork(
           r(
             f.db__schema($.id, $.schema),
-            fork(view.file_link($.schema, $.view), view.string(": ", $.view)),
+            s.fork(view.file_link($.schema, $.view), view.string(": ", $.view)),
           ),
           view.file_link($.id, $.view),
         ),

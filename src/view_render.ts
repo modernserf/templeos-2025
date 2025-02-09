@@ -1,5 +1,5 @@
 import { Rec } from "./data";
-import { l, r, s, $, view, eq } from "./expr";
+import { l, r, s, $, view, u } from "./expr";
 import { test } from "./test_utils";
 
 export const viewRender = {
@@ -30,7 +30,7 @@ export const viewRender = {
                 $.rendered,
               ),
             ),
-            l(eq($.arg, s.quote($.value)), eq($.rendered, $.value)),
+            l(u($.arg, s.quote($.value)), u($.rendered, $.value)),
           ),
         ),
         $.changes,

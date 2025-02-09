@@ -1,5 +1,5 @@
 import { Rec } from "./data";
-import { l, r, s, $, __, view, fork } from "./expr";
+import { l, r, s, $, __, view } from "./expr";
 
 export const viewExpr = {
   expr_tuple: {
@@ -57,7 +57,7 @@ export const viewExpr = {
     rule__params: l($.tag, $.list, $.out),
     rule__body: s.cond(
       l(
-        s.match($.tag, ",", ";", "children", "cond", "match_cond"),
+        s.match($.tag, "do", "fork", "children", "cond", "match_cond"),
         view.expr_tuple_block($.tag, $.list, $.out),
       ),
       l(s.ok(), view.expr_tuple($.tag, $.list, $.out)),
@@ -65,7 +65,7 @@ export const viewExpr = {
   },
   expr: {
     rule__params: l($.data, $.out),
-    rule__body: fork(
+    rule__body: s.fork(
       r(
         s.string($.data),
         view.render(
@@ -211,7 +211,7 @@ export const viewExpr = {
 
   __expr_edit: {
     rule__params: l($.data, $.on_change, $.out),
-    rule__body: fork(
+    rule__body: s.fork(
       r(
         s.var_name($.data, $.var_name),
         view.fit_content_input(

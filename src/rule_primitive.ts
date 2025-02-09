@@ -32,7 +32,7 @@ export const primitives: Record<string, RulePrimitive> = {
   ok: semidet((state) => state),
   "=": semidet((state, left, right) => state.unify(left, right)),
   "/=": (state, left, right) => state.dif(left, right),
-  ",": function* (state, ...items) {
+  do: function* (state, ...items) {
     if (items.length === 0) {
       yield state.yield();
       return;
@@ -56,7 +56,7 @@ export const primitives: Record<string, RulePrimitive> = {
       }
     }
   },
-  ";": function* (state, ...items) {
+  fork: function* (state, ...items) {
     yield* uniqueStates(function* () {
       for (const arg of items) {
         yield* state.fork().eval(arg);
