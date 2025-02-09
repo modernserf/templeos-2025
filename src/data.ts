@@ -27,7 +27,8 @@ export type Location =
 export type FormatText =
   | string
   | Struct<"link", [string, Location]>
-  | Struct<"section", [List<FormatText>, List<FormatText>]>;
+  | Struct<"section", [List<FormatText>, List<FormatText>]>
+  | Struct<"code", [Expr]>;
 
 export type HtmlProp =
   | Struct<"class", [string]>

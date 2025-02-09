@@ -4,6 +4,13 @@ import { test } from "./test_utils";
 
 export const viewRender = {
   render: {
+    file__description: l(
+      "renders a view tree, propagating along ",
+      s.code(s.children($.args)),
+      ". prevent progagation into children with ",
+      s.code(s.quote($.expr)),
+      ".",
+    ),
     rule__params: l($.expr, $.out),
     rule__body: r(
       s.collect_empty(

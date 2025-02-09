@@ -35,7 +35,8 @@ export const s = new Proxy(
   Ss<"location"> &
   Ss<"ref"> &
   Ss<"multiRef"> &
-  Ss<"sorted">;
+  Ss<"sorted"> &
+  Ss<"code">;
 
 type Ss<Tag extends string> = { [t in Tag]: S<Tag> };
 

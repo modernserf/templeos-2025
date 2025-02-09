@@ -4,63 +4,59 @@ import { l, r, s, $, __, view, fork } from "./expr";
 export const viewExpr = {
   expr_tuple: {
     rule__params: l($.tag, $.list, $.out),
-    rule__body: view.render(
-      view.row(
-        l(),
-        s.children(
-          view.file_link($.tag),
-          view.string("( "),
-          view.iter(
-            s.list_item($.list, $.expr),
-            l(view.expr($.expr), view.string(" ")),
+    rule__body: r(
+      view.render(
+        view.wrap(
+          l(),
+          s.children(
+            view.file_link($.tag),
+            view.string("( "),
+            view.iter(
+              r(s.list_item($.list, $.expr), view.expr($.expr, $.rendered)),
+              l(view.output($.rendered), view.string(" ")),
+            ),
+            view.string(")"),
           ),
-          view.string(")"),
         ),
+        $.out,
       ),
-      $.out,
     ),
   },
   expr_tuple_block: {
     rule__params: l($.tag, $.list, $.out),
     rule__body: r(
-      s.collect(
-        $.view,
-        r(s.list_item($.list, $.expr), view.expr($.expr, $.view)),
-        $.column,
-      ),
-      s.collect(
-        $.view,
-        fork(
-          view.file_link($.tag, $.view),
-          view.string("( ", $.view),
-          view.column(l(), $.column, $.view),
-          view.string(" )", $.view),
+      view.render(
+        view.row(
+          l(),
+          s.children(
+            view.file_link($.tag),
+            view.string("( "),
+            view.column(
+              l(),
+              s.children(
+                view.iter(
+                  r(s.list_item($.list, $.item), view.expr($.item, $.expr_out)),
+                  l(
+                    view.row(
+                      l(),
+                      s.children(view.output($.expr_out), view.string(" ")),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            view.string(")"),
+          ),
         ),
-        $.row,
+        $.out,
       ),
-      view.row(l(), $.row, $.out),
     ),
   },
   expr_struct: {
     rule__params: l($.tag, $.list, $.out),
     rule__body: s.cond(
       l(
-        s.match(
-          $.tag,
-          "",
-          ",",
-          ";",
-          "view__row",
-          "view__column",
-          "view__table",
-          "view__table_header",
-          "view__table_row",
-          "view__table_column",
-          "children",
-          "view__iter",
-          "view__iter_else",
-          "with_tx",
-        ),
+        s.match($.tag, ",", ";", "children"),
         view.expr_tuple_block($.tag, $.list, $.out),
       ),
       l(s.ok(), view.expr_tuple($.tag, $.list, $.out)),
@@ -85,7 +81,17 @@ export const viewExpr = {
         s.struct_tag_list($.data, $.tag, $.list),
         view.expr_struct($.tag, $.list, $.out),
       ),
-      r(s.var_name($.data, $.var_name), view.string($.var_name, $.out)),
+      r(
+        s.var_name($.data, $.var_name),
+        view.render(
+          view.html(
+            "span",
+            l(s.style("fontStyle", "italic")),
+            s.children(view.string($.var_name)),
+          ),
+          $.out,
+        ),
+      ),
     ),
   },
 
@@ -122,6 +128,18 @@ export const viewExpr = {
     rule__body: r(
       s.struct_tag_list($.data, $.id, $.args),
       s.struct_at_value($.data, $.i, $.arg),
+      // sensitive to quotation
+      view.expr_edit(
+        $.arg,
+        l(
+          $.arg_next,
+          r(
+            s.struct_at_value_updated($.data, $.i, $.arg_next, $.next),
+            view.dispatch($.on_change, $.next),
+          ),
+        ),
+        $.expr_edit,
+      ),
       view.render(
         view.row(
           l(),
@@ -138,16 +156,7 @@ export const viewExpr = {
                 ),
               ),
             ),
-            view.expr_edit(
-              s.quote($.arg),
-              l(
-                $.arg_next,
-                r(
-                  s.struct_at_value_updated($.data, $.i, $.arg_next, $.next),
-                  view.dispatch($.on_change, $.next),
-                ),
-              ),
-            ),
+            view.output($.expr_edit),
           ),
         ),
         $.out,
@@ -216,7 +225,8 @@ export const viewExpr = {
         s.string($.data),
         view.fit_content_input(
           $.data,
-          l(s.change($.next), s.dispatch($.on_change, $.next)),
+          l(s.change($.next), view.dispatch($.on_change, $.next)),
+
           $.out,
         ),
       ),
@@ -228,7 +238,7 @@ export const viewExpr = {
             s.change($.next_str),
             r(
               s.string_number($.next_str, $.next),
-              s.dispatch($.on_change, $.next),
+              view.dispatch($.on_change, $.next),
             ),
           ),
           $.out,

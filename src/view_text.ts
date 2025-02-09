@@ -47,6 +47,13 @@ export const viewText = {
         s.section($.header, $.body),
         view.text_section($.header, $.body, $.out),
       ),
+      l(
+        s.code($.expr),
+        r(
+          view.expr($.expr, $.expr_out),
+          view.html("span", l(s.class("InlineBlock")), l($.expr_out), $.out),
+        ),
+      ),
       l(__, r(s.string($.node), view.string($.node, $.out))),
     ),
   },
@@ -198,6 +205,19 @@ export const viewText = {
       ),
     ),
   },
+  schema__text_code_edit: {
+    rule__params: l($.code, $.on_change, $.out),
+    rule__body: r(
+      view.expr_edit(
+        $.code,
+        l(
+          $.updated, //
+          view.dispatch($.on_change, s.update(s.code($.updated))),
+        ),
+        $.out,
+      ),
+    ),
+  },
   schema__text_node_edit: {
     rule__params: l($.node, $.on_change, $.out),
     rule__body: r(
@@ -216,6 +236,10 @@ export const viewText = {
           s.struct("section", $.section),
           view.schema__text_section_edit($.section, $.on_change, $.out),
         ),
+        l(
+          s.struct("code", l($.code)),
+          view.schema__text_code_edit($.code, $.on_change, $.out),
+        ),
       ),
     ),
   },
@@ -228,6 +252,7 @@ export const viewText = {
           s.option("text", "Text"),
           s.option("link", "Link"),
           s.option("section", "Section"),
+          s.option("code", "Code"),
         ),
         l(
           s.change($.selected),
@@ -250,6 +275,7 @@ export const viewText = {
               l("text", ""),
               l("link", s.link("", s.location(""))),
               l("section", s.section(l(""), l(""))),
+              l("code", s.code(s.tuple("foo", "bar"))),
             ),
             f.text__content($.id, $.prev),
             s._struct_push($.prev, $.empty_value, $.next),
