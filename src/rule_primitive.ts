@@ -115,7 +115,7 @@ export const primitives: Record<string, RulePrimitive> = {
     for (const res of state.fork().eval(goal)) {
       didSucceed = true;
       if (out.tag !== "placeholder") {
-        const val = res.state.resolve(into, 1);
+        const val = res.state.resolve(into);
         results.push(val);
       }
     }

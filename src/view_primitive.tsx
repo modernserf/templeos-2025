@@ -182,7 +182,7 @@ const viewPrimitives: Record<string, VC> = {
 const DefaultRenderer: VC = ({ id, values }) => {
   return (
     <div style={{ backgroundColor: "pink" }}>
-      <pre>{printFact({ tag: "struct", id, args: values })}</pre>
+      <pre>{printFact({ tag: "struct", id, args: values ?? [] })}</pre>
     </div>
   );
 };

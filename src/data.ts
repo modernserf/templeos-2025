@@ -1,4 +1,4 @@
-import { l, r, s, $, Expr, Struct, Id, List, AnyStruct, eq } from "./expr";
+import { l, r, s, $, Expr, Struct, Id, List, AnyStruct, eq, __ } from "./expr";
 import { typeRecs } from "./type";
 import { schemas, SchemaId } from "./schema";
 import { fields, Field, f } from "./field";
@@ -112,11 +112,51 @@ const files = {
       ),
     ),
   },
-  example__folder: {
-    db__schema: "schema__folder",
-    file__name: "Example Folder",
-    file__description: l("A folder with some items"),
-    folder__items: l("home", "schema__text", "view__type__text"),
+  code_explorer: {
+    db__schema: "schema__form",
+    file__name: "Code explorer",
+    rule__params: l($.self, $.state, $.out),
+    rule__body: r(
+      s.get_default($.state, "data__omnibox", $.omnibox, ""),
+
+      view.render(
+        view.column(
+          l(),
+          s.children(
+            view.input__(
+              l(
+                s.debounce(300),
+                s.placeholder("Search..."),
+                s.style("width", "100%"),
+              ),
+              $.omnibox,
+              l(
+                $.next,
+                db.with_tx(
+                  $.tx,
+                  db.update($.tx, $.state, "data__omnibox", $.next),
+                ),
+              ),
+            ),
+            view.iter_else(
+              s.limit(
+                20,
+                r(
+                  f.rule__params($.id, $.params),
+                  s("¬", f.test__group($.id, __)),
+                  s.string_substring($.id, $.omnibox),
+                  s.struct_tag_list($.struct, $.id, $.params),
+                  s.get_default($.id, "file__description", $.desc, l("")),
+                ),
+              ),
+              l(view.expr($.struct), view.text($.desc), view.spacer("0.5rem")),
+              l(view.string("no results")),
+            ),
+          ),
+        ),
+        $.out,
+      ),
+    ),
   },
   view__test_result: {
     rule__params: l($.test_id, $.out),
@@ -215,6 +255,12 @@ export const initState = {
     db__schema: "schema__browser",
     file__name: "Browser state",
     browser__currentWindow: "rootWindow",
+  },
+  example__folder: {
+    db__schema: "schema__folder",
+    file__name: "Example Folder",
+    file__description: l("A folder with some items"),
+    folder__items: l("home", "schema__text", "view__type__text"),
   },
   home: {
     db__schema: "schema__text",
