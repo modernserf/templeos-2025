@@ -88,7 +88,12 @@ const baseViews = {
   tag_edit: {
     rule__params: l($.tag, $.on_delete, $.out),
     rule__body: r(
-      view.button(l(), "x", l(s.click(__), $.on_delete), $.button),
+      view.button(
+        l(s.class("DeleteExpr")),
+        "x",
+        l(s.click(__), $.on_delete),
+        $.button,
+      ),
       view.file_link($.tag, $.link),
       view.row(l(), l($.button, $.link), $.out),
     ),
@@ -257,7 +262,7 @@ const baseViews = {
           r(
             s.get_field_value($.id, $.field, $.value),
             view.button(
-              l(),
+              l(s.class("DeleteExpr")),
               "×",
               l(s.click(__), db.with_tx($.tx, db.delete($.tx, $.id, $.field))),
               $.button,

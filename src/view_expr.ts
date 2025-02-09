@@ -10,12 +10,15 @@ export const viewExpr = {
           l(),
           s.children(
             view.file_link($.tag),
-            view.string("( "),
-            view.iter(
-              r(s.list_item($.list, $.expr), view.expr($.expr, $.rendered)),
-              l(view.output($.rendered), view.string(" ")),
+            view.row(
+              l(s.class("Parens")),
+              s.children(
+                view.iter(
+                  r(s.list_item($.list, $.expr), view.expr($.expr, $.rendered)),
+                  l(view.output($.rendered), view.string(" ")),
+                ),
+              ),
             ),
-            view.string(")"),
           ),
         ),
         $.out,
@@ -30,22 +33,20 @@ export const viewExpr = {
           l(),
           s.children(
             view.file_link($.tag),
-            view.string("( "),
             view.column(
-              l(),
+              l(s.class("Parens")),
               s.children(
                 view.iter(
                   r(s.list_item($.list, $.item), view.expr($.item, $.expr_out)),
                   l(
                     view.row(
-                      l(),
-                      s.children(view.output($.expr_out), view.string(" ")),
+                      l(s.class("TupleBlockRow")),
+                      s.children(view.output($.expr_out)),
                     ),
                   ),
                 ),
               ),
             ),
-            view.string(")"),
           ),
         ),
         $.out,
@@ -56,7 +57,7 @@ export const viewExpr = {
     rule__params: l($.tag, $.list, $.out),
     rule__body: s.cond(
       l(
-        s.match($.tag, ",", ";", "children"),
+        s.match($.tag, ",", ";", "children", "cond", "match_cond"),
         view.expr_tuple_block($.tag, $.list, $.out),
       ),
       l(s.ok(), view.expr_tuple($.tag, $.list, $.out)),
@@ -86,7 +87,7 @@ export const viewExpr = {
         view.render(
           view.html(
             "span",
-            l(s.style("fontStyle", "italic")),
+            l(s.class("VarExpr")),
             s.children(view.string($.var_name)),
           ),
           $.out,
@@ -145,7 +146,7 @@ export const viewExpr = {
           l(),
           s.children(
             view.button(
-              l(),
+              l(s.class("DeleteExpr")),
               "×",
               l(
                 s.click(__),
@@ -187,9 +188,8 @@ export const viewExpr = {
         l(),
         s.children(
           view.struct_tag_edit(s.quote($.data), $.on_change),
-          view.string("("),
           view.column(
-            l(),
+            l(s.class("Parens")),
             s.children(
               view.struct_nodes_edit(s.quote($.data), $.on_change),
               view.struct_add_field(
@@ -203,7 +203,6 @@ export const viewExpr = {
               ),
             ),
           ),
-          view.string(")"),
         ),
       ),
       $.out,

@@ -79,7 +79,6 @@
   flex-direction: row;
   align-items: flex-start;
   align-self: stretch;
-  /* flex-wrap: wrap; */
 }
 
 .Column {
@@ -132,4 +131,35 @@ section section header {
 section section section header {
   font-size: 1rem;
   font-weight: bold;
+}
+
+.VarExpr {
+  font-weight: lighter;
+}
+
+.Parens {
+  position: relative;
+  padding: 0 0.5rem;
+  margin: 0 0.5rem;
+}
+
+.Parens::before {
+  content: "";
+  position: absolute;
+  top: 0.25rem;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 0.5rem);
+  border: 1px solid black;
+  border-style: none solid none;
+  border-radius: 0.5rem / 0.25rem;
+  pointer-events: none;
+}
+
+.DeleteExpr {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0 0.25rem 0 0;
+  cursor: pointer;
 }
