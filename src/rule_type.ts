@@ -53,10 +53,6 @@ export const ruleType = {
     rule__params: l($.item),
     rule__body: s.value_type($.item, s.number()),
   },
-  box: {
-    rule__params: l($.item),
-    rule__body: s.value_type($.item, s.box()),
-  },
   test__typechecks: {
     test__group: "rules",
     rule__params: l(),

@@ -95,7 +95,11 @@ const files = {
           l(),
           s.children(
             view.input(
-              l(s.placeholder("Search..."), s.style("width", "100%")),
+              l(
+                s.debounce(100),
+                s.placeholder("Search..."),
+                s.style("width", "100%"),
+              ),
               $.omnibox,
               l(
                 s.change($.next),

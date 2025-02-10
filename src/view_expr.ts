@@ -59,7 +59,7 @@ export const viewExpr = {
       ),
     ),
   },
-  expr_struct: {
+  expr_box: {
     rule__params: l($.tag, $.list_2, $.out),
     rule__body: s.cond(
       l(
@@ -85,8 +85,8 @@ export const viewExpr = {
       ),
       r(s.number($.data), view.string($.data, $.out)),
       r(
-        s.struct_tag_list($.data, $.tag, $.list_2),
-        view.expr_struct($.tag, $.list_2, $.out),
+        s.box_tag_list($.data, $.tag, $.list_2),
+        view.expr_box($.tag, $.list_2, $.out),
       ),
       r(
         s.var_name($.data, $.var_name),
@@ -102,7 +102,7 @@ export const viewExpr = {
     ),
   },
 
-  struct_add_field: {
+  box_add_field: {
     rule__params: l($.on_change, $.out),
     rule__body: r(
       view.menu(
@@ -110,7 +110,7 @@ export const viewExpr = {
         l(
           s.option("string", "string"),
           s.option("number", "number"),
-          s.option("struct", "struct"),
+          s.option("box", "box"),
           s.option("var", "var"),
         ),
         l(
@@ -120,7 +120,7 @@ export const viewExpr = {
               l($.next_type, $.next),
               l("string", ""),
               l("number", 0),
-              l("struct", l()),
+              l("box", l()),
               l("var", $("")),
             ),
             view.dispatch($.on_change, $.next),
@@ -130,18 +130,18 @@ export const viewExpr = {
       ),
     ),
   },
-  struct_nodes_edit: {
+  box_nodes_edit: {
     rule__params: l($.data, $.on_change, $.out),
     rule__body: r(
-      s.struct_tag_list($.data, $.id, $.args),
-      s.struct_at_value($.data, $.i, $.arg),
+      s.box_tag_list($.data, $.id, $.args),
+      s.box_at_value($.data, $.i, $.arg),
       // sensitive to quotation
       view.expr_edit(
         $.arg,
         l(
           $.arg_next,
           r(
-            s.struct_at_value_updated($.data, $.i, $.arg_next, $.next),
+            s.box_at_value_updated($.data, $.i, $.arg_next, $.next),
             view.dispatch($.on_change, $.next),
           ),
         ),
@@ -158,7 +158,7 @@ export const viewExpr = {
                 s.click(__),
                 r(
                   s.box_at_removed_splice($.args, $.i, l(__), $.next_args),
-                  s.struct_tag_list($.next, $.id, $.next_args),
+                  s.box_tag_list($.next, $.id, $.next_args),
                   view.dispatch($.on_change, $.next),
                 ),
               ),
@@ -170,16 +170,16 @@ export const viewExpr = {
       ),
     ),
   },
-  struct_tag_edit: {
+  box_tag_edit: {
     rule__params: l($.data, $.on_change, $.out),
     rule__body: r(
-      s.struct_tag_list($.data, $.id, $.args),
+      s.box_tag_list($.data, $.id, $.args),
       view.fit_content_input(
         $.id,
         l(
           s.change($.next_id),
           r(
-            s.struct_tag_list($.next, $.next_id, $.args),
+            s.box_tag_list($.next, $.next_id, $.args),
             view.dispatch($.on_change, $.next),
           ),
         ),
@@ -187,18 +187,18 @@ export const viewExpr = {
       ),
     ),
   },
-  struct_edit: {
+  box_edit: {
     rule__params: l($.data, $.on_change, $.out),
     rule__body: view.render(
       view.row(
         l(),
         s.children(
-          view.struct_tag_edit(s.quote($.data), $.on_change),
+          view.box_tag_edit(s.quote($.data), $.on_change),
           view.column(
             l(s.class("Parens")),
             s.children(
-              view.struct_nodes_edit(s.quote($.data), $.on_change),
-              view.struct_add_field(
+              view.box_nodes_edit(s.quote($.data), $.on_change),
+              view.box_add_field(
                 l(
                   $.next_arg,
                   r(
@@ -249,7 +249,7 @@ export const viewExpr = {
           $.out,
         ),
       ),
-      r(s.struct($.data), view.struct_edit($.data, $.on_change, $.out)),
+      r(s.box($.data), view.box_edit($.data, $.on_change, $.out)),
     ),
   },
   expr_edit: {

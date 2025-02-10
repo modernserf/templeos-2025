@@ -91,13 +91,13 @@ const Button: VC = ({ state, values: [props, label, next, onClick] }) => {
 
 const Input: VC = ({ state, values: [props, value_, next, onChange] }) => {
   const handle = useStateCallback(state);
-  const value = value_.value as string;
+  const inValue = value_.value as string;
   const { debounce: db = 0, ...jsProps } = getProps(state, props);
 
   return (
     <input
       {...jsProps}
-      defaultValue={value}
+      defaultValue={inValue}
       onChange={debounce(db, (e) => {
         handle(next, onChange, s.change(e.target.value));
       })}

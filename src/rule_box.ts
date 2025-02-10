@@ -2,9 +2,34 @@ import { Rec } from "./data";
 import { l, r, s, $, __, u } from "./expr";
 import { test } from "./test_utils";
 
-export const ruleStruct = {
+export const ruleBox = {
+  box: {
+    file__description: l(
+      "A box is a data structure with a tag and a list of values.",
+    ),
+    rule__params: l($.item),
+    rule__body: s.value_type($.item, s.box()),
+  },
+  test_box: {
+    test__group: "box",
+    rule__params: l(),
+    rule__body: r(
+      test.ok(s.box(l())),
+      test.ok(s.box(s.box(1, 2, 3))),
+      test.fail(s.box("hello")),
+    ),
+  },
+  empty: {
+    rule__params: l($.box),
+    rule__body: s.box_length($.box, 0),
+  },
+  nonempty: {
+    rule__params: l($.box),
+    rule__body: r(s.box_length($.box, $.n), s("/=", $.n, 0)),
+  },
   box_length: {
-    rule__params: l($.box_1, $.length),
+    file__description: l("length is the number of values in the box."),
+    rule__params: l($.box, $.length),
   },
   test__box_length: {
     test__group: "box",
@@ -15,6 +40,9 @@ export const ruleStruct = {
     ),
   },
   box_tag_length: {
+    file__description: l(
+      "get the tag and length of a box, or generate a box with this tag and length, filled with vars",
+    ),
     rule__params: l($.box_1, $.tag, $.length),
     rule__body: s.if_then_else(
       s.var($.box_1),
@@ -50,6 +78,9 @@ export const ruleStruct = {
     ),
   },
   box_tag_list: {
+    file__description: l(
+      "get the tag and list of a box, or construct a box from a tag and list",
+    ),
     rule__params: l($.box_1, $.tag, $.list_2),
   },
   test__box_tag_list: {
@@ -112,7 +143,7 @@ export const ruleStruct = {
     rule__params: l($.box_1, $.from_index, $.to_index, $.slice),
   },
   test__box_from_to_slice: {
-    test__group: "list",
+    test__group: "box",
     rule__params: l(),
     rule__body: r(
       // all outputs
@@ -130,7 +161,7 @@ export const ruleStruct = {
     ),
   },
   test__box_box_append: {
-    test__group: "list",
+    test__group: "box",
     rule__params: l(),
     rule__body: r(
       // concat
@@ -176,7 +207,7 @@ export const ruleStruct = {
     ),
   },
   test__box_at_removed_splice: {
-    test__group: "list",
+    test__group: "box",
     rule__params: l(),
     rule__body: r(
       test.collect(
@@ -237,7 +268,17 @@ export const ruleStruct = {
       s.box_tag_list($.updated, $.tag, $.next_list),
     ),
   },
+  list: {
+    file__description: l(
+      "A list is a box with the empty string as its tag. Lists are used both as anonymous tuples and variable-length collections.",
+    ),
+    rule__params: l($.list),
+    rule__body: s.box_tag_list($.list, "", __),
+  },
 
+  list_item: {
+    rule__params: l($.list, $.item),
+  },
   test__list_item: {
     test__group: "list",
     rule__params: l(),
@@ -252,10 +293,5 @@ export const ruleStruct = {
       u($.plist, l(s.foo(123), s.bar(456))),
       test.collect($.value, s.list_item($.plist, s.foo($.value)), 123),
     ),
-  },
-
-  nonempty: {
-    rule__params: l($.list_2),
-    rule__body: s("/=", $.list_2, l()),
   },
 } satisfies Record<string, Rec>;
