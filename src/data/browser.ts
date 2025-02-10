@@ -159,6 +159,12 @@ export const browser = {
       s.try_error_catch(
         r(
           s.call($.view, $.id, $.history, $.main_content),
+          view.html(
+            "div",
+            l(s.class("AppWindow__content")),
+            l($.main_content),
+            $.main_content_wrapped,
+          ),
           u(
             $.out,
             s.WindowContainer(
@@ -167,7 +173,7 @@ export const browser = {
               s.on__selectWindow($.window),
               s.on__back($.window),
               s.on__forward($.window),
-              l($.window_bar, $.main_content),
+              l($.window_bar, $.main_content_wrapped),
             ),
           ),
         ),

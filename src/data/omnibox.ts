@@ -33,16 +33,21 @@ export const omnibox = {
                 ),
               ),
             ),
-            view.iter_else(
-              s.limit(
-                10,
-                r(
-                  s.file__name($.result, $.result_name),
-                  s.string_substring($.result_name, $.omnibox),
+            view.column(
+              l(s.style("padding", "0.5rem")),
+              s.children(
+                view.iter_else(
+                  s.limit(
+                    10,
+                    r(
+                      s.file__name($.result, $.result_name),
+                      s.string_substring($.result_name, $.omnibox),
+                    ),
+                  ),
+                  l(view.file_info($.result), view.spacer("0.5rem")),
+                  l(view.string("no results")),
                 ),
               ),
-              l(view.file_info($.result), view.spacer("0.5rem")),
-              l(view.string("no results")),
             ),
           ),
         ),

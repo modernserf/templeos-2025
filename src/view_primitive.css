@@ -1,3 +1,9 @@
+button {
+  background-color: white;
+  border: 1px solid black;
+  border-radius: 0.5rem;
+}
+
 .Link {
   appearance: none;
   background: none;
@@ -23,8 +29,11 @@
 }
 
 .AppWindow {
-  border: 1px solid #ccc;
+  border: 1px solid black;
+  background-color: white;
   position: relative;
+  margin: 1rem;
+  box-shadow: 0.25rem 0.25rem black;
 }
 
 .AppWindow::after {
@@ -34,7 +43,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: #fff9;
+  background-color: #eee9;
   pointer-events: none;
 }
 
@@ -44,7 +53,7 @@
 
 .AppWindow__header {
   display: flex;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid black;
   padding: 0.25rem;
 }
 
@@ -55,12 +64,17 @@
   height: 1.5rem;
   margin-right: 0.5rem;
   width: 1.5rem;
+  border-radius: 0;
 }
 
 .AppWindow__title {
   font-size: 1.5rem;
   line-height: 1;
   flex: 1 0 auto;
+}
+
+.AppWindow__content {
+  overflow: scroll;
 }
 
 .TextView__Link .Link {
