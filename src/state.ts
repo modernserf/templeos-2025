@@ -395,7 +395,7 @@ export class State {
     if (!rule) throw new Exception(sv("unknown_rule", k(id)));
 
     // callable fields
-    if (rule.db__schema === "schema__field") {
+    if (rule.db__schema === "field") {
       if (args.length !== 2) {
         expected(sv(id, $.entity, $.value), sv(id, ...args));
       }

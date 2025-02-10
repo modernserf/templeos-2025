@@ -1,55 +1,55 @@
-import { Rec } from "./data";
-import { l, r, s, $, view, u, __ } from "./expr";
+import { Rec } from ".";
+import { l, r, s, $, view, u, __ } from "../expr";
 import { test } from "./test_utils";
 
 export const viewCore = {
-  output: {
+  view__output: {
     rule__params: l($.out, $.out),
     rule__body: r(),
   },
-  html: {
+  view__html: {
     rule__params: l($.tag, $.props, $.children, $.out),
     rule__body: r(u($.out, s.Html($.tag, $.props, $.children))),
   },
-  spacer: {
+  view__spacer: {
     rule__params: l(
       $.space,
       s.Html("div", l(s.class("Spacer"), s.style("flexBasis", $.space)), l()),
     ),
     rule__body: r(),
   },
-  row: {
+  view__row: {
     rule__params: l($.props, $.children, $.out),
     rule__body: r(
       s.box_box_append($.props, l(s.class("Row")), $.node_props),
       u($.out, s.Html("div", $.node_props, $.children)),
     ),
   },
-  column: {
+  view__column: {
     rule__params: l($.props, $.children, $.out),
     rule__body: r(
       s.box_box_append($.props, l(s.class("Column")), $.node_props),
       u($.out, s.Html("div", $.node_props, $.children)),
     ),
   },
-  wrap: {
+  view__wrap: {
     rule__params: l($.props, $.children, $.out),
     rule__body: r(
       s.box_box_append($.props, l(s.class("Wrap")), $.node_props),
       u($.out, s.Html("div", $.node_props, $.children)),
     ),
   },
-  // local_state: {
+  // view__local_state: {
   //   rule__params: l($.init_value, $.value, $.next, $.on_change, $.children),
   //   rule__body: s.view(
   //     s.LocalState($.init_value, $.value, $.next, $.on_change, $.children),
   //   ),
   // },
-  string: {
+  view__string: {
     rule__params: l($.string, s.String($.string)),
     rule__body: r(),
   },
-  link: {
+  view__link: {
     rule__params: l($.props, $.label, $.location, $.out),
     rule__body: r(
       s.get_context("window_id", $.window),
@@ -71,7 +71,7 @@ export const viewCore = {
       ),
     ),
   },
-  test__link: {
+  view__test__link: {
     test__group: "views",
     rule__params: l(),
     rule__body: r(
@@ -85,11 +85,11 @@ export const viewCore = {
       ),
     ),
   },
-  icon: {
+  view__icon: {
     rule__params: l(s.Icon()),
     rule__body: r(),
   },
-  table: {
+  view__table: {
     rule__params: l($.props, $.header, $.rows, $.out),
     rule__body: r(
       s("/=", $.rows, l()),
@@ -103,7 +103,7 @@ export const viewCore = {
       ),
     ),
   },
-  table_header: {
+  view__table_header: {
     rule__params: l($.props, $.items, $.out),
     rule__body: r(
       s.collect(
@@ -114,7 +114,7 @@ export const viewCore = {
       u($.out, s.Html("tr", $.props, $.cells)),
     ),
   },
-  table_row: {
+  view__table_row: {
     rule__params: l($.props, $.items, $.out),
     rule__body: r(
       s.collect(
@@ -125,7 +125,7 @@ export const viewCore = {
       u($.out, s.Html("tr", $.props, $.cells)),
     ),
   },
-  time: {
+  view__time: {
     rule__params: l($.ts, $.out),
     rule__body: r(
       // TODO: adjust for timezone

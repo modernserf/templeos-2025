@@ -1,5 +1,5 @@
-import { Rec } from "./data";
-import { l, r, s, $, Expr, view, Struct, List } from "./expr";
+import { Rec } from ".";
+import { l, r, s, $, Expr, view, Struct, List } from "../expr";
 
 type ClickParam = Struct<"meta_key", []>;
 type ClickEvent = Struct<"click", [List<ClickParam>]>;
@@ -11,7 +11,7 @@ export type BlurEvent = Struct<"blur", []>;
 export type InputEvent = ChangeEvent | FocusEvent | BlurEvent;
 
 export const viewForm = {
-  button: {
+  view__button: {
     rule__params: l(
       $.params,
       $.label,
@@ -20,7 +20,7 @@ export const viewForm = {
     ),
     rule__body: r(),
   },
-  input: {
+  view__input: {
     rule__params: l(
       $.props,
       $.value,
@@ -29,7 +29,7 @@ export const viewForm = {
     ),
     rule__body: r(),
   },
-  select: {
+  view__select: {
     rule__params: l(
       $.params,
       $.value,
@@ -39,14 +39,14 @@ export const viewForm = {
     ),
     rule__body: r(),
   },
-  menu: {
+  view__menu: {
     rule__params: l($.label, $.options, $.on_change, $.out),
     rule__body: r(
       s.box_box_append(l(s.option("", $.label)), $.options, $.menu_options),
       view.select(l(), $.label, $.menu_options, $.on_change, $.out),
     ),
   },
-  fit_content_input: {
+  view__fit_content_input: {
     rule__params: l($.value, $.on_change, $.out),
     rule__body: view.input(
       l(s.class("Input--fitContent"), s.debounce(300)),

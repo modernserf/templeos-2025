@@ -1,4 +1,5 @@
-import { l, r, s, $, Expr } from "./expr";
+import { Rec } from ".";
+import { l, r, s, $, Expr, view } from "../expr";
 
 export const test = {
   ok: (...goal: Expr[]) => s.expect_ok(r(...goal)),
@@ -12,6 +13,11 @@ export const test = {
 };
 
 export const testUtils = {
+  test__group: {
+    db__schema: "field",
+    file__name: "Test group",
+  },
+
   // test utils
   expect_ok: {
     rule__params: l($.goal),
@@ -54,4 +60,49 @@ export const testUtils = {
       s.throw(s.expected_received($.expected, l())),
     ),
   },
-};
+
+  view__test_result: {
+    rule__params: l($.test_id, $.out),
+    rule__body: s.try_error_catch(
+      r(s.call($.test_id), view.string("ok", $.out)),
+      $.error,
+      view.any($.error, $.out),
+    ),
+  },
+  test_runner: {
+    db__schema: "form",
+    file__name: "Unit tests",
+    rule__params: l($.self, $.state, $.out),
+    rule__body: view.render(
+      view.table(
+        l(),
+        s.children(
+          view.table_header(
+            l(),
+            s.children(
+              view.string("group"),
+              view.string("test"),
+              view.string("result"),
+            ),
+          ),
+        ),
+        s.children(
+          view.iter(
+            s.test__group($.id, $.group),
+            l(
+              view.table_row(
+                l(),
+                s.children(
+                  view.string($.group),
+                  view.file_link($.id),
+                  view.test_result($.id),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      $.out,
+    ),
+  },
+} satisfies Record<string, Rec>;

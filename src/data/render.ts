@@ -1,9 +1,9 @@
-import { Rec } from "./data";
-import { l, r, s, $, view, u } from "./expr";
+import { Rec } from ".";
+import { l, r, s, $, view, u } from "../expr";
 import { test } from "./test_utils";
 
 export const viewRender = {
-  render: {
+  view__render: {
     file__description: l(
       "renders a view tree, propagating along ",
       s.code(s.children($.args)),
@@ -39,7 +39,7 @@ export const viewRender = {
       s.apply($.updated, l($.out)),
     ),
   },
-  test_render: {
+  view__test_render: {
     test__group: "views",
     rule__params: l(),
     rule__body: r(
@@ -59,7 +59,7 @@ export const viewRender = {
     ),
   },
 
-  iter: {
+  view__iter: {
     rule__params: l($.iter, $.children, $.out),
     rule__body: r(
       $.iter,
@@ -67,7 +67,7 @@ export const viewRender = {
       view.render($.child, $.out),
     ),
   },
-  iter_else: {
+  view__iter_else: {
     rule__params: l($.iter, $.children, $.else, $.out),
     rule__body: s.if_then_else(
       $.iter,
@@ -75,7 +75,7 @@ export const viewRender = {
       r(s.list_item($.else, $.child), view.render($.child, $.out)),
     ),
   },
-  or_default: {
+  view__or_default: {
     rule__params: l($.child, $.default, $.out),
     rule__body: s.if_then_else(
       view.render($.child, $.out),

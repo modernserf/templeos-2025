@@ -1,8 +1,8 @@
-import { Rec } from "./data";
-import { l, r, s, $, __, view } from "./expr";
+import { Rec } from ".";
+import { l, r, s, $, __, view } from "../expr";
 
 export const viewExpr = {
-  expr_tuple: {
+  view__expr_tuple: {
     rule__params: l($.tag, $.list_2, $.out),
     rule__body: r(
       view.render(
@@ -28,7 +28,7 @@ export const viewExpr = {
       ),
     ),
   },
-  expr_tuple_block: {
+  view__expr_tuple_block: {
     rule__params: l($.tag, $.list, $.out),
     rule__body: r(
       view.render(
@@ -56,7 +56,7 @@ export const viewExpr = {
       ),
     ),
   },
-  expr_box: {
+  view__expr_box: {
     rule__params: l($.tag, $.list_2, $.out),
     rule__body: s.cond(
       l(
@@ -66,7 +66,7 @@ export const viewExpr = {
       l(s.ok(), view.expr_tuple($.tag, $.list_2, $.out)),
     ),
   },
-  expr: {
+  view__expr: {
     rule__params: l($.data, $.out),
     rule__body: s.fork(
       r(
@@ -99,7 +99,7 @@ export const viewExpr = {
     ),
   },
 
-  box_add_field: {
+  view__box_add_field: {
     rule__params: l($.on_change, $.out),
     rule__body: r(
       view.menu(
@@ -127,7 +127,7 @@ export const viewExpr = {
       ),
     ),
   },
-  box_nodes_edit: {
+  view__box_nodes_edit: {
     rule__params: l($.data, $.on_change, $.out),
     rule__body: r(
       s.box_tag_list($.data, $.id, $.args),
@@ -167,7 +167,7 @@ export const viewExpr = {
       ),
     ),
   },
-  box_tag_edit: {
+  view__box_tag_edit: {
     rule__params: l($.data, $.on_change, $.out),
     rule__body: r(
       s.box_tag_list($.data, $.id, $.args),
@@ -184,7 +184,7 @@ export const viewExpr = {
       ),
     ),
   },
-  box_edit: {
+  view__box_edit: {
     rule__params: l($.data, $.on_change, $.out),
     rule__body: view.render(
       view.row(
@@ -212,7 +212,7 @@ export const viewExpr = {
     ),
   },
 
-  __expr_edit: {
+  view____expr_edit: {
     rule__params: l($.data, $.on_change, $.out),
     rule__body: s.fork(
       r(
@@ -249,7 +249,7 @@ export const viewExpr = {
       r(s.box($.data), view.box_edit($.data, $.on_change, $.out)),
     ),
   },
-  expr_edit: {
+  view__expr_edit: {
     rule__params: l($.data, $.on_change, $.out),
     rule__body: r(
       s.try_error_catch(

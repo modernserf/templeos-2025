@@ -2,7 +2,7 @@ import { State } from "./state";
 import { loadState } from "./storage";
 import { Primitive } from "./view_primitive";
 import { useEventSource } from "./event_source";
-import { rootView } from "./view";
+import { rootView } from "./data/core";
 import { $ } from "./expr";
 
 const state = State.root(loadState());

@@ -73,7 +73,7 @@ export class DB<Rec extends BaseRec> {
     for (const [field, value] of Object.entries(rec)) {
       this.addToIndex(id, field, value as Id);
     }
-    if (rec.db__schema === "schema__field" && rec.db__index) {
+    if (rec.db__schema === "field" && rec.db__index) {
       this.createIndex(id as Field, rec.db__index.id as IndexType);
     }
   }

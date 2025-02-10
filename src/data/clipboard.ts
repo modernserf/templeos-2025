@@ -1,17 +1,24 @@
-import { Rec } from "./data";
-import { $, __, l, r, s, u, view } from "./expr";
-import { db } from "./rule_db";
+import { Field, Rec } from ".";
+import { $, __, l, r, s, u, view } from "../expr";
+import { db } from "./db";
+import { dbf } from "./core";
+
+// TODO: how do we want to do one-off fields like this
+const dataField = "data" as Field;
 
 export const clipboardRules = {
   clipboard: {
-    db__schema: "schema__clipboard",
+    db__schema: "schema",
     file__name: "Clipboard",
-    clipboard__data: l("init"),
+    file__description: l("stores clipboard data"),
+    db__fields: l(dbf.field("clipboard__data")),
   },
-
-  view__schema__clipboard: {
-    db__schema: "schema__view",
-    view__schema: "schema__clipboard",
+  clipboard__data: {
+    db__schema: "field",
+    file__name: "Clipboard data",
+  },
+  view__clipboard: {
+    view__schema: "clipboard",
     rule__params: l($.id, $.state, $.out),
     rule__body: view.render(
       view.wrap(
@@ -19,7 +26,7 @@ export const clipboardRules = {
         s.children(
           view.iter_else(
             r(
-              s.clipboard__data("clipboard", $.data),
+              s.clipboard__data($.id, $.data),
               s.box_at_value($.data, __, $.value),
             ),
             l(view.expr($.value)),
@@ -64,42 +71,53 @@ export const clipboardRules = {
     ),
   },
   view__test_clipboard_handler: {
-    rule__params: l($.message, $.id, $.items),
+    rule__params: l($.message, $.clipboard, $.id, $.items),
     rule__body: s.match_cond(
       $.message,
       l(
         s.cut($.i),
         r(
           s.box_at_removed_splice($.items, $.i, l($.removed), $.next),
-          s.on__copy($.removed),
-          db.with_tx($.tx, db.update($.tx, $.id, "data", $.next)),
+          s.on__copy($.clipboard, $.removed),
+          db.with_tx($.tx, db.update($.tx, $.id, dataField, $.next)),
         ),
       ),
       l(
         s.copy($.i),
-        r(s.box_at_value($.items, $.i, $.value), s.on__copy($.value)),
+        r(
+          s.box_at_value($.items, $.i, $.value),
+          s.on__copy($.clipboard, $.value),
+        ),
       ),
       l(
         s.paste($.i),
         r(
-          s.on__paste($.value),
+          s.on__paste($.clipboard, $.value),
           s.box_at_inserted_splice($.items, $.i, l($.value), $.next),
-          db.with_tx($.tx, db.update($.tx, $.id, "data", $.next)),
+          db.with_tx($.tx, db.update($.tx, $.id, dataField, $.next)),
         ),
       ),
     ),
   },
   view__test_clipboard: {
     file__name: "Clipboard test",
-    db__schema: "schema__form",
-    data: l("test string", 123, s.cons("foo", s.nil())),
+    db__schema: "form",
+    [dataField]: l("test string", 123, s.cons("foo", s.nil())),
     rule__params: l($.id, $.state, $.out),
     rule__body: r(
-      db.get($.id, "data", $.items),
+      db.get($.id, dataField, $.items),
       s.box_length($.items, $.length),
       u(
         $.on_change,
-        l($.message, s.view__test_clipboard_handler($.message, $.id, $.items)),
+        l(
+          $.message,
+          s.view__test_clipboard_handler(
+            $.message,
+            "root_clipboard",
+            $.id,
+            $.items,
+          ),
+        ),
       ),
 
       view.render(
@@ -122,56 +140,64 @@ export const clipboardRules = {
   },
 
   on__copy: {
-    rule__params: l($.value),
+    rule__params: l($.id, $.value),
     rule__body: db.with_tx(
       $.tx,
       r(
-        s.clipboard__data("clipboard", $.prev),
+        s.clipboard__data($.id, $.prev),
         s.box_box_append($.prev, l($.value), $.next),
-        db.update($.tx, "clipboard", "clipboard__data", $.next),
+        db.update($.tx, $.id, "clipboard__data", $.next),
       ),
     ),
   },
   on__paste: {
-    rule__params: l($.value),
+    rule__params: l($.id, $.value),
     rule__body: r(
-      s.clipboard__data("clipboard", $.data),
+      s.clipboard__data($.id, $.data),
       s.box_box_append(__, l($.value), $.data),
     ),
   },
   on__clipboard_rotate: {
-    rule__params: l(),
+    rule__params: l($.id),
     rule__body: db.with_tx(
       $.tx,
       r(
-        s.clipboard__data("clipboard", $.prev),
+        s.clipboard__data($.id, $.prev),
         s.box_box_append($.rest, l($.last), $.prev),
         s.box_box_append(l($.last), $.rest, $.next),
-        db.update($.tx, "clipboard", "clipboard__data", $.next),
+        db.update($.tx, $.id, "clipboard__data", $.next),
       ),
     ),
   },
   on__clipboard_rotate_back: {
-    rule__params: l(),
+    rule__params: l($.id),
     rule__body: db.with_tx(
       $.tx,
       r(
-        s.clipboard__data("clipboard", $.prev),
+        s.clipboard__data($.id, $.prev),
         s.box_box_append(l($.first), $.rest, $.prev),
         s.box_box_append($.rest, l($.first), $.next),
-        db.update($.tx, "clipboard", "clipboard__data", $.next),
+        db.update($.tx, $.id, "clipboard__data", $.next),
       ),
     ),
   },
   on__clipboard_drop: {
-    rule__params: l(),
+    rule__params: l($.id),
     rule__body: db.with_tx(
       $.tx,
       r(
-        s.clipboard__data("clipboard", $.prev),
+        s.clipboard__data($.id, $.prev),
         s.box_box_append($.rest, l($.last), $.prev),
-        db.update($.tx, "clipboard", "clipboard__data", $.rest),
+        db.update($.tx, $.id, "clipboard__data", $.rest),
       ),
     ),
+  },
+} satisfies Record<string, Rec>;
+
+export const clipboardInitState = {
+  root_clipboard: {
+    db__schema: "clipboard",
+    file__name: "Clipboard",
+    clipboard__data: l("init"),
   },
 } satisfies Record<string, Rec>;

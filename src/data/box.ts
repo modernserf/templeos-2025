@@ -1,8 +1,8 @@
-import { Rec } from "./data";
-import { l, r, s, $, __, u } from "./expr";
+import { Rec } from ".";
+import { l, r, s, $, __, u } from "../expr";
 import { test } from "./test_utils";
 
-export const ruleBox = {
+export const boxData = {
   box: {
     file__description: l(
       "A box is a data structure with a tag and a list of values.",

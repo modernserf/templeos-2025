@@ -1,10 +1,41 @@
-import { l, r, s, $, __, view, u } from "./expr";
-import { Rec } from "./data";
-import { f } from "./field";
-import { db } from "./rule_db";
+import { l, r, s, $, __, view, u } from "../expr";
+import { Rec } from ".";
+import { db } from "./db";
+import { dbf } from "./core";
 
-export const viewText = {
-  text_section_layout: {
+export const text = {
+  // types
+  text: {
+    db__schema: "type",
+    file__name: "Text",
+    db__default_value: l(),
+    db__default_view: "view__text_type",
+    // db__type: s(
+    //   "list",
+    //   s.oneof( s.string(), s.box( "link", s.string(), s.ref()))
+    // ),
+  },
+  // schemas
+  text_document: {
+    db__schema: "schema",
+    file__name: "Text",
+    file__description: l("A text document"),
+    db__fields: l(dbf.field("text__content")),
+  },
+  // fields
+  text__content: {
+    db__schema: "field",
+    file__name: "Text content",
+    file__description: l("a list of text nodes used in text schema"),
+    db__type: "text",
+  },
+  // views
+  view__text_type: {
+    rule__params: l($.id, $.field, $.out),
+    rule__body: r(db.get($.id, $.field, $.text), view.text($.text, $.out)),
+  },
+
+  view__text_section_layout: {
     rule__params: l($.header, $.content, $.out),
     rule__body: view.render(
       view.html(
@@ -18,7 +49,7 @@ export const viewText = {
       $.out,
     ),
   },
-  text_section: {
+  view__text_section: {
     rule__params: l($.header, $.body, $.out),
     rule__body: view.render(
       view.text_section_layout(
@@ -28,14 +59,14 @@ export const viewText = {
       $.out,
     ),
   },
-  text_node_list: {
+  view__text_node_list: {
     rule__params: l($.node_list, $.out),
     rule__body: r(
       s.list_item($.node_list, $.node),
       view.text_node($.node, $.out),
     ),
   },
-  text_node: {
+  view__text_node: {
     rule__params: l($.node, $.out),
     rule__body: s.match_cond(
       $.node,
@@ -57,7 +88,7 @@ export const viewText = {
       l(__, r(s.string($.node), view.string($.node, $.out))),
     ),
   },
-  text: {
+  view__text: {
     rule__params: l($.text, $.out),
 
     rule__body: view.render(
@@ -70,12 +101,12 @@ export const viewText = {
     ),
   },
 
-  schema__text: {
+  view__text_document: {
     file__name: "Text viewer",
-    view__schema: "schema__text",
+    view__schema: "text_document",
     rule__params: l($.id, $.state, $.out),
     rule__body: r(
-      f.text__content($.id, $.text),
+      s.text__content($.id, $.text),
       view.render(
         view.column(
           l(s.style("margin", "1rem")),
@@ -86,7 +117,7 @@ export const viewText = {
     ),
   },
 
-  schema__text_base_edit: {
+  view__text_document_base_edit: {
     rule__params: l($.text, $.on_change, $.out),
     rule__body: r(
       view.input(
@@ -101,7 +132,7 @@ export const viewText = {
       ),
     ),
   },
-  schema__text_link_edit: {
+  view__text_document_link_edit: {
     rule__params: l(l($.label, $.location), $.on_change, $.out),
     rule__body: r(
       s.match(
@@ -149,12 +180,12 @@ export const viewText = {
     ),
   },
 
-  schema__text_section_edit: {
+  view__text_document_section_edit: {
     rule__params: l(l($.header, $.content), $.on_change, $.out),
     rule__body: view.render(
       view.text_section_layout(
         s.children(
-          view.schema__text_list_edit(
+          view.text_document_list_edit(
             $.header,
             l(
               $.message,
@@ -167,7 +198,7 @@ export const viewText = {
           ),
         ),
         s.children(
-          view.schema__text_list_edit(
+          view.text_document_list_edit(
             $.content,
             l(
               $.message,
@@ -183,11 +214,11 @@ export const viewText = {
       $.out,
     ),
   },
-  schema__text_list_edit: {
+  view__text_document_list_edit: {
     rule__params: l($.list_2, $.on_change, $.out),
     rule__body: r(
       s.box_at_value($.list_2, $.i, $.node),
-      view.schema__text_node_edit(
+      view.text_document_node_edit(
         $.node,
         l(
           $.message,
@@ -205,7 +236,7 @@ export const viewText = {
       ),
     ),
   },
-  schema__text_code_edit: {
+  view__text_document_code_edit: {
     rule__params: l($.code, $.on_change, $.out),
     rule__body: r(
       view.expr_edit(
@@ -215,7 +246,7 @@ export const viewText = {
       ),
     ),
   },
-  schema__text_node_edit: {
+  view__text_document_node_edit: {
     rule__params: l($.node, $.on_change, $.out),
     rule__body: r(
       s.value_expr($.node, $.expr),
@@ -223,24 +254,24 @@ export const viewText = {
         $.expr,
         l(
           s.string($.str),
-          view.schema__text_base_edit($.str, $.on_change, $.out),
+          view.text_document_base_edit($.str, $.on_change, $.out),
         ),
         l(
           s.box("link", $.link),
-          view.schema__text_link_edit($.link, $.on_change, $.out),
+          view.text_document_link_edit($.link, $.on_change, $.out),
         ),
         l(
           s.box("section", $.section),
-          view.schema__text_section_edit($.section, $.on_change, $.out),
+          view.text_document_section_edit($.section, $.on_change, $.out),
         ),
         l(
           s.box("code", l($.code)),
-          view.schema__text_code_edit($.code, $.on_change, $.out),
+          view.text_document_code_edit($.code, $.on_change, $.out),
         ),
       ),
     ),
   },
-  schema__text_edit_menu: {
+  view__text_document_edit_menu: {
     rule__params: l($.id, $.state, $.on_change, $.out),
     rule__body: r(
       view.menu(
@@ -259,7 +290,7 @@ export const viewText = {
       ),
     ),
   },
-  schema__text_edit_handler: {
+  view__text_document_edit_handler: {
     rule__params: l($.id, $.state, $.message),
     rule__body: r(
       s.match_cond(
@@ -274,7 +305,7 @@ export const viewText = {
               l("section", s.section(l(""), l(""))),
               l("code", s.code(s.tuple("foo", "bar"))),
             ),
-            f.text__content($.id, $.prev),
+            s.text__content($.id, $.prev),
             s.box_list_append($.prev, l($.empty_value), $.next),
             db.with_tx($.tx, db.update($.tx, $.id, "text__content", $.next)),
           ),
@@ -287,23 +318,23 @@ export const viewText = {
       ),
     ),
   },
-  schema__text_edit: {
+  view__text_document_edit: {
     file__name: "Text editor",
-    view__schema: "schema__text",
+    view__schema: "text_document",
     rule__params: l($.id, $.state, $.out),
     rule__body: r(
-      f.text__content($.id, $.text),
+      s.text__content($.id, $.text),
       u(
         $.on_change,
-        l($.message, view.schema__text_edit_handler($.id, $.state, $.message)),
+        l($.message, view.text_document_edit_handler($.id, $.state, $.message)),
       ),
 
       view.render(
         view.column(
           l(s.style("margin", "1rem")),
           s.children(
-            view.schema__text_edit_menu($.id, $.state, $.on_change),
-            view.schema__text_list_edit($.text, $.on_change),
+            view.text_document_edit_menu($.id, $.state, $.on_change),
+            view.text_document_list_edit($.text, $.on_change),
           ),
         ),
         $.out,

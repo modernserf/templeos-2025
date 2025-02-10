@@ -2,7 +2,6 @@ import { expect, test } from "vitest";
 import { State } from "./state";
 import { Expr, AnyStruct, r, s, $, __ } from "./expr";
 import { data } from "./data";
-import { f } from "./field";
 
 function runAll(...clauses: Expr[]) {
   const state = State.root(data);
@@ -213,7 +212,7 @@ test("define rules", () => {
 test("internal tests", () => {
   expect(
     runAll(
-      f.test__group($.id, $.group),
+      s.test__group($.id, $.group),
       s.log("testing", $.group, $.id),
       s.try_error_catch(
         s.call($.id),
