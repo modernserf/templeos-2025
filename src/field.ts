@@ -179,4 +179,8 @@ export const fields = {
     file__name: "Omnibox search string",
     db__type: "type__string",
   },
+  clipboard__data: {
+    db__schema: "schema__field",
+    file__name: "Clipboard data",
+  },
 } satisfies Record<string, Rec>;

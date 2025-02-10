@@ -29,7 +29,7 @@ export const viewExpr = {
     ),
   },
   expr_tuple_block: {
-    rule__params: l($.tag, $.list_2, $.out),
+    rule__params: l($.tag, $.list, $.out),
     rule__body: r(
       view.render(
         view.row(
@@ -40,10 +40,7 @@ export const viewExpr = {
               l(s.class("Parens")),
               s.children(
                 view.iter(
-                  r(
-                    s.list_item($.list_2, $.item),
-                    view.expr($.item, $.expr_out),
-                  ),
+                  r(s.list_item($.list, $.item), view.expr($.item, $.expr_out)),
                   l(
                     view.row(
                       l(s.class("TupleBlockRow")),

@@ -110,4 +110,10 @@ export const schemas = {
     file__description: l("Root state for browser"),
     db__fields: l(s.field("browser__currentWindow")),
   },
+  schema__clipboard: {
+    db__schema: "schema__schema",
+    file__name: "Clipboard",
+    file__description: l("stores clipboard data"),
+    db__fields: l(s.field("clipboard__data")),
+  },
 } satisfies Record<string, Omit<Rec, "db__schema"> & { db__schema: string }>;

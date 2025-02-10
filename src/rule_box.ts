@@ -123,7 +123,8 @@ export const ruleBox = {
     ),
   },
   box_at_value_updated: {
-    rule__params: l($.box_1, $.index, $.next_value, $.next_box),
+    file__description: l(""),
+    rule__params: l($.box, $.index, $.next_value, $.next_box),
   },
   test__box_at_value_updated: {
     test__group: "box",
@@ -193,15 +194,35 @@ export const ruleBox = {
       ),
     ),
   },
+  box_at_inserted_splice: {
+    rule__params: l($.box, $.at, $.inserted, $.splice),
+    rule__body: r(
+      s.box_from_to_slice($.box, __, $.at, $.prefix),
+      s.box_from_to_slice($.box, $.at, __, $.suffix),
+      s.box_box_append($.prefix, $.inserted, $.left),
+      s.box_box_append($.left, $.suffix, $.splice),
+    ),
+  },
+  test_box_at_inserted_splice: {
+    test__group: "box",
+    rule__params: l(),
+    rule__body: r(
+      test.collect(
+        $.splice,
+        s.box_at_inserted_splice(l(1, 2, 3), 1, l("foo", "bar"), $.splice),
+        l(1, "foo", "bar", 2, 3),
+      ),
+    ),
+  },
   box_at_removed_splice: {
-    rule__params: l($.list_2, $.at, $.removed, $.splice),
+    rule__params: l($.box, $.at, $.removed, $.splice),
     rule__body: r(
       // if at is not provided, scan across list for match on removed
-      s.box_tag_length($.list_2, __, $.len),
+      s.box_tag_length($.box, __, $.len),
       s.number_min_max($.at, 0, $.len),
 
-      s.box_from_to_slice($.list_2, __, $.at, $.prefix),
-      s.box_from_to_slice($.list_2, $.at, __, $.rest),
+      s.box_from_to_slice($.box, __, $.at, $.prefix),
+      s.box_from_to_slice($.box, $.at, __, $.rest),
       s.box_box_append($.removed, $.suffix, $.rest),
       s.box_box_append($.prefix, $.suffix, $.splice),
     ),
