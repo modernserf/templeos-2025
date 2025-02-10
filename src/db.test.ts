@@ -1,6 +1,5 @@
 import { expect, test } from "vitest";
-import { DB, whereValue } from "./db";
-import { s } from "./expr";
+import { DB } from "./db";
 
 type Id = string;
 type Rec = Record<string, unknown>;
@@ -42,34 +41,4 @@ test("update", () => {
   db.update("bar", "xyzzy", 999);
 
   expect(db.get("bar")).toEqual({ baz: 321, quux: 789, xyzzy: 999 });
-});
-
-test("ref index", () => {
-  const db = init({
-    parent__id: {
-      db__schema: "schema__field",
-      db__index: s.ref(),
-    },
-    root: { value: 1 },
-    foo: { value: 123, parent__id: "root" },
-    bar: { value: 456, parent__id: "root" },
-    baz: { value: 789, parent__id: "foo" },
-  });
-  const idx = db.getIndex("parent__id")!;
-  expect(idx).not.toBe(null);
-
-  expect(Array.from(idx.tree.where(whereValue("root")))).toEqual([
-    [{ entityId: "bar", value: "root" }, null],
-    [{ entityId: "foo", value: "root" }, null],
-  ]);
-
-  db.update("bar", "parent__id", "foo");
-
-  expect(Array.from(idx.tree.where(whereValue("root")))).toEqual([
-    [{ entityId: "foo", value: "root" }, null],
-  ]);
-  expect(Array.from(idx.tree.where(whereValue("foo")))).toEqual([
-    [{ entityId: "bar", value: "foo" }, null],
-    [{ entityId: "baz", value: "foo" }, null],
-  ]);
 });

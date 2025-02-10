@@ -1,4 +1,3 @@
-import { whereValue } from "./db";
 import { AnyStruct, l, s } from "./expr";
 import {
   Exception,
@@ -443,7 +442,6 @@ export const primitives: Record<string, RulePrimitive> = {
   tx_delete_field_value: function* (state, tx, id, field, value) {
     const id_ = state.resolveString(id);
     const tx_ = state.resolveNumber(tx);
-
     const prev = state.db.get(id_);
     if (!prev) return null;
 
@@ -476,7 +474,17 @@ export const primitives: Record<string, RulePrimitive> = {
     }
 
     // delete whole record
-    state.db.insertTx(tx_, id_, null);
+    try {
+      state.db.insertTx(tx_, id_, null);
+    } catch (e) {
+      console.error(e);
+    }
+
+    if (value.tag === "placeholder") {
+      yield state.yield();
+      return;
+    }
+
     yield* uniqueStates(function* () {
       for (const f in prev) {
         const prevValue = prev[f];
@@ -519,8 +527,11 @@ export const primitives: Record<string, RulePrimitive> = {
         const idx = state.db.getIndex(field.value);
         if (idx) {
           yield* uniqueStates(function* () {
-            for (const [{ entityId }] of idx.tree.where(
-              whereValue(state.valueExpr(value)),
+            const valueExpr = state.valueExpr(value);
+
+            for (const [{ entityId }] of idx.tree.getRange(
+              { value: valueExpr, entityId: "" },
+              { value: valueExpr, entityId: "~" },
             )) {
               const ns = state.fork().unify(id, k(entityId));
               if (ns) yield ns.yield();

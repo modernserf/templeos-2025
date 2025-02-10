@@ -1,5 +1,21 @@
-import { exprOrd, Expr, List, Struct, AnyStruct } from "./expr";
-import { Where, defaultOrd, Ord, Tree } from "./tree";
+import { exprOrd, Expr, List } from "./expr";
+
+import BTree from "sorted-btree";
+
+export type Cmp = -1 | 0 | 1;
+export type Order = "asc" | "desc";
+
+export interface Ord<T> {
+  cmp(left: T, right: T): Cmp;
+}
+
+export const defaultOrd = {
+  cmp<T>(a: T, b: T) {
+    if (a < b) return -1;
+    if (a > b) return 1;
+    return 0;
+  },
+};
 
 type Id = string;
 type Field = string;
@@ -8,7 +24,7 @@ type BaseRec = Record<Field, unknown>;
 type IndexType = "ref" | "multiRef" | "sorted";
 
 type Index = {
-  tree: Tree<ExprIndex, null>;
+  tree: BTree<ExprIndex, null>;
   indexType: IndexType;
 };
 
@@ -21,15 +37,6 @@ const indexOrd: Ord<ExprIndex> = {
     );
   },
 };
-
-export function whereValue(value: Expr): Where<ExprIndex> {
-  return {
-    cmp(item) {
-      return exprOrd.cmp(value, item.value);
-    },
-    order: "asc",
-  };
-}
 
 export class DB<Rec extends BaseRec> {
   private data = new Map<Id, Rec>();
@@ -82,7 +89,10 @@ export class DB<Rec extends BaseRec> {
     if (value) this.addToIndex(id, field, value as Id);
   }
   private createIndex(field: Field, indexType: IndexType) {
-    this.index.set(field, { indexType, tree: new Tree(indexOrd) });
+    this.index.set(field, {
+      indexType,
+      tree: new BTree<ExprIndex, null>(undefined, indexOrd.cmp),
+    });
     for (const [id, rec] of this.data) {
       if (field in rec) {
         this.addToIndex(id, field, rec[field] as Id);

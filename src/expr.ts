@@ -1,4 +1,4 @@
-import { defaultOrd, Ord } from "./tree";
+import { defaultOrd, Ord } from "./db";
 export type Id = string;
 export type Ident = string;
 
