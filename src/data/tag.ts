@@ -1,4 +1,3 @@
-import { dbf } from "./core";
 import { Rec } from ".";
 import { l, s, $, r, view, __ } from "../expr";
 import { db } from "./db";
@@ -11,7 +10,7 @@ export const tagData = {
     file__description: l(
       "Tags are used to organize records. A record can have and belongs to many tags.",
     ),
-    db__fields: l(dbf.field("file__name")),
+    db__fields: l(db.field("file__name")),
   },
   // field
   file__tags: {

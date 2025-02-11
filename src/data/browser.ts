@@ -1,4 +1,3 @@
-import { dbf } from "./core";
 import { Rec } from ".";
 import { l, s, $, r, u, view, __ } from "../expr";
 import { db } from "./db";
@@ -9,18 +8,18 @@ export const browser = {
     db__schema: "schema",
     file__name: "Window",
     file__description: l("A window"),
-    db__fields: l(dbf.field("window__current_history")),
+    db__fields: l(db.field("window__current_history")),
   },
   history: {
     db__schema: "schema",
     file__name: "History",
     file__description: l("A history entry"),
     db__fields: l(
-      dbf.field("history__window"),
-      dbf.field("history__id"),
-      dbf.field_optional("history__view"),
-      dbf.field("history__forward"),
-      dbf.field("history__back"),
+      db.field("history__window"),
+      db.field("history__id"),
+      db.field_optional("history__view"),
+      db.field("history__forward"),
+      db.field("history__back"),
     ),
   },
 

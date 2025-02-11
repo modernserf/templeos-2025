@@ -1,7 +1,6 @@
 import { Field, Rec } from ".";
 import { $, __, l, r, s, u, view } from "../expr";
 import { db } from "./db";
-import { dbf } from "./core";
 
 // TODO: how do we want to do one-off fields like this
 const dataField = "data" as Field;
@@ -11,7 +10,7 @@ export const clipboardRules = {
     db__schema: "schema",
     file__name: "Clipboard",
     file__description: l("stores clipboard data"),
-    db__fields: l(dbf.field("clipboard__data")),
+    db__fields: l(db.field("clipboard__data")),
   },
   clipboard__data: {
     db__schema: "field",

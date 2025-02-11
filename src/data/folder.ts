@@ -1,6 +1,6 @@
-import { dbf } from "./core";
 import { Rec } from ".";
 import { l, s, $, view } from "../expr";
+import { db } from "./db";
 
 export const folderData = {
   // schemas
@@ -8,7 +8,7 @@ export const folderData = {
     db__schema: "schema",
     file__name: "Folder",
     file__description: l("A collection of records"),
-    db__fields: l(dbf.field("rule__params"), dbf.field("rule__body")),
+    db__fields: l(db.field("rule__params"), db.field("rule__body")),
   },
 
   folder__items: {

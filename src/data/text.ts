@@ -1,7 +1,6 @@
 import { l, r, s, $, __, view, u } from "../expr";
 import { Rec } from ".";
 import { db } from "./db";
-import { dbf } from "./core";
 
 export const text = {
   // types
@@ -20,7 +19,7 @@ export const text = {
     db__schema: "schema",
     file__name: "Text",
     file__description: l("A text document"),
-    db__fields: l(dbf.field("text__content")),
+    db__fields: l(db.field("text__content")),
   },
   // fields
   text__content: {
