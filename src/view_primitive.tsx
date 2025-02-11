@@ -1,11 +1,4 @@
-import {
-  Component,
-  FC,
-  ReactNode,
-  useEffect,
-  useLayoutEffect,
-  useState,
-} from "react";
+import { Component, FC, ReactNode } from "react";
 import { __, l, s } from "./expr";
 import { printFact, State, Value } from "./state";
 import "./view_primitive.css";

@@ -2,6 +2,7 @@ import { Rec } from "./data";
 import { TransactDB } from "./db";
 import { EventSource } from "./event_source";
 import { Expr, Id, Ident, __, s, $ } from "./expr";
+import { ProcessManager } from "./process";
 import { primitives } from "./rule_primitive";
 
 export const k = (value: string | number) =>
@@ -87,12 +88,13 @@ export class State {
     public db: TransactDB<Rec>,
     private facts: Facts,
     public context: Record<string, Value>,
-    public eventSource: EventSource<{ id: string; value: Value }>,
+    public eventSource: EventSource<Value>,
+    public processManager: ProcessManager,
   ) {}
   static root(rules: Record<Id, Rec>): State {
     const db = new TransactDB<Rec>();
     db.bulkInsert(rules);
-    return new State(db, {}, {}, new EventSource());
+    return new State(db, {}, {}, new EventSource(), new ProcessManager());
   }
   render(render: Value, out: Value): Value[] {
     const results: Value[] = [];
@@ -183,6 +185,7 @@ export class State {
       },
       this.context,
       this.eventSource,
+      this.processManager,
     );
   }
   private unifyVar(left: Value & { tag: "var" }, right: Value): State | null {
@@ -206,6 +209,7 @@ export class State {
       { ...this.facts },
       this.context,
       this.eventSource,
+      this.processManager,
     );
   }
   unify(left: Value, right: Value): State | null {
@@ -334,6 +338,7 @@ export class State {
         [key]: value,
       },
       this.eventSource,
+      this.processManager,
     );
   }
   *eval(fact: Value): Generator<StateNext> {
@@ -439,6 +444,7 @@ export class State {
         res.state.facts,
         this.context,
         this.eventSource,
+        this.processManager,
       ).yield();
     }
     // } finally {

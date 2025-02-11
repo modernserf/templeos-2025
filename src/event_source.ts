@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Value, State, Exception, printFact, sv } from "./state";
-import { __, Expr, s } from "./expr";
+import { Expr } from "./expr";
 import { DB } from "./db";
 import { Rec } from "./data";
 
@@ -23,18 +23,15 @@ export class EventSource<T> {
 
 export const wholeDatabaseEventSource = new EventSource<DB<Rec>>();
 
-export const messageEventSource = new EventSource<Value>();
-
 export function useStateCallback(state: State) {
   return (params: Value, body: Value, arg: Expr) => {
     const ns = state.unify(params, state.exprValue(arg, {}));
     if (!ns) return;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       for (const _ of ns.eval(body)) {
         // do nothing
       }
-      messageEventSource.notifyEventListeners(sv("root"));
+      state.eventSource.notifyEventListeners(sv("root"));
       wholeDatabaseEventSource.notifyEventListeners(state.db);
     } catch (e) {
       if (e instanceof Exception) {
@@ -51,7 +48,7 @@ export function useMessageEventSource(
 ) {
   const [stateWithMessage, setState] = useState(state);
   useEffect(() => {
-    return messageEventSource.addEventListener((message) => {
+    return state.eventSource.addEventListener((message) => {
       const ns = state.fork().unify(pattern, message);
       if (!ns) return;
       for (const res of ns.eval(goal)) {

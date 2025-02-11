@@ -1,4 +1,3 @@
-import { messageEventSource } from "./event_source";
 import { AnyStruct, l, s } from "./expr";
 import {
   Exception,
@@ -570,8 +569,16 @@ export const primitives: Record<string, RulePrimitive> = {
     });
   },
   send: semidet((state, message) => {
-    messageEventSource.notifyEventListeners(state.resolve(message));
+    state.eventSource.notifyEventListeners(state.resolve(message));
     return state;
+  }),
+  send_: semidet((state, pid, message) => {
+    state.processManager.send(state.resolveString(pid), state.resolve(message));
+    return state;
+  }),
+  spawn_: semidet((state, pattern, goal, pid) => {
+    const id = state.processManager.spawn(state, pattern, goal);
+    return state.unify(pid, k(id));
   }),
   delay_rule: semidet((state, timeout, rule) => {
     const t = state.resolveNumber(timeout);
