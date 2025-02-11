@@ -274,6 +274,7 @@ export const text = {
     rule__params: l($.id, $.state, $.on_change, $.out),
     rule__body: r(
       view.menu(
+        l(),
         "insert",
         l(
           s.option("text", "Text"),

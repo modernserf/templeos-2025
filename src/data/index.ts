@@ -1,4 +1,4 @@
-import { Expr, Struct, Id, List, AnyStruct, l, s } from "../expr";
+import { Expr, Struct, Id, List, AnyStruct, l, s, $, view } from "../expr";
 import { core } from "./core";
 
 import { dbData } from "./db";
@@ -164,21 +164,9 @@ export const initState = mergeAndCheck(
     browserInitState,
     clipboardInitState,
     {
-      example_tag: {
-        db__schema: "tag",
-        file__name: "Example Tag",
-        file__description: l("A tag with some items"),
-      },
-      example__folder: {
-        db__schema: "folder",
-        file__name: "Example Folder",
-        file__description: l("A folder with some items"),
-        folder__items: l("home", "text_document"),
-      },
-      home: {
+      example_text_document: {
         db__schema: "text_document",
         file__name: "home",
-        file__description: l("this is the home card"),
         file__tags: l("example_tag"),
         text__content: l(
           s.section(
@@ -200,6 +188,57 @@ export const initState = mergeAndCheck(
               ),
             ),
           ),
+        ),
+      },
+      example_tag: {
+        db__schema: "tag",
+        file__name: "Example Tag",
+        file__description: l("A tag with some items"),
+      },
+      example__folder: {
+        db__schema: "folder",
+        file__name: "Example Folder",
+        file__description: l("A folder with some items"),
+        folder__items: l("home", "example_text_document"),
+      },
+      home: {
+        db__schema: "form",
+        file__name: "home",
+        file__description: l("This is the home card"),
+        rule__params: l($.id, $.state, $.out),
+        _left_links: l("code_explorer", "omnibox"),
+        rule__body: view.render(
+          view.column(
+            l(s.style("padding", "1rem")),
+            s.children(
+              view.text(
+                l(s.section(l("Welcome!"), l("this is the home card etc"))),
+              ),
+              view.row(
+                l(),
+                s.children(
+                  view.column(
+                    l(s.style("flex", "0 0 50%")),
+                    s.children(
+                      view.text(l("helpful links")),
+                      view.iter(
+                        s.do(
+                          s.get_field_value($.id, "_left_links", $.links),
+                          s.box_at_value($.links, $._, $.link),
+                        ),
+                        l(view.file_info($.link)),
+                      ),
+                    ),
+                  ),
+                  view.column(
+                    l(s.style("flex", "0 0 50%")),
+                    s.children(view.text(l("right column list"))),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          $.out,
         ),
       },
     },

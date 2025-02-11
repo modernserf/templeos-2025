@@ -9,6 +9,7 @@ import {
   sv,
   printFact,
 } from "./state";
+import { clearState } from "./storage";
 
 function semidet<Args extends unknown[]>(
   fn: (...args: Args) => State | null | undefined,
@@ -573,5 +574,9 @@ export const primitives: Record<string, RulePrimitive> = {
       value,
     });
     return state;
+  }),
+  clear_state: semidet((_) => {
+    clearState();
+    throw new Error("unreachable");
   }),
 };

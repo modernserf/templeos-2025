@@ -318,6 +318,7 @@ export const dbData = {
         $.fields,
       ),
       view.menu(
+        l(),
         "Add field...",
         $.fields,
         l(s.change($.new_field_id), s._add_field($.id, $.new_field_id)),

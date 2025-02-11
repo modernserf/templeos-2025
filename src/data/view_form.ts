@@ -35,15 +35,15 @@ export const viewForm = {
       $.value,
       $.options,
       l($.next, $.handler),
-      s.Select(l(), $.value, $.options, $.next, $.handler),
+      s.Select($.params, $.value, $.options, $.next, $.handler),
     ),
     rule__body: r(),
   },
   view__menu: {
-    rule__params: l($.label, $.options, $.on_change, $.out),
+    rule__params: l($.params, $.label, $.options, $.on_change, $.out),
     rule__body: r(
       s.box_box_append(l(s.option("", $.label)), $.options, $.menu_options),
-      view.select(l(), $.label, $.menu_options, $.on_change, $.out),
+      view.select($.params, $.label, $.menu_options, $.on_change, $.out),
     ),
   },
   view__fit_content_input: {

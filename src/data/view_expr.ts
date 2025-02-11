@@ -103,6 +103,11 @@ export const viewExpr = {
     rule__params: l($.on_change, $.out),
     rule__body: r(
       view.menu(
+        l(
+          s.style("width", "2rem"),
+          s.style("borderRadius", "0.5rem"),
+          s.style("margin", "0 0.5rem 0.25rem"),
+        ),
         "+",
         l(
           s.option("string", "string"),
@@ -160,7 +165,11 @@ export const viewExpr = {
                 ),
               ),
             ),
-            view.output($.expr_edit),
+            view.html(
+              "span",
+              l(s.style("marginBottom", "0.25rem")),
+              l($.expr_edit),
+            ),
           ),
         ),
         $.out,

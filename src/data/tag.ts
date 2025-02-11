@@ -45,6 +45,7 @@ export const tagData = {
         $.tag_opts,
       ),
       view.menu(
+        l(),
         "Add tag",
         $.tag_opts,
         l(s.change($.selected), $.on_add),

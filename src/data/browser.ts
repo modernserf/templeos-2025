@@ -195,69 +195,81 @@ export const browser = {
   view__window_bar: {
     rule__params: l($.window, $.id, $.view, $.name, $.out),
     rule__body: r(
-      view.view_menu($.window, $.id, $.view, $.menu),
-      view.string($.name, $.window_title),
-      view.button(
-        l(s.class("AppWindow__closeButton")),
-        "",
-        l(__, s.on__closeWindow($.window)),
-        $.close_button,
+      s.window__current_history($.window, $.history),
+      s.if_then_else(
+        s.history__back($.history, __),
+        u($.back_class, "AppWindow__nav"),
+        u($.back_class, "AppWindow__nav AppWindow__nav--disabled"),
       ),
-      u(
-        $.out,
-        s.Html(
-          "header",
+      s.if_then_else(
+        s.history__forward($.history, __),
+        u($.forward_class, "AppWindow__nav"),
+        u($.forward_class, "AppWindow__nav AppWindow__nav--disabled"),
+      ),
+      view.render(
+        view.row(
           l(s.class("AppWindow__header")),
-          l(
-            $.close_button,
-            s.Html("h1", l(s.class("AppWindow__title")), l($.window_title)),
-            $.menu,
+          s.children(
+            view.button(
+              l(s.class("AppWindow__closeButton")),
+              "",
+              l(__, s.on__closeWindow($.window)),
+            ),
+            view.html(
+              "h1",
+              l(s.class("AppWindow__title")),
+              s.children(view.string($.name)),
+            ),
+
+            view.html("div", l(s.style("flex", "1 0 auto")), l()),
+            view.button(
+              l(s.class($.back_class)),
+              "←",
+              l(s.click(__), s.on__back($.window)),
+            ),
+            view.button(
+              l(s.class($.forward_class)),
+              "→",
+              l(s.click(__), s.on__forward($.window)),
+            ),
+            view.view_menu($.window, $.id, $.view),
           ),
         ),
+        $.out,
       ),
     ),
   },
   view__app_menu: {
     file__name: "App menu",
     rule__params: l($.out),
-    rule__body: r(
-      s.collect(
-        $.view,
-        s.fork(
-          view.button(
-            l(),
-            "←",
+    rule__body: view.render(
+      view.row(
+        l(
+          s.style("backgroundColor", "white"),
+          s.style("borderBottom", "1px solid black"),
+        ),
+        s.children(
+          view.menu(
+            l(s.class("AppMenu")),
+            "Menu",
             l(
-              s.click(__),
-              r(
-                s.browser__current_window("browser", $.window),
-                s.on__back($.window),
+              s.option("home", "Home"),
+              s.option("omnibox", "Search"),
+              s.option("reset", "Reset"),
+            ),
+            l(
+              s.change($.value),
+              s.match_cond(
+                $.value,
+                l("home", s.on__newWindow(s.location("home"))),
+                l("omnibox", s.on__newWindow(s.location("omnibox"))),
+                l("reset", s.clear_state()),
               ),
             ),
-            $.view,
-          ),
-          view.button(
-            l(),
-            "→",
-            l(
-              s.click(__),
-              r(
-                s.browser__current_window("browser", $.window),
-                s.on__forward($.window),
-              ),
-            ),
-            $.view,
-          ),
-          view.button(
-            l(),
-            "new window",
-            l(s.click(__), r(s.on__newWindow(s.location("omnibox")))),
-            $.view,
           ),
         ),
-        $.items,
       ),
-      view.row(l(), $.items, $.out),
+      $.out,
     ),
   },
   view__window_history: {

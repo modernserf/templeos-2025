@@ -177,3 +177,30 @@ section section section header {
   padding: 0 0.25rem 0 0;
   cursor: pointer;
 }
+
+.AppMenu {
+  border: none;
+  font-weight: bold;
+  padding: 0.25rem;
+  margin-left: 0.5rem;
+  appearance: none;
+}
+
+.AppMenu:focus {
+  outline: none;
+}
+
+.AppWindow__nav {
+  border: none;
+  font-weight: bold;
+  line-height: 1rem;
+  align-self: center;
+  cursor: pointer;
+  margin-right: 0.25rem;
+  font-size: 1.25rem;
+}
+
+.AppWindow__nav--disabled {
+  color: #666;
+  cursor: default;
+}

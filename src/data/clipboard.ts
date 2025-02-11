@@ -53,6 +53,7 @@ export const clipboardRules = {
         s.children(
           view.expr($.value),
           view.menu(
+            l(),
             "Edit",
             l(s.option("cut", "Cut"), s.option("copy", "Copy")),
             l(
