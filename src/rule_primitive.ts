@@ -8,6 +8,7 @@ import {
   uniqueStates,
   sv,
   printFact,
+  exprValue,
 } from "./state";
 import { clearState } from "./storage";
 
@@ -246,7 +247,7 @@ export const primitives: Record<string, RulePrimitive> = {
   timestamp_date: semidet((state, ts, date) => {
     if (ts.tag === "number") {
       const d = new Date(ts.value);
-      const dateValue = state.exprValue(
+      const dateValue = exprValue(
         s.date(
           d.getFullYear(),
           d.getMonth() + 1,
@@ -452,7 +453,7 @@ export const primitives: Record<string, RulePrimitive> = {
       const isMany = fieldRec?.db__index?.id === "multiRef";
 
       // delete specific field
-      const val = state.exprValue(prev[field.value], {});
+      const val = exprValue(prev[field.value], {});
 
       if (isMany) {
         const filtered = ((val as Value & { tag: "box" }).args ?? []).filter(
@@ -490,7 +491,7 @@ export const primitives: Record<string, RulePrimitive> = {
       for (const f in prev) {
         const prevValue = prev[f];
         if (!prevValue) continue;
-        const val = state.exprValue(prevValue, {});
+        const val = exprValue(prevValue, {});
         const ns = state.fork().unify(k(f), field)?.unify(val, value);
         if (!ns) return;
         yield ns.yield();
@@ -513,13 +514,13 @@ export const primitives: Record<string, RulePrimitive> = {
         if (isMany) {
           yield* uniqueStates(function* () {
             for (const arg of (val as AnyStruct).args) {
-              const ns = state.fork().unify(value, state.exprValue(arg, {}));
+              const ns = state.fork().unify(value, exprValue(arg, {}));
               if (ns) yield ns.yield();
             }
           });
           return;
         } else {
-          const ns = state.unify(value, state.exprValue(val, {}));
+          const ns = state.unify(value, exprValue(val, {}));
           if (ns) yield ns.yield();
           return;
         }
@@ -572,14 +573,6 @@ export const primitives: Record<string, RulePrimitive> = {
     state.eventSource.notifyEventListeners(state.resolve(message));
     return state;
   }),
-  send_: semidet((state, pid, message) => {
-    state.processManager.send(state.resolveString(pid), state.resolve(message));
-    return state;
-  }),
-  spawn_: semidet((state, pattern, goal, pid) => {
-    const id = state.processManager.spawn(state, pattern, goal);
-    return state.unify(pid, k(id));
-  }),
   delay_rule: semidet((state, timeout, rule) => {
     const t = state.resolveNumber(timeout);
     setTimeout(() => {
@@ -589,7 +582,7 @@ export const primitives: Record<string, RulePrimitive> = {
     }, t);
     return state;
   }),
-  clear_state: semidet((_) => {
+  clear_state: semidet(() => {
     clearState();
     throw new Error("unreachable");
   }),

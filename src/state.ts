@@ -2,7 +2,6 @@ import { Rec } from "./data";
 import { TransactDB } from "./db";
 import { EventSource } from "./event_source";
 import { Expr, Id, Ident, __, s, $ } from "./expr";
-import { ProcessManager } from "./process";
 import { primitives } from "./rule_primitive";
 
 export const k = (value: string | number) =>
@@ -58,6 +57,26 @@ export function* uniqueStates(gen: () => Generator<StateNext>) {
   }
 }
 
+export function exprValue(expr: Expr, localSymbols: SymbolTable): Value {
+  if (typeof expr !== "object") {
+    return k(expr);
+  }
+  switch (expr.tag) {
+    case "placeholder":
+      return __;
+    case "ident": {
+      const id = localSymbols[expr.ident] ?? varCount++;
+      localSymbols[expr.ident] = id;
+      return { tag: "var", id, name: expr.ident };
+    }
+    case "box":
+      return {
+        ...expr,
+        args: expr.args.map((arg) => exprValue(arg, localSymbols)),
+      };
+  }
+}
+
 export function printFact(fact: Fact, indent = ""): string {
   switch (fact.tag) {
     case "placeholder":
@@ -89,12 +108,11 @@ export class State {
     private facts: Facts,
     public context: Record<string, Value>,
     public eventSource: EventSource<Value>,
-    public processManager: ProcessManager,
   ) {}
   static root(rules: Record<Id, Rec>): State {
     const db = new TransactDB<Rec>();
     db.bulkInsert(rules);
-    return new State(db, {}, {}, new EventSource(), new ProcessManager());
+    return new State(db, {}, {}, new EventSource());
   }
   render(render: Value, out: Value): Value[] {
     const results: Value[] = [];
@@ -106,16 +124,16 @@ export class State {
   render_(expr: Expr, out: Expr): Value[] {
     const results: Value[] = [];
     const rootSymbolTable: SymbolTable = {};
-    for (const res of this.eval(this.exprValue(expr, rootSymbolTable))) {
+    for (const res of this.eval(exprValue(expr, rootSymbolTable))) {
       const { state } = res;
-      results.push(state.resolve(state.exprValue(out, rootSymbolTable)));
+      results.push(state.resolve(exprValue(out, rootSymbolTable)));
     }
     return results;
   }
   *runAll(expr: Expr): Generator<Record<Ident, Expr | undefined>> {
     const rootSymbolTable: SymbolTable = {};
     try {
-      for (const res of this.eval(this.exprValue(expr, rootSymbolTable))) {
+      for (const res of this.eval(exprValue(expr, rootSymbolTable))) {
         const { state } = res;
         yield state.resolveSymbols(rootSymbolTable);
       }
@@ -153,25 +171,7 @@ export class State {
         };
     }
   }
-  exprValue(expr: Expr, localSymbols: SymbolTable): Value {
-    if (typeof expr !== "object") {
-      return k(expr);
-    }
-    switch (expr.tag) {
-      case "placeholder":
-        return __;
-      case "ident": {
-        const id = localSymbols[expr.ident] ?? varCount++;
-        localSymbols[expr.ident] = id;
-        return { tag: "var", id, name: expr.ident };
-      }
-      case "box":
-        return {
-          ...expr,
-          args: expr.args.map((arg) => this.exprValue(arg, localSymbols)),
-        };
-    }
-  }
+
   addConstraint(id: FactId, predicate: Value) {
     const prev = this.facts[id];
     if (prev?.tag === "constraint") {
@@ -185,7 +185,6 @@ export class State {
       },
       this.context,
       this.eventSource,
-      this.processManager,
     );
   }
   private unifyVar(left: Value & { tag: "var" }, right: Value): State | null {
@@ -209,7 +208,6 @@ export class State {
       { ...this.facts },
       this.context,
       this.eventSource,
-      this.processManager,
     );
   }
   unify(left: Value, right: Value): State | null {
@@ -338,7 +336,6 @@ export class State {
         [key]: value,
       },
       this.eventSource,
-      this.processManager,
     );
   }
   *eval(fact: Value): Generator<StateNext> {
@@ -387,7 +384,7 @@ export class State {
     }
     const params = rule.rule__params.args;
     if (params.length !== args.length && !rule.rule__rest_params) {
-      expected(this.exprValue(s(id, ...params), {}), sv(id, ...args));
+      expected(exprValue(s(id, ...params), {}), sv(id, ...args));
     }
     return { params, body: rule.rule__body ?? sv("do") };
   }
@@ -415,11 +412,12 @@ export class State {
 
     const { params, body } = this.check_call(id, rule, args);
 
-    let ruleState = this.fork();
+    // why do we need to fork here
+    const ruleState = this.fork();
     const symbolTable = {};
 
     if (rule.rule__rest_params) {
-      const param = ruleState.exprValue(rule.rule__rest_params, symbolTable);
+      const param = exprValue(rule.rule__rest_params, symbolTable);
       const restArgs = args.slice(params.length);
       const ns = ruleState.unify(param, {
         tag: "box",
@@ -427,24 +425,21 @@ export class State {
         args: restArgs,
       });
       if (!ns) return;
-      ruleState = ns;
     }
 
     for (let i = 0; i < params.length; i++) {
-      const param = ruleState.exprValue(params[i], symbolTable);
+      const param = exprValue(params[i], symbolTable);
       const arg = args[i];
       const ns = ruleState.unify(param, arg);
       if (!ns) return;
-      ruleState = ns;
     }
 
-    for (const res of ruleState.eval(ruleState.exprValue(body, symbolTable))) {
+    for (const res of ruleState.eval(exprValue(body, symbolTable))) {
       yield new State(
         this.db,
         res.state.facts,
         this.context,
         this.eventSource,
-        this.processManager,
       ).yield();
     }
     // } finally {

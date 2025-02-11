@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Value, State, Exception, printFact, sv } from "./state";
+import { Value, State, Exception, printFact, sv, exprValue } from "./state";
 import { Expr } from "./expr";
 import { DB } from "./db";
 import { Rec } from "./data";
@@ -25,7 +25,7 @@ export const wholeDatabaseEventSource = new EventSource<DB<Rec>>();
 
 export function useStateCallback(state: State) {
   return (params: Value, body: Value, arg: Expr) => {
-    const ns = state.unify(params, state.exprValue(arg, {}));
+    const ns = state.unify(params, exprValue(arg, {}));
     if (!ns) return;
     try {
       for (const _ of ns.eval(body)) {
