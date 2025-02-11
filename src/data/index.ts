@@ -201,6 +201,23 @@ export const initState = mergeAndCheck(
         file__description: l("A folder with some items"),
         folder__items: l("home", "example_text_document"),
       },
+      view__clock: {
+        rule__params: l($.out),
+        rule__body: s.do(
+          view.receive(
+            l(s.tick(), s.ok()),
+            l(
+              $.r_out,
+              s.do(
+                s.timestamp($.ts),
+                s.delay_rule(1000, s.send(s.tick())),
+                view.time($.ts, $.r_out),
+              ),
+            ),
+            $.out,
+          ),
+        ),
+      },
       home: {
         db__schema: "form",
         file__name: "home",
@@ -232,7 +249,7 @@ export const initState = mergeAndCheck(
                   ),
                   view.column(
                     l(s.style("flex", "0 0 50%")),
-                    s.children(view.text(l("right column list"))),
+                    s.children(view.text(l("right column list")), view.clock()),
                   ),
                 ),
               ),

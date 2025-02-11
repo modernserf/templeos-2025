@@ -94,11 +94,17 @@ export class State {
     db.bulkInsert(rules);
     return new State(db, {}, {}, new EventSource());
   }
+  render(render: Value, out: Value): Value[] {
+    const results: Value[] = [];
+    for (const res of this.eval(render)) {
+      results.push(res.state.resolve(out));
+    }
+    return results;
+  }
   render_(expr: Expr, out: Expr): Value[] {
     const results: Value[] = [];
     const rootSymbolTable: SymbolTable = {};
     for (const res of this.eval(this.exprValue(expr, rootSymbolTable))) {
-      if (res.tag !== "state") continue;
       const { state } = res;
       results.push(state.resolve(state.exprValue(out, rootSymbolTable)));
     }
@@ -108,7 +114,6 @@ export class State {
     const rootSymbolTable: SymbolTable = {};
     try {
       for (const res of this.eval(this.exprValue(expr, rootSymbolTable))) {
-        if (res.tag !== "state") continue;
         const { state } = res;
         yield state.resolveSymbols(rootSymbolTable);
       }

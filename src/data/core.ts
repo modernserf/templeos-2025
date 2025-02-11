@@ -4,16 +4,26 @@ import { db } from "./db";
 import { test } from "./test_utils";
 
 export const rootView = (output: Expr) =>
-  r(
-    s.collect(
-      $.view,
-      s.fork(
-        view.app_menu($.view),
-        r(s.db__schema($.window, "window"), view.window($.window, $.view)),
+  view.receive(
+    l(s.root(), s.ok()),
+    l(
+      $.out,
+      view.render(
+        view.html(
+          "div",
+          l(),
+          s.children(
+            view.app_menu(),
+            view.iter(
+              s.db__schema($.window, "window"),
+              l(view.window($.window)),
+            ),
+          ),
+        ),
+        $.out,
       ),
-      $.content,
     ),
-    u(s.Html("div", l(), $.content), output),
+    output,
   );
 
 export const core = {

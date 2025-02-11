@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Value, State, Exception, printFact } from "./state";
-import { Expr } from "./expr";
+import { Value, State, Exception, printFact, sv } from "./state";
+import { __, Expr, s } from "./expr";
 import { DB } from "./db";
 import { Rec } from "./data";
 
@@ -21,7 +21,9 @@ export class EventSource<T> {
   }
 }
 
-export const eventSource = new EventSource<DB<Rec>>();
+export const wholeDatabaseEventSource = new EventSource<DB<Rec>>();
+
+export const messageEventSource = new EventSource<Value>();
 
 export function useStateCallback(state: State) {
   return (params: Value, body: Value, arg: Expr) => {
@@ -32,7 +34,8 @@ export function useStateCallback(state: State) {
       for (const _ of ns.eval(body)) {
         // do nothing
       }
-      eventSource.notifyEventListeners(state.db);
+      messageEventSource.notifyEventListeners(sv("root"));
+      wholeDatabaseEventSource.notifyEventListeners(state.db);
     } catch (e) {
       if (e instanceof Exception) {
         console.error(printFact(e.error));
@@ -41,12 +44,21 @@ export function useStateCallback(state: State) {
   };
 }
 
-export function useEventSource() {
-  // subscribe to event listener
-  const [, setState] = useState({});
+export function useMessageEventSource(
+  state: State,
+  pattern: Value,
+  goal: Value,
+) {
+  const [stateWithMessage, setState] = useState(state);
   useEffect(() => {
-    return eventSource.addEventListener(() => {
-      setState({});
+    return messageEventSource.addEventListener((message) => {
+      const ns = state.fork().unify(pattern, message);
+      if (!ns) return;
+      for (const res of ns.eval(goal)) {
+        setState(res.state);
+        return;
+      }
     });
-  }, []);
+  }, [state, pattern, goal]);
+  return stateWithMessage;
 }

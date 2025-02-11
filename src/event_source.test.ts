@@ -11,7 +11,7 @@ test("event source", () => {
   const removeL2 = es.addEventListener(l2);
   es.addEventListener(l3);
 
-  es.notifyEventListeners();
+  es.notifyEventListeners({});
 
   expect(l1).toHaveBeenCalled();
   expect(l2).toHaveBeenCalled();
@@ -23,7 +23,7 @@ test("event source", () => {
   l2.mockClear();
   l3.mockClear();
 
-  es.notifyEventListeners();
+  es.notifyEventListeners({});
 
   expect(l1).toHaveBeenCalled();
   expect(l2).not.toHaveBeenCalled();

@@ -1,3 +1,4 @@
+import { messageEventSource } from "./event_source";
 import { AnyStruct, l, s } from "./expr";
 import {
   Exception,
@@ -568,11 +569,17 @@ export const primitives: Record<string, RulePrimitive> = {
       }
     });
   },
-  dispatch: semidet((state, id, value) => {
-    state.eventSource.notifyEventListeners({
-      id: state.resolveString(id),
-      value,
-    });
+  send: semidet((state, message) => {
+    messageEventSource.notifyEventListeners(state.resolve(message));
+    return state;
+  }),
+  delay_rule: semidet((state, timeout, rule) => {
+    const t = state.resolveNumber(timeout);
+    setTimeout(() => {
+      for (const _ of state.eval(rule)) {
+        // run state
+      }
+    }, t);
     return state;
   }),
   clear_state: semidet((_) => {

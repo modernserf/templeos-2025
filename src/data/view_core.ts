@@ -39,6 +39,12 @@ export const viewCore = {
       u($.out, s.Html("div", $.node_props, $.children)),
     ),
   },
+  view__receive: {
+    rule__params: l(l($.pattern, $.goal), l($.render_out, $.render), $.out),
+    rule__body: r(
+      u($.out, s.Receive($.pattern, $.goal, $.render_out, $.render)),
+    ),
+  },
   // view__local_state: {
   //   rule__params: l($.init_value, $.value, $.next, $.on_change, $.children),
   //   rule__body: s.view(

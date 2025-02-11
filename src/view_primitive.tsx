@@ -1,8 +1,15 @@
-import { Component, FC, ReactNode, useEffect, useMemo, useState } from "react";
+import {
+  Component,
+  FC,
+  ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from "react";
 import { __, l, s } from "./expr";
-import { k, printFact, State, sv, Value } from "./state";
+import { printFact, State, Value } from "./state";
 import "./view_primitive.css";
-import { useStateCallback } from "./event_source";
+import { useMessageEventSource, useStateCallback } from "./event_source";
 import { debounce } from "./util";
 
 type VC = FC<{
@@ -50,25 +57,16 @@ const Html: VC = ({ state, values: [tag, props, children] }) => {
   );
 };
 
-const LocalState: VC = ({
-  state,
-  values: [init_value, value_var, next_var, on_change, children],
-}) => {
-  const id = useMemo(() => crypto.randomUUID(), []);
-  const [currentValue, setValue] = useState(init_value);
-  useEffect(() => {
-    // TODO: only get this component's events
-    state.eventSource.addEventListener((res) => {
-      if (res.id === id) setValue(res.value);
-    });
-  }, [state, next_var, on_change, id]);
+const Receive: VC = ({ state, values: [pattern, goal, out, render] }) => {
+  const messageState = useMessageEventSource(state, pattern, goal);
+  const children = messageState.fork().render(render, out);
 
-  const localState = state
-    .unify(value_var, currentValue)
-    ?.unify(on_change, sv("dispatch", k(id), next_var));
-  if (!localState) throw new Error("cannot unify local state value");
-
-  return <Children state={localState} children={children} />;
+  return (
+    <Children
+      state={messageState}
+      children={{ tag: "box", id: "", args: children }}
+    />
+  );
 };
 
 const String: VC = ({ values: [value] }) => value.value;
@@ -183,13 +181,13 @@ const WindowContainer: VC = ({
 
 const viewPrimitives: Record<string, VC> = {
   Html,
-  LocalState,
   String,
   Button,
   Select,
   Icon,
   Input,
   WindowContainer,
+  Receive,
 };
 
 const DefaultRenderer: VC = ({ id, values }) => {
