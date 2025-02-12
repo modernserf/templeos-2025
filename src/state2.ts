@@ -1,4 +1,4 @@
-import { Value, box, k, Exception } from "./value2";
+import { Value, box, k, Exception, FactId } from "./value2";
 
 export type Pid = number;
 
@@ -8,7 +8,6 @@ type Constraint =
 
 type Fact = Value | { tag: "constraint"; constraint: Constraint };
 
-type FactId = number;
 type Facts = Record<FactId, Fact>;
 
 // fail & exception use throw because they are non-resumable
@@ -61,7 +60,7 @@ export class State {
           out.push(next);
         }
         if (didChange) {
-          return { tag: "box", id: value.id, args: out };
+          return box(value.id, out);
         } else {
           return value;
         }
