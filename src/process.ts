@@ -1,6 +1,11 @@
 import { Rec } from "./data";
 import { TransactDB } from "./db";
-import { Interpreter, ProcessNext, RulePrimitive } from "./interpreter";
+import {
+  Interpreter,
+  ProcessGen,
+  ProcessNext,
+  RulePrimitive,
+} from "./interpreter";
 import { State, Pid, Fail } from "./state2";
 import { Value } from "./value2";
 
@@ -50,17 +55,13 @@ export class ProcessManager {
   }
   spawn(goal: Value): Pid {
     const pid = this.nextPid++;
-    const child = State.init(pid);
-    const interpreter = new Interpreter(this.db, this.primitives);
-    const gen = interpreter.eval(child, goal);
+    const interpreter = Interpreter.init(this.db, this.primitives, pid);
+    const gen = interpreter.eval(goal);
     this.processes.set(pid, { mailbox: [], gen });
     this.runUntilSuspend(pid, gen);
     return pid;
   }
-  private runUntilSuspend(
-    pid: Pid,
-    gen: Generator<ProcessNext, undefined, undefined>,
-  ) {
+  private runUntilSuspend(pid: Pid, gen: ProcessGen) {
     while (true) {
       const res = gen.next().value;
       if (!res) break;

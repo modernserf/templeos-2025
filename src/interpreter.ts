@@ -1,6 +1,6 @@
 import { Rec } from "./data";
 import { Expr, Ident, s } from "./expr";
-import { State, Fail } from "./state2";
+import { State, Fail, Pid } from "./state2";
 import { Value, Exception, k, box, FactId } from "./value2";
 
 type SymbolTable = Record<Ident, FactId>;
@@ -18,12 +18,19 @@ function expected(expected: Value, received: Value) {
   throw new Exception(box("expected_received", [expected, received]));
 }
 
-export type ProcessNext = { tag: "result"; state: State } | { tag: "suspend" };
+export type ProcessNext =
+  | { tag: "result"; result: Interpreter }
+  | { tag: "receive"; to: Interpreter; pattern: Value };
+export type ProcessNextOf<T extends ProcessNext["tag"]> = ProcessNext & {
+  tag: T;
+};
+
+export type ProcessGen = Generator<ProcessNext, void, Interpreter | undefined>;
 
 export type RulePrimitive = (
-  state: State,
+  interpreter: Interpreter,
   ...args: Value[]
-) => Generator<ProcessNext>;
+) => ProcessGen;
 
 interface IDB {
   get(key: string): Rec | undefined | null;
@@ -34,32 +41,56 @@ export class Interpreter {
     private varCount: number,
     private db: IDB,
     private primitives: Record<string, RulePrimitive>,
+    private state: State,
   ) {}
-  static init(db: IDB, primitives: Record<string, RulePrimitive>) {
-    return new Interpreter(0, db, primitives);
+  static init(db: IDB, primitives: Record<string, RulePrimitive>, pid: Pid) {
+    return new Interpreter(0, db, primitives, State.init(pid));
   }
-  *eval(
-    state: State,
-    fact: Value,
-  ): Generator<ProcessNext, undefined, undefined> {
-    fact = state.resolveVar(fact);
-    ensure(fact, "box");
-    const args = fact.args.map((arg) => state.resolveVar(arg));
+  result() {
+    return { tag: "result", result: this as Interpreter } as const;
+  }
+  receive(pattern: Value) {
+    return { tag: "receive", to: this as Interpreter, pattern } as const;
+  }
+  unify(l: Value, r: Value) {
+    return this.state.unify(l, r);
+  }
+  tryUnify(l: Value, r: Value): Interpreter | null {
+    try {
+      this.state.unify(l, r);
+      return this;
+    } catch (e) {
+      if (e instanceof Fail) return null;
+      throw e;
+    }
+  }
+  dif(l: Value, r: Value) {
+    return this.state.dif(l, r);
+  }
+  fork() {
+    return new Interpreter(
+      this.varCount,
+      this.db,
+      this.primitives,
+      this.state.fork(),
+    );
+  }
+  resolve(value: Value) {
+    return this.state.resolve(value);
+  }
+  *eval(value: Value): ProcessGen {
+    value = this.state.resolveVar(value);
+    ensure(value, "box");
+    const args = value.args.map((arg) => this.state.resolveVar(arg));
 
     try {
-      for (const res of this.call(state, fact.id, args)) {
-        yield res;
-      }
+      yield* this.call(value.id, args);
     } catch (e) {
       if (e instanceof Fail) return;
       throw e;
     }
   }
-  private *call(
-    state: State,
-    id: string,
-    args: Value[],
-  ): Generator<ProcessNext, undefined, undefined> {
+  private *call(id: string, args: Value[]): ProcessGen {
     // stateProfile.call(id);
     // try {
     const rule = this.db.get(id);
@@ -67,18 +98,9 @@ export class Interpreter {
 
     if (this.primitives[id]) {
       this.check_call(id, rule, args);
-      yield* this.primitives[id](state, ...args);
+      yield* this.primitives[id](this, ...args);
       return;
     }
-
-    // // callable fields
-    // if (rule.db__schema === "field") {
-    //   if (args.length !== 2) {
-    //     expected(box(id, [v(0, "entity"), v(1, "value")]), box(id, args));
-    //   }
-    //   yield* this.primitives.get_field_value(state, args[0], k(id), args[1]);
-    //   return;
-    // }
 
     const { params, body } = this.check_call(id, rule, args);
 
@@ -87,16 +109,16 @@ export class Interpreter {
     if (rule.rule__rest_params) {
       const restParams = this.exprValue(rule.rule__rest_params, localSymbols);
       const restArgs = args.slice(params.length);
-      state.unify(restParams, box("", restArgs));
+      this.state.unify(restParams, box("", restArgs));
     }
 
     for (let i = 0; i < params.length; i++) {
       const param = this.exprValue(params[i], localSymbols);
       const arg = args[i];
-      state.unify(param, arg);
+      this.state.unify(param, arg);
     }
 
-    yield* this.eval(state, this.exprValue(body, localSymbols));
+    yield* this.eval(this.exprValue(body, localSymbols));
     // } finally {
     // stateProfile.return();
     // }

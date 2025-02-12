@@ -1,6 +1,5 @@
 import { expect, test } from "vitest";
 import { Interpreter, ProcessNext } from "./interpreter";
-import { State } from "./state2";
 import { box, Exception } from "./value2";
 import { k } from "./state";
 import { $, __, l, s } from "./expr";
@@ -28,9 +27,10 @@ function init() {
     {
       "=": function* (state, left, right) {
         state.unify(left, right);
-        yield { tag: "result", state };
+        yield state.result();
       },
     },
+    0,
   );
 }
 
@@ -46,34 +46,26 @@ function expectGenThrow(gen: Generator<ProcessNext>, message?: string) {
 
 test("eval", () => {
   const i = init();
-  const state = State.init(0);
 
-  expectGen(i.eval(state, box("=", [k(1), k(1)]))).toMatchObject([
-    { tag: "result", state },
-  ]);
+  expectGen(i.eval(box("=", [k(1), k(1)]))).toMatchObject([i.result()]);
 
-  expectGen(i.eval(state, box("zero", [k(0)]))).toMatchObject([
-    { tag: "result", state },
-  ]);
+  expectGen(i.eval(box("zero", [k(0)]))).toMatchObject([i.result()]);
 
-  expectGen(i.eval(state, box("calls_zero", [k(0)]))).toMatchObject([
-    { tag: "result", state },
-  ]);
+  expectGen(i.eval(box("calls_zero", [k(0)]))).toMatchObject([i.result()]);
 
-  expectGen(i.eval(state, box("=", [k(1), k(2)]))).toMatchObject([]);
-  expectGen(i.eval(state, box("zero", [k(1)]))).toMatchObject([]);
+  expectGen(i.eval(box("=", [k(1), k(2)]))).toMatchObject([]);
+  expectGen(i.eval(box("zero", [k(1)]))).toMatchObject([]);
 
-  expectGenThrow(i.eval(state, k(1)), "expected box");
-  expectGenThrow(i.eval(state, box("does_not_exist", [])), "unknown rule");
-  expectGenThrow(i.eval(state, box("not_a_rule", [])), "invalid rule");
-  expectGenThrow(i.eval(state, box("=", [k(0), k(0), k(0)])), "wrong args");
+  expectGenThrow(i.eval(k(1)), "expected box");
+  expectGenThrow(i.eval(box("does_not_exist", [])), "unknown rule");
+  expectGenThrow(i.eval(box("not_a_rule", [])), "invalid rule");
+  expectGenThrow(i.eval(box("=", [k(0), k(0), k(0)])), "wrong args");
 });
 
 test("eval rest params", () => {
   const i = init();
-  const state = State.init(0);
 
   expectGen(
-    i.eval(state, box("ignores_rest_params", [k(0), k(1), k(2), k(3)])),
-  ).toMatchObject([{ tag: "result", state }]);
+    i.eval(box("ignores_rest_params", [k(0), k(1), k(2), k(3)])),
+  ).toMatchObject([i.result()]);
 });

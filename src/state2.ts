@@ -43,7 +43,7 @@ export class State {
         while (true) {
           const next = this.facts[val.id];
           if (!next || next.tag === "constraint") return val;
-          if (next.tag !== "var") return next;
+          if (next.tag !== "var") return this.resolve(next);
           val = next;
         }
       }
