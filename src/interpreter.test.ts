@@ -26,8 +26,7 @@ function init() {
     ]),
     {
       "=": function* (state, left, right) {
-        state.unify(left, right);
-        yield state.result();
+        if (state.unify(left, right)) yield state.result();
       },
     },
     0,

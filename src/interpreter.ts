@@ -1,6 +1,6 @@
 import { Rec } from "./data";
 import { Expr, Ident, s } from "./expr";
-import { State, Fail, Pid } from "./state2";
+import { State, Pid } from "./state2";
 import { Value, Exception, k, box, FactId } from "./value2";
 
 type SymbolTable = Record<Ident, FactId>;
@@ -52,19 +52,10 @@ export class Interpreter {
   receive(pattern: Value) {
     return { tag: "receive", to: this as Interpreter, pattern } as const;
   }
-  unify(l: Value, r: Value) {
+  unify(l: Value, r: Value): boolean {
     return this.state.unify(l, r);
   }
-  tryUnify(l: Value, r: Value): Interpreter | null {
-    try {
-      this.state.unify(l, r);
-      return this;
-    } catch (e) {
-      if (e instanceof Fail) return null;
-      throw e;
-    }
-  }
-  dif(l: Value, r: Value) {
+  dif(l: Value, r: Value): boolean {
     return this.state.dif(l, r);
   }
   fork() {
@@ -83,12 +74,7 @@ export class Interpreter {
     ensure(value, "box");
     const args = value.args.map((arg) => this.state.resolveVar(arg));
 
-    try {
-      yield* this.call(value.id, args);
-    } catch (e) {
-      if (e instanceof Fail) return;
-      throw e;
-    }
+    yield* this.call(value.id, args);
   }
   private *call(id: string, args: Value[]): ProcessGen {
     // stateProfile.call(id);
@@ -109,13 +95,13 @@ export class Interpreter {
     if (rule.rule__rest_params) {
       const restParams = this.exprValue(rule.rule__rest_params, localSymbols);
       const restArgs = args.slice(params.length);
-      this.state.unify(restParams, box("", restArgs));
+      if (!this.state.unify(restParams, box("", restArgs))) return;
     }
 
     for (let i = 0; i < params.length; i++) {
       const param = this.exprValue(params[i], localSymbols);
       const arg = args[i];
-      this.state.unify(param, arg);
+      if (!this.state.unify(param, arg)) return;
     }
 
     yield* this.eval(this.exprValue(body, localSymbols));

@@ -10,10 +10,6 @@ type Fact = Value | { tag: "constraint"; constraint: Constraint };
 
 type Facts = Record<FactId, Fact>;
 
-// fail & exception use throw because they are non-resumable
-export class Fail {}
-const fail = new Fail();
-
 function unknownContext(ctx: Value) {
   throw new Exception(box("unknown_context", [ctx]));
 }
@@ -67,30 +63,31 @@ export class State {
       }
     }
   }
-  dif(left: Value, right: Value) {
+  dif(left: Value, right: Value): boolean {
     left = this.resolveVar(left);
     right = this.resolveVar(right);
 
     if (left.tag === "var" || right.tag === "var") {
-      if (left.tag === "var") this.difVar(left, right);
-      if (right.tag === "var") this.difVar(right, left);
-      return;
+      if (left.tag === "var" && !this.difVar(left, right)) return false;
+      if (right.tag === "var" && !this.difVar(right, left)) return false;
+      return true;
     }
 
-    if (left.tag !== right.tag) return;
+    if (left.tag !== right.tag) return true;
 
     switch (left.tag) {
       case "string":
       case "number":
-        if ((right as typeof left).value == left.value) throw fail;
-        return;
+        if ((right as typeof left).value == left.value) return false;
+        return true;
       case "box": {
         const r = right as typeof left;
-        if (left.id !== r.id) return;
-        if (left.args.length !== r.args.length) return;
+        if (left.id !== r.id) return true;
+        if (left.args.length !== r.args.length) return true;
         for (let i = 0; i < left.args.length; i++) {
-          this.dif(left.args[i], r.args[i]);
+          if (!this.dif(left.args[i], r.args[i])) return false;
         }
+        return true;
       }
     }
   }
@@ -101,8 +98,8 @@ export class State {
     if (fact.tag !== "constraint") throw new Error("expected constraint");
     return fact.constraint;
   }
-  private difVar(left: Value & { tag: "var" }, right: Value) {
-    if (right.tag === "var" && right.id === left.id) throw fail;
+  private difVar(left: Value & { tag: "var" }, right: Value): boolean {
+    if (right.tag === "var" && right.id === left.id) return false;
 
     const prev = this.getConstraint(left.id);
     const next = { tag: "dif", value: right } as const;
@@ -110,64 +107,68 @@ export class State {
       tag: "constraint",
       constraint: prev ? { tag: "and", left: prev, right: next } : next,
     };
+    return true;
   }
-  unify(left: Value, right: Value) {
+  unify(left: Value, right: Value): boolean {
     left = this.resolveVar(left);
     right = this.resolveVar(right);
 
     switch (left.tag) {
       case "var":
-        this.unifyVar(left, right);
-        return;
+        if (!this.unifyVar(left, right)) return false;
+        return true;
       case "string":
       case "number":
         switch (right.tag) {
           case "var":
-            this.unifyVar(right, left);
-            return;
+            if (!this.unifyVar(right, left)) return false;
+            return true;
           case "box":
-            throw fail;
+            return false;
           case "string":
           case "number":
-            if (left.value !== right.value) throw fail;
-            return;
+            if (left.value !== right.value) return false;
+            return true;
         }
       // eslint-disable-next-line no-fallthrough
       case "box":
         switch (right.tag) {
           case "var":
-            this.unifyVar(right, left);
-            return;
+            if (!this.unifyVar(right, left)) return false;
+            return true;
           case "string":
           case "number":
-            throw fail;
+            return false;
           case "box": {
-            if (left.id !== right.id) throw fail;
-            if (left.args.length !== right.args.length) throw fail;
+            if (left.id !== right.id) return false;
+            if (left.args.length !== right.args.length) return false;
             for (let i = 0; i < left.args.length; i++) {
-              this.unify(left.args[i], right.args[i]);
+              if (!this.unify(left.args[i], right.args[i])) return false;
             }
+            return true;
           }
         }
     }
   }
-  private checkConstraint(constraint: Constraint, value: Value) {
+  private checkConstraint(constraint: Constraint, value: Value): boolean {
     switch (constraint.tag) {
       case "dif":
-        this.dif(constraint.value, value);
-        break;
+        return this.dif(constraint.value, value);
       case "and":
-        this.checkConstraint(constraint.left, value);
-        this.checkConstraint(constraint.right, value);
+        return (
+          this.checkConstraint(constraint.left, value) &&
+          this.checkConstraint(constraint.right, value)
+        );
     }
   }
-  private unifyVar(left: Value & { tag: "var" }, right: Value) {
-    if (right.tag === "var" && right.id === left.id) return;
+  private unifyVar(left: Value & { tag: "var" }, right: Value): boolean {
+    if (right.tag === "var" && right.id === left.id) return true;
 
     const constraint = this.getConstraint(left.id);
-    if (constraint) this.checkConstraint(constraint, right);
+    if (constraint && !this.checkConstraint(constraint, right)) return false;
 
     this.facts[left.id] = right;
+    return true;
   }
   resolveVar(fact: Value): Value {
     switch (fact.tag) {

@@ -1,10 +1,6 @@
 import { expect, test } from "vitest";
-import { State, Fail } from "./state2";
+import { State } from "./state2";
 import { k, v, box, Exception } from "./value2";
-
-function expectFail(fn: () => unknown, message?: string) {
-  expect(fn, message).toThrow(Fail);
-}
 
 test("init", () => {
   const s = State.init(123);
@@ -49,21 +45,18 @@ test("unify", () => {
   s.unify(v(4), v(3));
   expect(s.resolve(v(6)), "long var chain").toEqual(k(2));
 
-  expectFail(() => {
-    const s = State.init(0);
-    s.unify(k(1), k(0));
-  }, "wrong value");
+  expect(State.init(0).unify(k(1), k(0))).toBe(false);
+  // }, "wrong value");
 
-  expectFail(() => {
-    const s = State.init(0);
-    s.unify(k(1), k("1"));
-  }, "wrong type");
+  expect(State.init(0).unify(k(1), k("1"))).toBe(false);
+  // }, "wrong type");
 
-  expectFail(() => {
+  {
     const s = State.init(0);
     s.unify(k(1), v(0));
-    s.unify(k(2), v(0));
-  }, "var already bound to different value");
+    expect(s.unify(k(2), v(0))).toBe(false);
+  }
+  // }, "var already bound to different value");
 });
 
 test("unify var direct circular reference", () => {
@@ -88,30 +81,17 @@ test("unify box", () => {
   expect(s.resolve(v(3))).toEqual(k("foo"));
   expect(s.resolve(v(4))).toEqual(k("bar"));
 
-  expectFail(() => {
-    const s = State.init(0);
-    s.unify(k("foo"), box("foo", []));
-  }, "box with string");
+  expect(State.init(0).unify(k("foo"), box("foo", []))).toBe(false);
 
-  expectFail(() => {
-    const s = State.init(0);
-    s.unify(box("foo", []), k("foo"));
-  }, "string with box");
+  expect(State.init(0).unify(box("foo", []), k("foo"))).toBe(false);
 
-  expectFail(() => {
-    const s = State.init(0);
-    s.unify(box("foo", []), box("bar", []));
-  }, "wrong tag");
+  expect(State.init(0).unify(box("foo", []), box("bar", []))).toBe(false);
 
-  expectFail(() => {
-    const s = State.init(0);
-    s.unify(box("foo", [k(1)]), box("foo", []));
-  }, "wrong number of args");
+  expect(State.init(0).unify(box("foo", [k(1)]), box("foo", []))).toBe(false);
 
-  expectFail(() => {
-    const s = State.init(0);
-    s.unify(box("foo", [k(1)]), box("foo", [k(2)]));
-  }, "wrong contents");
+  expect(State.init(0).unify(box("foo", [k(1)]), box("foo", [k(2)]))).toBe(
+    false,
+  );
 });
 
 test("fork", () => {
@@ -148,22 +128,22 @@ test("dif", () => {
   s.dif(k(2), v(0));
   expect(s.resolve(v(0))).toEqual(k(1));
 
-  expectFail(() => {
+  {
     const s = State.init(0);
-    s.dif(k(1), k(1));
-  }, "same value");
+    expect(s.dif(k(1), k(1))).toBe(false);
+  }
 
-  expectFail(() => {
+  {
     const s = State.init(0);
-    s.dif(k("foo"), k("foo"));
-  }, "same value");
+    expect(s.dif(k("foo"), k("foo"))).toBe(false);
+  }
 
-  expectFail(() => {
+  {
     const s = State.init(0);
     s.unify(v(0), v(1));
     s.unify(v(2), v(0));
-    s.dif(v(1), v(2));
-  }, "same var");
+    expect(s.dif(v(1), v(2))).toBe(false);
+  }
 });
 
 test("dif constraint", () => {
@@ -172,11 +152,11 @@ test("dif constraint", () => {
   s.unify(k(2), v(0));
   expect(s.resolve(v(0))).toEqual(k(2));
 
-  expectFail(() => {
+  {
     const s = State.init(0);
     s.dif(k(1), v(0));
-    s.unify(k(1), v(0));
-  });
+    expect(s.unify(k(1), v(0))).toBe(false);
+  }
 });
 
 test("dif multi constraint", () => {

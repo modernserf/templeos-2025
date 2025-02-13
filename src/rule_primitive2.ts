@@ -69,15 +69,13 @@ export const { rules, rulePrimitives } = compilePrimitives({
   "=": {
     rule__params: l($.left, $.right),
     rule__primitive: function* (it, left, right) {
-      it.unify(left, right);
-      yield it.result();
+      if (it.unify(left, right)) yield it.result();
     },
   },
   "/=": {
     rule__params: l($.left, $.right),
     rule__primitive: function* (it, left, right) {
-      it.dif(left, right);
-      yield it.result();
+      if (it.dif(left, right)) yield it.result();
     },
   },
   ",": {
@@ -114,8 +112,8 @@ export const { rules, rulePrimitives } = compilePrimitives({
         yield* it.fork().eval(try_);
       } catch (e) {
         if (e instanceof Exception) {
-          const next = it.fork().tryUnify(e.error, error_);
-          if (next) {
+          const next = it.fork();
+          if (next.unify(e.error, error_)) {
             yield* next.eval(catch_);
             return;
           }
@@ -142,8 +140,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
         }
       }
 
-      it.unify(out, box("", matches));
-      yield it.result();
+      if (it.unify(out, box("", matches))) yield it.result();
     },
   },
   receive: {
