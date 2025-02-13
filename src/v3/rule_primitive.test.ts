@@ -1,25 +1,28 @@
 import { expect, test } from "vitest";
+import { Process } from "./process";
+import { rules, rulePrimitives } from "./rule_primitive";
+import { box, Exception, k, v, Value } from "./value";
 import {
-  Interpreter,
   ProcessGen,
+  ProcessManager,
   ProcessNext,
   ProcessNextOf,
-} from "./interpreter";
-import { rules, rulePrimitives } from "./rule_primitive2";
-import { box, Exception, k, v, Value } from "./value2";
+} from "./process_manager";
+import { TransactDB } from "../db";
+import { Rec } from "../data";
+
+const db = new TransactDB<Rec>();
+db.bulkInsert(rules);
 
 function setup() {
-  return Interpreter.init(new Map(Object.entries(rules)), rulePrimitives, 0);
+  return ProcessManager.init(db, rulePrimitives).process(0);
 }
 
 function expectGen(gen: Generator<ProcessNext>, message?: string) {
   return expect(Array.from(gen), message);
 }
 
-function mapResults<T>(
-  gen: Generator<ProcessNext>,
-  f: (res: Interpreter) => T,
-) {
+function mapResults<T>(gen: Generator<ProcessNext>, f: (res: Process) => T) {
   return Array.from(gen).map((res) =>
     f((res as ProcessNextOf<"result">).result),
   );
@@ -258,7 +261,7 @@ test("collect_empty", () => {
 
 function handleReceive(gen: ProcessGen, send: Value[]) {
   let next = gen.next();
-  const out: Interpreter[] = [];
+  const out: Process[] = [];
   while (!next.done) {
     if (next.value.tag === "receive") {
       const nextState = next.value.to.fork();

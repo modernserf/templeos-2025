@@ -1,12 +1,8 @@
-import { Rec } from "./data";
+import { Rec } from "../data";
 import { $, l } from "./expr";
-import {
-  Interpreter,
-  ProcessGen,
-  ProcessNext,
-  RulePrimitive,
-} from "./interpreter";
-import { box, Exception, Value } from "./value2";
+import { Process } from "./process";
+import { ProcessGen, ProcessNext, RulePrimitive } from "./process_manager";
+import { box, Exception, Value } from "./value";
 
 function compilePrimitives(
   map: Record<
@@ -33,7 +29,7 @@ function compilePrimitives(
 function* seq_(
   gen: ProcessGen,
   after: Value,
-): Generator<ProcessNext, boolean, Interpreter> {
+): Generator<ProcessNext, boolean, Process> {
   let next = gen.next();
   let didSucceed = false;
   while (!next.done) {

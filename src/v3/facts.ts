@@ -1,6 +1,4 @@
-import { Value, box, k, Exception, FactId } from "./value2";
-
-export type Pid = number;
+import { Value, box, FactId } from "./value";
 
 type Constraint =
   | { tag: "dif"; value: Value }
@@ -8,29 +6,30 @@ type Constraint =
 
 type Fact = Value | { tag: "constraint"; constraint: Constraint };
 
-type Facts = Record<FactId, Fact>;
-
-function unknownContext(ctx: Value) {
-  throw new Exception(box("unknown_context", [ctx]));
-}
-
-export class State {
-  private constructor(
-    public readonly pid: Pid,
-    private facts: Facts,
-    private context: Record<string, Value>,
-  ) {}
-  static init(pid: Pid): State {
-    return new State(pid, {}, {});
+export class Facts {
+  private constructor(private facts: Record<FactId, Fact>) {}
+  static init(): Facts {
+    return new Facts({});
   }
-  fork(): State {
-    return new State(this.pid, { ...this.facts }, this.context);
+  fork(): Facts {
+    return new Facts({ ...this.facts });
   }
-  getContext(key: string) {
-    return this.context[key] ?? unknownContext(k(key));
-  }
-  setContext(key: string, value: Value): State {
-    return new State(this.pid, this.facts, { ...this.context, [key]: value });
+  resolveVar(fact: Value): Value {
+    switch (fact.tag) {
+      case "string":
+      case "number":
+      case "box":
+        return fact;
+      case "var": {
+        let val = fact;
+        while (true) {
+          const next = this.facts[val.id];
+          if (!next || next.tag === "constraint") return val;
+          if (next.tag !== "var") return next;
+          val = next;
+        }
+      }
+    }
   }
   resolve(value: Value): Value {
     switch (value.tag) {
@@ -91,13 +90,6 @@ export class State {
       }
     }
   }
-  private getConstraint(factId: FactId): Constraint | null {
-    const fact = this.facts[factId];
-    if (!fact) return null;
-    /* v8 ignore next */
-    if (fact.tag !== "constraint") throw new Error("expected constraint");
-    return fact.constraint;
-  }
   private difVar(left: Value & { tag: "var" }, right: Value): boolean {
     if (right.tag === "var" && right.id === left.id) return false;
 
@@ -150,17 +142,6 @@ export class State {
         }
     }
   }
-  private checkConstraint(constraint: Constraint, value: Value): boolean {
-    switch (constraint.tag) {
-      case "dif":
-        return this.dif(constraint.value, value);
-      case "and":
-        return (
-          this.checkConstraint(constraint.left, value) &&
-          this.checkConstraint(constraint.right, value)
-        );
-    }
-  }
   private unifyVar(left: Value & { tag: "var" }, right: Value): boolean {
     if (right.tag === "var" && right.id === left.id) return true;
 
@@ -170,21 +151,22 @@ export class State {
     this.facts[left.id] = right;
     return true;
   }
-  resolveVar(fact: Value): Value {
-    switch (fact.tag) {
-      case "string":
-      case "number":
-      case "box":
-        return fact;
-      case "var": {
-        let val = fact;
-        while (true) {
-          const next = this.facts[val.id];
-          if (!next || next.tag === "constraint") return val;
-          if (next.tag !== "var") return next;
-          val = next;
-        }
-      }
+  private getConstraint(factId: FactId): Constraint | null {
+    const fact = this.facts[factId];
+    if (!fact) return null;
+    /* v8 ignore next */
+    if (fact.tag !== "constraint") throw new Error("expected constraint");
+    return fact.constraint;
+  }
+  private checkConstraint(constraint: Constraint, value: Value): boolean {
+    switch (constraint.tag) {
+      case "dif":
+        return this.dif(constraint.value, value);
+      case "and":
+        return (
+          this.checkConstraint(constraint.left, value) &&
+          this.checkConstraint(constraint.right, value)
+        );
     }
   }
 }
