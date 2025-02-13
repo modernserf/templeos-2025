@@ -1,3 +1,6 @@
+import { Rec } from "../data";
+import { TransactDB } from "../db";
+import { Expr } from "./expr";
 import { Facts } from "./facts";
 import { Pid, ProcessGen } from "./process_manager";
 import { Value, Exception, k, box } from "./value";
@@ -11,6 +14,8 @@ export interface IProcessManager {
   sendAsync(pid: Pid, message: Value): void;
   spawn(goal: Value): Pid;
   eval(it: Process, value: Value): ProcessGen;
+  exprValue(expr: Expr, rec: Record<string, number>): Value;
+  db: TransactDB<Rec>;
 }
 
 export class Process {
@@ -63,5 +68,8 @@ export class Process {
   }
   eval(value: Value) {
     return this.processManager.eval(this, value);
+  }
+  exprValue(expr: Expr) {
+    return this.processManager.exprValue(expr, {});
   }
 }

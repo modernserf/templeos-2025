@@ -27,6 +27,7 @@ export default tseslint.config(
         "error",
         { varsIgnorePattern: "^_" },
       ],
+      "require-yield": ["off"],
     },
   },
 );

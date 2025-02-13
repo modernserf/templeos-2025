@@ -1,10 +1,11 @@
 import { Rec } from "../data";
 import { TransactDB } from "../db";
+import { EventSource } from "../event_source";
 import { Expr, Ident, s } from "./expr";
 import { Process } from "./process";
-import { Value, FactId, Exception, box, k } from "./value";
+import { Value, FactId, Exception, box, k, ensure } from "./value";
 
-export type Pid = number;
+export type Pid = number | string;
 
 export type ProcessNext =
   | { tag: "result"; result: Process }
@@ -22,53 +23,57 @@ export type RulePrimitive = (
 
 type SymbolTable = Record<Ident, FactId>;
 
-function ensure<T extends Value["tag"]>(
-  value: Value,
-  tag: T,
-): asserts value is Value & { tag: T } {
-  if (value.tag !== tag) {
-    throw new Exception(box("expected_type", [k(tag), value]));
-  }
-}
-
 function expected(expected: Value, received: Value) {
   throw new Exception(box("expected_received", [expected, received]));
 }
 
+type ProcessRecord =
+  | {
+      tag: "internal";
+      next: IteratorResult<ProcessNext>;
+      gen: Generator<ProcessNext>;
+    }
+  | { tag: "external"; eventSource: EventSource<Value> };
+
 export class ProcessManager {
   constructor(
     private varCount: number,
-    private nextPid: Pid,
-    private db: TransactDB<Rec>,
+    private nextPid: number,
+    public db: TransactDB<Rec>,
     private primitives: Record<string, RulePrimitive>,
     private mailboxes: Map<Pid, Value[]>,
-    private processes: Map<
-      Pid,
-      {
-        next: IteratorResult<ProcessNext>;
-        gen: Generator<ProcessNext>;
-      }
-    >,
+    private processes: Map<Pid, ProcessRecord>,
   ) {}
   static init(db: TransactDB<Rec>, primitives: Record<string, RulePrimitive>) {
     return new ProcessManager(0, 0, db, primitives, new Map(), new Map());
   }
   runExpr(expr: Expr) {
     const goal = this.exprValue(expr, {});
-    this.spawn(goal);
+    return this.spawn(goal);
   }
   process(pid: Pid) {
     return Process.init(this, pid);
   }
   send(pid: Pid, message: Value) {
+    const p = this.processes.get(pid)!;
+    if (p.tag === "external") {
+      p.eventSource.notifyEventListeners(message);
+      return;
+    }
+
     const mailbox = this.mailboxes.get(pid);
     if (!mailbox) throw new Error("missing process");
     mailbox.push(message);
   }
   sendAsync(pid: Pid, message: Value) {
+    const p = this.processes.get(pid)!;
     this.send(pid, message);
-    const { next, gen } = this.processes.get(pid)!;
-    this.runUntilSuspend(pid, next, gen);
+    if (p.tag === "internal") {
+      this.runUntilSuspend(pid, p.next, p.gen);
+    }
+  }
+  addExternal(pid: Pid, eventSource: EventSource<Value>) {
+    this.processes.set(pid, { tag: "external", eventSource });
   }
   spawn(goal: Value): Pid {
     const pid = this.nextPid++;
@@ -77,7 +82,7 @@ export class ProcessManager {
     const proc = Process.init(this, pid);
     const gen = proc.eval(goal);
     const next = gen.next();
-    this.processes.set(pid, { next, gen });
+    this.processes.set(pid, { tag: "internal", next, gen });
     this.runUntilSuspend(pid, next, gen);
     return pid;
   }

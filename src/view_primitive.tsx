@@ -1,12 +1,13 @@
 import { Component, FC, ReactNode } from "react";
-import { __, l, s } from "./expr";
-import { printFact, State, Value } from "./state";
+import { __, l, s } from "./v3/expr";
 import "./view_primitive.css";
-import { useMessageEventSource, useStateCallback } from "./event_source";
-import { debounce } from "./util";
+// import { useMessageEventSource, useStateCallback } from "./event_source";
+// import { debounce } from "./util";
+import { Process } from "./v3/process";
+import { box, ensure, printValue, Value } from "./v3/value";
 
 type VC = FC<{
-  state: State;
+  process: Process;
   id: string;
   values: Value[];
 }>;
@@ -18,116 +19,134 @@ type Props = {
   debounce?: number;
 };
 
-function getProps(state: State, props: Value): Props {
+function getProps(props: Value): Props {
   const out: Record<string, unknown> = {};
   const classList: string[] = [];
   const style: Record<string, string> = {};
-  for (const arg of state.resolveStruct(props).args) {
-    const { id, args } = state.resolveStruct(arg);
+  ensure(props, "box");
+  for (const arg of props.args) {
+    ensure(arg, "box");
+    const { id, args } = arg;
     switch (id) {
       case "class":
-        classList.push(state.resolveString(args[0]));
+        ensure(args[0], "string");
+        classList.push(args[0].value);
         break;
       case "style":
-        style[state.resolveString(args[0])] = state.resolveString(args[1]);
+        ensure(args[0], "string");
+        ensure(args[1], "string");
+        style[args[0].value] = args[1].value;
         break;
       case "placeholder":
-        out.placeholder = state.resolveString(args[0]);
+        ensure(args[0], "string");
+        out.placeholder = args[0].value;
         break;
       case "debounce":
-        out.debounce = state.resolveNumber(args[0]);
+        ensure(args[0], "number");
+        out.debounce = args[0].value;
     }
   }
   return { ...out, className: classList.join(" "), style };
 }
 
-const Html: VC = ({ state, values: [tag, props, children] }) => {
-  const El = state.resolveString(tag);
+const Html: VC = ({ process, values: [tag, props, children] }) => {
+  ensure(tag, "string");
+  const El = tag.value;
   return (
-    <El {...getProps(state, props)}>
-      <Children state={state} children={children} />
+    <El {...getProps(props)}>
+      <Children process={process} children={children} />
     </El>
   );
 };
 
-const Receive: VC = ({ state, values: [pattern, goal, out, render] }) => {
-  const messageState = useMessageEventSource(state, pattern, goal);
-  const children = messageState.fork().render(render, out);
+// const Receive: VC = ({ process, values: [pattern, goal, out, render] }) => {
+//   const messageState = useMessageEventSource(process, pattern, goal);
+//   const children = messageState.fork().render(render, out);
 
-  return (
-    <Children
-      state={messageState}
-      children={{ tag: "box", id: "", args: children }}
-    />
-  );
+//   return (
+//     <Children
+//       process={messageState}
+//       children={{ tag: "box", id: "", args: children }}
+//     />
+//   );
+// };
+
+const String: VC = ({ values: [value] }) => {
+  if (value.tag !== "string" && value.tag !== "number") return null;
+
+  return value.value;
 };
 
-const String: VC = ({ values: [value] }) => value.value;
-
-const Button: VC = ({ state, values: [props, label, next, onClick] }) => {
-  const handle = useStateCallback(state);
+const Button: VC = ({ process, values: [props, label, next, onClick] }) => {
+  // const handle = useStateCallback(process);
+  ensure(label, "string");
   return (
     <button
-      {...getProps(state, props)}
+      {...getProps(props)}
       type="button"
       onClick={(e) => {
         const event = e.metaKey ? s.click(l(s.meta_key())) : s.click(l());
-        handle(next, onClick, event);
+        // handle(next, onClick, event);
       }}
     >
-      {state.resolveString(label)}
+      {label.value}
     </button>
   );
 };
 
-const Input: VC = ({ state, values: [props, value_, next, onChange] }) => {
-  const handle = useStateCallback(state);
-  const inValue = value_.value as string;
-  const { debounce: db = 0, ...jsProps } = getProps(state, props);
+const Input: VC = ({ process, values: [props, value, next, onChange] }) => {
+  // const handle = useStateCallback(process);
+  if (value.tag !== "string" && value.tag !== "number") return null;
+
+  const { debounce: db = 0, ...jsProps } = getProps(props);
 
   return (
     <input
       {...jsProps}
-      defaultValue={inValue}
-      onChange={debounce(db, (e) => {
-        handle(next, onChange, s.change(e.target.value));
-      })}
-      onFocus={() => {
-        handle(next, onChange, s.focus());
-      }}
-      onBlur={() => {
-        handle(next, onChange, s.blur());
-      }}
+      defaultValue={value.value}
+      // onChange={debounce(db, (e) => {
+      //   handle(next, onChange, s.change(e.target.value));
+      // })}
+      // onFocus={() => {
+      //   handle(next, onChange, s.focus());
+      // }}
+      // onBlur={() => {
+      //   handle(next, onChange, s.blur());
+      // }}
     />
   );
 };
 
 const Select: VC = ({
-  state,
+  process,
   values: [props, value, options, next, onChange],
 }) => {
-  const handle = useStateCallback(state);
+  ensure(value, "string");
+  ensure(options, "box");
+
+  // const handle = useStateCallback(process);
   return (
     <select
-      {...getProps(state, props)}
-      value={state.resolveString(value)}
+      {...getProps(props)}
+      value={value.value}
       onChange={(e) => {
-        handle(next, onChange, s.change(e.target.value));
+        // handle(next, onChange, s.change(e.target.value));
       }}
       onFocus={() => {
-        handle(next, onChange, s.focus());
+        // handle(next, onChange, s.focus());
       }}
       onBlur={() => {
-        handle(next, onChange, s.blur());
+        // handle(next, onChange, s.blur());
       }}
     >
-      {state.resolveStruct(options).args.map((opt) => {
-        const box = state.resolveStruct(opt);
-        const id = state.resolveString(box.args[0]);
-        const label = state.resolveString(box.args[1]);
+      {options.args.map((opt) => {
+        ensure(opt, "box");
+        const [id, label] = opt.args;
+        ensure(id, "string");
+        ensure(label, "string");
         return (
-          <option key={id} value={id}>
-            {label}
+          <option key={id.value} value={id.value}>
+            {label.value}
           </option>
         );
       })}
@@ -140,13 +159,13 @@ const Icon: VC = () => (
 );
 
 const WindowContainer: VC = ({
-  state,
-  values: [windowId_, currentWindowId_, onSelect, onBack, onForward, children],
+  process,
+  values: [windowId, currentWindowId, onSelect, onBack, onForward, children],
 }) => {
-  const windowId = state.resolveString(windowId_);
-  const currentWindowId = state.resolveString(currentWindowId_);
-  const handle = useStateCallback(state);
-  const isCurrent = windowId === currentWindowId;
+  ensure(windowId, "string");
+  ensure(currentWindowId, "string");
+  // const handle = useStateCallback(process);
+  const isCurrent = windowId.value === currentWindowId.value;
   return (
     <div
       tabIndex={0}
@@ -154,20 +173,20 @@ const WindowContainer: VC = ({
         .filter(Boolean)
         .join(" ")}
       onMouseDownCapture={() => {
-        if (!isCurrent) handle(__, onSelect, __);
+        // if (!isCurrent) handle(__, onSelect, __);
       }}
       onKeyDownCapture={(e) => {
         if (e.key == "[" && e.metaKey) {
           e.preventDefault();
-          handle(__, onBack, __);
+          // handle(__, onBack, __);
         }
         if (e.key == "]" && e.metaKey) {
           e.preventDefault();
-          handle(__, onForward, __);
+          // handle(__, onForward, __);
         }
       }}
     >
-      <Children state={state} children={children} />
+      <Children process={process} children={children} />
     </div>
   );
 };
@@ -180,13 +199,13 @@ const viewPrimitives: Record<string, VC> = {
   Icon,
   Input,
   WindowContainer,
-  Receive,
+  // Receive,
 };
 
 const DefaultRenderer: VC = ({ id, values }) => {
   return (
     <div style={{ backgroundColor: "pink" }}>
-      <pre>{printFact({ tag: "box", id, args: values ?? [] })}</pre>
+      <pre>{printValue(box(id, values ?? []))}</pre>
     </div>
   );
 };
@@ -197,16 +216,16 @@ export class ErrorBoundary extends Component<
 > {
   constructor(props: { children: ReactNode }) {
     super(props);
-    this.state = { error: null };
+    this.process = { error: null };
   }
   static getDerivedStateFromError(error: Error) {
     return { error };
   }
   render() {
-    if (this.state.error) {
+    if (this.process.error) {
       return (
         <div style={{ backgroundColor: "pink" }}>
-          <div>{this.state.error.message}</div>
+          <div>{this.process.error.message}</div>
         </div>
       );
     }
@@ -214,7 +233,13 @@ export class ErrorBoundary extends Component<
   }
 }
 
-function Children({ state, children }: { state: State; children: Value }) {
+function Children({
+  process,
+  children,
+}: {
+  process: Process;
+  children: Value;
+}) {
   if (!children) {
     return (
       <div style={{ backgroundColor: "pink" }}>
@@ -225,25 +250,25 @@ function Children({ state, children }: { state: State; children: Value }) {
   return (
     <>
       {(children.args as (Value & { tag: "box" })[]).map((arg, i) => (
-        <Primitive key={i} state={state} id={arg.id} values={arg.args} />
+        <Primitive key={i} process={process} id={arg.id} values={arg.args} />
       ))}
     </>
   );
 }
 
 export function Primitive({
-  state,
+  process,
   id,
   values,
 }: {
-  state: State;
+  process: Process;
   id: string;
   values: Value[];
 }) {
   const View = viewPrimitives[id] ?? DefaultRenderer;
   return (
     <ErrorBoundary>
-      <View state={state} id={id} values={values} />
+      <View process={process} id={id} values={values} />
     </ErrorBoundary>
   );
 }

@@ -587,3 +587,5 @@ export const primitives: Record<string, RulePrimitive> = {
     throw new Error("unreachable");
   }),
 };
+
+primitives[","] = primitives.do;

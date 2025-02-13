@@ -46,7 +46,7 @@ export const testUtils = {
   expect_eq: {
     rule__params: l($.received, $.expected),
     rule__body: s.if_then_else(
-      r(s.nonvar($.received), s("=", $.received, $.expected)),
+      s[","](s.nonvar($.received), s("=", $.received, $.expected)),
       s.ok(),
       s.throw(s.expected_received($.expected, $.received)),
     ),
@@ -55,7 +55,7 @@ export const testUtils = {
     rule__params: l($.pattern, $.goal),
     rule__rest_params: $.expected,
     rule__body: s.if_then_else(
-      s.collect($.pattern, $.goal, $.received),
+      s.collect_empty($.pattern, $.goal, $.received),
       s.expect_eq($.received, $.expected),
       s.throw(s.expected_received($.expected, l())),
     ),

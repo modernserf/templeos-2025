@@ -10,9 +10,11 @@ import {
 } from "./process_manager";
 import { TransactDB } from "../db";
 import { Rec } from "../data";
+import { testUtils } from "../data/test_utils";
 
 const db = new TransactDB<Rec>();
 db.bulkInsert(rules);
+db.bulkInsert(testUtils);
 
 function setup() {
   return ProcessManager.init(db, rulePrimitives).process(0);
@@ -307,4 +309,26 @@ test("receive", () => {
       [k("foo")],
     ).map((it) => it.resolve(v(1))),
   ).toEqual([box("", [k("foo")])]);
+});
+
+test("hosted tests", () => {
+  // TODO: query db
+  const hosted_tests = [
+    "test__limit",
+    "test__string_number",
+    "test__string_substring",
+    "test__number_min_max",
+    "test__box_length",
+    "test__box_tag_list",
+    "test__box_at_value",
+    "test__box_at_value_updated",
+    "test__box_from_to_slice",
+    "test__box_box_append",
+  ];
+
+  for (const testId of hosted_tests) {
+    expect(() => {
+      Array.from(setup().eval(box(testId, [])));
+    }, testId).not.toThrow();
+  }
 });

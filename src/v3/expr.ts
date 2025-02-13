@@ -37,6 +37,11 @@ export const s = new Proxy(
   Ss<"sorted"> &
   Ss<"code">;
 
+export const seq = (head: Expr, ...tail: Expr[]) =>
+  tail.reduce((l, r) => s[","](l, r), head) as AnyStruct;
+export const alt = (head: Expr, ...tail: Expr[]) =>
+  tail.reduce((l, r) => s[";"](l, r), head) as AnyStruct;
+
 type Ss<Tag extends string> = { [t in Tag]: S<Tag> };
 
 type S<Tag extends string> = <Args extends Expr[]>(
