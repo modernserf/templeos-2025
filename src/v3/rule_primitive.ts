@@ -16,7 +16,10 @@ import {
 function compilePrimitives(
   map: Record<
     string,
-    Pick<Rec, "rule__params" | "rule__rest_params" | "rule__body"> & {
+    Pick<
+      Rec,
+      "test__group" | "rule__params" | "rule__rest_params" | "rule__body"
+    > & {
       rule__primitive?: RulePrimitive;
     }
   >,
@@ -128,8 +131,8 @@ export const { rules, rulePrimitives } = compilePrimitives({
   },
   throw: {
     rule__params: l($.error),
-    rule__primitive: function* (_, error) {
-      throw new Exception(error);
+    rule__primitive: function* (it, error) {
+      throw new Exception(it.resolve(error));
     },
   },
   try_error_catch: {
@@ -179,6 +182,28 @@ export const { rules, rulePrimitives } = compilePrimitives({
       yield next.result();
     },
   },
+  type_value: {
+    rule__params: l($.type, $.value),
+    rule__primitive: function* (it, type, value) {
+      if (it.unify(type, box(value.tag, []))) yield it.result();
+    },
+  },
+  test__type_value: {
+    test__group: "core",
+    rule__params: l(),
+    rule__body: seq(
+      test.ok(s.type_value(s.var(), __)),
+      test.ok(s.type_value(s.var(), $.x)),
+      test.ok(s.type_value(s.number(), 123)),
+      test.ok(s.type_value(s.string(), "hello")),
+      test.ok(s.type_value(s.box(), s.id(123, "hello"))),
+      test.ok(s.type_value(s.box(), l(__, __))),
+
+      s("=", $.y, 123),
+      test.ok(s.type_value(s.number(), $.y)),
+    ),
+  },
+
   limit: {
     rule__params: l($.limit, $.goal),
     rule__primitive: function* (it, limit, goal) {
@@ -201,6 +226,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     },
   },
   test__limit: {
+    test__group: "primitives",
     rule__params: l(),
     rule__body: test.collect(
       $.item,
@@ -236,6 +262,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     },
   },
   test__string_number: {
+    test__group: "primitives",
     rule__params: l(),
     rule__body: seq(
       test.collect($.number, s.string_number("123", $.number), 123),
@@ -254,6 +281,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     },
   },
   test__string_substring: {
+    test__group: "primitives",
     rule__params: l(),
     rule__body: seq(
       test.ok(s.string_substring("foobar", "oo")),
@@ -288,6 +316,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     },
   },
   test__number_min_max: {
+    test__group: "primitives",
     rule__params: l(),
     rule__body: seq(
       test.ok(s.number_min_max(3, 0, 10)),
@@ -310,6 +339,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     },
   },
   test__length_box: {
+    test__group: "primitives",
     rule__params: l(),
     rule__body: seq(
       test.collect($.len, s.length_box($.len, s.foo()), 0),
@@ -332,6 +362,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     },
   },
   test__box_tag_list: {
+    test__group: "primitives",
     rule__params: l(),
     rule__body: seq(
       test.collect(
@@ -367,6 +398,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     },
   },
   test__value_box_index: {
+    test__group: "primitives",
     rule__params: l(),
     rule__body: seq(
       // get
@@ -406,6 +438,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     },
   },
   test__updated_box_index_value: {
+    test__group: "primitives",
     rule__params: l(),
     rule__body: seq(
       test.collect(
@@ -414,6 +447,23 @@ export const { rules, rulePrimitives } = compilePrimitives({
         s.foo(123, "b"),
       ),
     ),
+  },
+  updated_box_changelist: {
+    rule__params: l($.updated, $.box, $.changelist),
+    rule__primitive: function* (it, updated, b, changelist) {
+      ensure(b, "box");
+      ensure(changelist, "box");
+      const nextArgs = b.args.slice();
+      for (let i = 0; i < changelist.args.length; i++) {
+        const pair = changelist.args[i];
+        ensure(pair, "box");
+        const [index, value] = pair.args;
+        ensure(index, "number");
+        if (index.value < 0 || index.value >= b.args.length) return;
+        nextArgs[index.value] = value;
+      }
+      if (it.unify(updated, box(b.id, nextArgs))) yield it.result();
+    },
   },
   slice_box_from_to: {
     rule__params: l($.slice, $.box, $.from, $.to),
@@ -431,6 +481,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     },
   },
   test__slice_box_from_to: {
+    test__group: "primitives",
     rule__params: l(),
     rule__body: seq(
       // all outputs
@@ -489,6 +540,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     },
   },
   test__append_left_right: {
+    test__group: "primitives",
     rule__params: l(),
     rule__body: seq(
       // concat
@@ -663,7 +715,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     },
   },
 
-  send: {
+  proc_send: {
     rule__params: l($.pid, $.message),
     rule__primitive: function* (it, pid, message) {
       if (pid.tag === "number" || pid.tag === "string") {

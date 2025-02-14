@@ -35,12 +35,15 @@ export const s = new Proxy(
   Ss<"ref"> &
   Ss<"multiRef"> &
   Ss<"sorted"> &
-  Ss<"code">;
+  Ss<"code"> &
+  Ss<"field"> &
+  Ss<"field_optional">;
 
 export const seq = (head: Expr, ...tail: Expr[]) =>
-  tail.reduce((l, r) => s[","](l, r), head) as AnyStruct;
+  tail.reduce((l, r) => s(",", l, r), head) as AnyStruct;
 export const alt = (head: Expr, ...tail: Expr[]) =>
-  tail.reduce((l, r) => s[";"](l, r), head) as AnyStruct;
+  tail.reduce((l, r) => s(";", l, r), head) as AnyStruct;
+export const u = (l: Expr, r: Expr) => s("=", l, r);
 
 type Ss<Tag extends string> = { [t in Tag]: S<Tag> };
 

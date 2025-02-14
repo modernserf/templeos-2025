@@ -1,5 +1,12 @@
+import { TransactDB } from "../db";
 import { Expr, Struct, Id, List, AnyStruct, l, s, $ } from "../v3/expr";
-import { rules as rulePrimitiveRecs } from "../v3/rule_primitive";
+import { ProcessManager } from "../v3/process_manager";
+import {
+  rules as rulePrimitiveRecs,
+  rulePrimitives,
+} from "../v3/rule_primitive";
+import { core } from "./core";
+import { testUtils } from "./test_utils";
 
 export type Schema =
   | "any_record"
@@ -122,7 +129,16 @@ function mergeAndCheck(
 }
 
 // always loads from source
-export const data = mergeAndCheck([rulePrimitiveRecs], {});
+export const data = mergeAndCheck([testUtils, rulePrimitiveRecs, core], {});
 
 // loads from db if available
 export const initState = mergeAndCheck([], data);
+
+export function initProcessManager() {
+  // TODO: do storage setup here
+  const db = new TransactDB<Rec>();
+  db.bulkInsert(data);
+
+  const p = ProcessManager.init(db, rulePrimitives);
+  return p;
+}

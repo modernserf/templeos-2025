@@ -1,17 +1,12 @@
-import { ProcessManager } from "./v3/process_manager";
 // import { loadState } from "./storage";
 import { Primitive } from "./view_primitive";
 import { $, s, seq } from "./v3/expr";
-import { TransactDB } from "./db";
-import { Rec } from "./data";
-import { rules, rulePrimitives } from "./v3/rule_primitive";
+import { initProcessManager } from "./data";
 import { useEffect, useState } from "react";
 import { EventSource } from "./event_source";
 import { Value } from "./v3/value";
 
-const db = new TransactDB<Rec>();
-db.bulkInsert(rules);
-const p = ProcessManager.init(db, rulePrimitives);
+const p = initProcessManager();
 const eventSource = new EventSource<Value>();
 p.addExternal("root_view", eventSource);
 
@@ -19,7 +14,7 @@ const rootView = s.loop(
   seq(
     s.receive(s.render()),
     s.timestamp($.ts),
-    s("send", "root_view", s.String($.ts)),
+    s.proc_send("root_view", s.String($.ts)),
   ),
 );
 

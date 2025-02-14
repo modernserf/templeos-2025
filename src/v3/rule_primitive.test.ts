@@ -310,25 +310,3 @@ test("receive", () => {
     ).map((it) => it.resolve(v(1))),
   ).toEqual([box("", [k("foo")])]);
 });
-
-test("hosted tests", () => {
-  // TODO: query db
-  const hosted_tests = [
-    "test__limit",
-    "test__string_number",
-    "test__string_substring",
-    "test__number_min_max",
-    "test__length_box",
-    "test__box_tag_list",
-    "test__value_box_index",
-    "test__updated_box_index_value",
-    "test__slice_box_from_to",
-    "test__append_left_right",
-  ];
-
-  for (const testId of hosted_tests) {
-    expect(() => {
-      Array.from(setup().eval(box(testId, [])));
-    }, testId).not.toThrow();
-  }
-});
