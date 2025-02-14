@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { State } from "./state";
 import { Expr, AnyStruct, r, s, $, __ } from "./expr";
-import { data } from "./data";
+import { data } from "./old-data";
 
 function runAll(...clauses: Expr[]) {
   const state = State.root(data);

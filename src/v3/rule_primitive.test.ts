@@ -239,14 +239,14 @@ test("try_error_catch", () => {
   }).toThrow(Exception);
 });
 
-test("collect_empty", () => {
+test("collect_item_in", () => {
   expect(
     mapResults(
       setup().eval(
-        box("collect_empty", [
+        box("collect_item_in", [
+          v(1),
           v(0),
           box(";", [box("=", [v(0), k(123)]), box("=", [v(0), k(456)])]),
-          v(1),
         ]),
       ),
       (it) => it.resolve(v(1)),
@@ -255,7 +255,7 @@ test("collect_empty", () => {
 
   expect(
     mapResults(
-      setup().eval(box("collect_empty", [v(0), box("fail", []), v(1)])),
+      setup().eval(box("collect_item_in", [v(1), v(0), box("fail", [])])),
       (it) => it.resolve(v(1)),
     ),
   ).toEqual([box("", [])]);
@@ -300,10 +300,10 @@ test("receive", () => {
   expect(
     handleReceive(
       setup().eval(
-        box("collect_empty", [
+        box("collect_item_in", [
+          v(1),
           v(0), //
           box("receive", [v(0)]),
-          v(1),
         ]),
       ),
       [k("foo")],
@@ -318,12 +318,12 @@ test("hosted tests", () => {
     "test__string_number",
     "test__string_substring",
     "test__number_min_max",
-    "test__box_length",
+    "test__length_box",
     "test__box_tag_list",
-    "test__box_at_value",
-    "test__box_at_value_updated",
-    "test__box_from_to_slice",
-    "test__box_box_append",
+    "test__value_box_index",
+    "test__updated_box_index_value",
+    "test__slice_box_from_to",
+    "test__append_left_right",
   ];
 
   for (const testId of hosted_tests) {

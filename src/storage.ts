@@ -1,4 +1,4 @@
-import { data, initState } from "./data";
+import { data, initState } from "./old-data";
 import { wholeDatabaseEventSource } from "./event_source";
 import { debounce } from "./util";
 

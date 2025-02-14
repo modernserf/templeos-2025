@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Value, State, Exception, printFact, sv, exprValue } from "./state";
 import { Expr } from "./expr";
 import { DB } from "./db";
-import { Rec } from "./data";
+import { Rec } from "./old-data";
 
 export type EventListener<T> = (value: T) => void;
 

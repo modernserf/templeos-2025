@@ -149,9 +149,9 @@ export const { rules, rulePrimitives } = compilePrimitives({
       }
     },
   },
-  collect_empty: {
-    rule__params: l($.pattern, $.goal, $.out),
-    rule__primitive: function* (it, pattern, goal, out) {
+  collect_item_in: {
+    rule__params: l($.out, $.pattern, $.goal),
+    rule__primitive: function* (it, out, pattern, goal) {
       const matches: Value[] = [];
 
       const gen = it.fork().eval(goal);
@@ -301,19 +301,19 @@ export const { rules, rulePrimitives } = compilePrimitives({
       test.collect($.val, s.number_min_max($.val, 3, 6), 3, 4, 5, 6),
     ),
   },
-  box_length: {
-    rule__params: l($.box, $.length),
-    rule__primitive: function* (it, box, length) {
+  length_box: {
+    rule__params: l($.length, $.box),
+    rule__primitive: function* (it, length, box) {
       ensure(box, "box");
       if (!it.unify(length, k(box.args.length))) return;
       yield it.result();
     },
   },
-  test__box_length: {
+  test__length_box: {
     rule__params: l(),
     rule__body: seq(
-      test.collect($.len, s.box_length(s.foo(), $.len), 0),
-      test.collect($.len, s.box_length(s.bar(1, 2, 3), $.len), 3),
+      test.collect($.len, s.length_box($.len, s.foo()), 0),
+      test.collect($.len, s.length_box($.len, s.bar(1, 2, 3)), 3),
     ),
   },
   box_tag_list: {
@@ -342,45 +342,57 @@ export const { rules, rulePrimitives } = compilePrimitives({
       test.collect($.box, s.box_tag_list($.box, "bar", l(789)), s.bar(789)),
     ),
   },
-  box_at_value: {
-    rule__params: l($.box, $.index, $.value),
-    rule__primitive: function* (it, aBox, index, value) {
-      ensure(aBox, "box");
+  // Why this order?
+  // value = box[index]
+  // expr(value, value_box_index(box, index))
+  // pipe(value, box, value_box_index(index))
+  value_box_index: {
+    rule__params: l($.value, $.box, $.index),
+    rule__primitive: function* (it, value, b, index) {
+      ensure(b, "box");
       if (index.tag === "number") {
         const i = index.value;
-        if (i < 0 || i >= aBox.args.length) return;
-        if (it.unify(value, aBox.args[i])) {
+        if (i < 0 || i >= b.args.length) return;
+        if (it.unify(value, b.args[i])) {
           yield it.result();
         }
       } else {
-        for (let i = 0; i < aBox.args.length; i++) {
+        for (let i = 0; i < b.args.length; i++) {
           const ns = it.fork();
-          if (ns.unify(index, k(i)) && ns.unify(value, aBox.args[i])) {
+          if (ns.unify(index, k(i)) && ns.unify(value, b.args[i])) {
             yield ns.result();
           }
         }
       }
     },
   },
-  test__box_at_value: {
+  test__value_box_index: {
     rule__params: l(),
     rule__body: seq(
       // get
-      test.collect($.value, s.box_at_value(s.pair(123, 456), 0, $.value), 123),
+      test.collect(
+        $.value,
+        s.value_box_index($.value, s.pair(123, 456), 0),
+        123,
+      ),
       // iter
       test.collect(
         l($.index, $.value),
-        s.box_at_value(s.pair(123, 456), $.index, $.value),
+        s.value_box_index($.value, s.pair(123, 456), $.index),
         l(0, 123),
         l(1, 456),
       ),
       // find
-      test.collect($.index, s.box_at_value(s.pair(123, 456), $.index, 456), 1),
+      test.collect(
+        $.index,
+        s.value_box_index(456, s.pair(123, 456), $.index),
+        1,
+      ),
     ),
   },
-  box_at_value_updated: {
-    rule__params: l($.box, $.index, $.value, $.updated),
-    rule__primitive: function* (it, b, index, value, updated) {
+  updated_box_index_value: {
+    rule__params: l($.updated, $.box, $.index, $.value),
+    rule__primitive: function* (it, updated, b, index, value) {
       ensure(b, "box");
       ensure(index, "number");
       const i = index.value;
@@ -393,19 +405,19 @@ export const { rules, rulePrimitives } = compilePrimitives({
       }
     },
   },
-  test__box_at_value_updated: {
+  test__updated_box_index_value: {
     rule__params: l(),
     rule__body: seq(
       test.collect(
         $.value,
-        s.box_at_value_updated(s.foo("a", "b"), 0, 123, $.value),
+        s.updated_box_index_value($.value, s.foo("a", "b"), 0, 123),
         s.foo(123, "b"),
       ),
     ),
   },
-  box_from_to_slice: {
-    rule__params: l($.box, $.from, $.to, $.slice),
-    rule__primitive: function* (it, b, from, to, slice) {
+  slice_box_from_to: {
+    rule__params: l($.slice, $.box, $.from, $.to),
+    rule__primitive: function* (it, slice, b, from, to) {
       ensure(b, "box");
       const fromVal = from.tag == "number" ? from.value : 0;
       const toVal = to.tag == "number" ? to.value : b.args.length;
@@ -418,26 +430,26 @@ export const { rules, rulePrimitives } = compilePrimitives({
       }
     },
   },
-  test__box_from_to_slice: {
+  test__slice_box_from_to: {
     rule__params: l(),
     rule__body: seq(
       // all outputs
       test.collect(
         l($.from, $.to, $.slice),
-        s.box_from_to_slice(l("a", "b", "c"), $.from, $.to, $.slice),
+        s.slice_box_from_to($.slice, l("a", "b", "c"), $.from, $.to),
         l(0, 3, l("a", "b", "c")),
       ),
       // subset
       test.collect(
         $.slice,
-        s.box_from_to_slice(l("a", "b", "c"), 1, __, $.slice),
+        s.slice_box_from_to($.slice, l("a", "b", "c"), 1, __),
         l("b", "c"),
       ),
     ),
   },
-  box_box_append: {
-    rule__params: l($.left, $.right, $.append),
-    rule__primitive: function* (state, left, right, append) {
+  append_left_right: {
+    rule__params: l($.append, $.left, $.right),
+    rule__primitive: function* (state, append, left, right) {
       if (left.tag == "box" && right.tag == "box") {
         if (left.tag !== right.tag) return;
         if (left.args.length === 0) {
@@ -476,31 +488,31 @@ export const { rules, rulePrimitives } = compilePrimitives({
       }
     },
   },
-  test__box_box_append: {
+  test__append_left_right: {
     rule__params: l(),
     rule__body: seq(
       // concat
       test.collect(
         $.append,
-        s.box_box_append(l("a"), l("b", "c"), $.append),
+        s.append_left_right($.append, l("a"), l("b", "c")),
         l("a", "b", "c"),
       ),
       // cons
       test.collect(
         l($.head, $.tail),
-        s.box_box_append(l($.head), $.tail, l("a", "b", "c")),
+        s.append_left_right(l("a", "b", "c"), l($.head), $.tail),
         l("a", l("b", "c")),
       ),
       // stack
       test.collect(
         l($.stack, $.pop),
-        s.box_box_append($.stack, l($.pop), l("a", "b", "c")),
+        s.append_left_right(l("a", "b", "c"), $.stack, l($.pop)),
         l(l("a", "b"), "c"),
       ),
       // scan
       test.collect(
         $.left,
-        s.box_box_append($.left, __, l("a", "b", "c")),
+        s.append_left_right(l("a", "b", "c"), $.left, __),
         l(),
         l("a"),
         l("a", "b"),
@@ -590,10 +602,9 @@ export const { rules, rulePrimitives } = compilePrimitives({
       yield it.result();
     },
   },
-  // just id -> field -> value
-  record_field_value__primitive: {
-    rule__params: l($.id, $.field, $.value),
-    rule__primitive: function* (it, id, field, value) {
+  value_record_field: {
+    rule__params: l($.value, $.id, $.field),
+    rule__primitive: function* (it, value, id, field) {
       ensure(id, "string");
       ensure(field, "string");
 
@@ -604,9 +615,9 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (it.unify(it.exprValue(val), value)) yield it.result();
     },
   },
-  index_field_record__primitive: {
-    rule__params: l($.index, $.field, $.id),
-    rule__primitive: function* (it, index, field, id) {
+  record_index_field: {
+    rule__params: l($.id, $.index, $.field),
+    rule__primitive: function* (it, id, index, field) {
       ensure(field, "string");
 
       const idx = it.processManager.db.getIndex(field.value);
@@ -622,9 +633,9 @@ export const { rules, rulePrimitives } = compilePrimitives({
       }
     },
   },
-  record_field__primitive: {
-    rule__params: l($.id, $.field),
-    rule__primitive: function* (it, id, field) {
+  field_record: {
+    rule__params: l($.field, $.id),
+    rule__primitive: function* (it, field, id) {
       ensure(id, "string");
       const rec = it.processManager.db.get(id.value);
       if (!rec) return;
@@ -638,7 +649,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       }
     },
   },
-  record__primitive: {
+  record: {
     rule__params: l($.id),
     rule__primitive: function* (it, id) {
       if (id.tag === "string") {

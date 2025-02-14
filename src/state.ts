@@ -1,4 +1,4 @@
-import { Rec } from "./data";
+import { Rec } from "./old-data";
 import { TransactDB } from "./db";
 import { EventSource } from "./event_source";
 import { Expr, Id, Ident, __, s, $ } from "./expr";

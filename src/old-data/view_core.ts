@@ -3,6 +3,7 @@ import { l, r, s, $, view, u, __ } from "../expr";
 import { test } from "./test_utils";
 
 export const viewCore = {
+  // this is just "=" isnt it
   view__output: {
     rule__params: l($.out, $.out),
     rule__body: r(),
