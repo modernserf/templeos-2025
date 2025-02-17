@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, Expr, seq } from "../v3/expr";
+import { l, s, $, Expr, seq } from "../expr";
 
 export const test = {
   ok: (goal: Expr) => s.expect_ok(goal),
@@ -45,7 +45,7 @@ export const testUtils = {
   expect_eq: {
     rule__params: l($.received, $.expected),
     rule__body: s.if_then_else(
-      s[","](s.nonvar($.received), s("=", $.received, $.expected)),
+      s(",", s.nonvar($.received), s("=", $.received, $.expected)),
       s.ok(),
       s.throw(s.expected_received($.expected, $.received)),
     ),

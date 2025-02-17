@@ -1,21 +1,19 @@
-import { defaultOrd, Ord } from "./db";
-export type Id = string;
-export type Ident = string;
+import { defaultOrd, Ord } from "./ord";
 
+export type Id = string;
 export type Expr =
   | string
   | number
+  | { tag: "box"; id: Id; args: Expr[] }
   | { tag: "placeholder" }
-  | { tag: "ident"; ident: Ident }
-  | { tag: "box"; id: Id; args: Expr[] };
-
-export type Struct<Id, Args extends Expr[]> = {
+  | { tag: "ident"; ident: string };
+export type Box<Id, Args extends Expr[]> = {
   tag: "box";
   id: Id;
   args: Args;
 };
-export type List<T extends Expr> = Struct<"", T[]>;
-export type AnyStruct = Struct<string, Expr[]>;
+export type List<T extends Expr> = Box<"", T[]>;
+export const __ = { tag: "placeholder" } as const;
 
 export const s = new Proxy(
   <T extends Id, Args extends Expr[]>(id: T, ...args: Args) =>
@@ -28,7 +26,7 @@ export const s = new Proxy(
 ) as (<T extends Id, Args extends Expr[]>(
   id: T,
   ...args: Args
-) => Struct<T, Args>) & { [Tag in Id]: S<Tag> } & Ss<"call"> &
+) => Box<T, Args>) & { [Tag in Id]: S<Tag> } & Ss<"call"> &
   Ss<"apply"> &
   Ss<"section"> &
   Ss<"link"> &
@@ -36,15 +34,16 @@ export const s = new Proxy(
   Ss<"ref"> &
   Ss<"multiRef"> &
   Ss<"sorted"> &
-  Ss<"code">;
+  Ss<"code"> &
+  Ss<"field"> &
+  Ss<"field_optional">;
 
 type Ss<Tag extends string> = { [t in Tag]: S<Tag> };
 
 type S<Tag extends string> = <Args extends Expr[]>(
   ...args: Args
-) => Struct<Tag, Args>;
+) => Box<Tag, Args>;
 
-export const __ = { tag: "placeholder" } as const;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const $: any = new Proxy(
   function v(ident: string) {
@@ -60,20 +59,12 @@ export const $: any = new Proxy(
 export function l<Args extends Expr[]>(...args: Args) {
   return s("", ...args);
 }
-export function r<Args extends Expr[]>(...args: Args) {
-  if (args.length === 1) return args[0] as AnyStruct;
-  return s("do", ...args);
-}
-export const u = (l: Expr, r: Expr) => s("=", l, r);
 
-export const view = new Proxy(
-  {},
-  {
-    get(_, key: string) {
-      return (...args: Expr[]) => s(`view__${key}`, ...args);
-    },
-  },
-) as Record<string, (...args: Expr[]) => AnyStruct>;
+export const seq = (head: Expr, ...tail: Expr[]) =>
+  tail.reduce((l, r) => s(",", l, r), head) as Box<string, Expr[]>;
+export const alt = (head: Expr, ...tail: Expr[]) =>
+  tail.reduce((l, r) => s(";", l, r), head) as Box<string, Expr[]>;
+export const u = (l: Expr, r: Expr) => s("=", l, r);
 
 function sameTypeExpr<T extends Expr>(l: T, r: Expr): r is T {
   if (typeof l === "object" && typeof r === "object") {
@@ -121,7 +112,7 @@ export const exprOrd: Ord<Expr> = {
             }
             break;
           case "box":
-            if (sameTypeExpr(l as AnyStruct, r)) {
+            if (sameTypeExpr(l as Box<string, Expr[]>, r)) {
               const ord =
                 defaultOrd.cmp(l.id, r.id) ||
                 defaultOrd.cmp(l.args.length, r.args.length);
@@ -137,21 +128,3 @@ export const exprOrd: Ord<Expr> = {
     return defaultOrd.cmp(exprTypeOrd(l), exprTypeOrd(r));
   },
 };
-
-export function printExpr(expr: Expr): string {
-  switch (typeof expr) {
-    case "string":
-      return `"${expr}"`;
-    case "number":
-      return String(expr);
-    case "object":
-      switch (expr.tag) {
-        case "placeholder":
-          return "__";
-        case "ident":
-          return expr.ident;
-        case "box":
-          return `${expr.id}(${expr.args.map(printExpr).join(", ")})`;
-      }
-  }
-}

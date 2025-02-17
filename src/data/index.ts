@@ -1,11 +1,8 @@
 import { TransactDB } from "../db";
-import { Expr, Struct, Id, List, AnyStruct, l, s, $ } from "../v3/expr";
-import { ProcessManager } from "../v3/process_manager";
-import {
-  rules as rulePrimitiveRecs,
-  rulePrimitives,
-} from "../v3/rule_primitive";
+import { ProcessManager } from "../v4";
+import { Expr, Box, Id, List } from "../expr";
 import { core } from "./core";
+import { rules as rulePrimitiveRecs, rulePrimitives } from "./primitives";
 import { testUtils } from "./test_utils";
 
 export type Schema =
@@ -57,30 +54,30 @@ export type TypeId =
   | "time";
 
 export type Location =
-  | Struct<"location", [id: Id]>
-  | Struct<"location", [id: Id, view: Id]>
-  | Struct<"location", [id: Id, view: Id, params: List<AnyStruct>]>;
+  | Box<"location", [id: Id]>
+  | Box<"location", [id: Id, view: Id]>
+  | Box<"location", [id: Id, view: Id, params: List<Box<string, Expr[]>>]>;
 
 export type FormatText =
   | string
-  | Struct<"link", [string, Location]>
-  | Struct<"section", [List<FormatText>, List<FormatText>]>
-  | Struct<"code", [Expr]>;
+  | Box<"link", [string, Location]>
+  | Box<"section", [List<FormatText>, List<FormatText>]>
+  | Box<"code", [Expr]>;
 
 export type HtmlProp =
-  | Struct<"class", [string]>
-  | Struct<"style", [key: string, value: string]>;
+  | Box<"class", [string]>
+  | Box<"style", [key: string, value: string]>;
 
 type SchemaField =
-  | Struct<"field", [Field]>
-  | Struct<"field_optional", [Field]>
-  | Struct<"field_default", [Field, Expr]>;
+  | Box<"field", [Field]>
+  | Box<"field_optional", [Field]>
+  | Box<"field_default", [Field, Expr]>;
 
 type IndexType =
-  | Struct<"ref", []> // TODO: what does this mean now?
-  | Struct<"multiRef", []>
-  | Struct<"sorted", []>
-  | Struct<"unique", []>;
+  | Box<"ref", []> // TODO: what does this mean now?
+  | Box<"multiRef", []>
+  | Box<"sorted", []>
+  | Box<"unique", []>;
 
 export type Rec = Record<string, Expr> & {
   time__created?: number;
@@ -92,7 +89,7 @@ export type Rec = Record<string, Expr> & {
 
   rule__params?: List<Expr>;
   rule__rest_params?: Expr;
-  rule__body?: AnyStruct;
+  rule__body?: Box<string, Expr[]>;
   view__schema?: Schema;
 
   test__group?: string;

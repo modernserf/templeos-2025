@@ -1,17 +1,8 @@
 import { Rec } from "../data";
 import { test } from "../data/test_utils";
-import { $, __, seq, alt, l, s } from "./expr";
-import { Process } from "./process";
-import { ProcessGen, ProcessNext, RulePrimitive } from "./process_manager";
-import {
-  box,
-  ensure,
-  Exception,
-  Value,
-  k,
-  printValue,
-  valueExpr,
-} from "./value";
+import { $, l, s, seq, u, alt, __ } from "../expr";
+import { Value, box, k, printValue, valueExpr } from "../value";
+import { ensure, Exception, resolveDeep, RulePrimitive, State } from "../v4";
 
 function compilePrimitives(
   map: Record<
@@ -40,25 +31,6 @@ function compilePrimitives(
   return out;
 }
 
-function* seq_(
-  gen: ProcessGen,
-  after: Value,
-): Generator<ProcessNext, boolean, Process> {
-  let next = gen.next();
-  let didSucceed = false;
-  while (!next.done) {
-    if (next.value.tag === "result") {
-      didSucceed = true;
-      yield* next.value.result.eval(after);
-      next = gen.next();
-    } else {
-      const result = yield next.value;
-      next = gen.next(result);
-    }
-  }
-  return didSucceed;
-}
-
 export const { rules, rulePrimitives } = compilePrimitives({
   ok: {
     rule__params: l(),
@@ -82,22 +54,27 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (it.unify(left, right)) yield it.result();
     },
   },
-  "/=": {
-    rule__params: l($.left, $.right),
-    rule__primitive: function* (it, left, right) {
-      if (it.dif(left, right)) yield it.result();
-    },
-  },
   ",": {
     rule__params: l($.before, $.after),
     rule__primitive: function* (it, before, after) {
-      yield* seq_(it.eval(before), after);
+      const gen = it.eval(before);
+      let next = gen.next();
+      while (!next.done) {
+        if (next.value.tag === "result") {
+          yield* next.value.result.eval(after);
+          next = gen.next();
+        } else {
+          next = gen.next(yield next.value);
+        }
+      }
     },
   },
   ";": {
     rule__params: l($.before, $.after),
     rule__primitive: function* (it, before, after) {
-      yield* it.fork().eval(before);
+      const s = it.choice();
+      yield* it.eval(before);
+      it.backtrack(s);
       yield* it.eval(after);
     },
   },
@@ -105,7 +82,8 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__params: l($.goal),
     rule__primitive: function* (it, goal) {
       while (true) {
-        const gen = it.fork().eval(goal);
+        const s = it.choice();
+        const gen = it.eval(goal);
         let next = gen.next();
         let didSucceed = false;
         while (!next.done) {
@@ -114,37 +92,74 @@ export const { rules, rulePrimitives } = compilePrimitives({
             yield next.value;
             next = gen.next();
           } else {
-            const result = yield next.value;
-            next = gen.next(result);
+            next = gen.next(yield next.value);
           }
         }
+
         if (!didSucceed) break;
+        it.backtrack(s);
       }
     },
   },
   if_then_else: {
     rule__params: l($.if, $.then, $.else),
     rule__primitive: function* (it, if_, then_, else_) {
-      const didSucceed = yield* seq_(it.fork().eval(if_), then_);
-      if (!didSucceed) yield* it.eval(else_);
+      const s = it.choice();
+      const gen = it.eval(if_);
+      let next = gen.next();
+      let didSucceed = false;
+      while (!next.done) {
+        if (next.value.tag === "result") {
+          didSucceed = true;
+          yield* next.value.result.eval(then_);
+          next = gen.next();
+        } else {
+          next = gen.next(yield next.value);
+        }
+      }
+
+      if (!didSucceed) {
+        it.backtrack(s);
+        yield* it.eval(else_);
+      }
     },
+  },
+  test__if_then_else: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: seq(
+      test.collect(
+        $.result,
+        s.if_then_else(s.ok(), u($.result, "foo"), u($.result, "bar")),
+        "foo",
+      ),
+      test.collect(
+        $.result,
+        s.if_then_else(s.fail(), u($.result, "foo"), u($.result, "bar")),
+        "bar",
+      ),
+    ),
   },
   throw: {
     rule__params: l($.error),
-    rule__primitive: function* (it, error) {
-      throw new Exception(it.resolve(error));
+    rule__primitive: function* (_, error) {
+      throw new Exception(resolveDeep(error));
     },
   },
   try_error_catch: {
     rule__params: l($.try, $.error, $.catch),
     rule__primitive: function* (it, try_, error_, catch_) {
+      const s = it.choice();
       try {
-        yield* it.fork().eval(try_);
+        yield* it.eval(try_);
+        it.cut(s);
       } catch (e) {
         if (e instanceof Exception) {
-          const next = it.fork();
-          if (next.unify(e.error, error_)) {
-            yield* next.eval(catch_);
+          it.backtrack(s);
+          const s2 = it.choice();
+          if (it.unify(e.error, error_)) {
+            it.cut(s2);
+            yield* it.eval(catch_);
             return;
           }
         }
@@ -156,21 +171,31 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__params: l($.out, $.pattern, $.goal),
     rule__primitive: function* (it, out, pattern, goal) {
       const matches: Value[] = [];
+      const s = it.choice();
 
-      const gen = it.fork().eval(goal);
+      const gen = it.eval(goal);
       let next = gen.next();
       while (!next.done) {
         if (next.value.tag === "result") {
-          const result = next.value.result;
-          matches.push(result.resolve(pattern));
+          matches.push(resolveDeep(pattern));
           next = gen.next();
         } else {
           const result = yield next.value;
           next = gen.next(result);
         }
       }
+      it.backtrack(s);
 
       if (it.unify(out, box("", matches))) yield it.result();
+    },
+  },
+  send: {
+    rule__params: l($.pid, $.message),
+    rule__primitive: function* (it, pid, message) {
+      if (pid.tag !== "number" && pid.tag !== "string")
+        throw new Exception(box("expected_type", [k("pid"), pid]));
+      it.pm.send(pid.value, message);
+      yield it.result();
     },
   },
   receive: {
@@ -182,6 +207,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       yield next.result();
     },
   },
+
   type_value: {
     rule__params: l($.type, $.value),
     rule__primitive: function* (it, type, value) {
@@ -192,7 +218,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
-      test.ok(s.type_value(s.var(), __)),
+      test.ok(s.type_value(s.fresh(), __)),
       test.ok(s.type_value(s.var(), $.x)),
       test.ok(s.type_value(s.number(), 123)),
       test.ok(s.type_value(s.string(), "hello")),
@@ -210,7 +236,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       ensure(limit, "number");
       let count = 0;
 
-      const gen = it.fork().eval(goal);
+      const gen = it.eval(goal);
       let next = gen.next();
       while (!next.done) {
         if (next.value.tag === "result") {
@@ -308,9 +334,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
         const maxVal = max.tag == "number" ? max.value : Infinity;
         if (minVal > maxVal) return;
         for (let i = minVal; i <= maxVal; i++) {
-          const ns = it.fork();
-          if (!ns.unify(num, k(i))) return;
-          yield ns.result();
+          yield* it.unifyChoice(num, k(i));
         }
       }
     },
@@ -389,10 +413,10 @@ export const { rules, rulePrimitives } = compilePrimitives({
         }
       } else {
         for (let i = 0; i < b.args.length; i++) {
-          const ns = it.fork();
-          if (ns.unify(index, k(i)) && ns.unify(value, b.args[i])) {
-            yield ns.result();
-          }
+          yield* it.unifyChoice(
+            box("", [index, value]),
+            box("", [k(i), b.args[i]]),
+          );
         }
       }
     },
@@ -455,9 +479,9 @@ export const { rules, rulePrimitives } = compilePrimitives({
       ensure(changelist, "box");
       const nextArgs = b.args.slice();
       for (let i = 0; i < changelist.args.length; i++) {
-        const pair = changelist.args[i];
+        const pair: Value = changelist.args[i];
         ensure(pair, "box");
-        const [index, value] = pair.args;
+        const [index, value]: Value[] = pair.args;
         ensure(index, "number");
         if (index.value < 0 || index.value >= b.args.length) return;
         nextArgs[index.value] = value;
@@ -512,7 +536,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
         return;
       }
       ensure(append, "box");
-      const unifySplit = (st: Process, split: number) =>
+      const unifySplit = (st: State, split: number) =>
         st.unify(left, {
           tag: "box",
           id: append.id,
@@ -533,8 +557,9 @@ export const { rules, rulePrimitives } = compilePrimitives({
         yield state.result();
       } else {
         for (let i = 0; i <= append.args.length; i++) {
-          const ns = state.fork();
-          if (unifySplit(ns, i)) yield ns.result();
+          const s = state.choice();
+          if (unifySplit(state, i)) yield state.result();
+          state.backtrack(s);
         }
       }
     },
@@ -544,7 +569,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__params: l(),
     rule__body: seq(
       // concat
-      test.collect(
+      s.expect_collect(
         $.append,
         s.append_left_right($.append, l("a"), l("b", "c")),
         l("a", "b", "c"),
@@ -577,7 +602,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__params: l(),
     rule__rest_params: $.messages,
     rule__primitive: function* (it, ...args) {
-      console.log(...args.map((arg) => printValue(it.resolve(arg))));
+      console.log(...args.map((arg) => printValue(arg)));
       yield it.result();
     },
   },
@@ -596,14 +621,14 @@ export const { rules, rulePrimitives } = compilePrimitives({
   tx: {
     rule__params: l($.tx),
     rule__primitive: function* (it, tx) {
-      if (it.unify(tx, k(it.processManager.db.beginTx()))) yield it.result();
+      if (it.unify(tx, k(it.pm.db.beginTx()))) yield it.result();
     },
   },
   commit: {
     rule__params: l($.tx),
     rule__primitive: function* (it, tx) {
       ensure(tx, "number");
-      it.processManager.db.commitTx(tx.value);
+      it.pm.db.commitTx(tx.value);
       yield it.result();
     },
   },
@@ -611,7 +636,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__params: l($.tx),
     rule__primitive: function* (it, tx) {
       ensure(tx, "number");
-      it.processManager.db.rollbackTx(tx.value);
+      it.pm.db.rollbackTx(tx.value);
       yield it.result();
     },
   },
@@ -622,13 +647,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       ensure(tx, "number");
       ensure(id, "string");
       ensure(field, "string");
-      value = it.resolve(value);
-      it.processManager.db.updateTx(
-        tx.value,
-        id.value,
-        field.value,
-        valueExpr(value),
-      );
+      it.pm.db.updateTx(tx.value, id.value, field.value, valueExpr(value));
       yield it.result();
     },
   },
@@ -640,7 +659,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       ensure(id, "string");
       ensure(field, "string");
 
-      it.processManager.db.updateTx(tx.value, id.value, field.value, null);
+      it.pm.db.updateTx(tx.value, id.value, field.value, null);
       yield it.result();
     },
   },
@@ -650,7 +669,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       ensure(tx, "number");
       ensure(id, "string");
 
-      it.processManager.db.insertTx(tx.value, id.value, null);
+      it.pm.db.insertTx(tx.value, id.value, null);
       yield it.result();
     },
   },
@@ -660,7 +679,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       ensure(id, "string");
       ensure(field, "string");
 
-      const rec = it.processManager.db.get(id.value);
+      const rec = it.pm.db.get(id.value);
       if (!rec) return;
       const val = rec[field.value];
       if (val == null) return;
@@ -672,7 +691,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__primitive: function* (it, id, index, field) {
       ensure(field, "string");
 
-      const idx = it.processManager.db.getIndex(field.value);
+      const idx = it.pm.db.getIndex(field.value);
       if (!idx) return;
 
       const indexExpr = valueExpr(index);
@@ -680,8 +699,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
         { value: indexExpr, entityId: "" },
         { value: indexExpr, entityId: "~" },
       )) {
-        const ns = it.fork();
-        if (ns.unify(id, k(entityId))) yield ns.result();
+        yield* it.unifyChoice(id, k(entityId));
       }
     },
   },
@@ -689,14 +707,13 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__params: l($.field, $.id),
     rule__primitive: function* (it, field, id) {
       ensure(id, "string");
-      const rec = it.processManager.db.get(id.value);
+      const rec = it.pm.db.get(id.value);
       if (!rec) return;
       if (field.tag === "string") {
         if (field.value in rec) yield it.result();
       } else {
         for (const f in rec) {
-          const ns = it.fork();
-          if (ns.unify(field, k(f))) yield ns.result();
+          yield* it.unifyChoice(field, k(f));
         }
       }
     },
@@ -705,22 +722,11 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__params: l($.id),
     rule__primitive: function* (it, id) {
       if (id.tag === "string") {
-        if (it.processManager.db.get(id.value)) yield it.result();
+        if (it.pm.db.get(id.value)) yield it.result();
       } else {
-        for (const key in it.processManager.db.keys()) {
-          const ns = it.fork();
-          if (ns.unify(id, k(key))) yield ns.result();
+        for (const key in it.pm.db.keys()) {
+          yield* it.unifyChoice(id, k(key));
         }
-      }
-    },
-  },
-
-  proc_send: {
-    rule__params: l($.pid, $.message),
-    rule__primitive: function* (it, pid, message) {
-      if (pid.tag === "number" || pid.tag === "string") {
-        it.processManager.send(pid.value, it.resolve(message));
-        yield it.result();
       }
     },
   },

@@ -1,10 +1,9 @@
 import { Component, FC, ReactNode } from "react";
-import { __, l, s } from "./v3/expr";
+import { __, l, s } from "./expr";
 import "./view_primitive.css";
 // import { useMessageEventSource, useStateCallback } from "./event_source";
 // import { debounce } from "./util";
-import { Process } from "./v3/process";
-import { box, ensure, printValue, Value } from "./v3/value";
+import { State as Process, box, ensure, printValue, Value } from "./v4";
 
 type VC = FC<{
   process: Process;

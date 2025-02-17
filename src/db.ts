@@ -1,21 +1,6 @@
-import { exprOrd, Expr, List } from "./expr";
-
+import { Expr, List, exprOrd } from "./expr";
 import BTree from "sorted-btree";
-
-export type Cmp = -1 | 0 | 1;
-export type Order = "asc" | "desc";
-
-export interface Ord<T> {
-  cmp(left: T, right: T): Cmp;
-}
-
-export const defaultOrd = {
-  cmp<T>(a: T, b: T) {
-    if (a < b) return -1;
-    if (a > b) return 1;
-    return 0;
-  },
-};
+import { defaultOrd, Ord } from "./ord";
 
 type Id = string;
 type Field = string;

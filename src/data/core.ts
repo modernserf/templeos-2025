@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, __, u, seq } from "../v3/expr";
+import { l, s, $, __, u, seq } from "../expr";
 import { test } from "./test_utils";
 
 export const core = {

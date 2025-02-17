@@ -1,9 +1,3 @@
-import { useEffect, useState } from "react";
-import { Value, State, Exception, printFact, sv, exprValue } from "./state";
-import { Expr } from "./expr";
-import { DB } from "./db";
-import { Rec } from "./old-data";
-
 export type EventListener<T> = (value: T) => void;
 
 export class EventSource<T> {
@@ -19,43 +13,4 @@ export class EventSource<T> {
       l(message);
     }
   }
-}
-
-export const wholeDatabaseEventSource = new EventSource<DB<Rec>>();
-
-export function useStateCallback(state: State) {
-  return (params: Value, body: Value, arg: Expr) => {
-    const ns = state.unify(params, exprValue(arg, {}));
-    if (!ns) return;
-    try {
-      for (const _ of ns.eval(body)) {
-        // do nothing
-      }
-      state.eventSource.notifyEventListeners(sv("root"));
-      wholeDatabaseEventSource.notifyEventListeners(state.db);
-    } catch (e) {
-      if (e instanceof Exception) {
-        console.error(printFact(e.error));
-      }
-    }
-  };
-}
-
-export function useMessageEventSource(
-  state: State,
-  pattern: Value,
-  goal: Value,
-) {
-  const [stateWithMessage, setState] = useState(state);
-  useEffect(() => {
-    return state.eventSource.addEventListener((message) => {
-      const ns = state.fork().unify(pattern, message);
-      if (!ns) return;
-      for (const res of ns.eval(goal)) {
-        setState(res.state);
-        return;
-      }
-    });
-  }, [state, pattern, goal]);
-  return stateWithMessage;
 }
