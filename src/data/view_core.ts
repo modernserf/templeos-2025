@@ -1,0 +1,139 @@
+import { Rec } from ".";
+import { l, seq, s, $, u, __ } from "../expr";
+import { test } from "./test_utils";
+
+export const viewCore = {
+  view__html: {
+    rule__params: l($.out, $.tag, $.props, $.children),
+    rule__body: seq(u($.out, s.Html($.tag, $.props, $.children))),
+  },
+  view__spacer: {
+    rule__params: l(
+      s.Html("div", l(s.class("Spacer"), s.style("flexBasis", $.space)), l()),
+      $.space,
+    ),
+  },
+  view__row: {
+    rule__params: l($.out, $.props, $.children),
+    rule__body: seq(
+      s.append_left_right($.node_props, $.props, l(s.class("Row"))),
+      u($.out, s.Html("div", $.node_props, $.children)),
+    ),
+  },
+  view__column: {
+    rule__params: l($.out, $.props, $.children),
+    rule__body: seq(
+      s.append_left_right($.node_props, $.props, l(s.class("Column"))),
+      u($.out, s.Html("div", $.node_props, $.children)),
+    ),
+  },
+  view__wrap: {
+    rule__params: l($.out, $.props, $.children),
+    rule__body: seq(
+      s.append_left_right($.node_props, $.props, l(s.class("Wrap"))),
+      u($.out, s.Html("div", $.node_props, $.children)),
+    ),
+  },
+  view__string: {
+    rule__params: l(s.String($.string), $.string),
+  },
+  view__link: {
+    rule__params: l($.out, $.props, $.label, $.location),
+    rule__body: seq(
+      s.get_context("window_id", $.window),
+      s.view__button(
+        l(s.class("Link")),
+        $.label,
+        l(
+          s.click($.params),
+          s.cond(
+            l(s.list_item($.params, s.meta_key()), s.on__newWindow($.location)),
+            l(
+              s.list_item($.props, s.target("new")),
+              s.on__newWindow($.location),
+            ),
+            l(s.ok(), s.on__push($.window, $.location)),
+          ),
+        ),
+        $.out,
+      ),
+    ),
+  },
+  view__test__link: {
+    test__group: "views",
+    rule__params: l(),
+    rule__body: seq(
+      test.collect(
+        $.out,
+        seq(
+          s.set_context("window_id", "test_window_id"),
+          s.view__link($.out, l(), "hello", s.location("test_link")),
+        ),
+        s.Button(l(s.class("Link")), "hello", __, __),
+      ),
+    ),
+  },
+  view__icon: {
+    rule__params: l(s.Icon()),
+  },
+  view__table: {
+    rule__params: l($.out, $.props, $.header, $.rows),
+    rule__body: seq(
+      s("/=", $.rows, l()),
+      u(
+        $.out,
+        s.Html(
+          "table",
+          $.props,
+          l(s.Html("thead", l(), $.header), s.Html("tbody", l(), $.rows)),
+        ),
+      ),
+    ),
+  },
+  view__table_header: {
+    rule__params: l($.out, $.props, $.items),
+    rule__body: seq(
+      s.collect(
+        s.Html("th", l(), l($.item)),
+        s.list_item($.items, $.item),
+        $.cells,
+      ),
+      u($.out, s.Html("tr", $.props, $.cells)),
+    ),
+  },
+  view__table_row: {
+    rule__params: l($.out, $.props, $.items),
+    rule__body: seq(
+      s.collect(
+        s.Html("td", l(), l($.item)),
+        s.list_item($.items, $.item),
+        $.cells,
+      ),
+      u($.out, s.Html("tr", $.props, $.cells)),
+    ),
+  },
+  view__time: {
+    rule__params: l($.out, $.ts),
+    rule__body: seq(
+      // TODO: adjust for timezone
+      s.timestamp_date(
+        $.ts,
+        s.date(__, __, __, $.hour, $.minute, $.second, __),
+      ),
+      s.expr(
+        $.out,
+        s.view__html(
+          "span",
+          l(),
+          s.children(
+            s.view__string($.hour),
+            s.view__string(":"),
+            s.view__string($.minute),
+            s.view__string(":"),
+            s.view__string($.second),
+          ),
+        ),
+      ),
+    ),
+  },
+} satisfies Record<string, Rec>;

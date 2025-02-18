@@ -3,10 +3,11 @@ import { __, l, s } from "./expr";
 import "./view_primitive.css";
 // import { useMessageEventSource, useStateCallback } from "./event_source";
 // import { debounce } from "./util";
-import { State as Process, box, ensure, printValue, Value } from "./v4";
+import { ProcessManager, ensure } from "./process";
+import { box, printValue, Value } from "./value";
 
 type VC = FC<{
-  process: Process;
+  pm: ProcessManager;
   id: string;
   values: Value[];
 }>;
@@ -48,12 +49,12 @@ function getProps(props: Value): Props {
   return { ...out, className: classList.join(" "), style };
 }
 
-const Html: VC = ({ process, values: [tag, props, children] }) => {
+const Html: VC = ({ pm, values: [tag, props, children] }) => {
   ensure(tag, "string");
   const El = tag.value;
   return (
     <El {...getProps(props)}>
-      <Children process={process} children={children} />
+      <Children pm={pm} children={children} />
     </El>
   );
 };
@@ -76,7 +77,7 @@ const String: VC = ({ values: [value] }) => {
   return value.value;
 };
 
-const Button: VC = ({ process, values: [props, label, next, onClick] }) => {
+const Button: VC = ({ values: [props, label, next, onClick] }) => {
   // const handle = useStateCallback(process);
   ensure(label, "string");
   return (
@@ -93,7 +94,7 @@ const Button: VC = ({ process, values: [props, label, next, onClick] }) => {
   );
 };
 
-const Input: VC = ({ process, values: [props, value, next, onChange] }) => {
+const Input: VC = ({ values: [props, value, next, onChange] }) => {
   // const handle = useStateCallback(process);
   if (value.tag !== "string" && value.tag !== "number") return null;
 
@@ -116,10 +117,7 @@ const Input: VC = ({ process, values: [props, value, next, onChange] }) => {
   );
 };
 
-const Select: VC = ({
-  process,
-  values: [props, value, options, next, onChange],
-}) => {
+const Select: VC = ({ values: [props, value, options, next, onChange] }) => {
   ensure(value, "string");
   ensure(options, "box");
 
@@ -158,7 +156,7 @@ const Icon: VC = () => (
 );
 
 const WindowContainer: VC = ({
-  process,
+  pm,
   values: [windowId, currentWindowId, onSelect, onBack, onForward, children],
 }) => {
   ensure(windowId, "string");
@@ -185,7 +183,7 @@ const WindowContainer: VC = ({
         }
       }}
     >
-      <Children process={process} children={children} />
+      <Children pm={pm} children={children} />
     </div>
   );
 };
@@ -215,16 +213,16 @@ export class ErrorBoundary extends Component<
 > {
   constructor(props: { children: ReactNode }) {
     super(props);
-    this.process = { error: null };
+    this.state = { error: null };
   }
   static getDerivedStateFromError(error: Error) {
     return { error };
   }
   render() {
-    if (this.process.error) {
+    if (this.state.error) {
       return (
         <div style={{ backgroundColor: "pink" }}>
-          <div>{this.process.error.message}</div>
+          <div>{this.state.error.message}</div>
         </div>
       );
     }
@@ -232,13 +230,7 @@ export class ErrorBoundary extends Component<
   }
 }
 
-function Children({
-  process,
-  children,
-}: {
-  process: Process;
-  children: Value;
-}) {
+function Children({ pm, children }: { pm: ProcessManager; children: Value }) {
   if (!children) {
     return (
       <div style={{ backgroundColor: "pink" }}>
@@ -249,25 +241,25 @@ function Children({
   return (
     <>
       {(children.args as (Value & { tag: "box" })[]).map((arg, i) => (
-        <Primitive key={i} process={process} id={arg.id} values={arg.args} />
+        <Primitive key={i} pm={pm} id={arg.id} values={arg.args} />
       ))}
     </>
   );
 }
 
 export function Primitive({
-  process,
+  pm,
   id,
   values,
 }: {
-  process: Process;
+  pm: ProcessManager;
   id: string;
   values: Value[];
 }) {
   const View = viewPrimitives[id] ?? DefaultRenderer;
   return (
     <ErrorBoundary>
-      <View process={process} id={id} values={values} />
+      <View pm={pm} id={id} values={values} />
     </ErrorBoundary>
   );
 }

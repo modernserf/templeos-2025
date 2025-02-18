@@ -225,6 +225,11 @@ export const core = {
       s.box_tag_list($.updated, $.tag, $.next),
     ),
   },
+  call: {
+    rule__params: l($.id),
+    rule__rest_params: $.args,
+    rule__body: seq(s.box_tag_list($.callable, $.id, $.args), $.callable),
+  },
   apply: {
     rule__params: l($.target, $.args),
     rule__body: seq(
@@ -389,7 +394,6 @@ export const core = {
     rule__params: l($.arg, $.body),
     rule__body: s.if_then_else(s.var($.arg), $.body, s.ok()),
   },
-
   test__var: {
     test__group: "core",
     rule__params: l(),
@@ -443,6 +447,7 @@ export const core = {
         l($.i, $.rendered),
         seq(
           s.value_box_index($.arg, $.expr, $.i),
+          s.box($.arg),
           s.cond(
             l(u(s.expr($.next), $.arg), s.expr($.rendered, $.next)),
             l(
@@ -454,6 +459,7 @@ export const core = {
         ),
       ),
       s.updated_box_changelist($.updated, $.expr, $.changes),
+
       s.preply($.updated, l($.out)),
     ),
   },
@@ -531,5 +537,22 @@ export const core = {
         l(1, 2, 3, 4, 5),
       ),
     ),
+  },
+
+  // db
+  record_field_value: {
+    rule__params: l($.id, $.field, $.value),
+    rule__body: s.cond(
+      l(s.nonvar($.id), s.value_record_field($.value, $.id, $.field)),
+      l(s.nonvar($.value), s.record_index_field($.id, $.value, $.field)),
+      l(s.ok(), s.throw(s.not_yet_implemented("record_field_value modes"))),
+    ),
+  },
+
+  view__any_record: {
+    file__name: "Default viewer",
+    view__schema: "any_record",
+    rule__params: l($.out, $.id, $.state),
+    rule__body: s.view__string($.out, "TODO: views"),
   },
 } satisfies Record<string, Rec>;

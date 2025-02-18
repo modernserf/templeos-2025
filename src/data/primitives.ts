@@ -2,7 +2,13 @@ import { Rec } from "../data";
 import { test } from "../data/test_utils";
 import { $, l, s, seq, u, alt, __ } from "../expr";
 import { Value, box, k, printValue, valueExpr } from "../value";
-import { ensure, Exception, resolveDeep, RulePrimitive, State } from "../v4";
+import {
+  ensure,
+  Exception,
+  resolveDeep,
+  RulePrimitive,
+  State,
+} from "../process";
 
 function compilePrimitives(
   map: Record<
@@ -45,7 +51,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
   nonvar: {
     rule__params: l($.term),
     rule__primitive: function* (it, term) {
-      if (term.tag !== "var") yield it.result();
+      if (term.tag !== "var" && term.tag !== "fresh") yield it.result();
     },
   },
   "=": {
@@ -194,7 +200,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__primitive: function* (it, pid, message) {
       if (pid.tag !== "number" && pid.tag !== "string")
         throw new Exception(box("expected_type", [k("pid"), pid]));
-      it.pm.send(pid.value, message);
+      it.pm.send(pid.value, resolveDeep(message));
       yield it.result();
     },
   },
@@ -211,14 +217,15 @@ export const { rules, rulePrimitives } = compilePrimitives({
   type_value: {
     rule__params: l($.type, $.value),
     rule__primitive: function* (it, type, value) {
-      if (it.unify(type, box(value.tag, []))) yield it.result();
+      const t = value.tag === "fresh" ? "var" : value.tag;
+      if (it.unify(type, box(t, []))) yield it.result();
     },
   },
   test__type_value: {
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
-      test.ok(s.type_value(s.fresh(), __)),
+      test.ok(s.type_value(s.var(), __)),
       test.ok(s.type_value(s.var(), $.x)),
       test.ok(s.type_value(s.number(), 123)),
       test.ok(s.type_value(s.string(), "hello")),
@@ -597,7 +604,24 @@ export const { rules, rulePrimitives } = compilePrimitives({
       ),
     ),
   },
+  timestamp_date: {
+    rule__params: l($.ts, $.date),
+    rule__primitive: function* (it, ts, date) {
+      ensure(ts, "number");
+      const d = new Date(ts.value);
 
+      const dateBox = box("date", [
+        k(d.getFullYear()),
+        k(d.getMonth() + 1),
+        k(d.getDate()),
+        k(d.getHours()),
+        k(d.getMinutes()),
+        k(d.getSeconds()),
+        k(d.getMilliseconds()),
+      ]);
+      if (it.unify(date, dateBox)) yield it.result();
+    },
+  },
   log: {
     rule__params: l(),
     rule__rest_params: $.messages,

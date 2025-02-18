@@ -1,12 +1,12 @@
 import { expect, test } from "vitest";
-import { ProcessManager } from "./index";
-import { Expr, s, __ } from "../expr";
-import { TransactDB } from "../db";
-import { Rec } from "../data";
-import { EventSource } from "../event_source";
-import { testUtils } from "../data/test_utils";
-import { k, Value } from "../value";
-import { rulePrimitives, rules } from "../data/primitives";
+import { ProcessManager } from "./process";
+import { Expr, s, __ } from "./expr";
+import { TransactDB } from "./db";
+import { Rec } from "./data";
+import { EventSource } from "./event_source";
+import { testUtils } from "./data/test_utils";
+import { k, Value } from "./value";
+import { rulePrimitives, rules } from "./data/primitives";
 
 const OUT = "out";
 

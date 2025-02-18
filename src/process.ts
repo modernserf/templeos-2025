@@ -1,8 +1,8 @@
-import { Rec } from "../data";
-import { TransactDB } from "../db";
-import { EventSource } from "../event_source";
-import { Expr, s } from "../expr";
-import { Value, Fact, box, k, fresh } from "../value";
+import { Rec } from "./data";
+import { TransactDB } from "./db";
+import { EventSource } from "./event_source";
+import { Expr, s } from "./expr";
+import { Value, Fact, box, k, fresh, printValue } from "./value";
 
 type Proc =
   | { tag: "result"; result: State }
@@ -13,6 +13,9 @@ export type RulePrimitive = (state: State, ...args: Value[]) => ProcGen;
 
 export class Exception {
   constructor(public error: Value) {}
+  get message() {
+    return printValue(this.error);
+  }
 }
 
 export function ensure<T extends Value["tag"]>(
@@ -277,6 +280,10 @@ export class ProcessManager {
     process.mailbox.push(message);
     this.runQueue.enqueue(pid);
   }
+  sendAsync(pid: Pid, message: Value) {
+    this.send(pid, message);
+    setTimeout(() => this.runAllQueued(), 1);
+  }
   runExpr(goal: Expr, pid: Pid = this.nextPid++): Pid {
     this.processes.set(pid, { tag: "init", mailbox: [] });
 
@@ -303,8 +310,7 @@ export class ProcessManager {
       if (pid == null) return;
       const process = this.processes.get(pid);
       if (!process) {
-        console.error(`missing process ${pid}`);
-        continue;
+        throw new Error(`missing process ${pid}`);
       }
       switch (process.tag) {
         case "init":
@@ -328,7 +334,10 @@ export class ProcessManager {
   private runUntilSuspend(pid: Pid, next: IteratorResult<Proc>, gen: ProcGen) {
     while (!next.done) {
       if (next.value.tag === "receive") {
-        if (this.receive(pid, next.value.to, next.value.pattern)) continue;
+        if (this.receive(pid, next.value.to, next.value.pattern)) {
+          next = gen.next(next.value.to);
+          continue;
+        }
 
         const { mailbox } = this.processes.get(pid)!;
         this.processes.set(pid, { tag: "suspended", mailbox, gen, next });

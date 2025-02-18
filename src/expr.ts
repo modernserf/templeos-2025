@@ -44,6 +44,19 @@ type S<Tag extends string> = <Args extends Expr[]>(
   ...args: Args
 ) => Box<Tag, Args>;
 
+export const f = new Proxy(
+  {},
+  {
+    get<T extends string>(_: unknown, field: T) {
+      return (id: Expr, value: Expr) =>
+        s("record_field_value", id, field, value);
+    },
+  },
+) as Record<
+  string,
+  (id: Expr, value: Expr) => Box<"record_field_value", [Expr, Expr, Expr]>
+>;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const $: any = new Proxy(
   function v(ident: string) {
