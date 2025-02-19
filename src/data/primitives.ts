@@ -37,6 +37,31 @@ function compilePrimitives(
   return out;
 }
 
+function dif(left: Value, right: Value) {
+  if (left.tag === "fresh") return false;
+  if (right.tag === "fresh") return false;
+  if (left.tag === "var") return dif(left.fact.value, right);
+  if (right.tag === "var") return dif(left, right.fact.value);
+  if (left.tag === "number" && right.tag === "number") {
+    return left.value !== right.value;
+  }
+  if (left.tag === "string" && right.tag === "string") {
+    return left.value !== right.value;
+  }
+  if (
+    left.tag === "box" &&
+    right.tag === "box" &&
+    left.tag === right.tag &&
+    left.args.length === right.args.length
+  ) {
+    for (let i = 0; i < left.args.length; i++) {
+      if (dif(left, right)) return true;
+    }
+    return false;
+  }
+  return true;
+}
+
 export const { rules, rulePrimitives } = compilePrimitives({
   ok: {
     rule__params: l(),
@@ -58,6 +83,12 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__params: l($.left, $.right),
     rule__primitive: function* (it, left, right) {
       if (it.unify(left, right)) yield it.result();
+    },
+  },
+  "/=": {
+    rule__params: l($.left, $.right),
+    rule__primitive: function* (it, left, right) {
+      if (dif(left, right)) yield it.result();
     },
   },
   ",": {
@@ -195,6 +226,25 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (it.unify(out, box("", matches))) yield it.result();
     },
   },
+  get_context: {
+    rule__params: l($.ctx, $.value),
+    rule__primitive: function* (it, ctx, value) {
+      ensure(ctx, "string");
+      if (!it.context[ctx.value]) {
+        throw new Exception(box("unknown_context", [ctx]));
+      }
+      it.unify(value, it.context[ctx.value]);
+      yield it.result();
+    },
+  },
+  set_context: {
+    rule__params: l($.ctx, $.value),
+    rule__primitive: function* (it, ctx, value) {
+      ensure(ctx, "string");
+      yield it.withContext(ctx.value, value).result();
+    },
+  },
+
   send: {
     rule__params: l($.pid, $.message),
     rule__primitive: function* (it, pid, message) {

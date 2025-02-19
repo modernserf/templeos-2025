@@ -1,12 +1,13 @@
 import { TransactDB } from "../db";
 import { ProcessManager } from "../process";
-import { Expr, Box, Id, List } from "../expr";
+import { Expr, Box, Id, List, l } from "../expr";
 import { core } from "./core";
 import { viewCore } from "./view_core";
 import { rules as rulePrimitiveRecs, rulePrimitives } from "./primitives";
 import { browserData, browserInitState } from "./browser";
 import { testUtils } from "./test_utils";
 import { viewForm } from "./view_form";
+import { viewTable } from "./view_table";
 
 export type Schema =
   | "any_record"
@@ -130,12 +131,31 @@ function mergeAndCheck(
 
 // always loads from source
 export const data = mergeAndCheck(
-  [testUtils, rulePrimitiveRecs, core, browserData, viewCore, viewForm],
+  [
+    testUtils,
+    rulePrimitiveRecs,
+    core,
+    browserData,
+    viewCore,
+    viewForm,
+    viewTable,
+  ],
   {},
 );
 
 // loads from db if available
-export const initState = mergeAndCheck([browserInitState], data);
+export const initState = mergeAndCheck(
+  [
+    browserInitState,
+    {
+      home: {
+        file__name: "Home",
+        file__description: l("this is the home record"),
+      },
+    },
+  ],
+  data,
+);
 
 export function initProcessManager() {
   // TODO: do storage setup here

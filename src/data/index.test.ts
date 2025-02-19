@@ -6,7 +6,7 @@ test("hosted tests", () => {
   const p = initProcessManager();
 
   // TODO: get all groups
-  const testGroups = ["primitives", "core"];
+  const testGroups = ["primitives", "core", "views"];
 
   for (const group of testGroups) {
     p.runExpr(

@@ -68,6 +68,15 @@ export class State {
   receive(pattern: Value) {
     return { tag: "receive", to: this, pattern } as const;
   }
+  withContext(ctx: string, value: Value): State {
+    return new State(
+      this.pm,
+      this.scope,
+      { ...this.context, [ctx]: value },
+      this.trail,
+      this.lastSave,
+    );
+  }
   exprValue(expr: Expr): Value {
     switch (typeof expr) {
       case "string":

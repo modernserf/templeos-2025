@@ -89,15 +89,6 @@ export const browserData = {
     ),
   },
 
-  expr_iter: {
-    rule__params: l($.out, $.iter, $.children),
-    rule__body: seq(
-      $.iter,
-      s.value_box_index($.child, $.children, __),
-      s.expr($.out, $.child),
-    ),
-  },
-
   // views
   view__desktop: {
     rule__params: l($.out),
@@ -447,7 +438,7 @@ export const browserInitState = {
   rootHistory: {
     db__schema: "history",
     history__window: "rootWindow",
-    history__id: "home",
+    history__id: "schema",
   },
   rootWindow: {
     db__schema: "window",
