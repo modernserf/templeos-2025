@@ -89,6 +89,26 @@ export const browserData = {
     ),
   },
 
+  view__component: {
+    rule__params: l($.component),
+    rule__body: seq(
+      s.loop(
+        seq(
+          s.receive(s.mount($.renderer)),
+          s.self($.self),
+          s.send($.self, s.render()),
+          s.loop(
+            seq(
+              s.receive(s.render()),
+              s.preply($.component, l($.out)),
+              s.send($.renderer, $.out),
+            ),
+          ),
+        ),
+      ),
+    ),
+  },
+
   // views
   view__desktop: {
     rule__params: l($.out),
@@ -101,7 +121,10 @@ export const browserData = {
           s.view__app_menu(),
           s.expr_iter(
             s.record_field_value($.window, "db__schema", "window"),
-            s.view__window($.window),
+            s(
+              "=",
+              s.Receiver(s.view__component(s.view__window($.window)), $.window),
+            ),
           ),
         ),
       ),
@@ -142,8 +165,8 @@ export const browserData = {
         l(),
         $.selected,
         $.options,
-        l(
-          s.change($.next_view),
+        seq(
+          s.receive(s.change($.next_view)),
           db.with_tx(
             $.tx,
             s.window__current_history($.window, $.history),
@@ -175,6 +198,15 @@ export const browserData = {
     ),
   },
 
+  view__window_content: {
+    rule__params: l($.out, $.view, $.id, $.window, $.history),
+    rule__body: seq(
+      s.set_context("window_id", $.window),
+      s.set_context("history_id", $.history),
+      s.call($.view, $.out, $.id, $.history),
+    ),
+  },
+
   view__window: {
     file__name: "Window",
     rule__params: l($.out, $.window),
@@ -182,8 +214,6 @@ export const browserData = {
       f.window__current_history($.window, $.history),
       f.browser__current_window("browser", $.current_window),
       f.history__id($.history, $.id),
-      s.set_context("window_id", $.window),
-      s.set_context("history_id", $.history),
       s.if_then_else(f.file__name($.id, $.name), s.ok(), u($.name, $.id)),
       s.limit(
         1,
@@ -197,7 +227,6 @@ export const browserData = {
 
       s.try_error_catch(
         seq(
-          s.call($.view, $.content, $.id, $.history),
           s.expr(
             $.out,
             s.view__window_container(
@@ -208,7 +237,9 @@ export const browserData = {
                 s.view__html(
                   "div",
                   l(s.class("AppWindow__content")),
-                  l($.content),
+                  s.children(
+                    s.view__window_content($.view, $.id, $.window, $.history),
+                  ),
                 ),
               ),
             ),
@@ -269,6 +300,7 @@ export const browserData = {
               l(s.class("AppWindow__title")),
               s.children(s.view__string($.name)),
             ),
+            s.expr_iter(s.timestamp($.ts), s.view__string($.ts)),
 
             s.view__html("div", l(s.style("flex", "1 0 auto")), l()),
             s.view__button(
@@ -306,10 +338,10 @@ export const browserData = {
               s.option("omnibox", "Search"),
               s.option("reset", "Reset"),
             ),
-            l(
-              s.change($.value),
+            seq(
+              s.receive(s.change($.app_menu)),
               s.match_cond(
-                $.value,
+                $.app_menu,
                 l("home", s.on__new_window(s.location("home"))),
                 l("omnibox", s.on__new_window(s.location("omnibox"))),
                 l("reset", s.clear_state()),
@@ -427,7 +459,7 @@ export const browserData = {
       db.update($.tx, $.next, "history__back", $.prev),
       db.update($.tx, $.prev, "history__forward", $.next),
       db.update($.tx, $.window, "window__current_history", $.next),
-      s.send("root_view_manager", s.render()),
+      s.send($.window, s.render()),
     ),
   },
 
@@ -440,7 +472,7 @@ export const browserData = {
       db.update($.tx, $.window, "window__current_history", $.back),
       db.update($.tx, $.back, "history__forward", $.forward),
       db.delete($.tx, $.forward, "history__back"),
-      s.send("root_view_manager", s.render()),
+      s.send($.window, s.render()),
     ),
   },
   on__forward: {
@@ -453,7 +485,7 @@ export const browserData = {
       db.update($.tx, $.window, "window__current_history", $.forward),
       db.update($.tx, $.forward, "history__back", $.back),
       db.delete($.tx, $.back, "history__forward"),
-      s.send("root_view_manager", s.render()),
+      s.send($.window, s.render()),
     ),
   },
 } satisfies Record<string, Rec>;

@@ -61,9 +61,10 @@ export class State {
     public context: Record<string, Value>,
     public trail: Array<{ fact: Fact; prev: Value }>,
     private lastSave: number,
+    public readonly pid: Pid,
   ) {}
-  static init(pm: ProcessManager) {
-    return new State(pm, {}, {}, [], 0);
+  static init(pm: ProcessManager, pid: Pid) {
+    return new State(pm, {}, {}, [], 0, pid);
   }
   result() {
     return { tag: "result", result: this } as const;
@@ -78,6 +79,7 @@ export class State {
       { ...this.context, [ctx]: value },
       this.trail,
       this.lastSave,
+      this.pid,
     );
   }
   exprValue(expr: Expr): Value {
@@ -183,6 +185,7 @@ export class State {
       this.context,
       this.trail,
       this.lastSave,
+      this.pid,
     );
     for (let i = 0; i < params.length; i++) {
       if (!nextState.unify(args[i], nextState.exprValue(params[i]))) return;
@@ -299,7 +302,7 @@ export class ProcessManager {
   runExpr(goal: Expr, pid: Pid = this.nextPid++): Pid {
     this.processes.set(pid, { tag: "init", mailbox: [] });
 
-    const state = State.init(this);
+    const state = State.init(this, pid);
     const parsed = state.exprValue(goal);
     const gen = state.eval(parsed);
     const next = gen.next();
@@ -310,7 +313,7 @@ export class ProcessManager {
   spawn(goal: Value, pid: Pid = this.nextPid++): Pid {
     this.processes.set(pid, { tag: "init", mailbox: [] });
 
-    const state = State.init(this);
+    const state = State.init(this, pid);
     const gen = state.eval(goal);
     const next = gen.next();
     this.runUntilSuspend(pid, next, gen);

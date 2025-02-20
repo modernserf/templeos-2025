@@ -244,7 +244,12 @@ export const { rules, rulePrimitives } = compilePrimitives({
       yield it.withContext(ctx.value, value).result();
     },
   },
-
+  self: {
+    rule__params: l($.pid),
+    rule__primitive: function* (it, pid) {
+      if (it.unify(pid, k(it.pid))) yield it.result();
+    },
+  },
   send: {
     rule__params: l($.pid, $.message),
     rule__primitive: function* (it, pid, message) {

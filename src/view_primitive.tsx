@@ -1,10 +1,19 @@
-import { Component, FC, ReactNode } from "react";
+import {
+  Component,
+  FC,
+  ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { __, l, s } from "./expr";
 import { ProcessManager, ensure } from "./process";
 import { box, k, printValue, Value } from "./value";
 import { debounce } from "./util";
 
 import "./view_primitive.css";
+import { EventSource } from "./event_source";
 
 type VC = FC<{
   pm: ProcessManager;
@@ -59,17 +68,33 @@ const Html: VC = ({ pm, values: [tag, props, children] }) => {
   );
 };
 
-// const Receive: VC = ({ process, values: [pattern, goal, out, render] }) => {
-//   const messageState = useMessageEventSource(process, pattern, goal);
-//   const children = messageState.fork().render(render, out);
+const Receiver: VC = ({ pm, values: [proc, maybePid] }) => {
+  const [result, setResult] = useState<Value & { tag: "box" }>();
 
-//   return (
-//     <Children
-//       process={messageState}
-//       children={{ tag: "box", id: "", args: children }}
-//     />
-//   );
-// };
+  const maybePidValue = maybePid.tag === "string" ? maybePid.value : undefined;
+
+  useEffect(() => {
+    console.log("mount", maybePidValue);
+    const eventSource = new EventSource<Value>();
+    const renderPid = pm.addExternal(eventSource);
+    const procPid = pm.spawn(proc, maybePidValue);
+    const unsub = eventSource.addEventListener((it) => {
+      setResult(it as Value & { tag: "box" });
+    });
+    pm.sendAsync(procPid, box("mount", [k(renderPid)]));
+    return () => {
+      pm.sendAsync(procPid, box("unmount", []));
+      unsub();
+    };
+  }, [pm, proc, maybePidValue]);
+
+  if (!result) return <>loading</>;
+  return (
+    <ErrorBoundary>
+      <Primitive pm={pm} id={result.id} values={result.args} />
+    </ErrorBoundary>
+  );
+};
 
 const String: VC = ({ values: [value] }) => {
   if (value.tag !== "string" && value.tag !== "number") return null;
@@ -96,7 +121,6 @@ const Button: VC = ({ pm, values: [props, label, handler] }) => {
 };
 
 const Input: VC = ({ pm, values: [props, value, handler] }) => {
-  // const handle = useStateCallback(process);
   if (value.tag !== "string" && value.tag !== "number") return null;
 
   const { debounce: db = 0, ...jsProps } = getProps(props);
@@ -122,7 +146,6 @@ const Select: VC = ({ pm, values: [props, value, options, handler] }) => {
   ensure(value, "string");
   ensure(options, "box");
 
-  // const handle = useStateCallback(process);
   return (
     <select
       {...getProps(props)}
@@ -196,7 +219,7 @@ const viewPrimitives: Record<string, VC> = {
   Icon,
   Input,
   WindowContainer,
-  // Receive,
+  Receiver,
 };
 
 const DefaultRenderer: VC = ({ id, values }) => {
