@@ -99,8 +99,10 @@ export const browserData = {
         l(),
         s.children(
           s.view__app_menu(),
-          //
-          s.view__window("rootWindow"),
+          s.expr_iter(
+            s.record_field_value($.window, "db__schema", "window"),
+            s.view__window($.window),
+          ),
         ),
       ),
     ),
@@ -156,9 +158,15 @@ export const browserData = {
       s.WindowContainer(
         $.window,
         $.current_window,
-        s.on__selectWindow($.window),
-        s.on__back($.window),
-        s.on__forward($.window),
+        seq(
+          s.receive($.event),
+          s.match_cond(
+            $.event,
+            l(s.select_window(), s.on__select_window($.window)),
+            l(s.back(), s.on__back($.window)),
+            l(s.forward(), s.on__forward($.window)),
+          ),
+        ),
         $.children,
       ),
       $.window,
@@ -174,8 +182,8 @@ export const browserData = {
       f.window__current_history($.window, $.history),
       f.browser__current_window("browser", $.current_window),
       f.history__id($.history, $.id),
-      // s.set_context("window_id", $.window),
-      // s.set_context("history_id", $.history),
+      s.set_context("window_id", $.window),
+      s.set_context("history_id", $.history),
       s.if_then_else(f.file__name($.id, $.name), s.ok(), u($.name, $.id)),
       s.limit(
         1,
@@ -250,7 +258,11 @@ export const browserData = {
             s.view__button(
               l(s.class("AppWindow__closeButton")),
               "",
-              l(__, s.on__closeWindow($.window)),
+              seq(
+                s.receive($.e),
+                u($.e, s.click(__)),
+                s.on__close_window($.window),
+              ),
             ),
             s.view__html(
               "h1",
@@ -262,12 +274,12 @@ export const browserData = {
             s.view__button(
               l(s.class($.back_class)),
               "←",
-              l(s.click(__), s.on__back($.window)),
+              seq(s.receive($.e), u($.e, s.click(__)), s.on__back($.window)),
             ),
             s.view__button(
               l(s.class($.forward_class)),
               "→",
-              l(s.click(__), s.on__forward($.window)),
+              seq(s.receive($.e), u($.e, s.click(__)), s.on__forward($.window)),
             ),
             s.view__view_menu($.window, $.id, $.view),
           ),
@@ -298,8 +310,8 @@ export const browserData = {
               s.change($.value),
               s.match_cond(
                 $.value,
-                l("home", s.on__newWindow(s.location("home"))),
-                l("omnibox", s.on__newWindow(s.location("omnibox"))),
+                l("home", s.on__new_window(s.location("home"))),
+                l("omnibox", s.on__new_window(s.location("omnibox"))),
                 l("reset", s.clear_state()),
               ),
             ),
@@ -382,30 +394,40 @@ export const browserData = {
   },
 
   // event handlers
-  on__selectWindow: {
+  on__select_window: {
     rule__params: l($.window),
     rule__body: db.with_tx(
       $.tx,
       db.update($.tx, "browser", "browser__current_window", $.window),
+      s.send("root_view_manager", s.render()),
     ),
   },
-  on__newWindow: {
+  on__new_window: {
     rule__params: l($.location),
-    rule__body: db.with_tx($.tx, s.new__window($.tx, __, $.location)),
+    rule__body: db.with_tx(
+      $.tx,
+      s.new__window($.tx, __, $.location),
+      s.send("root_view_manager", s.render()),
+    ),
   },
-  on__closeWindow: {
+  on__close_window: {
     rule__params: l($.window),
-    rule__body: db.with_tx($.tx, db.delete($.tx, $.window)),
+    rule__body: db.with_tx(
+      $.tx,
+      db.delete($.tx, $.window),
+      s.send("root_view_manager", s.render()),
+    ),
   },
   on__push: {
     rule__params: l($.window, $.location),
     rule__body: db.with_tx(
       $.tx,
-      s.window__current_history($.window, $.prev),
+      f.window__current_history($.window, $.prev),
       s.new__history($.tx, $.next, $.window, $.location),
       db.update($.tx, $.next, "history__back", $.prev),
       db.update($.tx, $.prev, "history__forward", $.next),
       db.update($.tx, $.window, "window__current_history", $.next),
+      s.send("root_view_manager", s.render()),
     ),
   },
 
@@ -413,39 +435,41 @@ export const browserData = {
     rule__params: l($.window),
     rule__body: db.with_tx(
       $.tx,
-      s.window__current_history($.window, $.forward),
-      s.history__back($.forward, $.back),
+      f.window__current_history($.window, $.forward),
+      f.history__back($.forward, $.back),
       db.update($.tx, $.window, "window__current_history", $.back),
       db.update($.tx, $.back, "history__forward", $.forward),
       db.delete($.tx, $.forward, "history__back"),
+      s.send("root_view_manager", s.render()),
     ),
   },
   on__forward: {
     rule__params: l($.window),
     rule__body: db.with_tx(
       $.tx,
-      s.window__current_history($.window, $.back),
-      s.history__forward($.back, $.forward),
+      f.window__current_history($.window, $.back),
+      f.history__forward($.back, $.forward),
 
       db.update($.tx, $.window, "window__current_history", $.forward),
       db.update($.tx, $.forward, "history__back", $.back),
       db.delete($.tx, $.back, "history__forward"),
+      s.send("root_view_manager", s.render()),
     ),
   },
 } satisfies Record<string, Rec>;
 
 export const browserInitState = {
-  rootHistory: {
+  root_history: {
     db__schema: "history",
-    history__window: "rootWindow",
+    history__window: "root_window",
     history__id: "schema",
   },
-  rootWindow: {
+  root_window: {
     db__schema: "window",
-    window__current_history: "rootHistory",
+    window__current_history: "root_history",
   },
   browser: {
     file__name: "Browser state",
-    browser__current_window: "rootWindow",
+    browser__current_window: "root_window",
   },
 } satisfies Record<string, Rec>;

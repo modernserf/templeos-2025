@@ -41,10 +41,13 @@ export function resolveDeep(value: Value): Value {
       };
     case "var":
       // TODO: do I want to create new facts when these hit bottom?
-      return resolveDeep(value.fact.value);
+      if (value.tag === "var" && value.fact.value.tag !== "fresh") {
+        return resolveDeep(value.fact.value);
+      }
+      return value;
   }
 }
-function resolveVar(value: Value): Value {
+export function resolveVar(value: Value): Value {
   if (value.tag === "var" && value.fact.value.tag !== "fresh") {
     return resolveVar(value.fact.value);
   }

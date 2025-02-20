@@ -18,7 +18,8 @@ const rootView = s.loop(
   ),
 );
 
-const rootPid = p.runExpr(rootView);
+const rootPid = "root_view_manager";
+p.runExpr(rootView, rootPid);
 
 export function App() {
   const [result, setResult] = useState<Value & { tag: "box" }>();

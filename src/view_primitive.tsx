@@ -1,10 +1,10 @@
 import { Component, FC, ReactNode } from "react";
 import { __, l, s } from "./expr";
-import "./view_primitive.css";
-// import { useMessageEventSource, useStateCallback } from "./event_source";
-// import { debounce } from "./util";
 import { ProcessManager, ensure } from "./process";
-import { box, printValue, Value } from "./value";
+import { box, k, printValue, Value } from "./value";
+import { debounce } from "./util";
+
+import "./view_primitive.css";
 
 type VC = FC<{
   pm: ProcessManager;
@@ -77,16 +77,17 @@ const String: VC = ({ values: [value] }) => {
   return value.value;
 };
 
-const Button: VC = ({ values: [props, label, next, onClick] }) => {
-  // const handle = useStateCallback(process);
+const Button: VC = ({ pm, values: [props, label, handler] }) => {
   ensure(label, "string");
   return (
     <button
       {...getProps(props)}
       type="button"
       onClick={(e) => {
-        const event = e.metaKey ? s.click(l(s.meta_key())) : s.click(l());
-        // handle(next, onClick, event);
+        pm.sendAsync(
+          pm.spawn(handler),
+          e.metaKey ? s.click(l(s.meta_key())) : s.click(l()),
+        );
       }}
     >
       {label.value}
@@ -94,7 +95,7 @@ const Button: VC = ({ values: [props, label, next, onClick] }) => {
   );
 };
 
-const Input: VC = ({ values: [props, value, next, onChange] }) => {
+const Input: VC = ({ pm, values: [props, value, handler] }) => {
   // const handle = useStateCallback(process);
   if (value.tag !== "string" && value.tag !== "number") return null;
 
@@ -104,20 +105,20 @@ const Input: VC = ({ values: [props, value, next, onChange] }) => {
     <input
       {...jsProps}
       defaultValue={value.value}
-      // onChange={debounce(db, (e) => {
-      //   handle(next, onChange, s.change(e.target.value));
-      // })}
-      // onFocus={() => {
-      //   handle(next, onChange, s.focus());
-      // }}
-      // onBlur={() => {
-      //   handle(next, onChange, s.blur());
-      // }}
+      onChange={debounce(db, (e) => {
+        pm.sendAsync(pm.spawn(handler), box("change", [k(e.target.value)]));
+      })}
+      onFocus={() => {
+        pm.sendAsync(pm.spawn(handler), s.focus());
+      }}
+      onBlur={() => {
+        pm.sendAsync(pm.spawn(handler), s.blur());
+      }}
     />
   );
 };
 
-const Select: VC = ({ values: [props, value, options, next, onChange] }) => {
+const Select: VC = ({ pm, values: [props, value, options, handler] }) => {
   ensure(value, "string");
   ensure(options, "box");
 
@@ -127,13 +128,13 @@ const Select: VC = ({ values: [props, value, options, next, onChange] }) => {
       {...getProps(props)}
       value={value.value}
       onChange={(e) => {
-        // handle(next, onChange, s.change(e.target.value));
+        pm.sendAsync(pm.spawn(handler), box("change", [k(e.target.value)]));
       }}
       onFocus={() => {
-        // handle(next, onChange, s.focus());
+        pm.sendAsync(pm.spawn(handler), s.focus());
       }}
       onBlur={() => {
-        // handle(next, onChange, s.blur());
+        pm.sendAsync(pm.spawn(handler), s.blur());
       }}
     >
       {options.args.map((opt) => {
@@ -157,11 +158,10 @@ const Icon: VC = () => (
 
 const WindowContainer: VC = ({
   pm,
-  values: [windowId, currentWindowId, onSelect, onBack, onForward, children],
+  values: [windowId, currentWindowId, handler, children],
 }) => {
   ensure(windowId, "string");
   ensure(currentWindowId, "string");
-  // const handle = useStateCallback(process);
   const isCurrent = windowId.value === currentWindowId.value;
   return (
     <div
@@ -170,16 +170,16 @@ const WindowContainer: VC = ({
         .filter(Boolean)
         .join(" ")}
       onMouseDownCapture={() => {
-        // if (!isCurrent) handle(__, onSelect, __);
+        if (!isCurrent) pm.sendAsync(pm.spawn(handler), s.select_window());
       }}
       onKeyDownCapture={(e) => {
         if (e.key == "[" && e.metaKey) {
           e.preventDefault();
-          // handle(__, onBack, __);
+          pm.sendAsync(pm.spawn(handler), s.back());
         }
         if (e.key == "]" && e.metaKey) {
           e.preventDefault();
-          // handle(__, onForward, __);
+          pm.sendAsync(pm.spawn(handler), s.forward());
         }
       }}
     >

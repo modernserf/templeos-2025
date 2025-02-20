@@ -8,6 +8,8 @@ import { browserData, browserInitState } from "./browser";
 import { testUtils } from "./test_utils";
 import { viewForm } from "./view_form";
 import { viewTable } from "./view_table";
+import { viewAnyRecord } from "./view_any_record";
+import { dbRules } from "./db";
 
 export type Schema =
   | "any_record"
@@ -139,6 +141,8 @@ export const data = mergeAndCheck(
     viewCore,
     viewForm,
     viewTable,
+    viewAnyRecord,
+    dbRules,
   ],
   {},
 );

@@ -45,16 +45,18 @@ export const viewCore = {
         $.out,
         l(s.class("Link")),
         $.label,
-        l(
-          s.click($.params),
+        seq(
+          s.receive($.event),
+          // receive all events but drop everything except click
+          u(s.click($.params), $.event),
           s.cond(
             l(
-              s.value_box_index(s.meta_key(), $.params, __),
-              s.on__newWindow($.location),
+              s.value_box_index(s.meta_key(), $.params, 0),
+              s.on__new_window($.location),
             ),
             l(
               s.value_box_index(s.target("new"), $.props, __),
-              s.on__newWindow($.location),
+              s.on__new_window($.location),
             ),
             l(s.ok(), s.on__push($.window, $.location)),
           ),
@@ -72,7 +74,7 @@ export const viewCore = {
           s.set_context("window_id", "test_window_id"),
           s.view__link($.out, l(), "hello", s.location("test_link")),
         ),
-        s.Button(l(s.class("Link")), "hello", __, __),
+        s.Button(l(s.class("Link")), "hello", __),
       ),
     ),
   },
@@ -102,6 +104,14 @@ export const viewCore = {
           ),
         ),
       ),
+    ),
+  },
+
+  view__file_link: {
+    rule__params: l($.out, $.id),
+    rule__body: seq(
+      s.value_record_field_default($.name, $.id, "file__name", $.id),
+      s.view__link($.out, l(), $.name, s.location($.id)),
     ),
   },
 } satisfies Record<string, Rec>;
