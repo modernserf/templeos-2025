@@ -5,8 +5,8 @@ export const viewAnyRecord = {
   view__expr_var: {
     rule__params: l($.out, $.var),
     rule__body: seq(
-      // s.ident_var($.ident, $.var),
-      s.view__string($.out, $.var),
+      s.ident_var($.ident, $.var),
+      s.view__string($.out, $.ident),
     ),
   },
   view__expr_number: {

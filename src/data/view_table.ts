@@ -6,8 +6,8 @@ export const viewTable = {
     rule__params: l($.out, $.props),
     rule__rest_params: $.sections,
     rule__body: seq(
-      s.nonempty($.sections),
       s.expr_children($.rendered_sections, $.sections),
+      s.nonempty($.rendered_sections),
       s.collect_item_in(
         $.flat,
         $.item,
@@ -25,9 +25,9 @@ export const viewTable = {
     rule__params: l($.out, $.header_props, $.header),
     rule__rest_params: $.rows,
     rule__body: seq(
-      s.nonempty($.rows),
       s.expr_children($.rendered_header, $.header),
       s.expr_children($.rendered_rows, $.rows),
+      s.nonempty($.rendered_rows),
       s.collect_item_in(
         $.header_cells,
         s.Html("th", $.header_props, l($.item)),

@@ -27,6 +27,6 @@ export function loadState(
   try {
     return JSON.parse(window.localStorage.getItem(STATE_KEY)!);
   } catch {
-    return {};
+    return null;
   }
 }

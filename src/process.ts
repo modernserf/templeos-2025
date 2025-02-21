@@ -134,8 +134,19 @@ export class State {
   }
   unify(left: Value, right: Value): boolean {
     if (left.tag === "fresh" || right.tag === "fresh") return true;
+    // makes ident_var work correctly
+    // if (left.tag === "var" && right.tag == "var") {
+    //   if (left.fact.gen >= right.fact.gen) {
+    //     return this.unifyFact(left.fact, right);
+    //   } else {
+    //     return this.unifyFact(right.fact, left);
+    //   }
+    // }
+
+    // if these go in the opposite order, form elements dont update correctly
     if (left.tag === "var") return this.unifyFact(left.fact, right);
     if (right.tag === "var") return this.unifyFact(right.fact, left);
+
     if (left.tag === "string" && right.tag === "string")
       return left.value === right.value;
     if (left.tag === "number" && right.tag === "number")

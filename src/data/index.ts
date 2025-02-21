@@ -175,8 +175,8 @@ export function initProcessManager() {
   const e = new EventSource<Value>();
 
   p.addExternal(e, "local_storage");
-  const storedData = loadState(db, e);
-  db.bulkInsert({ ...initState, ...storedData, ...data });
+  const storedData = loadState(db, e) ?? initState;
+  db.bulkInsert({ ...storedData, ...data });
 
   p.spawn(box("dispatcher", []), "dispatcher");
   return p;
