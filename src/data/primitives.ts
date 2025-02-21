@@ -133,8 +133,8 @@ export const { rules, rulePrimitives } = compilePrimitives({
           }
         }
 
-        if (!didSucceed) break;
         it.backtrack(s);
+        if (!didSucceed) break;
       }
     },
   },
@@ -189,13 +189,10 @@ export const { rules, rulePrimitives } = compilePrimitives({
       const s = it.choice();
       try {
         yield* it.eval(try_);
-        it.cut(s);
       } catch (e) {
         if (e instanceof Exception) {
           it.backtrack(s);
-          const s2 = it.choice();
           if (it.unify(e.error, error_)) {
-            it.cut(s2);
             yield* it.eval(catch_);
             return;
           }
@@ -210,13 +207,10 @@ export const { rules, rulePrimitives } = compilePrimitives({
       const s = it.choice();
       try {
         yield* it.eval(try_);
-        it.cut(s);
       } catch (e) {
         if (e instanceof Exception) {
           it.backtrack(s);
-          const s2 = it.choice();
           if (it.unify(e.error, error_) && it.unify(box("", e.trace), trace_)) {
-            it.cut(s2);
             yield* it.eval(catch_);
             return;
           }

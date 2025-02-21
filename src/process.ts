@@ -40,9 +40,12 @@ export function resolveDeep(value: Value): Value {
         args: value.args.map((arg) => resolveDeep(arg)),
       };
     case "var":
-      // TODO: do I want to create new facts when these hit bottom?
-      if (value.tag === "var" && value.fact.value.tag !== "fresh") {
-        return resolveDeep(value.fact.value);
+      if (value.tag === "var") {
+        if (value.fact.value.tag === "fresh") {
+          return value;
+        } else {
+          return resolveDeep(value.fact.value);
+        }
       }
       return value;
   }
@@ -159,15 +162,10 @@ export class State {
     return prev;
   }
   backtrack(prev: number) {
-    for (let i = this.trail.length - 1; i >= this.lastSave; --i) {
-      const { fact, prev } = this.trail[i];
+    while (this.trail.length > this.lastSave) {
+      const { fact, prev } = this.trail.pop()!;
       fact.value = prev;
     }
-    this.trail.length = this.lastSave;
-    this.lastSave = prev;
-  }
-  cut(prev: number) {
-    this.trail.length = this.lastSave;
     this.lastSave = prev;
   }
   push(fact: Fact) {
@@ -184,15 +182,14 @@ export class State {
   unify(left: Value, right: Value): boolean {
     if (left.tag === "fresh" || right.tag === "fresh") return true;
     // makes ident_var work correctly
-    // if (left.tag === "var" && right.tag == "var") {
-    //   if (left.fact.gen >= right.fact.gen) {
-    //     return this.unifyFact(left.fact, right);
-    //   } else {
-    //     return this.unifyFact(right.fact, left);
-    //   }
-    // }
+    if (left.tag === "var" && right.tag == "var") {
+      if (left.fact.gen >= right.fact.gen) {
+        return this.unifyFact(left.fact, right);
+      } else {
+        return this.unifyFact(right.fact, left);
+      }
+    }
 
-    // if these go in the opposite order, form elements dont update correctly
     if (left.tag === "var") return this.unifyFact(left.fact, right);
     if (right.tag === "var") return this.unifyFact(right.fact, left);
 
@@ -380,9 +377,10 @@ export class ProcessManager {
     this.processes.set(pid, { tag: "init", mailbox: [] });
 
     const state = State.init(this, pid);
-    const gen = state.eval(goal);
+    const gen = state.eval(resolveDeep(goal));
     const next = gen.next();
     this.runUntilSuspend(pid, next, gen);
+    this.runAllQueued();
     return pid;
   }
   private runAllQueued() {

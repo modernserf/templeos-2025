@@ -50,6 +50,14 @@ export const core = {
     rule__params: l($.item),
     rule__body: s.type_value(s.var(), $.item),
   },
+  ensure_var: {
+    rule__params: l($.item),
+    rule__body: s.if_then_else(
+      s.var($.item),
+      s.ok(),
+      s.throw(s.expected_type(s.var(), $.item)),
+    ),
+  },
   time: {
     db__schema: "type",
     file__name: "Time",

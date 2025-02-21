@@ -99,16 +99,14 @@ export const browserData = {
     rule__body: seq(
       s.loop(
         seq(
-          s.receive(s.mount($.renderer)),
+          s.receive(s.mount($.vc_renderer)),
           s.self($.self),
           s.send($.self, s.render()),
           s.loop(
             seq(
               s.receive(s.render()),
-              s.log("rendering before", $.self, $.renderer, $.out),
-              s.preply($.component, l($.out)),
-              s.log("rendering after", $.self, $.renderer),
-              s.send($.renderer, $.out),
+              s.preply($.component, l($.out_tracked)),
+              s.send($.vc_renderer, $.out_tracked),
             ),
           ),
         ),
@@ -117,10 +115,7 @@ export const browserData = {
   },
   dispatch: {
     rule__params: l($.message),
-    rule__body: seq(
-      s.log("sending", $.message),
-      s.send("dispatcher", $.message),
-    ),
+    rule__body: seq(s.send("dispatcher", $.message)),
   },
   dispatcher: {
     rule__params: l(),
@@ -128,13 +123,11 @@ export const browserData = {
       s.loop(
         seq(
           s.receive($.message),
-          s.log("receiving", $.message),
           s.match_cond(
             $.message,
             l(
               s.render_window($.window),
               seq(
-                s.log("forwarding", $.window, s.render()),
                 s.send($.window, s.render()),
                 s.send("local_storage", s.update()),
               ),
@@ -535,7 +528,7 @@ export const browserInitState = {
   root_history: {
     db__schema: "history",
     history__window: "root_window",
-    history__id: "schema",
+    history__id: "code_explorer",
   },
   root_window: {
     db__schema: "window",

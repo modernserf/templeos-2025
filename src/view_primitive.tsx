@@ -121,9 +121,9 @@ const Input: VC = ({ pm, values: [props, value, handler] }) => {
     <input
       {...jsProps}
       defaultValue={value.value}
-      onChange={(e) => {
+      onChange={debounce(db, (e) => {
         pm.sendAsync(pm.spawn(handler), box("change", [k(e.target.value)]));
-      }}
+      })}
       onFocus={() => {
         pm.sendAsync(pm.spawn(handler), s.focus());
       }}

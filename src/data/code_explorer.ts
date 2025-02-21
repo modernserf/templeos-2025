@@ -13,7 +13,7 @@ export const codeExplorerData = {
         l(),
         s.view__input(
           l(
-            s.debounce(100),
+            s.debounce(300),
             s.placeholder("Search..."),
             s.style("width", "100%"),
           ),
