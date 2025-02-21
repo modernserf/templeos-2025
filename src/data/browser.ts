@@ -146,6 +146,24 @@ export const browserData = {
     ),
   },
 
+  get_state: {
+    rule__params: l($.value, $.state, $.default),
+    rule__body: s.value_record_field_default(
+      $.value,
+      $.state,
+      "history__params",
+      $.default,
+    ),
+  },
+  set_state: {
+    rule__params: l($.state, $.value),
+    rule__body: seq(
+      db.with_tx($.tx, db.update($.tx, $.state, "history__params", $.value)),
+      f.history__window($.state, $.window),
+      s.dispatch(s.render_window($.window)),
+    ),
+  },
+
   // views
   view__desktop: {
     rule__params: l($.out),
@@ -263,7 +281,7 @@ export const browserData = {
         ),
       ),
 
-      s.try_error_catch(
+      s.try_error_trace_catch(
         seq(
           s.expr(
             $.out,
@@ -284,8 +302,9 @@ export const browserData = {
           ),
         ),
         $.error,
+        $.trace,
         seq(
-          s.log("error", $.error),
+          s.log("error", $.error, $.trace),
           s.expr(
             $.out,
             s.view__window_container(

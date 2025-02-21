@@ -204,6 +204,27 @@ export const { rules, rulePrimitives } = compilePrimitives({
       }
     },
   },
+  try_error_trace_catch: {
+    rule__params: l($.try, $.error, $.trace, $.catch),
+    rule__primitive: function* (it, try_, error_, trace_, catch_) {
+      const s = it.choice();
+      try {
+        yield* it.eval(try_);
+        it.cut(s);
+      } catch (e) {
+        if (e instanceof Exception) {
+          it.backtrack(s);
+          const s2 = it.choice();
+          if (it.unify(e.error, error_) && it.unify(box("", e.trace), trace_)) {
+            it.cut(s2);
+            yield* it.eval(catch_);
+            return;
+          }
+        }
+        throw e;
+      }
+    },
+  },
   collect_item_in: {
     rule__params: l($.out, $.pattern, $.goal),
     rule__primitive: function* (it, out, pattern, goal) {
@@ -332,6 +353,13 @@ export const { rules, rulePrimitives } = compilePrimitives({
       2,
       3,
     ),
+  },
+  ident_var: {
+    rule__params: l($.ident, $.var),
+    rule__primitive: function* (it, ident, v) {
+      ensure(v, "var");
+      if (it.unify(ident, k(v.fact.name))) yield it.result();
+    },
   },
   string_number: {
     rule__params: l($.string, $.number),
@@ -767,7 +795,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (!rec) return;
       const val = rec[field.value];
       if (val == null) return;
-      if (it.unify(it.exprValue(val), value)) yield it.result();
+      if (it.unify(it.exprValue(val, {}), value)) yield it.result();
     },
   },
   record_index_field: {

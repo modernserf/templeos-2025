@@ -1,27 +1,13 @@
 import { Rec } from ".";
 import { l, seq, s, $, f } from "../expr";
-import { db } from "./db";
 
 export const omnibox = {
-  set_state: {
-    rule__params: l($.state, $.value),
-    rule__body: seq(
-      db.with_tx($.tx, db.update($.tx, $.state, "history__params", $.value)),
-      f.history__window($.state, $.window),
-      s.dispatch(s.render_window($.window)),
-    ),
-  },
   omnibox: {
     db__schema: "form",
     file__name: "Search",
     rule__params: l($.out, $.id, $.state),
     rule__body: seq(
-      s.value_record_field_default(
-        s.omnibox($.search),
-        $.state,
-        "history__params",
-        s.omnibox(""),
-      ),
+      s.get_state(s.omnibox($.search), $.state, s.omnibox("")),
       s.expr(
         $.out,
         s.view__column(

@@ -12,7 +12,7 @@ type ProcGen = Generator<Proc, void, State | undefined>;
 export type RulePrimitive = (state: State, ...args: Value[]) => ProcGen;
 
 export class Exception {
-  constructor(public error: Value) {}
+  constructor(public error: Value, public trace: Value[] = []) {}
   get message() {
     return printValue(this.error);
   }
@@ -82,7 +82,7 @@ export class State {
       this.pid,
     );
   }
-  exprValue(expr: Expr): Value {
+  exprValue(expr: Expr, scope = this.scope): Value {
     switch (typeof expr) {
       case "string":
         return { tag: "string", value: expr };
@@ -93,19 +93,19 @@ export class State {
           case "placeholder":
             return fresh;
           case "ident":
-            if (!this.scope[expr.ident]) {
-              this.scope[expr.ident] = {
+            if (!scope[expr.ident]) {
+              scope[expr.ident] = {
                 value: fresh,
                 gen: this.trail.length,
                 name: expr.ident,
               };
             }
-            return { tag: "var", fact: this.scope[expr.ident] };
+            return { tag: "var", fact: scope[expr.ident] };
           case "box":
             return {
               tag: "box",
               id: expr.id,
-              args: expr.args.map((arg) => this.exprValue(arg)),
+              args: expr.args.map((arg) => this.exprValue(arg, scope)),
             };
         }
     }
@@ -201,14 +201,21 @@ export class State {
       }
     }
 
-    const gen = nextState.eval(nextState.exprValue(body));
-    let next = gen.next();
-    while (!next.done) {
-      if (next.value.tag === "result") {
-        next = gen.next(yield { tag: "result", result: this });
-      } else {
-        next = gen.next(yield next.value);
+    try {
+      const gen = nextState.eval(nextState.exprValue(body));
+      let next = gen.next();
+      while (!next.done) {
+        if (next.value.tag === "result") {
+          next = gen.next(yield { tag: "result", result: this });
+        } else {
+          next = gen.next(yield next.value);
+        }
       }
+    } catch (e) {
+      if (e instanceof Exception) {
+        e.trace.push(k(id));
+      }
+      throw e;
     }
   }
   private getRule(value: Value) {

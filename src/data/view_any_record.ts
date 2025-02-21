@@ -3,8 +3,11 @@ import { l, seq, s, $, __ } from "../expr";
 
 export const viewAnyRecord = {
   view__expr_var: {
-    rule__params: l($.out, $.value),
-    rule__body: seq(s.view__string($.out, $.value)),
+    rule__params: l($.out, $.var),
+    rule__body: seq(
+      // s.ident_var($.ident, $.var),
+      s.view__string($.out, $.var),
+    ),
   },
   view__expr_number: {
     rule__params: l($.out, $.value),
@@ -39,11 +42,17 @@ export const viewAnyRecord = {
             s.view__html(
               "span",
               l(),
-              s.children(s.view__string($.tag), s.view__string("(")),
+              s.children(s.view__file_link($.tag), s.view__string("(")),
             ),
+            s.view__spacer("0.25rem"),
             s.expr_iter(
               s.value_box_index($.arg, $.list, __),
-              s.view__html("span", l(), s.children(s.view__expr($.arg))),
+              s.view__html(
+                "span",
+                l(),
+                s.children(s.view__expr(s.quote($.arg))),
+              ),
+              s.view__spacer("0.25rem"),
             ),
             s.view__html("span", l(), s.children(s.view__string(")"))),
           ),

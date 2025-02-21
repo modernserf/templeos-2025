@@ -14,6 +14,7 @@ import { loadState } from "../storage";
 import { EventSource } from "../event_source";
 import { box, Value } from "../value";
 import { omnibox } from "./omnibox";
+import { codeExplorerData } from "./code_explorer";
 
 export type Schema =
   | "any_record"
@@ -139,16 +140,17 @@ function mergeAndCheck(
 // always loads from source
 export const data = mergeAndCheck(
   [
-    testUtils,
-    rulePrimitiveRecs,
-    core,
     browserData,
+    codeExplorerData,
+    core,
+    dbRules,
+    omnibox,
+    rulePrimitiveRecs,
+    testUtils,
+    viewAnyRecord,
     viewCore,
     viewForm,
     viewTable,
-    viewAnyRecord,
-    omnibox,
-    dbRules,
   ],
   {},
 );

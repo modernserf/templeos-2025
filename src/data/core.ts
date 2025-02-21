@@ -204,6 +204,10 @@ export const core = {
     db__index: s.ref(),
   },
   // utilities
+  none: {
+    rule__params: l($.expr),
+    rule__body: s.if_then_else($.expr, s.fail(), s.ok()),
+  },
   // TODO: check performance on this, maybe want native impl for this
   append_box_prefix: {
     file__description: l(
@@ -456,7 +460,7 @@ export const core = {
               s.box_tag_list($.arg, "children", $.children),
               s.apply(s.children($.rendered), $.children),
             ),
-            // TODO:  quote
+            l(u(s.quote($.rendered), $.arg), s.ok()),
           ),
         ),
       ),
