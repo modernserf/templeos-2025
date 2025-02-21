@@ -8,39 +8,33 @@ export const omnibox = {
     rule__params: l($.out, $.id, $.state),
     rule__body: seq(
       s.get_state(s.omnibox($.search), $.state, s.omnibox("")),
-      s.expr(
+      s.column(
         $.out,
-        s.view__column(
-          l(),
-          s.children(
-            s.view__input(
-              l(
-                s.debounce(100),
-                s.placeholder("Search..."),
-                s.style("width", "100%"),
-              ),
-              $.search,
+        l(),
+        s.view__input(
+          l(
+            s.debounce(100),
+            s.placeholder("Search..."),
+            s.style("width", "100%"),
+          ),
+          $.search,
+          seq(
+            s.receive(s.change($.next)),
+            s.set_state($.state, s.omnibox($.next)),
+          ),
+        ),
+        s.column(
+          l(s.style("padding", "0.5rem")),
+          s.expr_iter_else(
+            s.limit(
+              10,
               seq(
-                s.receive(s.change($.next)),
-                s.set_state($.state, s.omnibox($.next)),
+                f.file__name($.result, $.result_name),
+                s.string_substring($.result_name, $.search),
               ),
             ),
-            s.view__column(
-              l(s.style("padding", "0.5rem")),
-              s.children(
-                s.expr_iter_else(
-                  s.limit(
-                    10,
-                    seq(
-                      f.file__name($.result, $.result_name),
-                      s.string_substring($.result_name, $.search),
-                    ),
-                  ),
-                  l(s.view__file_info($.result), s.view__spacer("0.5rem")),
-                  l(s.view__string("no results")),
-                ),
-              ),
-            ),
+            l(s.view__file_info($.result), s.view__spacer("0.5rem")),
+            l(s.view__string("no results")),
           ),
         ),
       ),

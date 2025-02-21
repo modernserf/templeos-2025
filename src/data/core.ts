@@ -447,31 +447,10 @@ export const core = {
   expr: {
     file__description: l("evaluate box tree as expression"),
     rule__params: l($.out, $.expr),
-    rule__body: seq(
-      s.collect_item_in(
-        $.changes,
-        l($.i, $.rendered),
-        seq(
-          s.value_box_index($.arg, $.expr, $.i),
-          s.box($.arg),
-          s.cond(
-            l(u(s.expr($.next), $.arg), s.expr($.rendered, $.next)),
-            l(
-              s.box_tag_list($.arg, "children", $.children),
-              s.apply(s.children($.rendered), $.children),
-            ),
-            l(u(s.quote($.rendered), $.arg), s.ok()),
-          ),
-        ),
-      ),
-      s.updated_box_changelist($.updated, $.expr, $.changes),
-
-      s.preply($.updated, l($.out)),
-    ),
+    rule__body: s.preply($.expr, l($.out)),
   },
-  children: {
-    rule__params: l($.out),
-    rule__rest_params: $.children,
+  expr_children: {
+    rule__params: l($.out, $.children),
     rule__body: s.collect_item_in(
       $.out,
       $.rendered,
@@ -500,39 +479,6 @@ export const core = {
         s.value_box_index($.child, $.else, __),
       ),
       s.expr($.out, $.child),
-    ),
-  },
-
-  test__expr: {
-    test__group: "core",
-    rule__params: l(),
-    rule__body: seq(
-      test.collect(
-        $.result,
-        s.expr($.result, s.append_left_right(l(1, 2, 3), l(4, 5))),
-        l(1, 2, 3, 4, 5),
-      ),
-
-      test.collect(
-        $.result,
-        s.expr(
-          $.result,
-          s.append_left_right(
-            s.expr(s.append_left_right(l(1, 2), l(3))),
-            l(4, 5),
-          ),
-        ),
-        l(1, 2, 3, 4, 5),
-      ),
-
-      test.collect(
-        $.result,
-        s.expr(
-          $.result,
-          s.append_left_right(s.children(s("=", 1), s("=", 2)), l(3, 4, 5)),
-        ),
-        l(1, 2, 3, 4, 5),
-      ),
     ),
   },
 

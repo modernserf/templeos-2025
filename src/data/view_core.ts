@@ -3,9 +3,13 @@ import { l, seq, s, $, u, __, f } from "../expr";
 import { test } from "./test_utils";
 
 export const viewCore = {
-  view__html: {
-    rule__params: l($.out, $.tag, $.props, $.children),
-    rule__body: seq(u($.out, s.Html($.tag, $.props, $.children))),
+  html: {
+    rule__params: l($.out, $.tag, $.props),
+    rule__rest_params: $.children,
+    rule__body: seq(
+      s.expr_children($.rendered_children, $.children),
+      u($.out, s.Html($.tag, $.props, $.rendered_children)),
+    ),
   },
   view__spacer: {
     rule__params: l(
@@ -13,25 +17,31 @@ export const viewCore = {
       $.space,
     ),
   },
-  view__row: {
-    rule__params: l($.out, $.props, $.children),
+  row: {
+    rule__params: l($.out, $.props),
+    rule__rest_params: $.children,
     rule__body: seq(
       s.append_left_right($.node_props, $.props, l(s.class("Row"))),
-      u($.out, s.Html("div", $.node_props, $.children)),
+      s.expr_children($.rendered_children, $.children),
+      u($.out, s.Html("div", $.node_props, $.rendered_children)),
     ),
   },
-  view__column: {
-    rule__params: l($.out, $.props, $.children),
+  column: {
+    rule__params: l($.out, $.props),
+    rule__rest_params: $.children,
     rule__body: seq(
       s.append_left_right($.node_props, $.props, l(s.class("Column"))),
-      u($.out, s.Html("div", $.node_props, $.children)),
+      s.expr_children($.rendered_children, $.children),
+      u($.out, s.Html("div", $.node_props, $.rendered_children)),
     ),
   },
-  view__wrap: {
-    rule__params: l($.out, $.props, $.children),
+  wrap: {
+    rule__params: l($.out, $.props),
+    rule__rest_params: $.children,
     rule__body: seq(
       s.append_left_right($.node_props, $.props, l(s.class("Wrap"))),
-      u($.out, s.Html("div", $.node_props, $.children)),
+      s.expr_children($.rendered_children, $.children),
+      u($.out, s.Html("div", $.node_props, $.rendered_children)),
     ),
   },
   view__string: {
@@ -90,19 +100,15 @@ export const viewCore = {
         $.ts,
         s.date(__, __, __, $.hour, $.minute, $.second, __),
       ),
-      s.expr(
+      s.html(
         $.out,
-        s.view__html(
-          "span",
-          l(),
-          s.children(
-            s.view__string($.hour),
-            s.view__string(":"),
-            s.view__string($.minute),
-            s.view__string(":"),
-            s.view__string($.second),
-          ),
-        ),
+        "span",
+        l(),
+        s.view__string($.hour),
+        s.view__string(":"),
+        s.view__string($.minute),
+        s.view__string(":"),
+        s.view__string($.second),
       ),
     ),
   },
@@ -117,30 +123,21 @@ export const viewCore = {
   view__file_info: {
     rule__params: l($.out, $.id),
     rule__body: seq(
-      s.expr(
+      s.column(
         $.out,
-        s.view__column(
+        l(),
+        s.row(
           l(),
-          s.children(
-            s.view__row(
-              l(),
-              s.children(
-                s.expr_iter(
-                  f.db__schema($.id, $.schema),
-                  s.view__file_link($.schema),
-                  s.view__string(":"),
-                  s.view__spacer("0.5rem"),
-                ),
-                s.view__file_link($.id),
-              ),
-            ),
-            // TODO: render formatted text
-            s.expr_iter(
-              f.file__description($.id, $.desc),
-              s.view__expr($.desc),
-            ),
+          s.expr_iter(
+            f.db__schema($.id, $.schema),
+            s.view__file_link($.schema),
+            s.view__string(":"),
+            s.view__spacer("0.5rem"),
           ),
+          s.view__file_link($.id),
         ),
+        // TODO: render formatted text
+        s.expr_iter(f.file__description($.id, $.desc), s.view__expr($.desc)),
       ),
     ),
   },

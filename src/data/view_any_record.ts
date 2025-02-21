@@ -16,17 +16,13 @@ export const viewAnyRecord = {
   view__expr_string: {
     rule__params: l($.out, $.value),
     rule__body: seq(
-      s.expr(
+      s.html(
         $.out,
-        s.view__html(
-          "span",
-          l(),
-          s.children(
-            s.view__string('"'),
-            s.view__string($.value),
-            s.view__string('"'),
-          ),
-        ),
+        "span",
+        l(),
+        s.view__string('"'),
+        s.view__string($.value),
+        s.view__string('"'),
       ),
     ),
   },
@@ -34,29 +30,17 @@ export const viewAnyRecord = {
     rule__params: l($.out, $.value),
     rule__body: seq(
       s.box_tag_list($.value, $.tag, $.list),
-      s.expr(
+      s.wrap(
         $.out,
-        s.view__wrap(
-          l(),
-          s.children(
-            s.view__html(
-              "span",
-              l(),
-              s.children(s.view__file_link($.tag), s.view__string("(")),
-            ),
-            s.view__spacer("0.25rem"),
-            s.expr_iter(
-              s.value_box_index($.arg, $.list, __),
-              s.view__html(
-                "span",
-                l(),
-                s.children(s.view__expr(s.quote($.arg))),
-              ),
-              s.view__spacer("0.25rem"),
-            ),
-            s.view__html("span", l(), s.children(s.view__string(")"))),
-          ),
+        l(),
+        s.html("span", l(), s.view__file_link($.tag), s.view__string("(")),
+        s.view__spacer("0.25rem"),
+        s.expr_iter(
+          s.value_box_index($.arg, $.list, __),
+          s.html("span", l(), s.view__expr($.arg)),
+          s.view__spacer("0.25rem"),
         ),
+        s.html("span", l(), s.view__string(")")),
       ),
     ),
   },
@@ -79,10 +63,7 @@ export const viewAnyRecord = {
     rule__params: l($.out, $.field, $.id),
     rule__body: seq(
       s.value_record_field($.value, $.id, $.field),
-      s.expr(
-        $.out,
-        s.view__html("div", l(), s.children(s.view__expr($.value))),
-      ),
+      s.html($.out, "div", l(), s.view__expr($.value)),
     ),
   },
 
@@ -91,48 +72,29 @@ export const viewAnyRecord = {
     view__schema: "any_record",
     rule__params: l($.out, $.id, $.state),
     rule__body: seq(
-      //
-      s.expr(
+      s.table(
         $.out,
-        s.view__table(
+        l(),
+        s.table_section(
           l(),
-          s.children(
-            s.view__table_section(
+          l(s.view__string("Field"), s.view__string("Value")),
+          s.table_row(l(), s.view__string("id"), s.view__string($.id)),
+          s.expr_iter(
+            s.field_record($.field, $.id),
+            s.table_row(
               l(),
-              s.children(s.view__string("Field"), s.view__string("Value")),
-              s.children(
-                s.view__table_row(
-                  l(),
-                  s.children(s.view__string("id"), s.view__string($.id)),
-                ),
-                s.expr_iter(
-                  s.field_record($.field, $.id),
-                  s.view__table_row(
-                    l(),
-                    s.children(
-                      s.view__file_link($.field),
-                      s.view__any_field($.field, $.id),
-                    ),
-                  ),
-                ),
-              ),
+
+              s.view__file_link($.field),
+              s.view__any_field($.field, $.id),
             ),
-            s.view__table_section(
-              l(),
-              s.children(s.view__string("Reference"), s.view__string("Record")),
-              s.children(
-                s.expr_iter(
-                  s.ref_field_record($.ref, $.field, $.id),
-                  s.view__table_row(
-                    l(),
-                    s.children(
-                      s.view__file_link($.field),
-                      s.view__string($.ref),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          ),
+        ),
+        s.table_section(
+          l(),
+          l(s.view__string("Reference"), s.view__string("Record")),
+          s.expr_iter(
+            s.ref_field_record($.ref, $.field, $.id),
+            s.table_row(l(), s.view__file_link($.field), s.view__string($.ref)),
           ),
         ),
       ),

@@ -73,31 +73,23 @@ export const testUtils = {
     file__name: "Unit tests",
     rule__params: l($.out, $.self, $.state),
     rule__body: seq(
-      s.expr(
+      s.table(
         $.out,
-        s.view__table(
+        l(),
+        s.table_section(
           l(),
-          s.children(
-            s.view__table_section(
+          l(
+            s.view__string("group"),
+            s.view__string("test"),
+            s.view__string("result"),
+          ),
+          s.expr_iter(
+            f.test__group($.id, $.group),
+            s.table_row(
               l(),
-              s.children(
-                s.view__string("group"),
-                s.view__string("test"),
-                s.view__string("result"),
-              ),
-              s.children(
-                s.expr_iter(
-                  f.test__group($.id, $.group),
-                  s.view__table_row(
-                    l(),
-                    s.children(
-                      s.view__string($.group),
-                      s.view__file_link($.id),
-                      s.view__test_result($.id),
-                    ),
-                  ),
-                ),
-              ),
+              s.view__string($.group),
+              s.view__file_link($.id),
+              s.view__test_result($.id),
             ),
           ),
         ),

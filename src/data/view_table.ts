@@ -2,54 +2,55 @@ import { l, seq, s, $, u, __ } from "../expr";
 import { test } from "./test_utils";
 
 export const viewTable = {
-  view__table: {
-    rule__params: l($.out, $.props, $.sections),
+  table: {
+    rule__params: l($.out, $.props),
+    rule__rest_params: $.sections,
     rule__body: seq(
       s.nonempty($.sections),
-
+      s.expr_children($.rendered_sections, $.sections),
       s.collect_item_in(
         $.flat,
         $.item,
         s.pipe(
           $.item,
-          $.sections,
+          $.rendered_sections,
           s.value_box_index(__),
           s.value_box_index(__),
         ),
-
-        // seq(
-        //   s.value_box_index($.s, $.sections, __),
-        //   s.value_box_index($.item, $.s, __),
-        // ),
       ),
       u($.out, s.Html("table", $.props, $.flat)),
     ),
   },
-  view__table_section: {
-    rule__params: l($.out, $.header_props, $.header, $.rows),
+  table_section: {
+    rule__params: l($.out, $.header_props, $.header),
+    rule__rest_params: $.rows,
     rule__body: seq(
       s.nonempty($.rows),
+      s.expr_children($.rendered_header, $.header),
+      s.expr_children($.rendered_rows, $.rows),
       s.collect_item_in(
         $.header_cells,
         s.Html("th", $.header_props, l($.item)),
-        s.value_box_index($.item, $.header, __),
+        s.value_box_index($.item, $.rendered_header, __),
       ),
       u(
         $.out,
         l(
           s.Html("thead", l(), l(s.Html("tr", l(), $.header_cells))),
-          s.Html("tbody", l(), $.rows),
+          s.Html("tbody", l(), $.rendered_rows),
         ),
       ),
     ),
   },
-  view__table_row: {
-    rule__params: l($.out, $.props, $.items),
+  table_row: {
+    rule__params: l($.out, $.props),
+    rule__rest_params: $.items,
     rule__body: seq(
+      s.expr_children($.rendered_items, $.items),
       s.collect_item_in(
         $.cells,
         s.Html("td", l(), l($.item)),
-        s.value_box_index($.item, $.items, __),
+        s.value_box_index($.item, $.rendered_items, __),
       ),
       u($.out, s.Html("tr", $.props, $.cells)),
     ),
@@ -60,26 +61,14 @@ export const viewTable = {
     rule__body: seq(
       test.collect(
         $.out,
-        s.expr(
+        s.table(
           $.out,
-          s.view__table(
+          l(),
+          s.table_section(
             l(),
-            s.children(
-              s.view__table_section(
-                l(),
-                s.children(s.view__string("Key"), s.view__string("Value")),
-                s.children(
-                  s.view__table_row(
-                    l(),
-                    s.children(s.view__string("foo"), s.view__string("123")),
-                  ),
-                  s.view__table_row(
-                    l(),
-                    s.children(s.view__string("bar"), s.view__string("456")),
-                  ),
-                ),
-              ),
-            ),
+            l(s.view__string("Key"), s.view__string("Value")),
+            s.table_row(l(), s.view__string("foo"), s.view__string("123")),
+            s.table_row(l(), s.view__string("bar"), s.view__string("456")),
           ),
         ),
         s.Html(

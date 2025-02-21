@@ -167,20 +167,16 @@ export const browserData = {
   // views
   view__desktop: {
     rule__params: l($.out),
-    rule__body: s.expr(
+    rule__body: s.html(
       $.out,
-      s.view__html(
-        "div",
-        l(),
-        s.children(
-          s.view__app_menu(),
-          s.expr_iter(
-            s.record_field_value($.window, "db__schema", "window"),
-            s(
-              "=",
-              s.Receiver(s.view__component(s.view__window($.window)), $.window),
-            ),
-          ),
+      "div",
+      l(),
+      s.view__app_menu(),
+      s.expr_iter(
+        s.record_field_value($.window, "db__schema", "window"),
+        s(
+          "=",
+          s.Receiver(s.view__component(s.view__window($.window)), $.window),
         ),
       ),
     ),
@@ -246,12 +242,13 @@ export const browserData = {
             l(s.forward(), s.on__forward($.window)),
           ),
         ),
-        $.children,
+        $.rendered_children,
       ),
       $.window,
       $.current_window,
-      $.children,
     ),
+    rule__rest_params: $.children,
+    rule__body: seq(s.expr_children($.rendered_children, $.children)),
   },
 
   view__window_content: {
@@ -283,21 +280,16 @@ export const browserData = {
 
       s.try_error_trace_catch(
         seq(
-          s.expr(
+          s.view__window_container(
             $.out,
-            s.view__window_container(
-              $.window,
-              $.current_window,
-              s.children(
-                s.view__window_bar($.window, $.id, $.view, $.name),
-                s.view__html(
-                  "div",
-                  l(s.class("AppWindow__content")),
-                  s.children(
-                    s.view__window_content($.view, $.id, $.window, $.history),
-                  ),
-                ),
-              ),
+            $.window,
+            $.current_window,
+
+            s.view__window_bar($.window, $.id, $.view, $.name),
+            s.html(
+              "div",
+              l(s.class("AppWindow__content")),
+              s.view__window_content($.view, $.id, $.window, $.history),
             ),
           ),
         ),
@@ -305,19 +297,16 @@ export const browserData = {
         $.trace,
         seq(
           s.log("error", $.error, $.trace),
-          s.expr(
+          s.view__window_container(
             $.out,
-            s.view__window_container(
-              $.window,
-              $.current_window,
-              s.children(
-                s.view__window_bar($.window, $.id, $.view, "Home"),
-                s.view__html(
-                  "div",
-                  l(s.class("AppWindow__content")),
-                  s.children(s.view__string("Error, see console for details")),
-                ),
-              ),
+            $.window,
+            $.current_window,
+
+            s.view__window_bar($.window, $.id, $.view, "Home"),
+            s.html(
+              "div",
+              l(s.class("AppWindow__content")),
+              s.view__string("Error, see console for details"),
             ),
           ),
         ),
@@ -338,72 +327,60 @@ export const browserData = {
         u($.forward_class, "AppWindow__nav"),
         u($.forward_class, "AppWindow__nav AppWindow__nav--disabled"),
       ),
-      s.expr(
+      s.row(
         $.out,
-        s.view__row(
-          l(s.class("AppWindow__header")),
-          s.children(
-            s.view__button(
-              l(s.class("AppWindow__closeButton")),
-              "",
-              seq(
-                s.receive($.e),
-                u($.e, s.click(__)),
-                s.on__close_window($.window),
-              ),
-            ),
-            s.view__html(
-              "h1",
-              l(s.class("AppWindow__title")),
-              s.children(s.view__string($.name)),
-            ),
-            s.expr_iter(s.timestamp($.ts), s.view__string($.ts)),
-
-            s.view__html("div", l(s.style("flex", "1 0 auto")), l()),
-            s.view__button(
-              l(s.class($.back_class)),
-              "←",
-              seq(s.receive($.e), u($.e, s.click(__)), s.on__back($.window)),
-            ),
-            s.view__button(
-              l(s.class($.forward_class)),
-              "→",
-              seq(s.receive($.e), u($.e, s.click(__)), s.on__forward($.window)),
-            ),
-            s.view__view_menu($.window, $.id, $.view),
+        l(s.class("AppWindow__header")),
+        s.view__button(
+          l(s.class("AppWindow__closeButton")),
+          "",
+          seq(
+            s.receive($.e),
+            u($.e, s.click(__)),
+            s.on__close_window($.window),
           ),
         ),
+        s.html("h1", l(s.class("AppWindow__title")), s.view__string($.name)),
+        s.expr_iter(s.timestamp($.ts), s.view__string($.ts)),
+
+        s.html("div", l(s.style("flex", "1 0 auto"))),
+        s.view__button(
+          l(s.class($.back_class)),
+          "←",
+          seq(s.receive($.e), u($.e, s.click(__)), s.on__back($.window)),
+        ),
+        s.view__button(
+          l(s.class($.forward_class)),
+          "→",
+          seq(s.receive($.e), u($.e, s.click(__)), s.on__forward($.window)),
+        ),
+        s.view__view_menu($.window, $.id, $.view),
       ),
     ),
   },
   view__app_menu: {
     file__name: "App menu",
     rule__params: l($.out),
-    rule__body: s.expr(
+    rule__body: s.row(
       $.out,
-      s.view__row(
+      l(
+        s.style("backgroundColor", "white"),
+        s.style("borderBottom", "1px solid black"),
+      ),
+      s.view__menu(
+        l(s.class("AppMenu")),
+        "Menu",
         l(
-          s.style("backgroundColor", "white"),
-          s.style("borderBottom", "1px solid black"),
+          s.option("home", "Home"),
+          s.option("omnibox", "Search"),
+          s.option("reset", "Reset"),
         ),
-        s.children(
-          s.view__menu(
-            l(s.class("AppMenu")),
-            "Menu",
-            l(
-              s.option("home", "Home"),
-              s.option("omnibox", "Search"),
-              s.option("reset", "Reset"),
-            ),
-            seq(
-              s.receive(s.change($.app_menu)),
-              s.match_cond(
-                $.app_menu,
-                l("home", s.on__new_window(s.location("home"))),
-                l("omnibox", s.on__new_window(s.location("omnibox"))),
-                l("reset", s.dispatch(s.clear_storage())),
-              ),
-            ),
+        seq(
+          s.receive(s.change($.app_menu)),
+          s.match_cond(
+            $.app_menu,
+            l("home", s.on__new_window(s.location("home"))),
+            l("omnibox", s.on__new_window(s.location("omnibox"))),
+            l("reset", s.dispatch(s.clear_storage())),
           ),
         ),
       ),
