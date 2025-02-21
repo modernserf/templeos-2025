@@ -21,6 +21,11 @@ export const dbRules = {
     rule__body: s.cond(
       l(s.nonvar($.id), s.value_record_field($.value, $.id, $.field)),
       l(s.nonvar($.value), s.record_index_field($.id, $.value, $.field)),
+      // full scan
+      l(
+        s.nonvar($.field),
+        seq(s.record($.id), s.value_record_field($.value, $.id, $.field)),
+      ),
       l(s.ok(), s.throw(s.not_yet_implemented("record_field_value modes"))),
     ),
   },

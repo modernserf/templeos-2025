@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, seq, s, $, u, __ } from "../expr";
+import { l, seq, s, $, u, __, f } from "../expr";
 import { test } from "./test_utils";
 
 export const viewCore = {
@@ -113,5 +113,42 @@ export const viewCore = {
       s.value_record_field_default($.name, $.id, "file__name", $.id),
       s.view__link($.out, l(), $.name, s.location($.id)),
     ),
+  },
+  view__file_info: {
+    rule__params: l($.out, $.id),
+    rule__body: seq(
+      s.expr(
+        $.out,
+        s.view__column(
+          l(),
+          s.children(
+            s.view__row(
+              l(),
+              s.children(
+                s.expr_iter(
+                  f.db__schema($.id, $.schema),
+                  s.view__file_link($.schema),
+                  s.view__string(":"),
+                  s.view__spacer("0.5rem"),
+                ),
+                s.view__file_link($.id),
+              ),
+            ),
+            // TODO: render formatted text
+            s.expr_iter(
+              f.file__description($.id, $.desc),
+              s.view__expr($.desc),
+            ),
+          ),
+        ),
+      ),
+    ),
+  },
+
+  view__form: {
+    file__name: "Form",
+    view__schema: "form",
+    rule__params: l($.out, $.id, $.state),
+    rule__body: s.call($.id, $.out, $.id, $.state),
   },
 } satisfies Record<string, Rec>;

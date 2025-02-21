@@ -18,6 +18,7 @@ export const browserData = {
       db.field("history__window"),
       db.field("history__id"),
       db.field_optional("history__view"),
+      db.field_optional("history__params"),
       db.field("history__forward"),
       db.field("history__back"),
     ),
@@ -33,6 +34,10 @@ export const browserData = {
     db__schema: "field",
     file__name: "History view ref",
     db__type: "ref",
+  },
+  history__params: {
+    db__schema: "field",
+    file__name: "History view params",
   },
   history__back: {
     db__schema: "field",

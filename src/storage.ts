@@ -24,9 +24,9 @@ export function loadState(
     }
   });
 
-  const res = window.localStorage.getItem(STATE_KEY);
-  if (res) {
-    return JSON.parse(res);
+  try {
+    return JSON.parse(window.localStorage.getItem(STATE_KEY)!);
+  } catch {
+    return {};
   }
-  return {};
 }

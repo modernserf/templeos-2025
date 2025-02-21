@@ -487,6 +487,17 @@ export const core = {
       s.expr($.out, $.child),
     ),
   },
+  expr_iter_else: {
+    rule__params: l($.out, $.iter, $.then, $.else),
+    rule__body: seq(
+      s.if_then_else(
+        $.iter,
+        s.value_box_index($.child, $.then, __),
+        s.value_box_index($.child, $.else, __),
+      ),
+      s.expr($.out, $.child),
+    ),
+  },
 
   test__expr: {
     test__group: "core",

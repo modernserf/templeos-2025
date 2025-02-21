@@ -13,6 +13,7 @@ import { dbRules } from "./db";
 import { loadState } from "../storage";
 import { EventSource } from "../event_source";
 import { box, Value } from "../value";
+import { omnibox } from "./omnibox";
 
 export type Schema =
   | "any_record"
@@ -30,7 +31,6 @@ export type Schema =
 export type Field =
   | "browser__current_window"
   | "clipboard__data"
-  | "data__omnibox"
   | "db__default_value"
   | "db__default_view"
   | "db__fields"
@@ -44,6 +44,7 @@ export type Field =
   | "history__forward"
   | "history__id"
   | "history__view"
+  | "history__params"
   | "history__window"
   | "rule__body"
   | "rule__params"
@@ -112,6 +113,7 @@ export type Rec = Record<string, Expr> & {
   history__window?: Id;
   history__id?: Id;
   history__view?: Id;
+  history__params?: Expr;
   history__back?: Id;
   history__forward?: Id;
   window__current_history?: Id;
@@ -145,6 +147,7 @@ export const data = mergeAndCheck(
     viewForm,
     viewTable,
     viewAnyRecord,
+    omnibox,
     dbRules,
   ],
   {},

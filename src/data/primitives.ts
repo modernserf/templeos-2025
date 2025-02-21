@@ -726,7 +726,12 @@ export const { rules, rulePrimitives } = compilePrimitives({
       ensure(tx, "number");
       ensure(id, "string");
       ensure(field, "string");
-      it.pm.db.updateTx(tx.value, id.value, field.value, valueExpr(value));
+      it.pm.db.updateTx(
+        tx.value,
+        id.value,
+        field.value,
+        valueExpr(resolveDeep(value)),
+      );
       yield it.result();
     },
   },
@@ -803,7 +808,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (id.tag === "string") {
         if (it.pm.db.get(id.value)) yield it.result();
       } else {
-        for (const key in it.pm.db.keys()) {
+        for (const key of it.pm.db.keys()) {
           yield* it.unifyChoice(id, k(key));
         }
       }
