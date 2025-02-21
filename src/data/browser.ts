@@ -206,8 +206,9 @@ export const browserData = {
           s.receive(s.change($.next_view)),
           db.with_tx(
             $.tx,
-            s.window__current_history($.window, $.history),
+            f.window__current_history($.window, $.history),
             db.update($.tx, $.history, "history__view", $.next_view),
+            s.dispatch(s.render_window($.window)),
           ),
         ),
       ),
