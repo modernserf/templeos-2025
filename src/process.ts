@@ -54,61 +54,18 @@ export function resolveVar(value: Value): Value {
   return value;
 }
 
-export class State {
+class Trail {
   constructor(
-    public pm: ProcessManager,
-    public scope: Record<string, Fact>,
-    public context: Record<string, Value>,
-    public trail: Array<{ fact: Fact; prev: Value }>,
-    private lastSave: number,
-    public readonly pid: Pid,
+    private trail: Array<{ fact: Fact; prev: Value }> = [],
+    private lastSave: number = 0,
   ) {}
-  static init(pm: ProcessManager, pid: Pid) {
-    return new State(pm, {}, {}, [], 0, pid);
-  }
-  result() {
-    return { tag: "result", result: this } as const;
-  }
-  receive(pattern: Value) {
-    return { tag: "receive", to: this, pattern } as const;
-  }
-  withContext(ctx: string, value: Value): State {
-    return new State(
-      this.pm,
-      this.scope,
-      { ...this.context, [ctx]: value },
-      this.trail,
-      this.lastSave,
-      this.pid,
-    );
-  }
-  exprValue(expr: Expr, scope = this.scope): Value {
-    switch (typeof expr) {
-      case "string":
-        return { tag: "string", value: expr };
-      case "number":
-        return { tag: "number", value: expr };
-      case "object":
-        switch (expr.tag) {
-          case "placeholder":
-            return fresh;
-          case "ident":
-            if (!scope[expr.ident]) {
-              scope[expr.ident] = {
-                value: fresh,
-                gen: this.trail.length,
-                name: expr.ident,
-              };
-            }
-            return { tag: "var", fact: scope[expr.ident] };
-          case "box":
-            return {
-              tag: "box",
-              id: expr.id,
-              args: expr.args.map((arg) => this.exprValue(arg, scope)),
-            };
-        }
-    }
+  fresh(name: string) {
+    const f = {
+      value: fresh,
+      gen: this.trail.length,
+      name,
+    } as const;
+    return f;
   }
   choice(): number {
     const prev = this.lastSave;
@@ -127,6 +84,98 @@ export class State {
     this.trail.length = this.lastSave;
     this.lastSave = prev;
   }
+  push(fact: Fact) {
+    if (fact.gen <= this.lastSave) {
+      this.trail.push({ fact, prev: fact.value });
+    }
+  }
+}
+
+export class State {
+  private constructor(
+    public pm: ProcessManager,
+    public scope: Record<string, Fact>,
+    public context: Record<string, Value>,
+    public readonly pid: Pid,
+    private trail: Array<{ fact: Fact; prev: Value }>,
+    private lastSave: number,
+    private t: Trail,
+  ) {}
+  static init(pm: ProcessManager, pid: Pid) {
+    return new State(pm, {}, {}, pid, [], 0, new Trail());
+  }
+  result() {
+    return { tag: "result", result: this } as const;
+  }
+  receive(pattern: Value) {
+    return { tag: "receive", to: this, pattern } as const;
+  }
+  withContext(ctx: string, value: Value): State {
+    return new State(
+      this.pm,
+      this.scope,
+      { ...this.context, [ctx]: value },
+      this.pid,
+      this.trail,
+      this.lastSave,
+      this.t,
+    );
+  }
+  exprValue(expr: Expr, scope = this.scope): Value {
+    switch (typeof expr) {
+      case "string":
+        return { tag: "string", value: expr };
+      case "number":
+        return { tag: "number", value: expr };
+      case "object":
+        switch (expr.tag) {
+          case "placeholder":
+            return fresh;
+          case "ident":
+            if (!scope[expr.ident]) {
+              scope[expr.ident] = this.fresh(expr.ident);
+            }
+            return { tag: "var", fact: scope[expr.ident] };
+          case "box":
+            return {
+              tag: "box",
+              id: expr.id,
+              args: expr.args.map((arg) => this.exprValue(arg, scope)),
+            };
+        }
+    }
+  }
+
+  fresh(name: string) {
+    return {
+      value: fresh,
+      gen: this.trail.length,
+      name,
+    };
+  }
+  choice(): number {
+    const prev = this.lastSave;
+    this.lastSave = this.trail.length;
+    return prev;
+  }
+  backtrack(prev: number) {
+    for (let i = this.trail.length - 1; i >= this.lastSave; --i) {
+      const { fact, prev } = this.trail[i];
+      fact.value = prev;
+    }
+    this.trail.length = this.lastSave;
+    this.lastSave = prev;
+  }
+  cut(prev: number) {
+    this.trail.length = this.lastSave;
+    this.lastSave = prev;
+  }
+  push(fact: Fact) {
+    if (fact.gen <= this.lastSave) {
+      this.trail.push({ fact, prev: fact.value });
+    }
+  }
+
   *unifyChoice(left: Value, right: Value): ProcGen {
     const s = this.choice();
     if (this.unify(left, right)) yield this.result();
@@ -167,9 +216,7 @@ export class State {
   private unifyFact(fact: Fact, value: Value): boolean {
     switch (fact.value.tag) {
       case "fresh":
-        if (fact.gen <= this.lastSave) {
-          this.trail.push({ fact, prev: fact.value });
-        }
+        this.push(fact);
         fact.value = value;
         return true;
       case "var":
@@ -194,9 +241,10 @@ export class State {
       this.pm,
       {},
       this.context,
+      this.pid,
       this.trail,
       this.lastSave,
-      this.pid,
+      this.t,
     );
     for (let i = 0; i < params.length; i++) {
       if (!nextState.unify(args[i], nextState.exprValue(params[i]))) return;

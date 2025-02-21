@@ -105,7 +105,9 @@ export const browserData = {
           s.loop(
             seq(
               s.receive(s.render()),
+              s.log("rendering before", $.self, $.renderer, $.out),
               s.preply($.component, l($.out)),
+              s.log("rendering after", $.self, $.renderer),
               s.send($.renderer, $.out),
             ),
           ),
@@ -115,7 +117,10 @@ export const browserData = {
   },
   dispatch: {
     rule__params: l($.message),
-    rule__body: s.send("dispatcher", $.message),
+    rule__body: seq(
+      s.log("sending", $.message),
+      s.send("dispatcher", $.message),
+    ),
   },
   dispatcher: {
     rule__params: l(),
@@ -123,11 +128,13 @@ export const browserData = {
       s.loop(
         seq(
           s.receive($.message),
+          s.log("receiving", $.message),
           s.match_cond(
             $.message,
             l(
               s.render_window($.window),
               seq(
+                s.log("forwarding", $.window, s.render()),
                 s.send($.window, s.render()),
                 s.send("local_storage", s.update()),
               ),
