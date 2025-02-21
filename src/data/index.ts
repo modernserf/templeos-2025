@@ -10,6 +10,9 @@ import { viewForm } from "./view_form";
 import { viewTable } from "./view_table";
 import { viewAnyRecord } from "./view_any_record";
 import { dbRules } from "./db";
+import { loadState } from "../storage";
+import { EventSource } from "../event_source";
+import { box, Value } from "../value";
 
 export type Schema =
   | "any_record"
@@ -162,11 +165,14 @@ export const initState = mergeAndCheck(
 );
 
 export function initProcessManager() {
-  // TODO: do storage setup here
   const db = new TransactDB<Rec>();
-  db.bulkInsert(data);
-  db.bulkInsert(initState);
-
   const p = ProcessManager.init(db, rulePrimitives);
+  const e = new EventSource<Value>();
+
+  p.addExternal(e, "local_storage");
+  const storedData = loadState(db, e);
+  db.bulkInsert({ ...initState, ...storedData, ...data });
+
+  p.spawn(box("dispatcher", []), "dispatcher");
   return p;
 }

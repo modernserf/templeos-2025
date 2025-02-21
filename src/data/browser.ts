@@ -108,6 +108,38 @@ export const browserData = {
       ),
     ),
   },
+  dispatch: {
+    rule__params: l($.message),
+    rule__body: s.send("dispatcher", $.message),
+  },
+  dispatcher: {
+    rule__params: l(),
+    rule__body: seq(
+      s.loop(
+        seq(
+          s.receive($.message),
+          s.match_cond(
+            $.message,
+            l(
+              s.render_window($.window),
+              seq(
+                s.send($.window, s.render()),
+                s.send("local_storage", s.update()),
+              ),
+            ),
+            l(
+              s.render_root(),
+              seq(
+                s.send("root_view_manager", s.render()),
+                s.send("local_storage", s.update()),
+              ),
+            ),
+            l(s.clear_storage(), s.send("local_storage", s.clear())),
+          ),
+        ),
+      ),
+    ),
+  },
 
   // views
   view__desktop: {
@@ -344,7 +376,7 @@ export const browserData = {
                 $.app_menu,
                 l("home", s.on__new_window(s.location("home"))),
                 l("omnibox", s.on__new_window(s.location("omnibox"))),
-                l("reset", s.clear_state()),
+                l("reset", s.dispatch(s.clear_storage())),
               ),
             ),
           ),
@@ -431,7 +463,7 @@ export const browserData = {
     rule__body: db.with_tx(
       $.tx,
       db.update($.tx, "browser", "browser__current_window", $.window),
-      s.send("root_view_manager", s.render()),
+      s.dispatch(s.render_root()),
     ),
   },
   on__new_window: {
@@ -439,7 +471,7 @@ export const browserData = {
     rule__body: db.with_tx(
       $.tx,
       s.new__window($.tx, __, $.location),
-      s.send("root_view_manager", s.render()),
+      s.dispatch(s.render_root()),
     ),
   },
   on__close_window: {
@@ -447,7 +479,7 @@ export const browserData = {
     rule__body: db.with_tx(
       $.tx,
       db.delete($.tx, $.window),
-      s.send("root_view_manager", s.render()),
+      s.dispatch(s.render_root()),
     ),
   },
   on__push: {
@@ -459,7 +491,7 @@ export const browserData = {
       db.update($.tx, $.next, "history__back", $.prev),
       db.update($.tx, $.prev, "history__forward", $.next),
       db.update($.tx, $.window, "window__current_history", $.next),
-      s.send($.window, s.render()),
+      s.dispatch(s.render_window($.window)),
     ),
   },
 
@@ -472,7 +504,7 @@ export const browserData = {
       db.update($.tx, $.window, "window__current_history", $.back),
       db.update($.tx, $.back, "history__forward", $.forward),
       db.delete($.tx, $.forward, "history__back"),
-      s.send($.window, s.render()),
+      s.dispatch(s.render_window($.window)),
     ),
   },
   on__forward: {
@@ -485,7 +517,7 @@ export const browserData = {
       db.update($.tx, $.window, "window__current_history", $.forward),
       db.update($.tx, $.forward, "history__back", $.back),
       db.delete($.tx, $.back, "history__forward"),
-      s.send($.window, s.render()),
+      s.dispatch(s.render_window($.window)),
     ),
   },
 } satisfies Record<string, Rec>;

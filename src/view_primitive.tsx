@@ -1,12 +1,4 @@
-import {
-  Component,
-  FC,
-  ReactNode,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Component, FC, ReactNode, useEffect, useState } from "react";
 import { __, l, s } from "./expr";
 import { ProcessManager, ensure } from "./process";
 import { box, k, printValue, Value } from "./value";
@@ -74,7 +66,6 @@ const Receiver: VC = ({ pm, values: [proc, maybePid] }) => {
   const maybePidValue = maybePid.tag === "string" ? maybePid.value : undefined;
 
   useEffect(() => {
-    console.log("mount", maybePidValue);
     const eventSource = new EventSource<Value>();
     const renderPid = pm.addExternal(eventSource);
     const procPid = pm.spawn(proc, maybePidValue);
