@@ -60,7 +60,55 @@ export const note = {
   view__note: {
     view__schema: "note",
     rule__params: l($.out, $.id, $.state),
-    rule__body: seq(s.column($.out, l(), s.view__note_detail($.id))),
+    rule__body: seq(
+      s.column(
+        $.out,
+        l(),
+        s.view__menu(
+          l(),
+          "Edit",
+          l(
+            s.option("cut", "Cut"),
+            s.option("copy", "Copy"),
+            s.option("paste", "Paste"),
+            s.option("clear", "Clear"),
+          ),
+          seq(
+            s.receive($.e),
+            u($.e, s.change($.command)),
+            f.history__window($.state, $.window),
+            s.match_cond(
+              $.command,
+              l(
+                "cut",
+                seq(
+                  f.note__content($.id, $.content),
+                  s.note__update($.id, ""),
+                  s.clipboard__copy($.content),
+                ),
+              ),
+              l(
+                "copy",
+                seq(
+                  f.note__content($.id, $.content),
+                  s.clipboard__copy($.content),
+                ),
+              ),
+              l(
+                "paste",
+                seq(
+                  s.clipboard__paste($.content),
+                  s.note__update($.id, $.content),
+                ),
+              ),
+              l("clear", seq(s.note__update($.id, ""))),
+            ),
+            s.dispatch(s.render_window($.window)),
+          ),
+        ),
+        s.view__note_detail($.id),
+      ),
+    ),
   },
   view__all_notes: {
     db__schema: "form",

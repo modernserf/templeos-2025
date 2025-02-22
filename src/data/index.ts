@@ -18,6 +18,7 @@ import { codeExplorerData } from "./code_explorer";
 import { collectionData, collectionInitState } from "./collection";
 import { text } from "./text";
 import { note, noteInitState } from "./note";
+import { clipboardInitState, clipboardRules } from "./clipboard";
 
 export type Schema =
   | "any_record"
@@ -151,6 +152,7 @@ export const data = mergeAndCheck(
     codeExplorerData,
     collectionData,
     core,
+    clipboardRules,
     dbRules,
     note,
     omnibox,
@@ -171,6 +173,7 @@ export const initState = mergeAndCheck(
     browserInitState,
     collectionInitState,
     noteInitState,
+    clipboardInitState,
     {
       home: {
         file__name: "Home",

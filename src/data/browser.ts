@@ -167,16 +167,19 @@ export const browserData = {
   // views
   view__desktop: {
     rule__params: l($.out),
-    rule__body: s.html(
-      $.out,
-      "div",
-      l(),
-      s.view__app_menu(),
-      s.expr_iter(
-        s.record_field_value($.window, "db__schema", "window"),
-        s(
-          "=",
-          s.Receiver(s.view__component(s.view__window($.window)), $.window),
+    rule__body: seq(
+      s.init_clipboard(),
+      s.html(
+        $.out,
+        "div",
+        l(),
+        s.view__app_menu(),
+        s.expr_iter(
+          s.record_field_value($.window, "db__schema", "window"),
+          s(
+            "=",
+            s.Receiver(s.view__component(s.view__window($.window)), $.window),
+          ),
         ),
       ),
     ),

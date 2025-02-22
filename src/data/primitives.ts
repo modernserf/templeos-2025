@@ -283,6 +283,19 @@ export const { rules, rulePrimitives } = compilePrimitives({
       yield next.result();
     },
   },
+  spawn: {
+    rule__params: l($.goal, $.pid),
+    rule__primitive: function* (it, goal, pid) {
+      if (pid.tag === "number" || pid.tag === "string") {
+        it.pm.spawn(goal, pid.value);
+        yield it.result();
+      } else {
+        const pidResult = it.pm.spawn(goal);
+        if (!it.unify(pid, k(pidResult))) throw new Error("tod");
+        yield it.result();
+      }
+    },
+  },
 
   type_value: {
     rule__params: l($.type, $.value),
