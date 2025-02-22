@@ -27,7 +27,10 @@ export function ensure<T extends Value["tag"]>(
   }
 }
 
-export function resolveDeep(value: Value): Value {
+export function resolveDeep(
+  value: Value,
+  state = new WeakMap<Fact, Fact>(),
+): Value {
   switch (value.tag) {
     case "string":
     case "number":
@@ -37,14 +40,21 @@ export function resolveDeep(value: Value): Value {
       return {
         tag: "box",
         id: value.id,
-        args: value.args.map((arg) => resolveDeep(arg)),
+        args: value.args.map((arg) => resolveDeep(arg, state)),
       };
     case "var":
       if (value.tag === "var") {
         if (value.fact.value.tag === "fresh") {
-          return value;
+          // make new copies of unbound vars that are distinct from parent scope
+          const replaced = state.get(value.fact) ?? {
+            name: value.fact.name,
+            value: fresh,
+            gen: 0,
+          };
+          state.set(value.fact, replaced);
+          return { tag: "var", fact: replaced };
         } else {
-          return resolveDeep(value.fact.value);
+          return resolveDeep(value.fact.value, state);
         }
       }
       return value;

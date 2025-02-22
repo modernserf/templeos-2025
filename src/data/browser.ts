@@ -217,7 +217,9 @@ export const browserData = {
         $.selected,
         $.options,
         seq(
-          s.receive(s.change($.next_view)),
+          s.ensure_var($.e),
+          s.receive($.e),
+          u($.e, s.change($.next_view)),
           db.with_tx(
             $.tx,
             f.window__current_history($.window, $.history),
