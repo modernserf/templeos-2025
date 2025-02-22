@@ -139,6 +139,78 @@ export const { rules, rulePrimitives } = compilePrimitives({
       }
     },
   },
+  loop_state: {
+    rule__params: l($.next, $.prev, $.init, $.goal),
+    rule__primitive: function* (it, nextVal, prev, init, goal) {
+      let value = resolveDeep(init);
+      while (true) {
+        const s = it.choice();
+        if (!it.unify(value, prev)) break;
+        const gen = it.eval(goal);
+        let next = gen.next();
+        let didSucceed = false;
+        while (!next.done) {
+          if (next.value.tag === "result") {
+            didSucceed = true;
+            yield next.value;
+            next = gen.next();
+          } else {
+            next = gen.next(yield next.value);
+          }
+        }
+
+        value = resolveDeep(nextVal);
+        it.backtrack(s);
+        if (!didSucceed) break;
+      }
+    },
+  },
+  test__loop_state: {
+    test__group: "core",
+    rule__params: l(),
+    rule__body: seq(
+      s.spawn(
+        s.loop_state(
+          $.next,
+          $.prev,
+          l(),
+          seq(
+            s.receive($.msg),
+            s.match_cond(
+              $.msg,
+              l(s.push($.item), s.append_left_right($.next, $.prev, l($.item))),
+              l(
+                s.pop($.pid, $.ref),
+                seq(
+                  s.append_left_right($.prev, $.next, l($.pop)),
+                  s.send($.pid, s.pop($.ref, $.pop)),
+                ),
+              ),
+            ),
+          ),
+        ),
+        $.stack,
+      ),
+
+      test.collect(
+        l($.first, $.second),
+        seq(
+          s.send($.stack, s.push(123)),
+          s.send($.stack, s.push(456)),
+          s.send($.stack, s.push(789)),
+
+          s.self($.self),
+          s.id($.ref_1),
+          s.id($.ref_2),
+          s.send($.stack, s.pop($.self, $.ref_1)),
+          s.send($.stack, s.pop($.self, $.ref_2)),
+          s.receive(s.pop($.ref_1, $.first)),
+          s.receive(s.pop($.ref_2, $.second)),
+        ),
+        l(789, 456),
+      ),
+    ),
+  },
   if_then_else: {
     rule__params: l($.if, $.then, $.else),
     rule__primitive: function* (it, if_, then_, else_) {
@@ -176,6 +248,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
         s.if_then_else(s.fail(), u($.result, "foo"), u($.result, "bar")),
         "bar",
       ),
+      test.fail(s.if_then_else(s.ok(), s.fail(), s.ok())),
     ),
   },
   throw: {
@@ -272,6 +345,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (it.unify(messages, box("", ms))) yield it.result();
     },
   },
+  // should be pid, goal, like `pid = spawn(goal)`
   spawn: {
     rule__params: l($.goal, $.pid),
     rule__primitive: function* (it, goal, pid) {

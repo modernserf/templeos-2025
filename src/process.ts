@@ -36,7 +36,7 @@ export function ensurePid(
 
 export function resolveDeep(
   value: Value,
-  state = new WeakMap<Fact, Fact>(),
+  state = { map: new WeakMap<Fact, Fact>(), gen: 0 },
 ): Value {
   switch (value.tag) {
     case "string":
@@ -53,12 +53,12 @@ export function resolveDeep(
       if (value.tag === "var") {
         if (value.fact.value.tag === "fresh") {
           // make new copies of unbound vars that are distinct from parent scope
-          const replaced = state.get(value.fact) ?? {
+          const replaced = state.map.get(value.fact) ?? {
             name: value.fact.name,
             value: fresh,
             gen: 0,
           };
-          state.set(value.fact, replaced);
+          state.map.set(value.fact, replaced);
           return { tag: "var", fact: replaced };
         } else {
           return resolveDeep(value.fact.value, state);
@@ -74,43 +74,6 @@ export function resolveVar(value: Value): Value {
   return value;
 }
 
-class Trail {
-  constructor(
-    private trail: Array<{ fact: Fact; prev: Value }> = [],
-    private lastSave: number = 0,
-  ) {}
-  fresh(name: string) {
-    const f = {
-      value: fresh,
-      gen: this.trail.length,
-      name,
-    } as const;
-    return f;
-  }
-  choice(): number {
-    const prev = this.lastSave;
-    this.lastSave = this.trail.length;
-    return prev;
-  }
-  backtrack(prev: number) {
-    for (let i = this.trail.length - 1; i >= this.lastSave; --i) {
-      const { fact, prev } = this.trail[i];
-      fact.value = prev;
-    }
-    this.trail.length = this.lastSave;
-    this.lastSave = prev;
-  }
-  cut(prev: number) {
-    this.trail.length = this.lastSave;
-    this.lastSave = prev;
-  }
-  push(fact: Fact) {
-    if (fact.gen <= this.lastSave) {
-      this.trail.push({ fact, prev: fact.value });
-    }
-  }
-}
-
 export class State {
   private constructor(
     public pm: ProcessManager,
@@ -118,10 +81,9 @@ export class State {
     public readonly pid: Pid,
     private trail: Array<{ fact: Fact; prev: Value }>,
     private lastSave: number,
-    private t: Trail,
   ) {}
   static init(pm: ProcessManager, pid: Pid) {
-    return new State(pm, {}, pid, [], 0, new Trail());
+    return new State(pm, {}, pid, [], 0);
   }
   result() {
     return { tag: "result", result: this } as const;
@@ -165,6 +127,9 @@ export class State {
     const prev = this.lastSave;
     this.lastSave = this.trail.length;
     return prev;
+  }
+  cut(prev: number) {
+    this.lastSave = prev;
   }
   backtrack(prev: number) {
     while (this.trail.length > this.lastSave) {
@@ -245,7 +210,6 @@ export class State {
       this.pid,
       this.trail,
       this.lastSave,
-      this.t,
     );
     for (let i = 0; i < params.length; i++) {
       if (!nextState.unify(args[i], nextState.exprValue(params[i]))) return;
@@ -438,13 +402,14 @@ export class ProcessManager {
     for (const [i, message] of p.mailbox.entries()) {
       const s = it.choice();
       if (it.unify(pattern, message)) {
+        it.cut(s);
         nextMailbox.push(...p.mailbox.slice(i + 1));
         p.mailbox = nextMailbox;
         return true;
       } else {
+        it.backtrack(s);
         nextMailbox.push(message);
       }
-      it.backtrack(s);
     }
     p.mailbox = nextMailbox;
     return false;

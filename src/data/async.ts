@@ -77,11 +77,11 @@ export const asyncRules = {
         seq(
           s.self($.self),
           s.async_race(
-            seq(s.sleep(10), s.send($.self, "foo")),
-            seq(s.sleep(20), s.send($.self, "bar")),
+            seq(s.sleep(10), s.send($.self, s.race("foo"))),
+            seq(s.sleep(20), s.send($.self, s.race("bar"))),
           ),
-          s.receive($.result),
-          s.receive("bar"),
+          s.receive(s.race($.result)),
+          s.receive(s.race("bar")),
         ),
         "foo",
       ),
