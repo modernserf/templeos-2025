@@ -43,7 +43,7 @@ export const codeExplorerData = {
               s.view__expr($.box),
               s.expr_iter(
                 f.file__description($.id, $.desc),
-                s.view__expr($.desc),
+                s.view__text($.desc),
               ),
             ),
           ),

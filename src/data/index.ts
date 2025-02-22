@@ -16,6 +16,7 @@ import { box, Value } from "../value";
 import { omnibox } from "./omnibox";
 import { codeExplorerData } from "./code_explorer";
 import { collectionData, collectionInitState } from "./collection";
+import { text } from "./text";
 
 export type Schema =
   | "any_record"
@@ -153,6 +154,7 @@ export const data = mergeAndCheck(
     viewCore,
     viewForm,
     viewTable,
+    text,
   ],
   {},
 );

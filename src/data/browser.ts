@@ -530,7 +530,7 @@ export const browserInitState = {
   root_history: {
     db__schema: "history",
     history__window: "root_window",
-    history__id: "code_explorer",
+    history__id: "home",
   },
   root_window: {
     db__schema: "window",

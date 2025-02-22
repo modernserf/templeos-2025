@@ -39,7 +39,7 @@ export const collectionData = {
     rule__body: s.column(
       $.out,
       l(),
-      s.expr_iter(f.file__description($.id, $.desc), s.view__expr($.desc)),
+      s.expr_iter(f.file__description($.id, $.desc), s.view__text($.desc)),
       s.expr_iter(
         s.value_box_index($.item, $.collection, __),
         s.row(l(), s.view__file_info($.item)),
@@ -51,7 +51,7 @@ export const collectionData = {
     rule__body: s.column(
       $.out,
       l(),
-      s.expr_iter(f.file__description($.id, $.desc), s.view__expr($.desc)),
+      s.expr_iter(f.file__description($.id, $.desc), s.view__text($.desc)),
       s.row(
         l(),
         s.expr_iter(

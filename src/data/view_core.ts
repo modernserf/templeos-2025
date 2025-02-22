@@ -136,8 +136,7 @@ export const viewCore = {
           ),
           s.view__file_link($.id),
         ),
-        // TODO: render formatted text
-        s.expr_iter(f.file__description($.id, $.desc), s.view__expr($.desc)),
+        s.expr_iter(f.file__description($.id, $.desc), s.view__text($.desc)),
       ),
     ),
   },
