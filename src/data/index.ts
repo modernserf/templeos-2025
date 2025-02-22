@@ -17,6 +17,7 @@ import { omnibox } from "./omnibox";
 import { codeExplorerData } from "./code_explorer";
 import { collectionData, collectionInitState } from "./collection";
 import { text } from "./text";
+import { note, noteInitState } from "./note";
 
 export type Schema =
   | "any_record"
@@ -25,6 +26,7 @@ export type Schema =
   | "folder"
   | "form"
   | "history"
+  | "note"
   | "schema"
   | "tag"
   | "text_document"
@@ -49,6 +51,7 @@ export type Field =
   | "history__view"
   | "history__params"
   | "history__window"
+  | "note__content"
   | "rule__body"
   | "rule__params"
   | "rule__rest_params"
@@ -122,6 +125,8 @@ export type Rec = Record<string, Expr> & {
   window__current_history?: Id;
   browser__current_window?: Id;
 
+  note__content?: string;
+
   text__content?: List<FormatText>;
 };
 
@@ -147,6 +152,7 @@ export const data = mergeAndCheck(
     collectionData,
     core,
     dbRules,
+    note,
     omnibox,
     rulePrimitiveRecs,
     testUtils,
@@ -164,6 +170,7 @@ export const initState = mergeAndCheck(
   [
     browserInitState,
     collectionInitState,
+    noteInitState,
     {
       home: {
         file__name: "Home",

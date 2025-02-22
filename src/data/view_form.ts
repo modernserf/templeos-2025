@@ -27,6 +27,14 @@ export const viewForm = {
       $.handler,
     ),
   },
+  view__textarea: {
+    rule__params: l(
+      s.Textarea($.props, $.value, $.handler),
+      $.props,
+      $.value,
+      $.handler,
+    ),
+  },
   view__select: {
     rule__params: l(
       s.Select($.params, $.value, $.options, $.handler),

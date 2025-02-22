@@ -114,12 +114,33 @@ const Button: VC = ({ pm, values: [props, label, handler] }) => {
 const Input: VC = ({ pm, values: [props, value, handler] }) => {
   if (value.tag !== "string" && value.tag !== "number") return null;
 
-  // TODO: debounce doesnt work right with receive binding
   const { debounce: db = 0, ...jsProps } = getProps(props);
 
   return (
     <input
       {...jsProps}
+      defaultValue={value.value}
+      onChange={debounce(db, (e) => {
+        pm.sendAsync(pm.spawn(handler), box("change", [k(e.target.value)]));
+      })}
+      onFocus={() => {
+        pm.sendAsync(pm.spawn(handler), s.focus());
+      }}
+      onBlur={() => {
+        pm.sendAsync(pm.spawn(handler), s.blur());
+      }}
+    />
+  );
+};
+
+const Textarea: VC = ({ pm, values: [props, value, handler] }) => {
+  ensure(value, "string");
+  const { debounce: db = 0, ...jsProps } = getProps(props);
+
+  return (
+    <textarea
+      {...jsProps}
+      key={Date.now()}
       defaultValue={value.value}
       onChange={debounce(db, (e) => {
         pm.sendAsync(pm.spawn(handler), box("change", [k(e.target.value)]));
@@ -210,6 +231,7 @@ const viewPrimitives: Record<string, VC> = {
   Select,
   Icon,
   Input,
+  Textarea,
   WindowContainer,
   Receiver,
 };
