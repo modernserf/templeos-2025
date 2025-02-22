@@ -19,6 +19,7 @@ import { collectionData, collectionInitState } from "./collection";
 import { text } from "./text";
 import { note, noteInitState } from "./note";
 import { clipboardInitState, clipboardRules } from "./clipboard";
+import { asyncRules } from "./async";
 
 export type Schema =
   | "any_record"
@@ -148,6 +149,7 @@ function mergeAndCheck(
 // always loads from source
 export const data = mergeAndCheck(
   [
+    asyncRules,
     browserData,
     codeExplorerData,
     collectionData,

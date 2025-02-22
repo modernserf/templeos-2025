@@ -27,6 +27,13 @@ export function ensure<T extends Value["tag"]>(
   }
 }
 
+export function ensurePid(
+  pid: Value,
+): asserts pid is Value & { tag: "string" | "number" } {
+  if (pid.tag !== "number" && pid.tag !== "string")
+    throw new Exception(box("expected_type", [k("pid"), pid]));
+}
+
 export function resolveDeep(
   value: Value,
   state = new WeakMap<Fact, Fact>(),
@@ -434,10 +441,18 @@ export class ProcessManager {
         nextMailbox.push(...p.mailbox.slice(i + 1));
         p.mailbox = nextMailbox;
         return true;
+      } else {
+        nextMailbox.push(message);
       }
       it.backtrack(s);
     }
     p.mailbox = nextMailbox;
     return false;
+  }
+  flush(pid: Pid): Value[] {
+    const p = this.processes.get(pid)!;
+    const m = p.mailbox;
+    p.mailbox = [];
+    return m;
   }
 }

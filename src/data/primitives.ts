@@ -4,6 +4,7 @@ import { $, l, s, seq, u, alt, __ } from "../expr";
 import { Value, box, k, printValue, valueExpr } from "../value";
 import {
   ensure,
+  ensurePid,
   Exception,
   resolveDeep,
   RulePrimitive,
@@ -250,8 +251,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
   send: {
     rule__params: l($.pid, $.message),
     rule__primitive: function* (it, pid, message) {
-      if (pid.tag !== "number" && pid.tag !== "string")
-        throw new Exception(box("expected_type", [k("pid"), pid]));
+      ensurePid(pid);
       it.pm.send(pid.value, resolveDeep(message));
       yield it.result();
     },
@@ -265,6 +265,13 @@ export const { rules, rulePrimitives } = compilePrimitives({
       yield next.result();
     },
   },
+  flush: {
+    rule__params: l($.messages),
+    rule__primitive: function* (it, messages) {
+      const ms = it.pm.flush(it.pid);
+      if (it.unify(messages, box("", ms))) yield it.result();
+    },
+  },
   spawn: {
     rule__params: l($.goal, $.pid),
     rule__primitive: function* (it, goal, pid) {
@@ -276,6 +283,17 @@ export const { rules, rulePrimitives } = compilePrimitives({
         if (!it.unify(pid, k(pidResult))) throw new Error("tod");
         yield it.result();
       }
+    },
+  },
+  send_async: {
+    rule__params: l($.pid, $.message, $.timeout),
+    rule__primitive: function* (it, pid, message, timeout) {
+      ensure(timeout, "number");
+      ensurePid(pid);
+      setTimeout(() => {
+        it.pm.sendAsync(pid.value, resolveDeep(message));
+      }, timeout.value);
+      yield it.result();
     },
   },
 
