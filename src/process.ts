@@ -108,31 +108,19 @@ export class State {
   private constructor(
     public pm: ProcessManager,
     public scope: Record<string, Fact>,
-    public context: Record<string, Value>,
     public readonly pid: Pid,
     private trail: Array<{ fact: Fact; prev: Value }>,
     private lastSave: number,
     private t: Trail,
   ) {}
   static init(pm: ProcessManager, pid: Pid) {
-    return new State(pm, {}, {}, pid, [], 0, new Trail());
+    return new State(pm, {}, pid, [], 0, new Trail());
   }
   result() {
     return { tag: "result", result: this } as const;
   }
   receive(pattern: Value) {
     return { tag: "receive", to: this, pattern } as const;
-  }
-  withContext(ctx: string, value: Value): State {
-    return new State(
-      this.pm,
-      this.scope,
-      { ...this.context, [ctx]: value },
-      this.pid,
-      this.trail,
-      this.lastSave,
-      this.t,
-    );
   }
   exprValue(expr: Expr, scope = this.scope): Value {
     switch (typeof expr) {
@@ -247,7 +235,6 @@ export class State {
     const nextState = new State(
       this.pm,
       {},
-      this.context,
       this.pid,
       this.trail,
       this.lastSave,
@@ -403,7 +390,7 @@ export class ProcessManager {
       }
       switch (process.tag) {
         case "init":
-          throw new Error("todo");
+          continue;
         case "suspended":
           this.runUntilSuspend(pid, process.next, process.gen);
           continue;

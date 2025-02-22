@@ -94,6 +94,14 @@ export const browserData = {
     ),
   },
 
+  current_window: {
+    rule__params: l($.window),
+    rule__body: seq(
+      // TODO: check if this is a child process of the current window, and get that id
+      s.self($.window),
+    ),
+  },
+
   view__component: {
     rule__params: l($.component),
     rule__body: seq(
@@ -258,11 +266,7 @@ export const browserData = {
 
   view__window_content: {
     rule__params: l($.out, $.view, $.id, $.window, $.history),
-    rule__body: seq(
-      s.set_context("window_id", $.window),
-      s.set_context("history_id", $.history),
-      s.call($.view, $.out, $.id, $.history),
-    ),
+    rule__body: seq(s.call($.view, $.out, $.id, $.history)),
   },
 
   view__window: {

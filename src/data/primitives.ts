@@ -241,24 +241,6 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (it.unify(out, box("", matches))) yield it.result();
     },
   },
-  get_context: {
-    rule__params: l($.ctx, $.value),
-    rule__primitive: function* (it, ctx, value) {
-      ensure(ctx, "string");
-      if (!it.context[ctx.value]) {
-        throw new Exception(box("unknown_context", [ctx]));
-      }
-      it.unify(value, it.context[ctx.value]);
-      yield it.result();
-    },
-  },
-  set_context: {
-    rule__params: l($.ctx, $.value),
-    rule__primitive: function* (it, ctx, value) {
-      ensure(ctx, "string");
-      yield it.withContext(ctx.value, value).result();
-    },
-  },
   self: {
     rule__params: l($.pid),
     rule__primitive: function* (it, pid) {

@@ -17,6 +17,7 @@ export const clipboardRules = {
   // views
   view__clipboard: {
     view__schema: "clipboard",
+    view__name: "Clipboard",
     rule__params: l($.out, $.id, $.state),
     rule__body: seq(
       s.wrap(
