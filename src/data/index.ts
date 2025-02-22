@@ -15,6 +15,7 @@ import { EventSource } from "../event_source";
 import { box, Value } from "../value";
 import { omnibox } from "./omnibox";
 import { codeExplorerData } from "./code_explorer";
+import { collectionData, collectionInitState } from "./collection";
 
 export type Schema =
   | "any_record"
@@ -142,6 +143,7 @@ export const data = mergeAndCheck(
   [
     browserData,
     codeExplorerData,
+    collectionData,
     core,
     dbRules,
     omnibox,
@@ -159,6 +161,7 @@ export const data = mergeAndCheck(
 export const initState = mergeAndCheck(
   [
     browserInitState,
+    collectionInitState,
     {
       home: {
         file__name: "Home",
