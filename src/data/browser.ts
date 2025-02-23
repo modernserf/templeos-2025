@@ -103,7 +103,7 @@ export const browserData = {
   },
 
   view__component: {
-    rule__params: l($.component),
+    rule__params: l($.render),
     rule__body: seq(
       s.loop(
         seq(
@@ -113,32 +113,18 @@ export const browserData = {
           s.loop(
             seq(
               s.receive(s.render()),
-              s.preply($.component, l($.out_tracked)),
-              s.send($.vc_renderer, $.out_tracked),
+              s.preply($.render, l($.out)),
+              s.send($.vc_renderer, $.out),
             ),
           ),
         ),
       ),
     ),
   },
-  dispatch: {
-    rule__params: l($.message),
-    rule__body: seq(s.send("dispatcher", $.message)),
-  },
-  dispatcher: {
+
+  render_root: {
     rule__params: l(),
-    rule__body: seq(
-      s.loop(
-        seq(
-          s.receive($.message),
-          s.match_cond(
-            $.message,
-            l(s.render_window($.window), seq(s.send($.window, s.render()))),
-            l(s.render_root(), seq(s.send("root_view_manager", s.render()))),
-          ),
-        ),
-      ),
-    ),
+    rule__body: s.send("root_view_manager", s.render()),
   },
 
   // views
@@ -147,6 +133,8 @@ export const browserData = {
     rule__body: seq(
       s.init_clipboard(),
       s.init__db_server(),
+      s.db__subscribe_callback(s.record("browser"), s.render_root()),
+      // TODO: handle open / close window
       s.html(
         $.out,
         "div",
@@ -154,9 +142,38 @@ export const browserData = {
         s.view__app_menu(),
         s.expr_iter(
           s.record_field_value($.window, "db__schema", "window"),
-          s(
-            "=",
-            s.Receiver(s.view__component(s.view__window($.window)), $.window),
+          s("=", s.Receiver(s.view__window_component($.window), $.window)),
+        ),
+      ),
+    ),
+  },
+
+  view__window_component: {
+    rule__params: l($.window),
+    rule__body: seq(
+      s.loop(
+        seq(
+          s.receive(s.mount($.vc_renderer)),
+          s.self($.self),
+          s.send($.self, s.render()),
+          f.window__current_history($.self, $.history),
+          f.history__id($.history, $.id),
+          s.db__subscribe_callback(
+            s.record($.window),
+            s.send($.self, s.render()),
+          ),
+          s.db__subscribe_callback(
+            s.record($.history),
+            s.send($.self, s.render()),
+          ),
+          s.db__subscribe_callback(s.record($.id), s.send($.self, s.render())),
+
+          s.loop(
+            seq(
+              s.receive(s.render()),
+              s.view__window($.out, $.window),
+              s.send($.vc_renderer, $.out),
+            ),
           ),
         ),
       ),
@@ -455,7 +472,6 @@ export const browserData = {
     rule__body: seq(
       s.db__update(l(s.update($.state, "history__params", $.value))),
       f.history__window($.state, $.window),
-      s.dispatch(s.render_window($.window)),
     ),
   },
 
@@ -465,30 +481,21 @@ export const browserData = {
     rule__body: seq(
       f.window__current_history($.window, $.history),
       s.db__update(l(s.update($.history, "history__view", $.next_view))),
-      s.dispatch(s.render_window($.window)),
     ),
   },
   on__select_window: {
     rule__params: l($.window),
     rule__body: seq(
       s.db__update(l(s.update("browser", "browser__current_window", $.window))),
-      s.dispatch(s.render_root()),
     ),
   },
   on__new_window: {
     rule__params: l($.location),
-    rule__body: seq(
-      s.new__window($.out, __, $.location),
-      s.db__update($.out),
-      s.dispatch(s.render_root()),
-    ),
+    rule__body: seq(s.new__window($.out, __, $.location), s.db__update($.out)),
   },
   on__close_window: {
     rule__params: l($.window),
-    rule__body: seq(
-      s.db__update(l(s.delete($.window))),
-      s.dispatch(s.render_root()),
-    ),
+    rule__body: seq(s.db__update(l(s.delete($.window)))),
   },
   on__push: {
     rule__params: l($.window, $.location),
@@ -505,7 +512,6 @@ export const browserData = {
         ),
       ),
       s.db__update($.batch),
-      s.dispatch(s.render_window($.window)),
     ),
   },
 
@@ -521,7 +527,6 @@ export const browserData = {
           s.delete($.forward, "history__back"),
         ),
       ),
-      s.dispatch(s.render_window($.window)),
     ),
   },
   on__forward: {
@@ -536,7 +541,6 @@ export const browserData = {
           s.delete($.back, "history__forward"),
         ),
       ),
-      s.dispatch(s.render_window($.window)),
     ),
   },
 } satisfies Record<string, Rec>;

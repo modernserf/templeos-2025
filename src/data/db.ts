@@ -77,7 +77,7 @@ export const dbRules = {
 
   init__db_server: {
     rule__params: l(),
-    rule__body: s.spawn(s.db_server("local_storage"), "db_server"),
+    rule__body: seq(s.spawn(s.db_server("local_storage"), "db_server")),
   },
 
   db__update: {
@@ -88,10 +88,24 @@ export const dbRules = {
     rule__params: l(),
     rule__body: s.send("db_server", s.reset()),
   },
-
+  db__subscribe_callback: {
+    rule__params: l($.pattern, $.callback),
+    rule__body: seq(
+      s.spawn(
+        s.loop(
+          seq(s.receive(s.change()), $.callback), //
+        ),
+        $.pid,
+      ),
+      s.send("db_server", s.subscribe($.pid, $.pattern)),
+    ),
+  },
   db_server: {
     rule__params: l($.local_storage),
-    rule__body: s.loop(
+    rule__body: s.loop_state(
+      $.next,
+      $.prev,
+      l(),
       seq(
         s.receive($.message),
         s.match_cond(
@@ -101,11 +115,21 @@ export const dbRules = {
             seq(
               s.db__apply_update($.batch),
               s.send($.local_storage, s.update()),
+              s.db__notify_subscribers($.batch, $.prev),
             ),
           ),
           l(s.reset(), s.send($.local_storage, s.clear())),
+          l(
+            s.subscribe($.pid, $.pattern),
+            s.append_left_right(
+              $.next,
+              $.prev,
+              l(s.subscribe($.pid, $.pattern)),
+            ),
+          ),
           l(__, s.throw(s.not_implemented($.message))),
         ),
+        s.if_var($.next, u($.prev, $.next)),
       ),
     ),
   },
@@ -127,6 +151,37 @@ export const dbRules = {
             s.tx_delete_field__primitive($.tx, $.id, $.field),
           ),
           l(s.delete($.id), s.tx_delete_record__primitive($.tx, $.id)),
+        ),
+      ),
+    ),
+  },
+  db__notify_subscribers: {
+    rule__params: l($.batch, $.subscribers),
+    rule__body: seq(
+      s.each_item_do(
+        $.subscribers,
+        s.subscribe($.pid, $.pattern),
+        seq(
+          s.db__check_batch_pattern($.batch, $.pattern),
+          s.send($.pid, s.change()),
+        ),
+      ),
+    ),
+  },
+  db__check_batch_pattern: {
+    rule__params: l($.batch, $.pattern),
+    rule__body: seq(
+      s.limit(
+        1,
+        seq(
+          s.value_box_index($.change, $.batch, __),
+          s.match(
+            l($.change, $.pattern),
+            l(s.update($.id, __, __), s.record($.id)),
+            l(s.update(__, __, $.id), s.record($.id)),
+            l(s.delete($.id, __), s.record($.id)),
+            l(s.delete($.id), s.record($.id)),
+          ),
         ),
       ),
     ),

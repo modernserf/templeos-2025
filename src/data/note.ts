@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, seq, u, __, f } from "../expr";
+import { l, s, $, seq, u, __, f, alt } from "../expr";
 import { db } from "./db";
 
 export const note = {
@@ -89,6 +89,37 @@ export const note = {
       ),
     ),
   },
+
+  view__all_notes_component: {
+    rule__params: l(),
+    rule__body: alt(
+      s.loop(
+        seq(
+          s.receive(s.mount($.vc_renderer)),
+          s.self($.self),
+          s.db__subscribe_callback(
+            s.record("note"),
+            s.send($.self, s.render()),
+          ),
+          s.send($.self, s.render()),
+          s.loop(
+            seq(
+              s.receive(s.render()),
+              s.column(
+                $.out,
+                l(),
+                s.expr_iter(
+                  f.db__schema($.id, "note"),
+                  s.view__note_detail($.id),
+                ),
+              ),
+              s.send($.vc_renderer, $.out),
+            ),
+          ),
+        ),
+      ),
+    ),
+  },
   view__all_notes: {
     db__schema: "form",
     file__name: "Notes",
@@ -103,7 +134,7 @@ export const note = {
           "New note",
           seq(s.receive(s.click(__)), s.on__new_note($.window)),
         ),
-        s.expr_iter(f.db__schema($.id, "note"), s.view__note_detail($.id)),
+        s("=", s.Receiver(s.view__all_notes_component(), "view__all_notes")),
       ),
     ),
   },
@@ -129,17 +160,12 @@ export const note = {
       // FIXME
       f.browser__current_window("browser", $.window),
       s.db__update(l(s.update($.id, "note__content", $.value))),
-      s.dispatch(s.render_window($.window)),
     ),
   },
 
   on__new_note: {
     rule__params: l($.window),
-    rule__body: seq(
-      s.new__note($.batch, __, __),
-      s.db__update($.batch),
-      s.dispatch(s.render_window($.window)),
-    ),
+    rule__body: seq(s.new__note($.batch, __, __), s.db__update($.batch)),
   },
 } satisfies Record<string, Rec>;
 

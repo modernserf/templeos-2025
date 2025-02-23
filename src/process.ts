@@ -322,7 +322,7 @@ export class ProcessManager {
   }
   send(pid: Pid, message: Value) {
     const process = this.processes.get(pid);
-    if (!process) throw new Error("todo");
+    if (!process) throw new Error(`Missing process: ${pid}`);
     process.mailbox.push(message);
     this.runQueue.enqueue(pid);
   }
