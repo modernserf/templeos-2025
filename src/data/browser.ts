@@ -133,42 +133,11 @@ export const browserData = {
           s.receive($.message),
           s.match_cond(
             $.message,
-            l(
-              s.render_window($.window),
-              seq(
-                s.send($.window, s.render()),
-                s.send("local_storage", s.update()),
-              ),
-            ),
-            l(
-              s.render_root(),
-              seq(
-                s.send("root_view_manager", s.render()),
-                s.send("local_storage", s.update()),
-              ),
-            ),
-            l(s.clear_storage(), s.send("local_storage", s.clear())),
+            l(s.render_window($.window), seq(s.send($.window, s.render()))),
+            l(s.render_root(), seq(s.send("root_view_manager", s.render()))),
           ),
         ),
       ),
-    ),
-  },
-
-  get_state: {
-    rule__params: l($.value, $.state, $.default),
-    rule__body: s.value_record_field_default(
-      $.value,
-      $.state,
-      "history__params",
-      $.default,
-    ),
-  },
-  set_state: {
-    rule__params: l($.state, $.value),
-    rule__body: seq(
-      db.with_tx($.tx, db.update($.tx, $.state, "history__params", $.value)),
-      f.history__window($.state, $.window),
-      s.dispatch(s.render_window($.window)),
     ),
   },
 
@@ -177,6 +146,7 @@ export const browserData = {
     rule__params: l($.out),
     rule__body: seq(
       s.init_clipboard(),
+      s.init__db_server(),
       s.html(
         $.out,
         "div",
@@ -231,16 +201,12 @@ export const browserData = {
           s.ensure_var($.e),
           s.receive($.e),
           u($.e, s.change($.next_view)),
-          db.with_tx(
-            $.tx,
-            f.window__current_history($.window, $.history),
-            db.update($.tx, $.history, "history__view", $.next_view),
-            s.dispatch(s.render_window($.window)),
-          ),
+          s.on__set_view_menu($.window, $.next_view),
         ),
       ),
     ),
   },
+
   view__window_container: {
     rule__params: l(
       s.WindowContainer(
@@ -389,7 +355,7 @@ export const browserData = {
             $.app_menu,
             l("home", s.on__new_window(s.location("home"))),
             l("omnibox", s.on__new_window(s.location("omnibox"))),
-            l("reset", s.dispatch(s.clear_storage())),
+            l("reset", s.db__reset()),
           ),
         ),
       ),
@@ -436,98 +402,140 @@ export const browserData = {
   // },
 
   new__window: {
-    rule__params: l($.tx, $.window, $.location),
+    rule__params: l($.out, $.window, $.location),
     rule__body: seq(
       s.if_var($.window, s.id($.window)),
-      s.new__history($.tx, $.history, $.window, $.location),
-      db.update($.tx, $.window, "db__schema", "window"),
-      db.update($.tx, $.window, "window__current_history", $.history),
+      s.new__history($.h, $.history, $.window, $.location),
+      s.append_left_right(
+        $.out,
+        $.h,
+        l(
+          s.update($.window, "db__schema", "window"),
+          s.update($.window, "window__current_history", $.history),
+        ),
+      ),
     ),
   },
-
   new__history: {
-    rule__params: l($.tx, $.history, $.window, $.location),
+    rule__params: l($.out, $.history, $.window, $.location),
     rule__body: seq(
       s.if_var($.history, s.id($.history)),
       s.timestamp($.ts),
       s.location_id_view_params($.location, $.id, $.view, $.params),
-      db.update($.tx, $.history, "db__schema", "history"),
-      db.update($.tx, $.history, "time__created", $.ts),
-      db.update($.tx, $.history, "history__window", $.window),
-      db.update($.tx, $.history, "history__id", $.id),
-      s.if_then_else(
-        s.nonvar($.view),
-        db.update($.tx, $.history, "history__view", $.view),
-        s.ok(),
-      ),
-      s.each_item_do(
-        $.params,
-        s.param($.param_field, $.param_value),
-        db.update($.tx, $.history, $.param_field, $.param_value),
+
+      s.collect_item_in(
+        $.out,
+        s.update($.history, $.f, $.v),
+        alt(
+          u(l($.f, $.v), l("db__schema", "history")),
+          u(l($.f, $.v), l("time__created", $.ts)),
+          u(l($.f, $.v), l("history__window", $.window)),
+          u(l($.f, $.v), l("history__id", $.id)),
+          seq(s.nonvar($.view), u(l($.f, $.v), l("history__view", $.view))),
+          seq(
+            s.nonvar($.params),
+            u(l($.f, $.v), l("history__params", $.params)),
+          ),
+        ),
       ),
     ),
   },
 
+  get_state: {
+    rule__params: l($.value, $.state, $.default),
+    rule__body: s.value_record_field_default(
+      $.value,
+      $.state,
+      "history__params",
+      $.default,
+    ),
+  },
+  set_state: {
+    rule__params: l($.state, $.value),
+    rule__body: seq(
+      s.db__update(l(s.update($.state, "history__params", $.value))),
+      f.history__window($.state, $.window),
+      s.dispatch(s.render_window($.window)),
+    ),
+  },
+
   // event handlers
+  on__set_view_menu: {
+    rule__params: l($.window, $.next_view),
+    rule__body: seq(
+      f.window__current_history($.window, $.history),
+      s.db__update(l(s.update($.history, "history__view", $.next_view))),
+      s.dispatch(s.render_window($.window)),
+    ),
+  },
   on__select_window: {
     rule__params: l($.window),
-    rule__body: db.with_tx(
-      $.tx,
-      db.update($.tx, "browser", "browser__current_window", $.window),
+    rule__body: seq(
+      s.db__update(l(s.update("browser", "browser__current_window", $.window))),
       s.dispatch(s.render_root()),
     ),
   },
   on__new_window: {
     rule__params: l($.location),
-    rule__body: db.with_tx(
-      $.tx,
-      s.new__window($.tx, __, $.location),
+    rule__body: seq(
+      s.new__window($.out, __, $.location),
+      s.db__update($.out),
       s.dispatch(s.render_root()),
     ),
   },
   on__close_window: {
     rule__params: l($.window),
-    rule__body: db.with_tx(
-      $.tx,
-      db.delete($.tx, $.window),
+    rule__body: seq(
+      s.db__update(l(s.delete($.window))),
       s.dispatch(s.render_root()),
     ),
   },
   on__push: {
     rule__params: l($.window, $.location),
-    rule__body: db.with_tx(
-      $.tx,
+    rule__body: seq(
       f.window__current_history($.window, $.prev),
-      s.new__history($.tx, $.next, $.window, $.location),
-      db.update($.tx, $.next, "history__back", $.prev),
-      db.update($.tx, $.prev, "history__forward", $.next),
-      db.update($.tx, $.window, "window__current_history", $.next),
+      s.new__history($.h, $.next, $.window, $.location),
+      s.append_left_right(
+        $.batch,
+        $.h,
+        l(
+          s.update($.next, "history__back", $.prev),
+          s.update($.prev, "history__forward", $.next),
+          s.update($.window, "window__current_history", $.next),
+        ),
+      ),
+      s.db__update($.batch),
       s.dispatch(s.render_window($.window)),
     ),
   },
 
   on__back: {
     rule__params: l($.window),
-    rule__body: db.with_tx(
-      $.tx,
+    rule__body: seq(
       f.window__current_history($.window, $.forward),
       f.history__back($.forward, $.back),
-      db.update($.tx, $.window, "window__current_history", $.back),
-      db.update($.tx, $.back, "history__forward", $.forward),
-      db.delete($.tx, $.forward, "history__back"),
+      s.db__update(
+        l(
+          s.update($.window, "window__current_history", $.back),
+          s.update($.back, "history__forward", $.forward),
+          s.delete($.forward, "history__back"),
+        ),
+      ),
       s.dispatch(s.render_window($.window)),
     ),
   },
   on__forward: {
     rule__params: l($.window),
-    rule__body: db.with_tx(
-      $.tx,
+    rule__body: seq(
       f.window__current_history($.window, $.back),
       f.history__forward($.back, $.forward),
-
-      db.update($.tx, $.window, "window__current_history", $.forward),
-      db.update($.tx, $.forward, "history__back", $.back),
-      db.delete($.tx, $.back, "history__forward"),
+      s.db__update(
+        l(
+          s.update($.window, "window__current_history", $.forward),
+          s.update($.forward, "history__back", $.back),
+          s.delete($.back, "history__forward"),
+        ),
+      ),
       s.dispatch(s.render_window($.window)),
     ),
   },

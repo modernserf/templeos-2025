@@ -83,14 +83,10 @@ export const clipboardRules = {
 
   clipboard__handle_copy: {
     rule__params: l($.id, $.value),
-    rule__body: db.with_tx(
-      $.tx,
-      seq(
-        f.clipboard__data($.id, $.prev),
-        s.append_left_right($.next, $.prev, l($.value)),
-        db.update($.tx, $.id, "clipboard__data", $.next),
-        s.send("local_storage", s.update()),
-      ),
+    rule__body: seq(
+      f.clipboard__data($.id, $.prev),
+      s.append_left_right($.next, $.prev, l($.value)),
+      s.db__update(l(s.update($.id, "clipboard__data", $.next))),
     ),
   },
   clipboard__handle_paste: {
@@ -98,19 +94,14 @@ export const clipboardRules = {
     rule__body: seq(
       f.clipboard__data($.id, $.data),
       s.append_left_right($.data, __, l($.value)),
-      s.send("local_storage", s.update()),
     ),
   },
   clipboard__handle_drop: {
     rule__params: l($.id),
-    rule__body: db.with_tx(
-      $.tx,
-      seq(
-        f.clipboard__data($.id, $.prev),
-        s.append_left_right($.prev, $.rest, l(__)),
-        db.update($.tx, $.id, "clipboard__data", $.rest),
-        s.send("local_storage", s.update()),
-      ),
+    rule__body: seq(
+      f.clipboard__data($.id, $.prev),
+      s.append_left_right($.prev, $.rest, l(__)),
+      s.db__update(l(s.update($.id, "clipboard__data", $.rest))),
     ),
   },
 } satisfies Record<string, Rec>;

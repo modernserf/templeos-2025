@@ -74,4 +74,61 @@ export const dbRules = {
       ),
     ),
   },
+
+  init__db_server: {
+    rule__params: l(),
+    rule__body: s.spawn(s.db_server("local_storage"), "db_server"),
+  },
+
+  db__update: {
+    rule__params: l($.batch),
+    rule__body: s.send("db_server", s.update($.batch)),
+  },
+  db__reset: {
+    rule__params: l(),
+    rule__body: s.send("db_server", s.reset()),
+  },
+
+  db_server: {
+    rule__params: l($.local_storage),
+    rule__body: s.loop(
+      seq(
+        s.receive($.message),
+        s.match_cond(
+          $.message,
+          l(
+            s.update($.batch),
+            seq(
+              s.db__apply_update($.batch),
+              s.send($.local_storage, s.update()),
+            ),
+          ),
+          l(s.reset(), s.send($.local_storage, s.clear())),
+          l(__, s.throw(s.not_implemented($.message))),
+        ),
+      ),
+    ),
+  },
+  db__apply_update: {
+    rule__params: l($.batch),
+    rule__body: db.with_tx(
+      $.tx,
+      s.each_item_do(
+        $.batch,
+        $.item,
+        s.match_cond(
+          $.item,
+          l(
+            s.update($.id, $.field, $.value),
+            s.tx_update_field_value__primitive($.tx, $.id, $.field, $.value),
+          ),
+          l(
+            s.delete($.id, $.field),
+            s.tx_delete_field__primitive($.tx, $.id, $.field),
+          ),
+          l(s.delete($.id), s.tx_delete_record__primitive($.tx, $.id)),
+        ),
+      ),
+    ),
+  },
 } satisfies Record<string, Rec>;

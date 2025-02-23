@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, seq, u, __, alt, f } from "../expr";
+import { l, s, $, seq, u, __, f } from "../expr";
 import { db } from "./db";
 
 export const note = {
@@ -13,27 +13,6 @@ export const note = {
     db__schema: "field",
     file__name: "Note content",
     db__type: "string",
-  },
-
-  new__note: {
-    rule__params: l($.id, $.content),
-    rule__body: db.with_tx(
-      $.tx,
-      s.if_var($.id, s.id($.id)),
-      s.if_var($.content, u($.content, "")),
-      db.update($.tx, $.id, "db__schema", "note"),
-      db.update($.tx, $.id, "note__content", $.content),
-      s.send("local_storage", s.update()),
-    ),
-  },
-
-  note__update: {
-    rule__params: l($.id, $.value),
-    rule__body: db.with_tx(
-      $.tx,
-      db.update($.tx, $.id, "note__content", $.value),
-      s.send("local_storage", s.update()),
-    ),
   },
 
   view__note_detail: {
@@ -51,7 +30,7 @@ export const note = {
         seq(
           s.receive($.e),
           u($.e, s.change($.next)),
-          s.note__update($.id, $.next),
+          s.on__note_update($.id, $.next),
         ),
       ),
     ),
@@ -84,8 +63,8 @@ export const note = {
                 "cut",
                 seq(
                   f.note__content($.id, $.content),
-                  s.note__update($.id, ""),
                   s.clipboard__copy($.content),
+                  s.on__note_update($.id, ""),
                 ),
               ),
               l(
@@ -99,12 +78,11 @@ export const note = {
                 "paste",
                 seq(
                   s.clipboard__paste($.content),
-                  s.note__update($.id, $.content),
+                  s.on__note_update($.id, $.content),
                 ),
               ),
-              l("clear", seq(s.note__update($.id, ""))),
+              l("clear", seq(s.on__note_update($.id, ""))),
             ),
-            s.dispatch(s.render_window($.window)),
           ),
         ),
         s.view__note_detail($.id),
@@ -123,14 +101,44 @@ export const note = {
         s.view__button(
           l(),
           "New note",
-          seq(
-            s.receive(s.click(__)),
-            s.new__note(__, __),
-            s.dispatch(s.render_window($.window)),
-          ),
+          seq(s.receive(s.click(__)), s.on__new_note($.window)),
         ),
         s.expr_iter(f.db__schema($.id, "note"), s.view__note_detail($.id)),
       ),
+    ),
+  },
+
+  new__note: {
+    rule__params: l($.out, $.id, $.content),
+    rule__body: seq(
+      s.if_var($.id, s.id($.id)),
+      s.if_var($.content, u($.content, "")),
+      u(
+        $.out,
+        l(
+          s.update($.id, "db__schema", "note"),
+          s.update($.id, "note__content", $.content),
+        ),
+      ),
+    ),
+  },
+
+  on__note_update: {
+    rule__params: l($.id, $.value),
+    rule__body: seq(
+      // FIXME
+      f.browser__current_window("browser", $.window),
+      s.db__update(l(s.update($.id, "note__content", $.value))),
+      s.dispatch(s.render_window($.window)),
+    ),
+  },
+
+  on__new_note: {
+    rule__params: l($.window),
+    rule__body: seq(
+      s.new__note($.batch, __, __),
+      s.db__update($.batch),
+      s.dispatch(s.render_window($.window)),
     ),
   },
 } satisfies Record<string, Rec>;
