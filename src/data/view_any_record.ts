@@ -37,7 +37,7 @@ export const viewAnyRecord = {
         s.view__spacer("0.25rem"),
         s.expr_iter(
           s.value_box_index($.arg, $.list, __),
-          s.html("span", l(), s.view__expr($.arg)),
+          s.html("span", l(s.style("flex", "1 1 auto")), s.view__expr($.arg)),
           s.view__spacer("0.25rem"),
         ),
         s.html("span", l(), s.view__string(")")),
@@ -94,7 +94,11 @@ export const viewAnyRecord = {
           l(s.view__string("Reference"), s.view__string("Record")),
           s.expr_iter(
             s.ref_field_record($.ref, $.field, $.id),
-            s.table_row(l(), s.view__file_link($.field), s.view__string($.ref)),
+            s.table_row(
+              l(),
+              s.view__file_link($.field),
+              s.view__file_link($.ref),
+            ),
           ),
         ),
       ),

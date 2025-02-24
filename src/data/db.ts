@@ -205,13 +205,28 @@ export const dbRules = {
       s.limit(
         1,
         seq(
-          s.value_box_index($.change, $.batch, __),
-          s.match(
-            l($.change, $.pattern),
-            l(s.update($.id, __, __), s.record($.id)),
-            l(s.update(__, __, $.id), s.record($.id)),
-            l(s.delete($.id, __), s.record($.id)),
-            l(s.delete($.id), s.record($.id)),
+          s.match_cond(
+            $.pattern,
+            l(
+              s.oneof($.patterns),
+              seq(
+                s.value_box_index($.p, $.patterns, __),
+                s.db__check_batch_pattern($.batch, $.p),
+              ),
+            ),
+            l(
+              s.record($.id),
+              seq(
+                s.value_box_index($.change, $.batch, __),
+                s.match(
+                  $.change,
+                  s.update($.id, __, __),
+                  s.update(__, __, $.id),
+                  s.delete($.id, __),
+                  s.delete($.id),
+                ),
+              ),
+            ),
           ),
         ),
       ),

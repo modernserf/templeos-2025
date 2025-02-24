@@ -70,7 +70,10 @@ button {
 .AppWindow__title {
   font-size: 1.5rem;
   line-height: 1;
-  flex: 1 0 auto;
+  flex: 1 1 auto;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .AppWindow__content {

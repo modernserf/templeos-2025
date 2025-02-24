@@ -182,7 +182,7 @@ export const initState = mergeAndCheck(
         file__name: "home",
         file__description: l("This is the home card"),
         rule__params: l($.out, $.id, $.state),
-        _left_links: l("code_explorer", "omnibox"),
+        _left_links: l("code_explorer", "omnibox", "view__all_notes"),
         rule__body: s.column(
           $.out,
           l(s.style("padding", "1rem")),

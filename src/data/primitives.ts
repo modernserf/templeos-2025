@@ -127,7 +127,6 @@ export const { rules, rulePrimitives } = compilePrimitives({
         while (!next.done) {
           if (next.value.tag === "result") {
             didSucceed = true;
-            yield next.value;
             next = gen.next();
           } else {
             next = gen.next(yield next.value);

@@ -99,26 +99,6 @@ export const browserData = {
     rule__body: f.browser__current_window("browser", $.window),
   },
 
-  view__component: {
-    rule__params: l($.render),
-    rule__body: seq(
-      s.loop(
-        seq(
-          s.receive(s.mount($.vc_renderer)),
-          s.self($.self),
-          s.send($.self, s.render()),
-          s.loop(
-            seq(
-              s.receive(s.render()),
-              s.preply($.render, l($.out)),
-              s.send($.vc_renderer, $.out),
-            ),
-          ),
-        ),
-      ),
-    ),
-  },
-
   render_root: {
     rule__params: l(),
     rule__body: s.send("root_view_manager", s.render()),
@@ -129,20 +109,26 @@ export const browserData = {
     rule__body: seq(
       s.init_clipboard(),
       s.init__db_server(),
-      s.spawn($.pid, s.view__desktop_component()),
+      s.spawn(
+        $.pid,
+        s.view__subscribe_render__internal(
+          s.record("browser"),
+          s.view__desktop(),
+        ),
+      ),
     ),
   },
 
-  view__desktop_component: {
-    rule__params: l(),
+  view__subscribe_render__internal: {
+    rule__params: l($.subscriptions, $.render),
     rule__body: s.loop(
       seq(
         s.self($.self),
-        s.receive(s.mount($.root_view)),
+        s.receive(s.mount($.view)),
         s.send($.self, s.render()),
         s.db__subscribe_callback(
           $.sub,
-          s.record("browser"),
+          $.subscriptions,
           s.send($.self, s.render()),
         ),
         s.loop(
@@ -152,11 +138,25 @@ export const browserData = {
               $.e,
               l(
                 s.render(),
-                seq(s.view__desktop($.out), s.send($.root_view, $.out)),
+                seq(
+                  s.preply($.render, l($.render_out)),
+                  s.send($.view, $.render_out),
+                ),
               ),
               l(s.unmount(), seq(s.db__unsubscribe($.sub), s.fail())),
             ),
           ),
+        ),
+      ),
+    ),
+  },
+  view__subscribe_render: {
+    rule__params: l($.out, $.subscriptions, $.render),
+    rule__body: seq(
+      u(
+        $.out,
+        s.Receiver(
+          s.view__subscribe_render__internal($.subscriptions, $.render),
         ),
       ),
     ),
@@ -171,67 +171,13 @@ export const browserData = {
       l(),
       s.view__app_menu(),
       s.expr_iter(
-        s.record_field_value($.window, "db__schema", "window"),
-        s.view__receive(s.view__window_component($.window), $.window),
-      ),
-    ),
-  },
-
-  view__receive: {
-    rule__params: l($.out, $.proc, $.maybe_pid),
-    rule__body: u($.out, s.Receiver($.proc, $.maybe_pid)),
-  },
-
-  view__window_component: {
-    rule__params: l($.window),
-    rule__body: seq(
-      s.loop(
         seq(
-          s.receive(s.mount($.vc_renderer)),
-          s.self($.self),
-          s.send($.self, s.render()),
-          f.window__current_history($.self, $.history),
-          f.history__id($.history, $.id),
-          s.db__subscribe_callback(
-            $.p1,
-            s.record($.window),
-            s.send($.self, s.render()),
-          ),
-          s.db__subscribe_callback(
-            $.p2,
-            s.record($.history),
-            s.send($.self, s.render()),
-          ),
-          s.db__subscribe_callback(
-            $.p3,
-            s.record($.id),
-            s.send($.self, s.render()),
-          ),
-
-          s.loop(
-            seq(
-              s.receive($.e),
-              s.match_cond(
-                $.e,
-                l(
-                  s.render(),
-                  seq(
-                    s.view__window($.out, $.window),
-                    s.send($.vc_renderer, $.out),
-                  ),
-                ),
-                l(
-                  s.unmount(),
-                  seq(
-                    s.db__unsubscribe($.p1),
-                    s.db__unsubscribe($.p2),
-                    s.db__unsubscribe($.p3),
-                    s.fail(),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          s.record_field_value($.window, "db__schema", "window"),
+          f.window__current_history($.window, $.history),
+        ),
+        s.view__subscribe_render(
+          s.oneof(l(s.record($.window), s.record($.history))),
+          s.view__window($.window),
         ),
       ),
     ),
@@ -338,7 +284,12 @@ export const browserData = {
             s.html(
               "div",
               l(s.class("AppWindow__content")),
-              s.view__window_content($.view, $.id, $.window, $.history),
+              s.view__subscribe_render(
+                s.oneof(
+                  l(s.record($.history), s.record($.id), s.record($.view)),
+                ),
+                s.view__window_content($.view, $.id, $.window, $.history),
+              ),
             ),
           ),
         ),
@@ -389,7 +340,6 @@ export const browserData = {
           ),
         ),
         s.html("h1", l(s.class("AppWindow__title")), s.view__string($.name)),
-        s.expr_iter(s.timestamp($.ts), s.view__string($.ts)),
 
         s.html("div", l(s.style("flex", "1 0 auto"))),
         s.view__button(

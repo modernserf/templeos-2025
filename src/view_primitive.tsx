@@ -85,15 +85,13 @@ const Receiver2: VC = ({ pm, values: [procPid] }) => {
   );
 };
 
-const Receiver: VC = ({ pm, values: [proc, maybePid] }) => {
+const Receiver: VC = ({ pm, values: [proc] }) => {
   const [result, setResult] = useState<Value & { tag: "box" }>();
-
-  const maybePidValue = maybePid.tag === "string" ? maybePid.value : undefined;
 
   useEffect(() => {
     const eventSource = new EventSource<Value>();
     const renderPid = pm.addExternal(eventSource);
-    const procPid = pm.spawn(proc, maybePidValue);
+    const procPid = pm.spawn(proc);
     const unsub = eventSource.addEventListener((it) => {
       setResult(it as Value & { tag: "box" });
     });
@@ -102,7 +100,7 @@ const Receiver: VC = ({ pm, values: [proc, maybePid] }) => {
       pm.sendAsync(procPid, box("unmount", []));
       unsub();
     };
-  }, [pm, proc, maybePidValue]);
+  }, [pm, proc]);
 
   if (!result) return <>loading</>;
   return (

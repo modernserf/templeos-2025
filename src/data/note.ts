@@ -89,62 +89,28 @@ export const note = {
       ),
     ),
   },
-
-  view__all_notes_component: {
-    rule__params: l(),
-    rule__body: alt(
-      s.loop(
-        seq(
-          s.receive(s.mount($.vc_renderer)),
-          s.self($.self),
-          s.db__subscribe_callback(
-            $.sub,
-            s.record("note"),
-            s.send($.self, s.render()),
-          ),
-          s.send($.self, s.render()),
-          s.loop(
-            seq(
-              s.receive($.e),
-              s.match_cond(
-                $.e,
-                l(
-                  s.render(),
-                  seq(
-                    s.column(
-                      $.out,
-                      l(),
-                      s.expr_iter(
-                        f.db__schema($.id, "note"),
-                        s.view__note_detail($.id),
-                      ),
-                    ),
-                    s.send($.vc_renderer, $.out),
-                  ),
-                ),
-                l(s.unmount(), seq(s.db__unsubscribe($.sub), s.fail())),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  },
   view__all_notes: {
     db__schema: "form",
     file__name: "Notes",
-    rule__params: l($.out, __, $.state),
+    rule__params: l($.out, __, __),
+    rule__body: s.view__subscribe_render(
+      $.out,
+      s.record("note"),
+      s.view__all_notes__(),
+    ),
+  },
+  view__all_notes__: {
+    rule__params: l($.out),
     rule__body: seq(
-      f.history__window($.state, $.window),
       s.column(
         $.out,
         l(),
         s.view__button(
           l(),
           "New note",
-          seq(s.receive(s.click(__)), s.on__new_note($.window)),
+          seq(s.receive(s.click(__)), s.on__new_note()),
         ),
-        s("=", s.Receiver(s.view__all_notes_component(), "view__all_notes")),
+        s.expr_iter(f.db__schema($.id, "note"), s.view__note_detail($.id)),
       ),
     ),
   },
@@ -166,15 +132,11 @@ export const note = {
 
   on__note_update: {
     rule__params: l($.id, $.value),
-    rule__body: seq(
-      // FIXME
-      f.browser__current_window("browser", $.window),
-      s.db__update(l(s.update($.id, "note__content", $.value))),
-    ),
+    rule__body: seq(s.db__update(l(s.update($.id, "note__content", $.value)))),
   },
 
   on__new_note: {
-    rule__params: l($.window),
+    rule__params: l(),
     rule__body: seq(s.new__note($.batch, __, __), s.db__update($.batch)),
   },
 } satisfies Record<string, Rec>;
