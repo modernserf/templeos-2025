@@ -120,7 +120,6 @@ export const browserData = {
       ),
     ),
   },
-
   view__subscribe_render__internal: {
     rule__params: l($.subscriptions, $.render),
     rule__body: seq(

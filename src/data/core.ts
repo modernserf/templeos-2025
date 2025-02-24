@@ -216,6 +216,50 @@ export const core = {
     rule__params: l($.expr),
     rule__body: s.if_then_else($.expr, s.fail(), s.ok()),
   },
+  "==": {
+    file__description: l("compare without unifying vars"),
+    rule__params: l($.left, $.right),
+    rule__body: seq(
+      s.type_value($.tl, $.left),
+      s.type_value($.tr, $.right),
+      s.match_cond(
+        l($.tl, $.tr),
+        l(l(s.var(), __), s.ok()),
+        l(l(__, s.var()), s.ok()),
+        l(
+          l(s.box(), s.box()),
+          seq(
+            s.box_tag_list($.left, $.tag, $.ls),
+            s.box_tag_list($.right, $.tag, $.rs),
+            s.length_box($.len, $.ls),
+            s.length_box($.len, $.rs),
+            // note: first one iterates, second one indexes
+            s.value_box_index($.l, $.ls, $.i),
+            s.value_box_index($.r, $.rs, $.i),
+            s("==", $.l, $.r),
+          ),
+        ),
+        l(__, u($.left, $.right)),
+      ),
+    ),
+  },
+  "test__==": {
+    test__group: "core",
+    rule__params: l(),
+    rule__body: seq(
+      test.ok(s("==", 1, 1)),
+      test.ok(s("==", "foo", "foo")),
+      test.ok(s("==", s.foo(123), s.foo(123))),
+      test.ok(s("==", s.foo(123), s.foo(__))),
+      test.ok(s("==", s.foo(123), __)),
+
+      test.fail(s("==", 1, "1")),
+      test.fail(s("==", s.foo(123), s.foo(456))),
+      test.fail(s("==", s.foo(123), s.bar(123))),
+      test.fail(s("==", s.foo(123), s.foo(123, 456))),
+    ),
+  },
+
   // TODO: check performance on this, maybe want native impl for this
   append_box_prefix: {
     file__description: l(

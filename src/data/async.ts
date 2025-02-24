@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, __, seq } from "../expr";
+import { l, s, $, __, seq, u } from "../expr";
 import { test } from "./test_utils";
 
 export const asyncRules = {
@@ -84,6 +84,67 @@ export const asyncRules = {
           s.receive(s.race("bar")),
         ),
         "foo",
+      ),
+    ),
+  },
+
+  agent: {
+    rule__params: l($.pid, $.init_state),
+    rule__body: seq(
+      s.spawn(
+        $.pid,
+        s.loop_state(
+          $.next,
+          $.prev,
+          $.init_state,
+          seq(
+            s.receive($.e),
+            s.match_cond(
+              $.e,
+              l(s.get($.pid, $.ref), s.send($.pid, s.get($.ref, $.prev))),
+              l(
+                s.update($.out, $.prev, $.goal),
+                s.if_then_else($.goal, u($.next, $.out), s.ok()),
+              ),
+            ),
+            s.if_var($.next, u($.next, $.prev)),
+          ),
+        ),
+      ),
+    ),
+  },
+  agent__get: {
+    rule__params: l($.value, $.agent),
+    rule__body: seq(
+      s.id($.ref),
+      s.self($.self),
+      s.send($.agent, s.get($.self, $.ref)),
+      s.receive(s.get($.ref, $.value)),
+    ),
+  },
+  agent__update: {
+    rule__params: l($.agent, $.out, $.in, $.goal),
+    rule__body: seq(
+      s.send($.agent, s.update($.out, $.in, $.goal)), //
+    ),
+  },
+  test__agent: {
+    test__group: "async",
+    rule__params: l(),
+    rule__body: seq(
+      test.collect(
+        $.res,
+        seq(
+          s.agent($.agent, l(123)),
+          s.agent__update(
+            $.agent,
+            $.next,
+            $.prev,
+            s.append_left_right($.next, $.prev, l(456)),
+          ),
+          s.agent__get($.res, $.agent),
+        ),
+        l(123, 456),
       ),
     ),
   },
