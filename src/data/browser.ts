@@ -96,10 +96,7 @@ export const browserData = {
 
   current_window: {
     rule__params: l($.window),
-    rule__body: seq(
-      // TODO: check if this is a child process of the current window, and get that id
-      s.self($.window),
-    ),
+    rule__body: f.browser__current_window("browser", $.window),
   },
 
   view__component: {

@@ -80,17 +80,7 @@ export const viewCore = {
     rule__body: seq(
       test.collect(
         $.out,
-        seq(
-          s.self($.pid),
-          s.spawn(
-            "test_window_id",
-            seq(
-              s.view__link($.res, l(), "hello", s.location("test_link")),
-              s.send($.pid, s.result($.res)),
-            ),
-          ),
-          s.receive(s.result($.out)),
-        ),
+        s.view__link($.out, l(), "hello", s.location("test_link")),
         s.Button(l(s.class("Link")), "hello", __),
       ),
     ),
