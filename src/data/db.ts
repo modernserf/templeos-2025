@@ -1,18 +1,5 @@
-import { Field, Rec } from ".";
-import { s, Expr, __, seq, $, l, u, alt, f } from "../expr";
-
-export const db = {
-  get: (id: Expr, field: Field, value: Expr) =>
-    s.get_field_value(id, field, value),
-  update: (tx: Expr, id: Expr, field: Field, value: Expr) =>
-    s.tx_update_field_value(tx, id, field, value),
-  delete: (tx: Expr, id: Expr, field?: Field) =>
-    s.tx_delete_field(tx, id, field ?? __),
-  with_tx: (tx: Expr, head: Expr, ...body: Expr[]) =>
-    s.with_tx(tx, seq(head, ...body)),
-  field: (field: Field) => s("field", field),
-  field_optional: (field: Field) => s("field_optional", field),
-};
+import { Rec } from ".";
+import { s, __, seq, $, l, u, alt, f } from "../expr";
 
 export const dbRules = {
   // db
@@ -164,7 +151,7 @@ export const dbRules = {
   },
   db__apply_update: {
     rule__params: l($.batch),
-    rule__body: db.with_tx(
+    rule__body: s.with_tx(
       $.tx,
       s.each_item_do(
         $.batch,

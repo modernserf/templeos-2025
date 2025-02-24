@@ -1,6 +1,5 @@
 import { Rec } from ".";
 import { $, __, f, l, s, seq } from "../expr";
-import { db } from "./db";
 
 export const clipboardRules = {
   // schema
@@ -8,7 +7,7 @@ export const clipboardRules = {
     db__schema: "schema",
     file__name: "Clipboard",
     file__description: l("stores clipboard data"),
-    db__fields: l(db.field("clipboard__data")),
+    db__fields: l(s.field("clipboard__data")),
   },
   clipboard__data: {
     db__schema: "field",

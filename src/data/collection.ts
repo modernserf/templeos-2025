@@ -1,6 +1,5 @@
 import { Rec } from ".";
 import { l, s, $, f, seq, __ } from "../expr";
-import { db } from "./db";
 
 export const collectionData = {
   // schemas
@@ -8,7 +7,7 @@ export const collectionData = {
     db__schema: "schema",
     file__name: "Folder",
     file__description: l("A collection of records"),
-    db__fields: l(db.field("rule__params"), db.field("rule__body")),
+    db__fields: l(s.field("rule__params"), s.field("rule__body")),
   },
   tag: {
     db__schema: "schema",
@@ -16,7 +15,7 @@ export const collectionData = {
     file__description: l(
       "Tags are used to organize records. A record can have and belongs to many tags.",
     ),
-    db__fields: l(db.field("file__name")),
+    db__fields: l(s.field("file__name")),
   },
   // fields
   folder__items: {

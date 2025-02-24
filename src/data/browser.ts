@@ -1,6 +1,5 @@
 import { Rec } from ".";
 import { l, s, $, seq, u, __, alt, f } from "../expr";
-import { db } from "./db";
 
 export const browserData = {
   // schemas
@@ -8,19 +7,19 @@ export const browserData = {
     db__schema: "schema",
     file__name: "Window",
     file__description: l("A window"),
-    db__fields: l(db.field("window__current_history")),
+    db__fields: l(s.field("window__current_history")),
   },
   history: {
     db__schema: "schema",
     file__name: "History",
     file__description: l("A history entry"),
     db__fields: l(
-      db.field("history__window"),
-      db.field("history__id"),
-      db.field_optional("history__view"),
-      db.field_optional("history__params"),
-      db.field("history__forward"),
-      db.field("history__back"),
+      s.field("history__window"),
+      s.field("history__id"),
+      s.field_optional("history__view"),
+      s.field_optional("history__params"),
+      s.field("history__forward"),
+      s.field("history__back"),
     ),
   },
 

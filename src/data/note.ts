@@ -1,13 +1,12 @@
 import { Rec } from ".";
 import { l, s, $, seq, u, __, f } from "../expr";
-import { db } from "./db";
 
 export const note = {
   note: {
     db__schema: "schema",
     file__name: "Note",
     file__description: l("A plain text note"),
-    db__fields: l(db.field("note__content")),
+    db__fields: l(s.field("note__content")),
   },
   note__content: {
     db__schema: "field",
