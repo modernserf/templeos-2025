@@ -101,7 +101,7 @@ export const dbRules = {
               l(s.change(), $.callback),
               l(s.close(), s.fail()),
             ),
-          ), //
+          ),
         ),
       ),
       s.send("db_server", s.subscribe($.pid, $.pattern)),
@@ -142,21 +142,19 @@ export const dbRules = {
             l(
               s.unsubscribe($.pid),
               seq(
-                // FIXME
-                s.ok(),
-                // s.collect_item_in(
-                //   $.next,
-                //   $.item,
-                //   seq(
-                //     s.value_box_index($.item, $.prev, __),
-                //     s("/=", $.item, s.subscribe($.pid, __)),
-                //   ),
-                // ),
-                // s.send($.pid, s.close()),
+                s.collect_item_in(
+                  $.next,
+                  $.item,
+                  seq(
+                    s.value_box_index(s.subscribe($.p, $.sub), $.prev, __),
+                    s("/=", $.p, $.pid),
+                    u($.item, s.subscribe($.p, $.sub)),
+                  ),
+                ),
+                s.send($.pid, s.close()),
               ),
             ),
-            l(__, s.log("unknown message", $.message)),
-            // l(__, s.throw(s.not_implemented($.message))),
+            l(__, s.throw(s.not_implemented($.message))),
           ),
           s.if_var($.next, u($.prev, $.next)),
         ),

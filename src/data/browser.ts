@@ -111,9 +111,12 @@ export const browserData = {
       s.init__db_server(),
       s.spawn(
         $.pid,
-        s.view__subscribe_render__internal(
-          s.record("browser"),
-          s.view__desktop(),
+        // loop because we want this process to stay mounted
+        s.loop(
+          s.view__subscribe_render__internal(
+            s.record("browser"),
+            s.view__desktop(),
+          ),
         ),
       ),
     ),
@@ -121,30 +124,33 @@ export const browserData = {
 
   view__subscribe_render__internal: {
     rule__params: l($.subscriptions, $.render),
-    rule__body: s.loop(
-      seq(
-        s.self($.self),
-        s.receive(s.mount($.view)),
+    rule__body: seq(
+      s.self($.self),
+      s.receive(s.mount($.view)),
+      s.send($.self, s.render()),
+      s.db__subscribe_callback(
+        $.sub,
+        $.subscriptions,
         s.send($.self, s.render()),
-        s.db__subscribe_callback(
-          $.sub,
-          $.subscriptions,
-          s.send($.self, s.render()),
-        ),
-        s.loop(
-          seq(
-            s.receive($.e),
-            s.match_cond(
-              $.e,
-              l(
-                s.render(),
-                seq(
+      ),
+      s.loop(
+        seq(
+          s.receive($.e),
+          s.match_cond(
+            $.e,
+            l(
+              s.render(),
+              seq(
+                s.if_then_else(
                   s.preply($.render, l($.render_out)),
                   s.send($.view, $.render_out),
+                  // TODO: should something else happen when render fails?
+                  s.send($.view, s.Null()),
                 ),
               ),
-              l(s.unmount(), seq(s.db__unsubscribe($.sub), s.fail())),
             ),
+            l(s.unmount(), seq(s.db__unsubscribe($.sub), s.fail())),
+            l(__, s.throw(s.unknown_message($.self, $.e))),
           ),
         ),
       ),

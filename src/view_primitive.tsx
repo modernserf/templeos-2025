@@ -247,6 +247,10 @@ const WindowContainer: VC = ({
   );
 };
 
+const Null: VC = () => {
+  return null;
+};
+
 const viewPrimitives: Record<string, VC> = {
   Html,
   String,
@@ -258,6 +262,7 @@ const viewPrimitives: Record<string, VC> = {
   WindowContainer,
   Receiver,
   Receiver2,
+  Null,
 };
 
 const DefaultRenderer: VC = ({ id, values }) => {

@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, seq, u, __, f, alt } from "../expr";
+import { l, s, $, seq, u, __, f } from "../expr";
 import { db } from "./db";
 
 export const note = {

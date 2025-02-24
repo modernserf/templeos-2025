@@ -202,11 +202,18 @@ export class State {
     value = resolveVar(value);
     const { id, args, params, restParams, body } = this.getRule(value);
     if (this.pm.rulePrimitives[id]) {
-      yield* this.pm.rulePrimitives[id](
-        this,
-        ...args.map((arg) => resolveVar(arg)),
-      );
-      return;
+      try {
+        yield* this.pm.rulePrimitives[id](
+          this,
+          ...args.map((arg) => resolveVar(arg)),
+        );
+        return;
+      } catch (e) {
+        if (e instanceof Exception) {
+          e.trace.push(box(id, args));
+        }
+        throw e;
+      }
     }
 
     const nextState = new State(
@@ -242,7 +249,7 @@ export class State {
       }
     } catch (e) {
       if (e instanceof Exception) {
-        e.trace.push(k(id));
+        e.trace.push(box(id, args));
       }
       throw e;
     }
@@ -327,13 +334,14 @@ export class ProcessManager {
   }
   send(pid: Pid, message: Value) {
     const process = this.processes.get(pid);
-    if (!process) throw new Error(`Missing process: ${pid}`);
+    if (!process)
+      throw new Exception(box("missing_process", [k(pid), message]));
     process.mailbox.push(message);
     this.runQueue.enqueue(pid);
   }
   sendAsync(pid: Pid, message: Value) {
     this.send(pid, message);
-    setTimeout(() => this.runAllQueued(), 1);
+    this.runAllQueued();
   }
   runExpr(goal: Expr, pid: Pid = this.nextPid++): Pid {
     this.processes.set(pid, { tag: "init", mailbox: [] });
