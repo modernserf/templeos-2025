@@ -77,7 +77,7 @@ export const dbRules = {
 
   init__db_server: {
     rule__params: l(),
-    rule__body: seq(s.spawn(s.db_server("local_storage"), "db_server")),
+    rule__body: s.spawn("db_server", s.db_server("local_storage")),
   },
 
   db__update: {
@@ -89,16 +89,27 @@ export const dbRules = {
     rule__body: s.send("db_server", s.reset()),
   },
   db__subscribe_callback: {
-    rule__params: l($.pattern, $.callback),
+    rule__params: l($.pid, $.pattern, $.callback),
     rule__body: seq(
       s.spawn(
-        s.loop(
-          seq(s.receive(s.change()), $.callback), //
-        ),
         $.pid,
+        s.loop(
+          seq(
+            s.receive($.e),
+            s.match_cond(
+              $.e,
+              l(s.change(), $.callback),
+              l(s.close(), s.fail()),
+            ),
+          ), //
+        ),
       ),
       s.send("db_server", s.subscribe($.pid, $.pattern)),
     ),
+  },
+  db__unsubscribe: {
+    rule__params: l($.pid),
+    rule__body: s.send("db_server", s.unsubscribe($.pid)),
   },
   db_server: {
     rule__params: l($.local_storage),
@@ -125,6 +136,22 @@ export const dbRules = {
               $.next,
               $.prev,
               l(s.subscribe($.pid, $.pattern)),
+            ),
+          ),
+          l(
+            s.unsubscribe($.pid),
+            seq(
+              // FIXME
+              s.ok(),
+              // s.collect_item_in(
+              //   $.next,
+              //   $.item,
+              //   seq(
+              //     s.value_box_index($.item, $.prev, __),
+              //     s("/=", $.item, s.subscribe($.pid, __)),
+              //   ),
+              // ),
+              // s.send($.pid, s.close()),
             ),
           ),
           l(__, s.throw(s.not_implemented($.message))),

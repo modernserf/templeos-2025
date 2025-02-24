@@ -133,7 +133,7 @@ export const browserData = {
     rule__body: seq(
       s.init_clipboard(),
       s.init__db_server(),
-      s.db__subscribe_callback(s.record("browser"), s.render_root()),
+      s.db__subscribe_callback(__, s.record("browser"), s.render_root()),
       // TODO: handle open / close window
       s.html(
         $.out,
@@ -159,20 +159,43 @@ export const browserData = {
           f.window__current_history($.self, $.history),
           f.history__id($.history, $.id),
           s.db__subscribe_callback(
+            $.p1,
             s.record($.window),
             s.send($.self, s.render()),
           ),
           s.db__subscribe_callback(
+            $.p2,
             s.record($.history),
             s.send($.self, s.render()),
           ),
-          s.db__subscribe_callback(s.record($.id), s.send($.self, s.render())),
+          s.db__subscribe_callback(
+            $.p3,
+            s.record($.id),
+            s.send($.self, s.render()),
+          ),
 
           s.loop(
             seq(
-              s.receive(s.render()),
-              s.view__window($.out, $.window),
-              s.send($.vc_renderer, $.out),
+              s.receive($.e),
+              s.match_cond(
+                $.e,
+                l(
+                  s.render(),
+                  seq(
+                    s.view__window($.out, $.window),
+                    s.send($.vc_renderer, $.out),
+                  ),
+                ),
+                l(
+                  s.unmount(),
+                  seq(
+                    s.db__unsubscribe($.p1),
+                    s.db__unsubscribe($.p2),
+                    s.db__unsubscribe($.p3),
+                    s.fail(),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -491,11 +514,15 @@ export const browserData = {
   },
   on__new_window: {
     rule__params: l($.location),
-    rule__body: seq(s.new__window($.out, __, $.location), s.db__update($.out)),
+    rule__body: seq(
+      s.new__window($.out, __, $.location),
+      s.db__update($.out),
+      s.render_root(),
+    ),
   },
   on__close_window: {
     rule__params: l($.window),
-    rule__body: seq(s.db__update(l(s.delete($.window)))),
+    rule__body: seq(s.db__update(l(s.delete($.window))), s.render_root()),
   },
   on__push: {
     rule__params: l($.window, $.location),

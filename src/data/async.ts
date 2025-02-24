@@ -32,8 +32,8 @@ export const asyncRules = {
     rule__body: seq(
       s.self($.self),
       s.id($.id),
-      s.spawn(seq($.left, s.send($.self, s.left($.id))), __),
-      s.spawn(seq($.right, s.send($.self, s.right($.id))), __),
+      s.spawn(__, seq($.left, s.send($.self, s.left($.id)))),
+      s.spawn(__, seq($.right, s.send($.self, s.right($.id)))),
       s.receive(s.left($.id)),
       s.receive(s.right($.id)),
     ),
@@ -63,8 +63,8 @@ export const asyncRules = {
     rule__body: seq(
       s.self($.self),
       s.id($.id),
-      s.spawn(seq($.left, s.send($.self, s.race(s.left(), $.id))), __),
-      s.spawn(seq($.right, s.send($.self, s.race(s.right(), $.id))), __),
+      s.spawn(__, seq($.left, s.send($.self, s.race(s.left(), $.id)))),
+      s.spawn(__, seq($.right, s.send($.self, s.race(s.right(), $.id)))),
       s.receive(s.race(__, $.id)),
     ),
   },

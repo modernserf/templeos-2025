@@ -170,6 +170,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__params: l(),
     rule__body: seq(
       s.spawn(
+        $.stack,
         s.loop_state(
           $.next,
           $.prev,
@@ -189,7 +190,6 @@ export const { rules, rulePrimitives } = compilePrimitives({
             ),
           ),
         ),
-        $.stack,
       ),
 
       test.collect(
@@ -345,10 +345,9 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (it.unify(messages, box("", ms))) yield it.result();
     },
   },
-  // should be pid, goal, like `pid = spawn(goal)`
   spawn: {
-    rule__params: l($.goal, $.pid),
-    rule__primitive: function* (it, goal, pid) {
+    rule__params: l($.pid, $.goal),
+    rule__primitive: function* (it, pid, goal) {
       if (pid.tag === "number" || pid.tag === "string") {
         it.pm.spawn(goal, pid.value);
         yield it.result();

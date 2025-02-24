@@ -83,11 +83,11 @@ export const viewCore = {
         seq(
           s.self($.pid),
           s.spawn(
+            "test_window_id",
             seq(
               s.view__link($.res, l(), "hello", s.location("test_link")),
               s.send($.pid, s.result($.res)),
             ),
-            "test_window_id",
           ),
           s.receive(s.result($.out)),
         ),

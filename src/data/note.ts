@@ -98,22 +98,32 @@ export const note = {
           s.receive(s.mount($.vc_renderer)),
           s.self($.self),
           s.db__subscribe_callback(
+            $.sub,
             s.record("note"),
             s.send($.self, s.render()),
           ),
           s.send($.self, s.render()),
           s.loop(
             seq(
-              s.receive(s.render()),
-              s.column(
-                $.out,
-                l(),
-                s.expr_iter(
-                  f.db__schema($.id, "note"),
-                  s.view__note_detail($.id),
+              s.receive($.e),
+              s.match_cond(
+                $.e,
+                l(
+                  s.render(),
+                  seq(
+                    s.column(
+                      $.out,
+                      l(),
+                      s.expr_iter(
+                        f.db__schema($.id, "note"),
+                        s.view__note_detail($.id),
+                      ),
+                    ),
+                    s.send($.vc_renderer, $.out),
+                  ),
                 ),
+                l(s.unmount(), seq(s.db__unsubscribe($.sub), s.fail())),
               ),
-              s.send($.vc_renderer, $.out),
             ),
           ),
         ),
