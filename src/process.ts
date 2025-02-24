@@ -47,7 +47,10 @@ export function resolveDeep(
       return {
         tag: "box",
         id: value.id,
-        args: value.args.map((arg) => resolveDeep(arg, state)),
+        args: value.args.map((arg) => {
+          if (!arg) console.error(value);
+          return resolveDeep(arg, state);
+        }),
       };
     case "var":
       if (value.tag === "var") {
@@ -65,6 +68,8 @@ export function resolveDeep(
         }
       }
       return value;
+    default:
+      throw new Error("invalid value");
   }
 }
 export function resolveVar(value: Value): Value {

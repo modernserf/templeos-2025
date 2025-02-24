@@ -124,25 +124,62 @@ export const browserData = {
     rule__body: s.send("root_view_manager", s.render()),
   },
 
-  // views
-  view__desktop: {
-    rule__params: l($.out),
+  boot: {
+    rule__params: l($.pid),
     rule__body: seq(
       s.init_clipboard(),
       s.init__db_server(),
-      s.db__subscribe_callback(__, s.record("browser"), s.render_root()),
-      // TODO: handle open / close window
-      s.html(
-        $.out,
-        "div",
-        l(),
-        s.view__app_menu(),
-        s.expr_iter(
-          s.record_field_value($.window, "db__schema", "window"),
-          s("=", s.Receiver(s.view__window_component($.window), $.window)),
+      s.spawn($.pid, s.view__desktop_component()),
+    ),
+  },
+
+  view__desktop_component: {
+    rule__params: l(),
+    rule__body: s.loop(
+      seq(
+        s.self($.self),
+        s.receive(s.mount($.root_view)),
+        s.send($.self, s.render()),
+        s.db__subscribe_callback(
+          $.sub,
+          s.record("browser"),
+          s.send($.self, s.render()),
+        ),
+        s.loop(
+          seq(
+            s.receive($.e),
+            s.match_cond(
+              $.e,
+              l(
+                s.render(),
+                seq(s.view__desktop($.out), s.send($.root_view, $.out)),
+              ),
+              l(s.unmount(), seq(s.db__unsubscribe($.sub), s.fail())),
+            ),
+          ),
         ),
       ),
     ),
+  },
+
+  // views
+  view__desktop: {
+    rule__params: l($.out),
+    rule__body: s.html(
+      $.out,
+      "div",
+      l(),
+      s.view__app_menu(),
+      s.expr_iter(
+        s.record_field_value($.window, "db__schema", "window"),
+        s.view__receive(s.view__window_component($.window), $.window),
+      ),
+    ),
+  },
+
+  view__receive: {
+    rule__params: l($.out, $.proc, $.maybe_pid),
+    rule__body: u($.out, s.Receiver($.proc, $.maybe_pid)),
   },
 
   view__window_component: {

@@ -137,6 +137,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
         it.backtrack(s);
         if (!didSucceed) break;
       }
+      yield it.result();
     },
   },
   loop_state: {
@@ -152,7 +153,6 @@ export const { rules, rulePrimitives } = compilePrimitives({
         while (!next.done) {
           if (next.value.tag === "result") {
             didSucceed = true;
-            yield next.value;
             next = gen.next();
           } else {
             next = gen.next(yield next.value);
@@ -163,6 +163,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
         it.backtrack(s);
         if (!didSucceed) break;
       }
+      yield it.result();
     },
   },
   test__loop_state: {

@@ -1,6 +1,6 @@
 import { Component, FC, ReactNode, useEffect, useState } from "react";
 import { __, l, s } from "./expr";
-import { ProcessManager, ensure } from "./process";
+import { ProcessManager, ensure, ensurePid } from "./process";
 import { box, k, printValue, Value } from "./value";
 import { debounce } from "./util";
 
@@ -57,6 +57,31 @@ const Html: VC = ({ pm, values: [tag, props, children] }) => {
     <El {...getProps(props)}>
       <Children pm={pm} children={children} />
     </El>
+  );
+};
+
+// component is spawned outside of view
+const Receiver2: VC = ({ pm, values: [procPid] }) => {
+  ensurePid(procPid);
+  const [result, setResult] = useState<Value & { tag: "box" }>();
+  useEffect(() => {
+    const eventSource = new EventSource<Value>();
+    const renderPid = pm.addExternal(eventSource);
+    const unsub = eventSource.addEventListener((it) => {
+      setResult(it as Value & { tag: "box" });
+    });
+    pm.sendAsync(procPid.value, box("mount", [k(renderPid)]));
+    return () => {
+      pm.sendAsync(procPid.value, box("unmount", []));
+      unsub();
+    };
+  }, [pm, procPid.value]);
+
+  if (!result) return <>loading</>;
+  return (
+    <ErrorBoundary>
+      <Primitive pm={pm} id={result.id} values={result.args} />
+    </ErrorBoundary>
   );
 };
 
@@ -234,6 +259,7 @@ const viewPrimitives: Record<string, VC> = {
   Textarea,
   WindowContainer,
   Receiver,
+  Receiver2,
 };
 
 const DefaultRenderer: VC = ({ id, values }) => {

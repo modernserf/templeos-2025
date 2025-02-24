@@ -49,26 +49,26 @@ export const viewCore = {
   },
   view__link: {
     rule__params: l($.out, $.props, $.label, $.location),
-    rule__body: seq(
-      s.current_window($.window),
-      s.view__button(
-        $.out,
-        l(s.class("Link")),
-        $.label,
-        seq(
-          s.receive($.event),
-          // receive all events but drop everything except click
-          u(s.click($.params), $.event),
-          s.cond(
-            l(
-              s.value_box_index(s.meta_key(), $.params, 0),
-              s.on__new_window($.location),
-            ),
-            l(
-              s.value_box_index(s.target("new"), $.props, __),
-              s.on__new_window($.location),
-            ),
-            l(s.ok(), s.on__push($.window, $.location)),
+    rule__body: s.view__button(
+      $.out,
+      l(s.class("Link")),
+      $.label,
+      seq(
+        s.receive($.event),
+        // receive all events but drop everything except click
+        u(s.click($.params), $.event),
+        s.cond(
+          l(
+            s.value_box_index(s.meta_key(), $.params, 0),
+            s.on__new_window($.location),
+          ),
+          l(
+            s.value_box_index(s.target("new"), $.props, __),
+            s.on__new_window($.location),
+          ),
+          l(
+            s.ok(),
+            seq(s.current_window($.window), s.on__push($.window, $.location)),
           ),
         ),
       ),

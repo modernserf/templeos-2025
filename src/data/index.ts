@@ -1,6 +1,6 @@
 import { TransactDB } from "../db";
 import { ProcessManager } from "../process";
-import { Expr, Box, Id, List, l } from "../expr";
+import { Expr, Box, Id, List, l, $, s, seq, f, __ } from "../expr";
 import { core } from "./core";
 import { viewCore } from "./view_core";
 import { rules as rulePrimitiveRecs, rulePrimitives } from "./primitives";
@@ -12,7 +12,7 @@ import { viewAnyRecord } from "./view_any_record";
 import { dbRules } from "./db";
 import { loadState } from "../storage";
 import { EventSource } from "../event_source";
-import { box, Value } from "../value";
+import { Value } from "../value";
 import { omnibox } from "./omnibox";
 import { codeExplorerData } from "./code_explorer";
 import { collectionData, collectionInitState } from "./collection";
@@ -178,8 +178,36 @@ export const initState = mergeAndCheck(
     clipboardInitState,
     {
       home: {
-        file__name: "Home",
-        file__description: l("this is the home record"),
+        db__schema: "form",
+        file__name: "home",
+        file__description: l("This is the home card"),
+        rule__params: l($.out, $.id, $.state),
+        _left_links: l("code_explorer", "omnibox"),
+        rule__body: s.column(
+          $.out,
+          l(s.style("padding", "1rem")),
+          s.view__text(
+            l(s.section(l("Welcome!"), l("this is the home card etc"))),
+          ),
+          s.row(
+            l(),
+            s.column(
+              l(s.style("flex", "0 0 50%")),
+              s.view__text(l("helpful links")),
+              s.expr_iter(
+                seq(
+                  f._left_links($.id, $.links),
+                  s.value_box_index($.link, $.links, __),
+                ),
+                s.view__file_info($.link),
+              ),
+            ),
+            s.column(
+              l(s.style("flex", "0 0 50%")),
+              s.view__text(l("right column list")),
+            ),
+          ),
+        ),
       },
     },
   ],

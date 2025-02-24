@@ -113,51 +113,55 @@ export const dbRules = {
   },
   db_server: {
     rule__params: l($.local_storage),
-    rule__body: s.loop_state(
-      $.next,
-      $.prev,
-      l(),
-      seq(
-        s.receive($.message),
-        s.match_cond(
-          $.message,
-          l(
-            s.update($.batch),
-            seq(
-              s.db__apply_update($.batch),
-              s.send($.local_storage, s.update()),
-              s.db__notify_subscribers($.batch, $.prev),
+    rule__body: seq(
+      s.loop_state(
+        $.next,
+        $.prev,
+        l(),
+        seq(
+          s.receive($.message),
+          s.match_cond(
+            $.message,
+            l(
+              s.update($.batch),
+              seq(
+                s.db__apply_update($.batch),
+                s.send($.local_storage, s.update()),
+                s.db__notify_subscribers($.batch, $.prev),
+              ),
             ),
-          ),
-          l(s.reset(), s.send($.local_storage, s.clear())),
-          l(
-            s.subscribe($.pid, $.pattern),
-            s.append_left_right(
-              $.next,
-              $.prev,
-              l(s.subscribe($.pid, $.pattern)),
+            l(s.reset(), s.send($.local_storage, s.clear())),
+            l(
+              s.subscribe($.pid, $.pattern),
+              s.append_left_right(
+                $.next,
+                $.prev,
+                l(s.subscribe($.pid, $.pattern)),
+              ),
             ),
-          ),
-          l(
-            s.unsubscribe($.pid),
-            seq(
-              // FIXME
-              s.ok(),
-              // s.collect_item_in(
-              //   $.next,
-              //   $.item,
-              //   seq(
-              //     s.value_box_index($.item, $.prev, __),
-              //     s("/=", $.item, s.subscribe($.pid, __)),
-              //   ),
-              // ),
-              // s.send($.pid, s.close()),
+            l(
+              s.unsubscribe($.pid),
+              seq(
+                // FIXME
+                s.ok(),
+                // s.collect_item_in(
+                //   $.next,
+                //   $.item,
+                //   seq(
+                //     s.value_box_index($.item, $.prev, __),
+                //     s("/=", $.item, s.subscribe($.pid, __)),
+                //   ),
+                // ),
+                // s.send($.pid, s.close()),
+              ),
             ),
+            l(__, s.log("unknown message", $.message)),
+            // l(__, s.throw(s.not_implemented($.message))),
           ),
-          l(__, s.throw(s.not_implemented($.message))),
+          s.if_var($.next, u($.prev, $.next)),
         ),
-        s.if_var($.next, u($.prev, $.next)),
       ),
+      s.log("db exit"),
     ),
   },
   db__apply_update: {
