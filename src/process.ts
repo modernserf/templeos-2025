@@ -312,6 +312,11 @@ class RunQueue {
     this.set.delete(pid);
     return pid;
   }
+  cleanup(pid: Pid) {
+    if (!this.set.has(pid)) return;
+    this.queue = this.queue.filter((p) => p !== pid);
+    this.set.delete(pid);
+  }
 }
 
 export class ProcessManager {
@@ -321,12 +326,19 @@ export class ProcessManager {
     public rulePrimitives: Record<string, RulePrimitive>,
     public processes: Map<Pid, Process>,
     public runQueue: RunQueue,
+    private links: Map<Pid, Set<Pid>>,
   ) {}
   static init(
     db: TransactDB<Rec>,
     rulePrimitives: Record<string, RulePrimitive>,
   ) {
-    return new ProcessManager(db, rulePrimitives, new Map(), new RunQueue());
+    return new ProcessManager(
+      db,
+      rulePrimitives,
+      new Map(),
+      new RunQueue(),
+      new Map(),
+    );
   }
   addExternal(eventSource: EventSource<Value>, pid: Pid = this.nextPid++): Pid {
     this.processes.set(pid, { tag: "external", mailbox: [], eventSource });
@@ -334,8 +346,9 @@ export class ProcessManager {
   }
   send(pid: Pid, message: Value) {
     const process = this.processes.get(pid);
-    if (!process)
-      throw new Exception(box("missing_process", [k(pid), message]));
+    // TODO: is missing process error useful? do we want try_send vs send?
+    if (!process) return;
+    // throw new Exception(box("missing_process", [k(pid), message]));
     process.mailbox.push(message);
     this.runQueue.enqueue(pid);
   }
@@ -391,22 +404,56 @@ export class ProcessManager {
     }
     p.mailbox = [];
   }
+
   private runUntilSuspend(pid: Pid, next: IteratorResult<Proc>, gen: ProcGen) {
     while (!next.done) {
       if (next.value.tag === "receive") {
         if (this.receive(pid, next.value.to, next.value.pattern)) {
-          next = gen.next(next.value.to);
-          continue;
+          if (
+            this.catchExit(pid, () => {
+              next = gen.next(next.value.to);
+            })
+          ) {
+            continue;
+          } else {
+            return;
+          }
         }
 
         const { mailbox } = this.processes.get(pid)!;
         this.processes.set(pid, { tag: "suspended", mailbox, gen, next });
         return;
       } else {
-        next = gen.next();
+        if (
+          this.catchExit(pid, () => {
+            next = gen.next();
+          })
+        ) {
+          continue;
+        } else {
+          return;
+        }
       }
     }
+    this.deleteProcess(pid);
+  }
+  private catchExit(pid: Pid, fn: () => void): boolean {
+    try {
+      fn();
+      return true;
+    } catch (e) {
+      if (e instanceof Exception) {
+        this.exit_(pid, pid, e.error);
+        return false;
+      } else {
+        throw e;
+      }
+    }
+  }
+  private deleteProcess(pid: Pid) {
     this.processes.delete(pid);
+    this.runQueue.cleanup(pid);
+    this.removeAllLinks(pid);
   }
   private receive(pid: Pid, it: State, pattern: Value): boolean {
     const p = this.processes.get(pid)!;
@@ -426,6 +473,44 @@ export class ProcessManager {
     }
     p.mailbox = nextMailbox;
     return false;
+  }
+  link(a: Pid, b: Pid) {
+    this.addLink(a, b);
+    this.addLink(b, a);
+  }
+  unlink(a: Pid, b: Pid) {
+    this.removeLink(a, b);
+    this.removeLink(b, a);
+  }
+  exit(sender: Pid, target: Pid, reason: Value) {
+    if (sender === target) throw new Exception(reason);
+    this.exit_(sender, target, reason);
+  }
+  private exit_(sender: Pid, target: Pid, reason: Value) {
+    // TODO: trap errors
+
+    const links = this.links.get(target) ?? new Set();
+    this.deleteProcess(target);
+    for (const link of links) {
+      this.exit(sender, link, reason);
+    }
+  }
+  private addLink(from: Pid, to: Pid) {
+    const set = this.links.get(from) ?? new Set();
+    set.add(to);
+    this.links.set(from, set);
+  }
+  private removeLink(from: Pid, to: Pid) {
+    const set = this.links.get(from);
+    if (!set) return;
+    set.delete(to);
+  }
+  private removeAllLinks(from: Pid) {
+    const set = this.links.get(from) ?? new Set();
+    for (const link of set) {
+      this.removeLink(link, from);
+    }
+    this.links.delete(from);
   }
   flush(pid: Pid): Value[] {
     const p = this.processes.get(pid)!;

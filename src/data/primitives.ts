@@ -369,6 +369,89 @@ export const { rules, rulePrimitives } = compilePrimitives({
       yield it.result();
     },
   },
+  link: {
+    rule__params: l($.pid),
+    rule__primitive: function* (it, pid) {
+      ensurePid(pid);
+      it.pm.link(it.pid, pid.value);
+      yield it.result();
+    },
+  },
+  unlink: {
+    rule__params: l($.pid),
+    rule__primitive: function* (it, pid) {
+      ensurePid(pid);
+      it.pm.unlink(it.pid, pid.value);
+      yield it.result();
+    },
+  },
+  exit: {
+    rule__params: l($.pid, $.reason),
+    rule__primitive: function* (it, pid, reason) {
+      ensurePid(pid);
+      it.pm.exit(it.pid, pid.value, reason);
+      yield it.result();
+    },
+  },
+  test__link: {
+    test__group: "core",
+    rule__params: l(),
+    rule__body: seq(
+      s.agent($.agent, l(123)),
+      s.spawn($.foo, seq(s.receive(__), s.throw(s.fail()))),
+      s.spawn(
+        $.bar,
+        seq(
+          s.link($.foo),
+          s.agent__update(
+            $.agent,
+            $.n,
+            $.p,
+            s.append_left_right($.n, $.p, l(456)),
+          ),
+          s.send($.foo, l()),
+          // yield to allow linked process to fail
+          s.sleep(1),
+          s.agent__update(
+            $.agent,
+            $.n1,
+            $.p1,
+            s.append_left_right($.n1, $.p1, l(789)),
+          ),
+        ),
+      ),
+      s.sleep(10),
+      test.collect($.res, s.agent__get($.res, $.agent), l(123, 456)),
+    ),
+  },
+  test__exit: {
+    test__group: "core",
+    rule__params: l(),
+    rule__body: seq(
+      s.agent($.agent, l(123)),
+      s.spawn(
+        $.bar,
+        seq(
+          s.agent__update(
+            $.agent,
+            $.n,
+            $.p,
+            s.append_left_right($.n, $.p, l(456)),
+          ),
+          // yield to allow parent process to kill
+          s.sleep(1),
+          s.agent__update(
+            $.agent,
+            $.n1,
+            $.p1,
+            s.append_left_right($.n1, $.p1, l(789)),
+          ),
+        ),
+      ),
+      s.exit($.bar, s.kill()),
+      test.collect($.res, s.agent__get($.res, $.agent), l(123, 456)),
+    ),
+  },
 
   type_value: {
     rule__params: l($.type, $.value),
