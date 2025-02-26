@@ -452,6 +452,47 @@ export const { rules, rulePrimitives } = compilePrimitives({
       test.collect($.res, s.agent__get($.res, $.agent), l(123, 456)),
     ),
   },
+  trap_exit: {
+    rule__params: l(),
+    rule__primitive: function* (it) {
+      it.pm.setFlags(it.pid, { trapExit: true });
+      yield it.result();
+    },
+  },
+  test__trap_exit: {
+    test__group: "core",
+    rule__params: l(),
+    rule__body: seq(
+      s.agent($.agent, l(123)),
+      s.spawn($.foo, seq(s.receive(__), s.throw(s.fail()))),
+      s.spawn(
+        $.bar,
+        seq(
+          s.trap_exit(),
+          s.link($.foo),
+          s.agent__update(
+            $.agent,
+            $.n,
+            $.p,
+            s.append_left_right($.n, $.p, l(456)),
+          ),
+          s.send($.foo, l()),
+          // yield to allow linked process to fail
+          s.sleep(1),
+          s.receive(s.exit($.foo, s.fail())),
+
+          s.agent__update(
+            $.agent,
+            $.n1,
+            $.p1,
+            s.append_left_right($.n1, $.p1, l(789)),
+          ),
+        ),
+      ),
+      s.sleep(10),
+      test.collect($.res, s.agent__get($.res, $.agent), l(123, 456, 789)),
+    ),
+  },
 
   type_value: {
     rule__params: l($.type, $.value),

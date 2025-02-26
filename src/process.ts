@@ -287,16 +287,26 @@ export class State {
   }
 }
 
+type ProcessFlags = {
+  trapExit: boolean;
+};
+
 type Pid = number | string;
 type Process =
-  | { tag: "init"; mailbox: Value[] }
+  | { tag: "init"; mailbox: Value[]; flags: ProcessFlags }
   | {
       tag: "suspended";
       mailbox: Value[];
       next: IteratorResult<Proc>;
       gen: ProcGen;
+      flags: ProcessFlags;
     }
-  | { tag: "external"; mailbox: Value[]; eventSource: EventSource<Value> };
+  | {
+      tag: "external";
+      mailbox: Value[];
+      eventSource: EventSource<Value>;
+      flags: ProcessFlags;
+    };
 
 class RunQueue {
   private queue: Pid[] = [];
@@ -341,7 +351,12 @@ export class ProcessManager {
     );
   }
   addExternal(eventSource: EventSource<Value>, pid: Pid = this.nextPid++): Pid {
-    this.processes.set(pid, { tag: "external", mailbox: [], eventSource });
+    this.processes.set(pid, {
+      tag: "external",
+      mailbox: [],
+      eventSource,
+      flags: { trapExit: false },
+    });
     return pid;
   }
   send(pid: Pid, message: Value) {
@@ -357,7 +372,11 @@ export class ProcessManager {
     this.runAllQueued();
   }
   runExpr(goal: Expr, pid: Pid = this.nextPid++): Pid {
-    this.processes.set(pid, { tag: "init", mailbox: [] });
+    this.processes.set(pid, {
+      tag: "init",
+      mailbox: [],
+      flags: { trapExit: false },
+    });
 
     const state = State.init(this, pid);
     const parsed = state.exprValue(goal);
@@ -368,7 +387,11 @@ export class ProcessManager {
     return pid;
   }
   spawn(goal: Value, pid: Pid = this.nextPid++): Pid {
-    this.processes.set(pid, { tag: "init", mailbox: [] });
+    this.processes.set(pid, {
+      tag: "init",
+      mailbox: [],
+      flags: { trapExit: false },
+    });
 
     const state = State.init(this, pid);
     const gen = state.eval(resolveDeep(goal));
@@ -420,8 +443,14 @@ export class ProcessManager {
           }
         }
 
-        const { mailbox } = this.processes.get(pid)!;
-        this.processes.set(pid, { tag: "suspended", mailbox, gen, next });
+        const { mailbox, flags } = this.processes.get(pid)!;
+        this.processes.set(pid, {
+          tag: "suspended",
+          mailbox,
+          gen,
+          next,
+          flags,
+        });
         return;
       } else {
         if (
@@ -443,7 +472,7 @@ export class ProcessManager {
       return true;
     } catch (e) {
       if (e instanceof Exception) {
-        this.exit_(pid, pid, e.error);
+        this.exit_(pid, pid, e.error, pid);
         return false;
       } else {
         throw e;
@@ -482,17 +511,23 @@ export class ProcessManager {
     this.removeLink(a, b);
     this.removeLink(b, a);
   }
-  exit(sender: Pid, target: Pid, reason: Value) {
-    if (sender === target) throw new Exception(reason);
-    this.exit_(sender, target, reason);
+  // currentProc is proc that sent exit (and should throw if it receives an exit)
+  // initTarget is proc that received exit -- this pid is what's included in trapped error
+  // target is proc that exit has propagated to via link
+  exit(currentProc: Pid, initTarget: Pid, reason: Value, target = initTarget) {
+    const proc = this.processes.get(target)!;
+    if (proc.flags.trapExit) {
+      this.send(target, box("exit", [k(initTarget), reason]));
+      return;
+    }
+    if (currentProc === target) throw new Exception(reason);
+    this.exit_(currentProc, initTarget, reason, target);
   }
-  private exit_(sender: Pid, target: Pid, reason: Value) {
-    // TODO: trap errors
-
+  private exit_(currentProc: Pid, initTarget: Pid, reason: Value, target: Pid) {
     const links = this.links.get(target) ?? new Set();
     this.deleteProcess(target);
     for (const link of links) {
-      this.exit(sender, link, reason);
+      this.exit(currentProc, initTarget, reason, link);
     }
   }
   private addLink(from: Pid, to: Pid) {
@@ -517,5 +552,8 @@ export class ProcessManager {
     const m = p.mailbox;
     p.mailbox = [];
     return m;
+  }
+  setFlags(pid: Pid, flags: Partial<ProcessFlags>) {
+    Object.assign(this.processes.get(pid)!.flags, flags);
   }
 }
