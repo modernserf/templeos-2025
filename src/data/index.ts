@@ -20,6 +20,7 @@ import { text } from "./text";
 import { note, noteInitState } from "./note";
 import { clipboardInitState, clipboardRules } from "./clipboard";
 import { asyncRules } from "./async";
+import { supervisor } from "./supervisor";
 
 export type Schema =
   | "any_record"
@@ -159,6 +160,7 @@ export const data = mergeAndCheck(
     note,
     omnibox,
     rulePrimitiveRecs,
+    supervisor,
     testUtils,
     viewAnyRecord,
     viewCore,

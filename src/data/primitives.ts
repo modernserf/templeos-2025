@@ -152,13 +152,13 @@ export const { rules, rulePrimitives } = compilePrimitives({
         while (!next.done) {
           if (next.value.tag === "result") {
             didSucceed = true;
+            value = resolveDeep(nextVal);
             next = gen.next();
           } else {
             next = gen.next(yield next.value);
           }
         }
 
-        value = resolveDeep(nextVal);
         it.backtrack(s);
         if (!didSucceed) break;
       }

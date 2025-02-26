@@ -563,4 +563,36 @@ export const core = {
       ),
     ),
   },
+
+  left_right_box_split: {
+    rule__params: l($.left, $.right, $.box, $.split),
+    rule__body: seq(
+      s.slice_box_from_to($.left, $.box, 0, $.split),
+      s.slice_box_from_to($.right, $.box, $.split, __),
+    ),
+  },
+  updated_box_index_removed: {
+    rule__params: l($.updated, $.box, $.index, $.removed),
+    rule__body: seq(
+      s.left_right_box_split($.pre, $.mid, $.box, $.index),
+      s.append_left_right($.mid, $.removed, $.post),
+      s.append_left_right($.updated, $.pre, $.post),
+    ),
+  },
+  test__updated_box_index_removed: {
+    test__group: "core",
+    rule__params: l(),
+    rule__body: seq(
+      test.collect(
+        l($.updated, $.removed),
+        s.updated_box_index_removed(
+          $.res,
+          l("foo", "bar", "baz"),
+          1,
+          l($.removed),
+        ),
+        l(l("foo", "baz"), "bar"),
+      ),
+    ),
+  },
 } satisfies Record<string, Rec>;

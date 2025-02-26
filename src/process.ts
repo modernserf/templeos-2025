@@ -464,6 +464,7 @@ export class ProcessManager {
         }
       }
     }
+    this.exitNormal(pid);
     this.deleteProcess(pid);
   }
   private catchExit(pid: Pid, fn: () => void): boolean {
@@ -479,6 +480,7 @@ export class ProcessManager {
       }
     }
   }
+
   private deleteProcess(pid: Pid) {
     this.processes.delete(pid);
     this.runQueue.cleanup(pid);
@@ -522,6 +524,15 @@ export class ProcessManager {
     }
     if (currentProc === target) throw new Exception(reason);
     this.exit_(currentProc, initTarget, reason, target);
+  }
+  private exitNormal(pid: Pid) {
+    const links = this.links.get(pid) ?? new Set();
+    this.deleteProcess(pid);
+    for (const link of links) {
+      if (this.processes.get(link)?.flags.trapExit) {
+        this.send(link, box("exit", [k(pid), box("normal", [])]));
+      }
+    }
   }
   private exit_(currentProc: Pid, initTarget: Pid, reason: Value, target: Pid) {
     const links = this.links.get(target) ?? new Set();
