@@ -86,6 +86,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (it.unify(left, right)) yield it.result();
     },
   },
+  // FIXME
   "/=": {
     rule__params: l($.left, $.right),
     rule__primitive: function* (it, left, right) {
@@ -637,6 +638,8 @@ export const { rules, rulePrimitives } = compilePrimitives({
     test__group: "primitives",
     rule__params: l(),
     rule__body: seq(
+      test.fail(s.number_min_max(10, 10, 0)),
+
       test.ok(s.number_min_max(3, 0, 10)),
       test.ok(s.number_min_max(0, 0, 10)),
       test.ok(s.number_min_max(10, 0, 10)),
@@ -890,6 +893,18 @@ export const { rules, rulePrimitives } = compilePrimitives({
         l("a", "b", "c"),
       ),
     ),
+  },
+  shuffled_list: {
+    rule__params: l($.shuffled, $.list),
+    rule__primitive: function* (it, shuffled, list) {
+      ensure(list, "box");
+      const array = list.args.slice();
+      for (let i = list.args.length - 1; i >= 1; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      if (it.unify(shuffled, box(list.id, array))) yield it.result();
+    },
   },
   timestamp_date: {
     rule__params: l($.ts, $.date),

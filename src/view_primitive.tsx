@@ -117,7 +117,6 @@ const String: VC = ({ values: [value] }) => {
 };
 
 const Button: VC = ({ pm, values: [props, label, handler] }) => {
-  ensure(label, "string");
   return (
     <button
       {...getProps(props)}
@@ -129,7 +128,11 @@ const Button: VC = ({ pm, values: [props, label, handler] }) => {
         );
       }}
     >
-      {label.value}
+      {label.tag === "box" ? (
+        <Primitive pm={pm} id={label.id} values={label.args} />
+      ) : (
+        <Primitive pm={pm} id="String" values={[label]} />
+      )}
     </button>
   );
 };

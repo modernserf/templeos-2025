@@ -21,6 +21,7 @@ import { note, noteInitState } from "./note";
 import { clipboardInitState, clipboardRules } from "./clipboard";
 import { asyncRules } from "./async";
 import { supervisor } from "./supervisor";
+import { freeCell } from "./freecell";
 
 export type Schema =
   | "any_record"
@@ -157,6 +158,7 @@ export const data = mergeAndCheck(
     core,
     clipboardRules,
     dbRules,
+    freeCell,
     note,
     omnibox,
     rulePrimitiveRecs,
@@ -184,7 +186,12 @@ export const initState = mergeAndCheck(
         file__name: "home",
         file__description: l("This is the home card"),
         rule__params: l($.out, $.id, $.state),
-        _left_links: l("code_explorer", "omnibox", "view__all_notes"),
+        _left_links: l(
+          "code_explorer",
+          "omnibox",
+          "view__all_notes",
+          "free_cell",
+        ),
         rule__body: s.column(
           $.out,
           l(s.style("padding", "1rem")),
