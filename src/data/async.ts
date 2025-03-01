@@ -93,22 +93,26 @@ export const asyncRules = {
     rule__body: seq(
       s.spawn_link(
         $.pid,
-        s.loop_state(
-          $.next,
-          $.prev,
-          $.init_state,
-          seq(
-            s.receive($.e),
-            s.match_cond(
-              $.e,
-              l(s.get($.pid, $.ref), s.send($.pid, s.get($.ref, $.prev))),
-              l(
-                s.update($.out, $.prev, $.goal),
-                s.if_then_else($.goal, u($.next, $.out), s.ok()),
+        seq(
+          s.loop_fail(
+            $.next,
+            $.prev,
+            $.init_state,
+            seq(
+              s.receive($.e),
+              s.match_cond(
+                $.e,
+                l(s.get($.pid, $.ref), s.send($.pid, s.get($.ref, $.prev))),
+                l(
+                  s.update($.out, $.prev, $.goal),
+                  s.if_then_else($.goal, u($.next, $.out), s.ok()),
+                ),
               ),
+              s.if_var($.next, u($.next, $.prev)),
+              s.fail(),
             ),
-            s.if_var($.next, u($.next, $.prev)),
           ),
+          s.log("agent exit"),
         ),
       ),
     ),

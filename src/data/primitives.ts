@@ -139,6 +139,35 @@ export const { rules, rulePrimitives } = compilePrimitives({
       yield it.result();
     },
   },
+  loop_fail: {
+    rule__params: l($.next, $.prev, $.init, $.goal),
+    rule__primitive: function* (it, nextVal, prev, init, goal) {
+      let value = resolveDeep(init);
+      while (true) {
+        const s = it.choice();
+        if (!it.unify(value, prev)) break;
+        const gen = it.eval(goal);
+        let next = gen.next();
+        let didSucceed = false;
+        while (!next.done) {
+          if (next.value.tag === "result") {
+            didSucceed = true;
+            next = gen.next();
+          } else {
+            next = gen.next(yield next.value);
+          }
+        }
+        if (didSucceed) {
+          it.cut(s);
+          yield it.result();
+          return;
+        } else {
+          value = resolveDeep(nextVal);
+          it.backtrack(s);
+        }
+      }
+    },
+  },
   loop_state: {
     rule__params: l($.next, $.prev, $.init, $.goal),
     rule__primitive: function* (it, nextVal, prev, init, goal) {
@@ -165,49 +194,27 @@ export const { rules, rulePrimitives } = compilePrimitives({
       yield it.result();
     },
   },
-  test__loop_state: {
+  test__loop_fail: {
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
-      s.spawn(
-        $.stack,
-        s.loop_state(
-          $.next,
-          $.prev,
-          l(),
-          seq(
-            s.receive($.msg),
-            s.match_cond(
-              $.msg,
-              l(s.push($.item), s.append_left_right($.next, $.prev, l($.item))),
-              l(
-                s.pop($.pid, $.ref),
-                seq(
-                  s.append_left_right($.prev, $.next, l($.pop)),
-                  s.send($.pid, s.pop($.ref, $.pop)),
-                ),
-              ),
+      test.collect(
+        $.acc,
+        s.loop_fail(
+          l($.sum, $.rest),
+          l($.acc, $.items),
+          l(0, l(1, 2, 3, 4, 5)),
+          s.if_then_else(
+            s.empty($.items),
+            s.ok(),
+            seq(
+              s.append_left_right($.items, $.rest, l($.value)),
+              s.add__primitive($.sum, $.acc, $.value),
+              s.fail(),
             ),
           ),
         ),
-      ),
-
-      test.collect(
-        l($.first, $.second),
-        seq(
-          s.send($.stack, s.push(123)),
-          s.send($.stack, s.push(456)),
-          s.send($.stack, s.push(789)),
-
-          s.self($.self),
-          s.id($.ref_1),
-          s.id($.ref_2),
-          s.send($.stack, s.pop($.self, $.ref_1)),
-          s.send($.stack, s.pop($.self, $.ref_2)),
-          s.receive(s.pop($.ref_1, $.first)),
-          s.receive(s.pop($.ref_2, $.second)),
-        ),
-        l(789, 456),
+        15,
       ),
     ),
   },

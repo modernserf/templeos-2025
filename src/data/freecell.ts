@@ -242,7 +242,7 @@ export const freeCell = {
         l($.low, $.high),
         l(l(s.empty("A"), s.card(__, 1)), s.ok()),
         l(
-          l(s.card($.suit, $.lrank), l(s.card($.suit, $.rrank))),
+          l(s.card($.suit, $.lrank), s.card($.suit, $.rrank)),
           s.add__primitive($.rrank, $.lrank, 1),
         ),
       ),

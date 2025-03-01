@@ -101,7 +101,7 @@ export const dbRules = {
   db_server: {
     rule__params: l($.local_storage),
     rule__body: seq(
-      s.loop_state(
+      s.loop_fail(
         $.next,
         $.prev,
         l(),
@@ -144,6 +144,7 @@ export const dbRules = {
             l(__, s.throw(s.not_implemented($.message))),
           ),
           s.if_var($.next, u($.prev, $.next)),
+          s.fail(),
         ),
       ),
       s.log("db exit"),
