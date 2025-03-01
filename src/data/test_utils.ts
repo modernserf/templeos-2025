@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, Expr, seq, f } from "../expr";
+import { l, s, $, Expr, seq, f, __ } from "../expr";
 
 export const test = {
   ok: (goal: Expr) => s.expect_ok(goal),
@@ -94,6 +94,22 @@ export const testUtils = {
           ),
         ),
       ),
+    ),
+  },
+  test__run_all: {
+    rule__params: l($.resolve),
+    rule__body: seq(
+      s.collect_item_in(
+        __,
+        __,
+        seq(
+          f.test__group($.test, $.group),
+          s.box_tag_list($.call, $.test, l()),
+          s.log($.group, $.test),
+          s.try_error_catch($.call, $.e, seq(s.log($.e), s.throw($.e))),
+        ),
+      ),
+      s.send($.resolve, s.ok()),
     ),
   },
 } satisfies Record<string, Rec>;

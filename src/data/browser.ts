@@ -108,6 +108,7 @@ export const browserData = {
     rule__body: seq(
       s.init_clipboard(),
       s.init__db_server(),
+      s.init__handler_monitor(),
       s.spawn(
         $.pid,
         // loop because we want this process to stay mounted

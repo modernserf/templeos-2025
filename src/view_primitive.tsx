@@ -123,7 +123,7 @@ const Button: VC = ({ pm, values: [props, label, handler] }) => {
       type="button"
       onClick={(e) => {
         pm.sendAsync(
-          pm.spawn(handler),
+          pm.spawn(handler, undefined, "handler_monitor"),
           e.metaKey ? s.click(l(s.meta_key())) : s.click(l()),
         );
       }}
@@ -147,13 +147,19 @@ const Input: VC = ({ pm, values: [props, value, handler] }) => {
       {...jsProps}
       defaultValue={value.value}
       onChange={debounce(db, (e) => {
-        pm.sendAsync(pm.spawn(handler), box("change", [k(e.target.value)]));
+        pm.sendAsync(
+          pm.spawn(handler, undefined, "handler_monitor"),
+          box("change", [k(e.target.value)]),
+        );
       })}
       onFocus={() => {
-        pm.sendAsync(pm.spawn(handler), s.focus());
+        pm.sendAsync(
+          pm.spawn(handler, undefined, "handler_monitor"),
+          s.focus(),
+        );
       }}
       onBlur={() => {
-        pm.sendAsync(pm.spawn(handler), s.blur());
+        pm.sendAsync(pm.spawn(handler, undefined, "handler_monitor"), s.blur());
       }}
     />
   );
@@ -169,13 +175,19 @@ const Textarea: VC = ({ pm, values: [props, value, handler] }) => {
       key={Date.now()}
       defaultValue={value.value}
       onChange={debounce(db, (e) => {
-        pm.sendAsync(pm.spawn(handler), box("change", [k(e.target.value)]));
+        pm.sendAsync(
+          pm.spawn(handler, undefined, "handler_monitor"),
+          box("change", [k(e.target.value)]),
+        );
       })}
       onFocus={() => {
-        pm.sendAsync(pm.spawn(handler), s.focus());
+        pm.sendAsync(
+          pm.spawn(handler, undefined, "handler_monitor"),
+          s.focus(),
+        );
       }}
       onBlur={() => {
-        pm.sendAsync(pm.spawn(handler), s.blur());
+        pm.sendAsync(pm.spawn(handler, undefined, "handler_monitor"), s.blur());
       }}
     />
   );
@@ -190,13 +202,19 @@ const Select: VC = ({ pm, values: [props, value, options, handler] }) => {
       {...getProps(props)}
       value={value.value}
       onChange={(e) => {
-        pm.sendAsync(pm.spawn(handler), box("change", [k(e.target.value)]));
+        pm.sendAsync(
+          pm.spawn(handler, undefined, "handler_monitor"),
+          box("change", [k(e.target.value)]),
+        );
       }}
       onFocus={() => {
-        pm.sendAsync(pm.spawn(handler), s.focus());
+        pm.sendAsync(
+          pm.spawn(handler, undefined, "handler_monitor"),
+          s.focus(),
+        );
       }}
       onBlur={() => {
-        pm.sendAsync(pm.spawn(handler), s.blur());
+        pm.sendAsync(pm.spawn(handler, undefined, "handler_monitor"), s.blur());
       }}
     >
       {options.args.map((opt) => {
@@ -232,16 +250,26 @@ const WindowContainer: VC = ({
         .filter(Boolean)
         .join(" ")}
       onMouseDownCapture={() => {
-        if (!isCurrent) pm.sendAsync(pm.spawn(handler), s.select_window());
+        if (!isCurrent)
+          pm.sendAsync(
+            pm.spawn(handler, undefined, "handler_monitor"),
+            s.select_window(),
+          );
       }}
       onKeyDownCapture={(e) => {
         if (e.key == "[" && e.metaKey) {
           e.preventDefault();
-          pm.sendAsync(pm.spawn(handler), s.back());
+          pm.sendAsync(
+            pm.spawn(handler, undefined, "handler_monitor"),
+            s.back(),
+          );
         }
         if (e.key == "]" && e.metaKey) {
           e.preventDefault();
-          pm.sendAsync(pm.spawn(handler), s.forward());
+          pm.sendAsync(
+            pm.spawn(handler, undefined, "handler_monitor"),
+            s.forward(),
+          );
         }
       }}
     >

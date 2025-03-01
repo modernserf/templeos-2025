@@ -358,6 +358,19 @@ export const { rules, rulePrimitives } = compilePrimitives({
       }
     },
   },
+  spawn_link: {
+    rule__params: l($.pid, $.goal),
+    rule__primitive: function* (it, pid, goal) {
+      if (pid.tag === "number" || pid.tag === "string") {
+        it.pm.spawn(goal, pid.value, it.pid);
+        yield it.result();
+      } else {
+        const pidResult = it.pm.spawn(goal, undefined, it.pid);
+        if (!it.unify(pid, k(pidResult))) throw new Error("tod");
+        yield it.result();
+      }
+    },
+  },
   send_async: {
     rule__params: l($.pid, $.message, $.timeout),
     rule__primitive: function* (it, pid, message, timeout) {

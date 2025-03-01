@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, seq, s, $, Expr, Box, List } from "../expr";
+import { l, seq, s, $, Expr, Box, List, __, u, alt } from "../expr";
 
 type ClickParam = Box<"meta_key", []>;
 type ClickEvent = Box<"click", [List<ClickParam>]>;
@@ -51,13 +51,26 @@ export const viewForm = {
       s.view__select($.out, $.params, $.label, $.menu_options, $.handler),
     ),
   },
-  view__fit_content_input: {
-    rule__params: l($.out, $.value, $.handler),
-    rule__body: s.view__input(
-      $.out,
-      l(s.class("Input--fitContent"), s.debounce(300)),
-      $.value,
-      $.handler,
+  init__handler_monitor: {
+    file__description: l("Logs errors from spawned event handlers"),
+    rule__params: l(),
+    rule__body: seq(
+      s.spawn_link(
+        "handler_monitor",
+        seq(
+          s.trap_exit(),
+          s.loop(
+            alt(
+              seq(
+                s.receive(s.exit(__, $.err)),
+                s.if_then_else(u($.err, s.normal()), s.ok(), s.log($.err)),
+              ),
+              s.ok(),
+            ),
+          ),
+          s.log("handler monitor exit"),
+        ),
+      ),
     ),
   },
 } satisfies Record<string, Rec>;

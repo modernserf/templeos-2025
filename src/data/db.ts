@@ -64,7 +64,7 @@ export const dbRules = {
 
   init__db_server: {
     rule__params: l(),
-    rule__body: s.spawn("db_server", s.db_server("local_storage")),
+    rule__body: s.spawn_link("db_server", s.db_server("local_storage")),
   },
 
   db__update: {
@@ -78,7 +78,7 @@ export const dbRules = {
   db__subscribe_callback: {
     rule__params: l($.pid, $.pattern, $.callback),
     rule__body: seq(
-      s.spawn(
+      s.spawn_link(
         $.pid,
         s.loop(
           seq(

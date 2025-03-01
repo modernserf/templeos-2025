@@ -5,7 +5,9 @@ import { test } from "./test_utils";
 export const supervisor = {
   supervisor: {
     rule__params: l($.pid, $.config, $.workers),
-    rule__body: seq(s.spawn($.pid, s.supervisor__init($.config, $.workers))),
+    rule__body: seq(
+      s.spawn_link($.pid, s.supervisor__init($.config, $.workers)),
+    ),
   },
   supervisor__init: {
     rule__params: l($.sup_config, $.workers),
@@ -60,7 +62,7 @@ export const supervisor = {
 
   supervisor__init_worker: {
     rule__params: l($.pid, s.worker(__, $.goal)),
-    rule__body: seq(s.spawn($.pid, $.goal), s.link($.pid)),
+    rule__body: s.spawn_link($.pid, $.goal),
   },
   supervisor__worker_exit: {
     rule__params: l($.next, $.prev, $.pid, $.reason, s.supervisor($.strategy)),
@@ -165,7 +167,6 @@ export const supervisor = {
           s.worker(s.permanent(), s.test__supervisor_worker("baz", $.agent)),
         ),
       ),
-      s.link($.supervisor),
       test.collect(
         $.res,
         s.agent__get($.res, $.agent),

@@ -169,17 +169,6 @@ export const data = mergeAndCheck(
     viewForm,
     viewTable,
     text,
-  ],
-  {},
-);
-
-// loads from db if available
-export const initState = mergeAndCheck(
-  [
-    browserInitState,
-    collectionInitState,
-    noteInitState,
-    clipboardInitState,
     {
       home: {
         db__schema: "form",
@@ -214,12 +203,27 @@ export const initState = mergeAndCheck(
             s.column(
               l(s.style("flex", "0 0 50%")),
               s.view__text(l("right column list")),
+              s.view__button(
+                l(),
+                "throw an error",
+                seq(
+                  s.receive(__),
+                  s.log("clicked"),
+                  s.throw(s.error("clicked a button")),
+                ),
+              ),
             ),
           ),
         ),
       },
     },
   ],
+  {},
+);
+
+// loads from db if available
+export const initState = mergeAndCheck(
+  [browserInitState, collectionInitState, noteInitState, clipboardInitState],
   data,
 );
 

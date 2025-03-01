@@ -50,7 +50,7 @@ export const clipboardRules = {
   // TODO: "init" schema that runs on startup
   init_clipboard: {
     rule__params: l(),
-    rule__body: s.spawn("clipboard_server", s.clipboard_server()),
+    rule__body: s.spawn_link("clipboard_server", s.clipboard_server()),
   },
 
   // TODO: current clipboard ref is stored in browser

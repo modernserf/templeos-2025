@@ -371,27 +371,13 @@ export class ProcessManager {
     this.send(pid, message);
     this.runAllQueued();
   }
-  runExpr(goal: Expr, pid: Pid = this.nextPid++): Pid {
+  spawn(goal: Value, pid: Pid = this.nextPid++, linkTo?: Pid): Pid {
     this.processes.set(pid, {
       tag: "init",
       mailbox: [],
       flags: { trapExit: false },
     });
-
-    const state = State.init(this, pid);
-    const parsed = state.exprValue(goal);
-    const gen = state.eval(parsed);
-    const next = gen.next();
-    this.runUntilSuspend(pid, next, gen);
-    this.runAllQueued();
-    return pid;
-  }
-  spawn(goal: Value, pid: Pid = this.nextPid++): Pid {
-    this.processes.set(pid, {
-      tag: "init",
-      mailbox: [],
-      flags: { trapExit: false },
-    });
+    if (linkTo) this.link(linkTo, pid);
 
     const state = State.init(this, pid);
     const gen = state.eval(resolveDeep(goal));
@@ -404,10 +390,7 @@ export class ProcessManager {
     while (true) {
       const pid = this.runQueue.dequeue();
       if (pid == null) return;
-      const process = this.processes.get(pid);
-      if (!process) {
-        throw new Error(`missing process ${pid}`);
-      }
+      const process = this.processes.get(pid)!;
       switch (process.tag) {
         case "init":
           continue;

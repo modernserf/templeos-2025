@@ -63,8 +63,8 @@ export const asyncRules = {
     rule__body: seq(
       s.self($.self),
       s.id($.id),
-      s.spawn(__, seq($.left, s.send($.self, s.race(s.left(), $.id)))),
-      s.spawn(__, seq($.right, s.send($.self, s.race(s.right(), $.id)))),
+      s.spawn_link(__, seq($.left, s.send($.self, s.race(s.left(), $.id)))),
+      s.spawn_link(__, seq($.right, s.send($.self, s.race(s.right(), $.id)))),
       s.receive(s.race(__, $.id)),
     ),
   },
@@ -91,7 +91,7 @@ export const asyncRules = {
   agent: {
     rule__params: l($.pid, $.init_state),
     rule__body: seq(
-      s.spawn(
+      s.spawn_link(
         $.pid,
         s.loop_state(
           $.next,
