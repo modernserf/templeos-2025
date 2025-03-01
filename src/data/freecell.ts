@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, __, u, seq } from "../expr";
+import { l, s, $, __, u, seq, alt } from "../expr";
 import { test } from "./test_utils";
 
 export const freeCell = {
@@ -164,154 +164,108 @@ export const freeCell = {
   },
   free_cell__suit_color: {
     rule__params: l($.suit, $.color),
-    rule__body: s.match(
-      l($.suit, $.color),
-      l(s.clubs(), s.black()),
-      l(s.spades(), s.black()),
-      l(s.hearts(), s.red()),
-      l(s.diamonds(), s.red()),
+    rule__body: alt(
+      u(l($.suit, $.color), l(s.clubs(), s.black())),
+      u(l($.suit, $.color), l(s.spades(), s.black())),
+      u(l($.suit, $.color), l(s.hearts(), s.red())),
+      u(l($.suit, $.color), l(s.diamonds(), s.red())),
+    ),
+  },
+  free_cell__col_pair: {
+    rule__params: l(s.card($.lsuit, $.lrank), s.card($.rsuit, $.rrank)),
+    rule__body: seq(
+      s.add__primitive($.rrank, $.lrank, 1),
+      s.free_cell__suit_color($.lsuit, $.lcolor),
+      s.free_cell__suit_color($.rsuit, $.rcolor),
+      s("/=", $.lcolor, $.rcolor),
+    ),
+  },
+  test__free_cell__col_pair: {
+    test__group: "free_cell",
+    rule__params: l(),
+    rule__body: seq(
+      test.ok(
+        s.free_cell__col_pair(s.card(s.diamonds(), 1), s.card(s.clubs(), 2)),
+      ),
+      test.fail(
+        s.free_cell__col_pair(s.card(s.diamonds(), 1), s.card(s.hearts(), 2)),
+      ),
+      test.fail(
+        s.free_cell__col_pair(s.card(s.diamonds(), 1), s.card(s.clubs(), 3)),
+      ),
+    ),
+  },
+  // TODO: handle moving multiple cards
+  free_cell__move_column: {
+    rule__params: l($.with, $.without, $.card, $.x, $.y),
+    rule__body: s.if_then_else(
+      s.var($.with),
+      seq(
+        s.value_box_index($.col, $.without, $.x),
+        s.if_then_else(
+          s.empty($.col),
+          s.updated_box_index_value($.with, $.without, $.x, l($.card)),
+          seq(
+            s.left_right_box_split(__, l($.top), $.col, $.y),
+            s.free_cell__col_pair($.card, $.top),
+            s.append_left_right($.next_col, $.col, l($.card)),
+            s.updated_box_index_value($.with, $.without, $.x, $.next_col),
+          ),
+        ),
+      ),
+      seq(
+        s.value_box_index($.col, $.with, $.x),
+        s.left_right_box_split($.rest, l($.card), $.col, $.y),
+        s.updated_box_index_value($.without, $.with, $.x, $.rest),
+      ),
+    ),
+  },
+  free_cell__move_cell: {
+    rule__params: l($.with, $.without, $.card, $.i),
+    rule__body: s.if_then_else(
+      s.var($.with),
+      seq(
+        s.value_box_index(s.empty(__), $.without, $.i),
+        s.updated_box_index_value($.with, $.without, $.i, $.card),
+      ),
+      seq(
+        s.value_box_index($.card, $.with, $.i),
+        s("/=", $.card, s.empty(__)),
+        s.updated_box_index_value($.without, $.with, $.i, s.empty("")),
+      ),
     ),
   },
   free_cell__inc_stack: {
     rule__params: l($.low, $.high),
     rule__body: seq(
-      // at some point I will have to implement math
-      s.match(
+      s.match_cond(
         l($.low, $.high),
-        l(s.empty(__), s.card(__, 1)),
-        l(s.card($.suit, 1), s.card($.suit, 2)),
-        l(s.card($.suit, 2), s.card($.suit, 3)),
-        l(s.card($.suit, 3), s.card($.suit, 4)),
-        l(s.card($.suit, 4), s.card($.suit, 5)),
-        l(s.card($.suit, 5), s.card($.suit, 6)),
-        l(s.card($.suit, 6), s.card($.suit, 7)),
-        l(s.card($.suit, 7), s.card($.suit, 8)),
-        l(s.card($.suit, 8), s.card($.suit, 9)),
-        l(s.card($.suit, 9), s.card($.suit, 10)),
-        l(s.card($.suit, 10), s.card($.suit, 11)),
-        l(s.card($.suit, 11), s.card($.suit, 12)),
-        l(s.card($.suit, 12), s.card($.suit, 13)),
+        l(l(s.empty("A"), s.card(__, 1)), s.ok()),
+        l(
+          l(s.card($.suit, $.lrank), l(s.card($.suit, $.rrank))),
+          s.add__primitive($.rrank, $.lrank, 1),
+        ),
       ),
     ),
   },
-  free_cell__movable_col__: {
-    rule__params: l($.col, s.card($.last_suit, $.last_rank)),
+  free_cell__move_stack: {
+    rule__params: l($.with, $.without, $.card, $.i),
     rule__body: s.if_then_else(
-      s.empty($.col),
-      s.ok(),
+      s.var($.with),
       seq(
-        s.append_left_right($.col, $.rest, l(s.card($.next_suit, $.next_rank))),
-        s.free_cell__suit_color($.last_suit, $.color),
-        s.free_cell__suit_color($.next_suit, $.other_color),
-        s.if_then_else(u($.color, $.other_color), s.fail(), s.ok()),
-        s.free_cell__inc_stack(
-          s.card(__, $.last_rank),
-          s.card(__, $.next_rank),
-        ),
-        s.free_cell__movable_col__($.rest, s.card($.next_suit, $.next_rank)),
+        s.value_box_index($.stack, $.without, $.i),
+        s.free_cell__inc_stack($.stack, $.card),
+        s.updated_box_index_value($.with, $.without, $.i, $.card),
       ),
-    ),
-  },
-  free_cell__movable_col: {
-    rule__params: l($.col),
-    rule__body: seq(
-      s.append_left_right($.col, $.rest, l($.last)),
-      s.free_cell__movable_col__($.rest, $.last),
-    ),
-  },
-  test__free_cell__movable_col: {
-    test__group: "free_cell",
-    rule__params: l(),
-    rule__body: seq(
-      test.ok(s.free_cell__movable_col(l(s.card(s.diamonds(), 1)))),
-      test.ok(
-        s.free_cell__movable_col(
-          l(s.card(s.clubs(), 2), s.card(s.diamonds(), 1)),
-        ),
+      seq(
+        s.value_box_index($.card, $.with, $.i),
+        s.free_cell__inc_stack($.stack, $.card),
+        s.updated_box_index_value($.without, $.with, $.i, $.stack),
       ),
-      test.fail(
-        s.free_cell__movable_col(
-          l(s.card(s.hearts(), 2), s.card(s.diamonds(), 1)),
-        ),
-      ),
-      test.fail(
-        s.free_cell__movable_col(
-          l(s.card(s.clubs(), 3), s.card(s.diamonds(), 1)),
-        ),
-      ),
-    ),
-  },
-  free_cell__take_col: {
-    rule__params: l($.next, $.top, $.cols, $.x, $.y),
-    rule__body: seq(
-      s.value_box_index($.col, $.cols, $.x),
-      s.left_right_box_split($.rest, $.top, $.col, $.y),
-      s.free_cell__movable_col($.top),
-      s.updated_box_index_value($.next, $.cols, $.x, $.rest),
-    ),
-  },
-  free_cell__put_col: {
-    rule__params: l($.next, $.cols, $.added, $.x, __),
-    rule__body: seq(
-      s.value_box_index($.col, $.cols, $.x),
-      s.if_then_else(
-        s.empty($.col),
-        s.updated_box_index_value($.next, $.cols, $.x, $.added),
-        seq(
-          s.append_left_right($.col, $.rest, l($.top)),
-          s.append_left_right($.next_top, l($.top), $.added),
-          s.free_cell__movable_col($.next_top),
-          s.append_left_right($.next_col, $.rest, $.next_top),
-          s.updated_box_index_value($.next, $.cols, $.x, $.next_col),
-        ),
-      ),
-    ),
-  },
-  free_cell__take_cell: {
-    rule__params: l($.next, $.card, $.cells, $.i),
-    rule__body: seq(
-      s.value_box_index($.card, $.cells, $.i),
-      s.if_then_else(u($.card, s.empty(__)), s.fail(), s.ok()),
-      s.updated_box_index_value($.next, $.cells, $.i, s.empty("")),
-    ),
-  },
-  free_cell__put_cell: {
-    rule__params: l($.next, $.cells, $.card, $.i),
-    rule__body: seq(
-      s.value_box_index(s.empty(__), $.cells, $.i),
-      s.updated_box_index_value($.next, $.cells, $.i, $.card),
-    ),
-  },
-  free_cell__count_free_cells: {
-    rule__params: l($.count, $.cells),
-    rule__body: seq(
-      s.collect_item_in(
-        $.free,
-        s.ok(),
-        seq(s.value_box_index(s.empty(""), $.cells, __)),
-      ),
-      s.length_box($.count, $.free),
-    ),
-  },
-
-  free_cell__take_stack: {
-    rule__params: l($.next, $.card, $.stacks, $.i),
-    rule__body: seq(
-      s.value_box_index($.card, $.stacks, $.i),
-      s.free_cell__inc_stack($.next_stack, $.card),
-      s.updated_box_index_value($.next, $.stacks, $.i, $.next_stack),
-    ),
-  },
-  free_cell__put_stack: {
-    rule__params: l($.next, $.stacks, $.card, $.i),
-    rule__body: seq(
-      s.value_box_index($.stack, $.stacks, $.i),
-      s.free_cell__inc_stack($.stack, $.card),
-      s.updated_box_index_value($.next, $.stacks, $.i, $.card),
     ),
   },
   free_cell__take: {
-    rule__params: l($.next_state, $.card, $.prev_state),
+    rule__params: l($.ns, $.card, $.prev_state),
     rule__body: seq(
       u(s.state($.stacks, $.cells, $.columns, $.selected), $.prev_state),
       s.match_cond(
@@ -319,38 +273,29 @@ export const freeCell = {
         l(
           s.columns($.x, $.y),
           seq(
-            s.free_cell__take_col($.next_cols, l($.card), $.columns, $.x, $.y),
-            u(
-              $.next_state,
-              s.state($.stacks, $.cells, $.next_cols, $.selected),
-            ),
+            s.free_cell__move_column($.columns, $.next_cols, $.card, $.x, $.y),
+            u($.ns, s.state($.stacks, $.cells, $.next_cols, $.selected)),
           ),
         ),
         l(
           s.cells($.c),
           seq(
-            s.free_cell__take_cell($.next_cells, $.card, $.cells, $.c),
-            u(
-              $.next_state,
-              s.state($.stacks, $.next_cells, $.columns, $.selected),
-            ),
+            s.free_cell__move_cell($.cells, $.next_cells, $.card, $.c),
+            u($.ns, s.state($.stacks, $.next_cells, $.columns, $.selected)),
           ),
         ),
         l(
           s.stacks($.s),
           seq(
-            s.free_cell__take_stack($.next_stacks, $.card, $.stacks, $.s),
-            u(
-              $.next_state,
-              s.state($.next_stacks, $.cells, $.columns, $.selected),
-            ),
+            s.free_cell__move_stack($.stacks, $.next_stacks, $.card, $.s),
+            u($.ns, s.state($.next_stacks, $.cells, $.columns, $.selected)),
           ),
         ),
       ),
     ),
   },
   free_cell__put: {
-    rule__params: l($.next_state, $.card, $.target, $.prev_state),
+    rule__params: l($.ns, $.card, $.target, $.prev_state),
     rule__body: seq(
       u(s.state($.stacks, $.cells, $.columns, $.selected), $.prev_state),
       s.match_cond(
@@ -358,28 +303,22 @@ export const freeCell = {
         l(
           s.columns($.x, $.y),
           seq(
-            s.free_cell__put_col($.next_cols, $.columns, l($.card), $.x, $.y),
-            u($.next_state, s.state($.stacks, $.cells, $.next_cols, s.none())),
+            s.free_cell__move_column($.next_cols, $.columns, $.card, $.x, $.y),
+            u($.ns, s.state($.stacks, $.cells, $.next_cols, s.none())),
           ),
         ),
         l(
           s.cells($.c),
           seq(
-            s.free_cell__put_cell($.next_cells, $.cells, $.card, $.c),
-            u(
-              $.next_state,
-              s.state($.stacks, $.next_cells, $.columns, s.none()),
-            ),
+            s.free_cell__move_cell($.next_cells, $.cells, $.card, $.c),
+            u($.ns, s.state($.stacks, $.next_cells, $.columns, s.none())),
           ),
         ),
         l(
           s.stacks($.s),
           seq(
-            s.free_cell__put_stack($.next_stacks, $.stacks, $.card, $.s),
-            u(
-              $.next_state,
-              s.state($.next_stacks, $.cells, $.columns, s.none()),
-            ),
+            s.free_cell__move_stack($.next_stacks, $.stacks, $.card, $.s),
+            u($.ns, s.state($.next_stacks, $.cells, $.columns, s.none())),
           ),
         ),
       ),

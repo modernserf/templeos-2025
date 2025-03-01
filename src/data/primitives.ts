@@ -52,7 +52,7 @@ function dif(left: Value, right: Value) {
   if (
     left.tag === "box" &&
     right.tag === "box" &&
-    left.tag === right.tag &&
+    left.id === right.id &&
     left.args.length === right.args.length
   ) {
     for (let i = 0; i < left.args.length; i++) {
@@ -86,7 +86,6 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (it.unify(left, right)) yield it.result();
     },
   },
-  // FIXME
   "/=": {
     rule__params: l($.left, $.right),
     rule__primitive: function* (it, left, right) {
@@ -1059,6 +1058,38 @@ export const { rules, rulePrimitives } = compilePrimitives({
           yield* it.unifyChoice(id, k(key));
         }
       }
+    },
+  },
+  add__primitive: {
+    rule__params: l($.sum, $.left, $.right),
+    rule__primitive: function* (it, sum, left, right) {
+      ensure(left, "number");
+      ensure(right, "number");
+      if (it.unify(sum, k(left.value + right.value))) yield it.result();
+    },
+  },
+  sub__primitive: {
+    rule__params: l($.sum, $.left, $.right),
+    rule__primitive: function* (it, sum, left, right) {
+      ensure(left, "number");
+      ensure(right, "number");
+      if (it.unify(sum, k(left.value - right.value))) yield it.result();
+    },
+  },
+  mul__primitive: {
+    rule__params: l($.sum, $.left, $.right),
+    rule__primitive: function* (it, sum, left, right) {
+      ensure(left, "number");
+      ensure(right, "number");
+      if (it.unify(sum, k(left.value * right.value))) yield it.result();
+    },
+  },
+  fdiv__primitive: {
+    rule__params: l($.sum, $.left, $.right),
+    rule__primitive: function* (it, sum, left, right) {
+      ensure(left, "number");
+      ensure(right, "number");
+      if (it.unify(sum, k(left.value / right.value))) yield it.result();
     },
   },
 });
