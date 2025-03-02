@@ -51,6 +51,7 @@ export type Field =
   | "file__description"
   | "file__tags"
   | "free_cell__game_state"
+  | "free_cell__init_state"
   | "history__back"
   | "history__forward"
   | "history__id"
