@@ -56,7 +56,7 @@ function dif(left: Value, right: Value) {
     left.args.length === right.args.length
   ) {
     for (let i = 0; i < left.args.length; i++) {
-      if (dif(left, right)) return true;
+      if (dif(left.args[i], right.args[i])) return true;
     }
     return false;
   }

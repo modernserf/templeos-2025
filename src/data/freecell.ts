@@ -1,8 +1,31 @@
 import { Rec } from ".";
-import { l, s, $, __, u, seq, alt } from "../expr";
+import { l, s, $, __, u, seq, alt, f } from "../expr";
 import { test } from "./test_utils";
 
 export const freeCell = {
+  free_cell__game: {
+    db__schema: "schema",
+    file__name: "FreeCell game",
+    db__fields: l(s.field("free_cell__game_state")),
+  },
+  free_cell__game_state: {
+    db__schema: "field",
+    file__name: "FreeCell game state",
+  },
+  free_cell__new_game: {
+    rule__params: l($.id),
+    rule__body: seq(
+      s.if_var($.id, s.id($.id)),
+      s.free_cell__init_state($.value),
+      s.db__update(
+        l(
+          s.update($.id, "free_cell__game_state", $.value),
+          s.update($.id, "db__schema", "free_cell__game"),
+        ),
+      ),
+    ),
+  },
+
   free_cell__init_state: {
     rule__params: l(
       s.state(
@@ -25,6 +48,7 @@ export const freeCell = {
           s.number_min_max($.rank, 1, 13),
         ),
       ),
+      // TODO: random seed
       s.shuffled_list($.shuffled, $.cards),
       // 7 card
       s.slice_box_from_to($.a, $.shuffled, 0, 7),
@@ -325,43 +349,80 @@ export const freeCell = {
     ),
   },
   free_cell__dispatch: {
-    rule__params: l($.event, $.state, $.params),
+    rule__params: l($.event, $.id),
     rule__body: seq(
+      f.free_cell__game_state($.id, $.state),
       u(s.state($.stacks, $.cells, $.columns, $.selected), $.state),
 
-      s.if_then_else(
-        u($.selected, s.none()),
-        s.set_state($.params, s.state($.stacks, $.cells, $.columns, $.event)),
-        s.if_then_else(
+      s.cond(
+        l(
+          u($.selected, s.none()),
+          s.db__update(
+            l(
+              s.update(
+                $.id,
+                "free_cell__game_state",
+                s.state($.stacks, $.cells, $.columns, $.event),
+              ),
+            ),
+          ),
+        ),
+        l(
           seq(
             s.free_cell__take($.state2, $.card, $.state),
             s.free_cell__put($.state3, $.card, $.event, $.state2),
           ),
-          s.set_state($.params, $.state3),
-          s.set_state(
-            $.params,
-            s.state($.stacks, $.cells, $.columns, s.none()),
+          s.db__update(l(s.update($.id, "free_cell__game_state", $.state3))),
+        ),
+        l(
+          s.ok(),
+          s.db__update(
+            l(
+              s.update(
+                $.id,
+                "free_cell__game_state",
+                s.state($.stacks, $.cells, $.columns, s.none()),
+              ),
+            ),
           ),
         ),
       ),
     ),
   },
-  // TODO: game as db record, not param state
+  // TODO: free_cell__game schema record renders this
   free_cell: {
     db__schema: "form",
     file__name: "FreeCell",
     rule__params: l($.out, $.id, $.params),
     rule__body: seq(
-      s.get_state_else(
-        s.state($.stacks, $.cells, $.columns, $.selected),
-        $.params,
-        s.fn($.s, s.free_cell__init_state($.s)),
+      s.column(
+        $.out,
+        l(),
+        s.view__string("Current games"),
+        s.expr_iter(
+          f.db__schema($.game, "free_cell__game"),
+          s.view__file_link($.game),
+        ),
+        s.view__button(
+          l(),
+          "New game",
+          seq(
+            s.free_cell__new_game($.new_game),
+            s.current_window($.window),
+            s.on__push($.window, s.location($.new_game)),
+          ),
+        ),
       ),
-      u(s.state($.stacks, $.cells, $.columns, $.selected), $.prev_state),
-      u(
-        $.handler,
-        s.fn($.e, s.free_cell__dispatch($.e, $.prev_state, $.params)),
-      ),
+    ),
+  },
+
+  view__free_cell__game: {
+    view__schema: "free_cell__game",
+    rule__params: l($.out, $.id, $.p),
+    rule__body: seq(
+      f.free_cell__game_state($.id, $.state),
+      u(s.state($.stacks, $.cells, $.columns, $.selected), $.state),
+      u($.handler, s.fn($.e, s.free_cell__dispatch($.e, $.id))),
       s.column(
         $.out,
         l(s.style("padding", "1rem")),
@@ -374,6 +435,7 @@ export const freeCell = {
       ),
     ),
   },
+
   fncall: {
     rule__params: l(s.fn($.params, $.body), $.args),
     rule__body: seq(u($.params, $.args), $.body),
