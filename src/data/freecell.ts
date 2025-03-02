@@ -6,33 +6,43 @@ export const freeCell = {
   free_cell__game: {
     db__schema: "schema",
     file__name: "FreeCell game",
-    db__fields: l(s.field("free_cell__game_state")),
+    db__fields: l(
+      s.field("free_cell__game_state"),
+      s.field("free_cell__init_state"),
+      s.field("time__created"),
+      // TODO: move history, game stats
+    ),
   },
   free_cell__game_state: {
     db__schema: "field",
     file__name: "FreeCell game state",
   },
+  free_cell__init_state: {
+    db__schema: "field",
+    file__name: "FreeCell init state",
+  },
   free_cell__new_game: {
     rule__params: l($.id),
     rule__body: seq(
       s.if_var($.id, s.id($.id)),
-      s.free_cell__init_state($.value),
+      s.timestamp($.ts),
+      s.free_cell__init($.value),
       s.db__update(
         l(
           s.update($.id, "free_cell__game_state", $.value),
+          s.update($.id, "free_cell__init_state", $.value),
+          s.update($.id, "time__created", $.ts),
           s.update($.id, "db__schema", "free_cell__game"),
         ),
       ),
     ),
   },
-
-  free_cell__init_state: {
+  free_cell__init: {
     rule__params: l(
       s.state(
         s.stacks(s.empty("A"), s.empty("A"), s.empty("A"), s.empty("A")),
         s.cells(s.empty(""), s.empty(""), s.empty(""), s.empty("")),
         s.columns($.a, $.b, $.c, $.d, $.e, $.f, $.g, $.h),
-        s.none(),
       ),
     ),
     rule__body: seq(
@@ -289,103 +299,103 @@ export const freeCell = {
     ),
   },
   free_cell__take: {
-    rule__params: l($.ns, $.card, $.prev_state),
+    rule__params: l($.ns, $.prev_state, $.card, $.selected),
     rule__body: seq(
-      u(s.state($.stacks, $.cells, $.columns, $.selected), $.prev_state),
+      u(s.state($.stacks, $.cells, $.columns), $.prev_state),
       s.match_cond(
         $.selected,
         l(
           s.columns($.x, $.y),
           seq(
             s.free_cell__move_column($.columns, $.next_cols, $.card, $.x, $.y),
-            u($.ns, s.state($.stacks, $.cells, $.next_cols, $.selected)),
+            u($.ns, s.state($.stacks, $.cells, $.next_cols)),
           ),
         ),
         l(
           s.cells($.c),
           seq(
             s.free_cell__move_cell($.cells, $.next_cells, $.card, $.c),
-            u($.ns, s.state($.stacks, $.next_cells, $.columns, $.selected)),
+            u($.ns, s.state($.stacks, $.next_cells, $.columns)),
           ),
         ),
         l(
           s.stacks($.s),
           seq(
             s.free_cell__move_stack($.stacks, $.next_stacks, $.card, $.s),
-            u($.ns, s.state($.next_stacks, $.cells, $.columns, $.selected)),
+            u($.ns, s.state($.next_stacks, $.cells, $.columns)),
           ),
         ),
       ),
     ),
   },
   free_cell__put: {
-    rule__params: l($.ns, $.card, $.target, $.prev_state),
+    rule__params: l($.ns, $.prev_state, $.card, $.target),
     rule__body: seq(
-      u(s.state($.stacks, $.cells, $.columns, $.selected), $.prev_state),
+      u(s.state($.stacks, $.cells, $.columns), $.prev_state),
       s.match_cond(
         $.target,
         l(
           s.columns($.x, $.y),
           seq(
             s.free_cell__move_column($.next_cols, $.columns, $.card, $.x, $.y),
-            u($.ns, s.state($.stacks, $.cells, $.next_cols, s.none())),
+            u($.ns, s.state($.stacks, $.cells, $.next_cols)),
           ),
         ),
         l(
           s.cells($.c),
           seq(
             s.free_cell__move_cell($.next_cells, $.cells, $.card, $.c),
-            u($.ns, s.state($.stacks, $.next_cells, $.columns, s.none())),
+            u($.ns, s.state($.stacks, $.next_cells, $.columns)),
           ),
         ),
         l(
           s.stacks($.s),
           seq(
             s.free_cell__move_stack($.next_stacks, $.stacks, $.card, $.s),
-            u($.ns, s.state($.next_stacks, $.cells, $.columns, s.none())),
+            u($.ns, s.state($.next_stacks, $.cells, $.columns)),
           ),
         ),
       ),
     ),
   },
+  free_cell__selected_param: {
+    rule__params: l($.selected, $.params),
+    rule__body: s.get_state(
+      l(s.selected($.selected)),
+      $.params,
+      l(s.selected(s.none())),
+    ),
+  },
   free_cell__dispatch: {
-    rule__params: l($.event, $.id),
+    rule__params: l($.event, $.id, $.params),
     rule__body: seq(
-      f.free_cell__game_state($.id, $.state),
-      u(s.state($.stacks, $.cells, $.columns, $.selected), $.state),
-
+      s.free_cell__selected_param($.selected, $.params),
       s.cond(
         l(
-          u($.selected, s.none()),
-          s.db__update(
-            l(
-              s.update(
-                $.id,
-                "free_cell__game_state",
-                s.state($.stacks, $.cells, $.columns, $.event),
-              ),
+          u($.event, s.reset()),
+          seq(
+            f.free_cell__init_state($.id, $.init_state),
+            s.db__update(
+              l(s.update($.id, "free_cell__game_state", $.init_state)),
             ),
           ),
+        ),
+        l(
+          u($.selected, s.none()),
+          s.set_state($.params, l(s.selected($.event))),
         ),
         l(
           seq(
-            s.free_cell__take($.state2, $.card, $.state),
-            s.free_cell__put($.state3, $.card, $.event, $.state2),
+            f.free_cell__game_state($.id, $.state),
+            s.free_cell__take($.state2, $.state, $.card, $.selected),
+            s.free_cell__put($.state3, $.state2, $.card, $.event),
           ),
-          s.db__update(l(s.update($.id, "free_cell__game_state", $.state3))),
-        ),
-        l(
-          s.ok(),
-          s.db__update(
-            l(
-              s.update(
-                $.id,
-                "free_cell__game_state",
-                s.state($.stacks, $.cells, $.columns, s.none()),
-              ),
-            ),
+          seq(
+            s.db__update(l(s.update($.id, "free_cell__game_state", $.state3))),
+            s.set_state($.params, l(s.selected(s.none()))),
           ),
         ),
+        l(s.ok(), s.set_state($.params, l(s.selected(s.none())))),
       ),
     ),
   },
@@ -420,9 +430,9 @@ export const freeCell = {
     view__schema: "free_cell__game",
     rule__params: l($.out, $.id, $.p),
     rule__body: seq(
-      f.free_cell__game_state($.id, $.state),
-      u(s.state($.stacks, $.cells, $.columns, $.selected), $.state),
-      u($.handler, s.fn($.e, s.free_cell__dispatch($.e, $.id))),
+      f.free_cell__game_state($.id, s.state($.stacks, $.cells, $.columns)),
+      s.free_cell__selected_param($.selected, $.p),
+      u($.handler, s.fn($.e, s.free_cell__dispatch($.e, $.id, $.p))),
       s.column(
         $.out,
         l(s.style("padding", "1rem")),
@@ -432,6 +442,10 @@ export const freeCell = {
           s.view__free_cell_cells($.cells, $.selected, $.handler),
         ),
         s.view__free_cell_columns($.columns, $.selected, $.handler),
+        s.row(
+          l(s.style("paddingTop", "1rem")),
+          s.view__button(l(), "Reset", s.fncall($.handler, s.reset())),
+        ),
       ),
     ),
   },
