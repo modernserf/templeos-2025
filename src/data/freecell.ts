@@ -8,7 +8,7 @@ export const freeCell = pkg("free_cell", {
     file__name: "FreeCell game",
     db__fields: l(
       s.field("free_cell__game_state"),
-      s.field("free_cell__init_state"),
+      s.field("free_cell__undo"),
       s.field("time__created"),
       // TODO: move history, game stats
     ),
@@ -17,9 +17,9 @@ export const freeCell = pkg("free_cell", {
     db__schema: "field",
     file__name: "FreeCell game state",
   },
-  free_cell__init_state: {
+  free_cell__undo: {
     db__schema: "field",
-    file__name: "FreeCell init state",
+    file__name: "FreeCell undo history",
   },
   // TODO: free_cell__game schema record renders this
   free_cell: {
@@ -70,7 +70,7 @@ export const freeCell = pkg("free_cell", {
       s.db__update(
         l(
           s.update($.id, "free_cell__game_state", $.value),
-          s.update($.id, "free_cell__init_state", $.value),
+          s.update($.id, "free_cell__undo", l()),
           s.update($.id, "time__created", $.ts),
           s.update($.id, "db__schema", "free_cell__game"),
         ),
@@ -233,6 +233,33 @@ export const freeCell = pkg("free_cell", {
       ),
     ),
   },
+  _view_game: {
+    view__schema: "free_cell__game",
+    file__name: "FreeCell",
+    rule__params: l($.out, $.id, $.p),
+    rule__body: seq(
+      f.free_cell__game_state($.id, s.state($.stacks, $.cells, $.columns)),
+      s._selected_param($.selected, $.p),
+      u($.handler, s.fn($.e, s._dispatch($.e, $.id, $.p))),
+      s.column(
+        $.out,
+        l(s.style("padding", "0.5rem"), s.style("gap", "0.5rem")),
+        s.row(
+          l(),
+          s._view_stacks($.stacks, $.selected, $.handler),
+          s._view_cells($.cells, $.selected, $.handler),
+        ),
+        s._view_columns($.columns, $.selected, $.handler),
+        s.row(
+          l(s.style("gap", "0.5rem")),
+          s.view__button(l(), "Undo", s.fncall($.handler, s.undo())),
+          s.view__button(l(), "Reset", s.fncall($.handler, s.reset())),
+          s.view__button(l(), "Auto", s.fncall($.handler, s.auto())),
+        ),
+      ),
+    ),
+  },
+
   _suit_color: {
     rule__params: l($.suit, $.color),
     rule__body: alt(
@@ -245,7 +272,7 @@ export const freeCell = pkg("free_cell", {
   _col_pair: {
     rule__params: l(s.card($.lsuit, $.lrank), s.card($.rsuit, $.rrank)),
     rule__body: seq(
-      s.add__primitive($.rrank, $.lrank, 1),
+      s.add($.rrank, $.lrank, 1),
       s._suit_color($.lsuit, $.lcolor),
       s._suit_color($.rsuit, $.rcolor),
       s("/=", $.lcolor, $.rcolor),
@@ -260,9 +287,8 @@ export const freeCell = pkg("free_cell", {
       test.fail(s._col_pair(s.card(s.diamonds(), 1), s.card(s.clubs(), 3))),
     ),
   },
-  // TODO: handle moving multiple cards
-  _move_column: {
-    rule__params: l($.with, $.without, $.card, $.x, $.y),
+  _move_column_unchecked: {
+    rule__params: l($.with, $.without, $.card, $.x),
     rule__body: s.if_then_else(
       s.var($.with),
       seq(
@@ -271,8 +297,6 @@ export const freeCell = pkg("free_cell", {
           s.empty($.col),
           s.updated_box_index_value($.with, $.without, $.x, l($.card)),
           seq(
-            s.left_right_box_split(__, l($.top), $.col, $.y),
-            s._col_pair($.card, $.top),
             s.append_left_right($.next_col, $.col, l($.card)),
             s.updated_box_index_value($.with, $.without, $.x, $.next_col),
           ),
@@ -280,9 +304,35 @@ export const freeCell = pkg("free_cell", {
       ),
       seq(
         s.value_box_index($.col, $.with, $.x),
-        s.left_right_box_split($.rest, l($.card), $.col, $.y),
+        s.append_left_right($.col, $.rest, l($.card)),
         s.updated_box_index_value($.without, $.with, $.x, $.rest),
       ),
+    ),
+  },
+  _check_put_column: {
+    rule__params: l($.with, $.without, $.card, $.x),
+    rule__body: seq(
+      s.value_box_index($.col, $.without, $.x),
+      s.if_then_else(
+        s.empty($.col),
+        s.ok(),
+        seq(
+          s.append_left_right($.col, __, l($.top)),
+          s._col_pair($.card, $.top),
+        ),
+      ),
+    ),
+  },
+  // TODO: handle moving multiple cards
+  _move_column: {
+    rule__params: l($.with, $.without, $.card, $.x),
+    rule__body: s.if_then_else(
+      s.var($.with),
+      seq(
+        s._check_put_column($.with, $.without, $.card, $.x),
+        s._move_column_unchecked($.with, $.without, $.card, $.x),
+      ),
+      s._move_column_unchecked($.with, $.without, $.card, $.x),
     ),
   },
   _move_cell: {
@@ -308,7 +358,7 @@ export const freeCell = pkg("free_cell", {
         l(l(s.empty("A"), s.card(__, 1)), s.ok()),
         l(
           l(s.card($.suit, $.lrank), s.card($.suit, $.rrank)),
-          s.add__primitive($.rrank, $.lrank, 1),
+          s.add($.rrank, $.lrank, 1),
         ),
       ),
     ),
@@ -337,9 +387,9 @@ export const freeCell = pkg("free_cell", {
       s.match_cond(
         $.selected,
         l(
-          s.columns($.x, $.y),
+          s.columns($.x, __),
           seq(
-            s._move_column($.columns_w, $.columns_wo, $.card, $.x, $.y),
+            s._move_column($.columns_w, $.columns_wo, $.card, $.x),
             u(l($.stacks_wo, $.cells_wo), l($.stacks_w, $.cells_w)),
           ),
         ),
@@ -361,48 +411,98 @@ export const freeCell = pkg("free_cell", {
       ),
     ),
   },
-  _move_auto: {
-    rule__params: l($.after, $.before),
-    rule__body: s.limit(
-      1,
-      seq(
-        u(s.state($.stacks, $.cells, $.columns), $.before),
-        s.value_box_index(__, $.stacks, $.s),
-        alt(
+  _move_undo: {
+    file__description: l("undoing a column move is not a valid player move"),
+    rule__params: l($.with, $.without, $.card, $.selected),
+    rule__body: seq(
+      s.match_cond(
+        $.selected,
+        l(
+          s.columns($.x, __),
           seq(
-            s.value_box_index(__, $.cells, $.c),
-            s._move($.before, $.inter, $.card, s.cells($.c)),
-            s._move($.after, $.inter, $.card, s.stacks($.s)),
+            u(s.state($.stacks_wo, $.cells_wo, $.columns_wo), $.without),
+            u(s.state($.stacks_w, $.cells_w, $.columns_w), $.with),
+            s._move_column_unchecked($.columns_w, $.columns_wo, $.card, $.x),
+            u(l($.stacks_wo, $.cells_wo), l($.stacks_w, $.cells_w)),
           ),
-          seq(
-            s.value_box_index($.col, $.columns, $.x),
-            s.length_box($.len, $.col),
-            s.sub__primitive($.y, $.len, 1),
-            s._move($.before, $.inter, $.card, s.columns($.x, $.y)),
-            s._move($.after, $.inter, $.card, s.stacks($.s)),
-          ),
+        ),
+        l(__, s._move($.with, $.without, $.card, $.selected)),
+      ),
+    ),
+  },
+  _auto_moves: {
+    rule__params: l($.move),
+    rule__body: seq(
+      s.number_min_max($.s, 0, 3),
+      alt(
+        seq(
+          s.number_min_max($.c, 0, 3),
+          u($.move, s.move(s.stacks($.s), s.cells($.c))),
+        ),
+        seq(
+          s.number_min_max($.x, 0, 7),
+          u($.move, s.move(s.stacks($.s), s.columns($.x, 0))),
         ),
       ),
     ),
   },
-  _move_auto_loop: {
+  _on_auto: {
     rule__params: l($.id),
     rule__body: s.spawn_link(
       __,
       seq(
         f.free_cell__game_state($.id, $.state),
-        s.if_then_else(
-          s._move_auto($.next, $.state),
-          seq(
-            s.db__update(l(s.update($.id, "free_cell__game_state", $.next))),
-            s.sleep(300),
-            s._move_auto_loop($.id),
-          ),
-          s.fail(),
+        s.limit(
+          1,
+          seq(s._auto_moves($.move), s._on_update_state($.id, $.move)),
+        ),
+        s.sleep(300),
+        s._on_auto($.id),
+      ),
+    ),
+  },
+  _on_update_state: {
+    rule__params: l($.id, s.move($.to, $.from)),
+    rule__body: seq(
+      f.free_cell__undo($.id, $.prev_undo),
+      s.append_left_right($.next_undo, $.prev_undo, l(s.move($.to, $.from))),
+      f.free_cell__game_state($.id, $.state),
+      s._move($.state, $.state2, $.card, $.from),
+      s._move($.state3, $.state2, $.card, $.to),
+      s.db__update(
+        l(
+          s.update($.id, "free_cell__game_state", $.state3),
+          s.update($.id, "free_cell__undo", $.next_undo),
         ),
       ),
     ),
   },
+  _on_undo: {
+    rule__params: l($.id),
+    rule__body: seq(
+      f.free_cell__undo($.id, $.prev_undo),
+      s.append_left_right($.prev_undo, $.next_undo, l(s.move($.to, $.from))),
+      f.free_cell__game_state($.id, $.state),
+      s._move($.state, $.state2, $.card, $.to),
+      s._move_undo($.state3, $.state2, $.card, $.from),
+      s.db__update(
+        l(
+          s.update($.id, "free_cell__game_state", $.state3),
+          s.update($.id, "free_cell__undo", $.next_undo),
+        ),
+      ),
+    ),
+  },
+  _on_reset: {
+    rule__params: l($.id),
+    rule__body: seq(
+      // TODO: only apply DB updates once
+      s._on_undo($.id),
+      s.sleep(1),
+      s._on_reset($.id),
+    ),
+  },
+
   _selected_param: {
     rule__params: l($.selected, $.params),
     rule__body: s.get_state(
@@ -410,6 +510,10 @@ export const freeCell = pkg("free_cell", {
       $.params,
       l(s.selected(s.none())),
     ),
+  },
+  _clear_selection: {
+    rule__params: l($.params),
+    rule__body: s.set_state($.params, l(s.selected(s.none()))),
   },
   _dispatch: {
     rule__params: l($.event, $.id, $.params),
@@ -419,20 +523,10 @@ export const freeCell = pkg("free_cell", {
         l($.event, $.selected),
         l(
           l(s.reset(), __),
-          seq(
-            f.free_cell__init_state($.id, $.init_state),
-            s.db__update(
-              l(s.update($.id, "free_cell__game_state", $.init_state)),
-            ),
-          ),
+          seq(s._clear_selection($.params), s._on_reset($.id)),
         ),
-        l(
-          l(s.auto(), __),
-          seq(
-            s.set_state($.params, l(s.selected(s.none()))),
-            s._move_auto_loop($.id),
-          ),
-        ),
+        l(l(s.auto(), __), seq(s._clear_selection($.params), s._on_auto($.id))),
+        l(l(s.undo(), __), seq(s._clear_selection($.params), s._on_undo($.id))),
         l(
           l($.next_selected, s.none()),
           s.set_state($.params, l(s.selected($.next_selected))),
@@ -440,44 +534,16 @@ export const freeCell = pkg("free_cell", {
         l(
           l($.to, $.from),
           seq(
-            s.set_state($.params, l(s.selected(s.none()))),
-            f.free_cell__game_state($.id, $.state),
-            s._move($.state, $.state2, $.card, $.from),
-            s._move($.state3, $.state2, $.card, $.to),
-            s.db__update(l(s.update($.id, "free_cell__game_state", $.state3))),
+            s._clear_selection($.params),
+            s._on_update_state($.id, s.move($.to, $.from)),
           ),
         ),
         l(
           __,
           seq(
             s.log("unknown dispatch", $.event, $.selected),
-            s.set_state($.params, l(s.selected(s.none()))),
+            s._clear_selection($.params),
           ),
-        ),
-      ),
-    ),
-  },
-  _view_game: {
-    view__schema: "free_cell__game",
-    file__name: "FreeCell",
-    rule__params: l($.out, $.id, $.p),
-    rule__body: seq(
-      f.free_cell__game_state($.id, s.state($.stacks, $.cells, $.columns)),
-      s._selected_param($.selected, $.p),
-      u($.handler, s.fn($.e, s._dispatch($.e, $.id, $.p))),
-      s.column(
-        $.out,
-        l(s.style("padding", "1rem")),
-        s.row(
-          l(s.style("paddingBottom", "0.5rem")),
-          s._view_stacks($.stacks, $.selected, $.handler),
-          s._view_cells($.cells, $.selected, $.handler),
-        ),
-        s._view_columns($.columns, $.selected, $.handler),
-        s.row(
-          l(s.style("paddingTop", "1rem"), s.style("gap", "0.5rem")),
-          s.view__button(l(), "Reset", s.fncall($.handler, s.reset())),
-          s.view__button(l(), "Auto", s.fncall($.handler, s.auto())),
         ),
       ),
     ),

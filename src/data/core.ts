@@ -595,4 +595,12 @@ export const core = {
       ),
     ),
   },
+  add: {
+    rule__params: l($.sum, $.l, $.r),
+    rule__body: s.cond(
+      l(s.var($.l), s.sub__primitive($.l, $.sum, $.r)),
+      l(s.var($.r), s.sub__primitive($.r, $.sum, $.l)),
+      l(s.ok(), s.add__primitive($.sum, $.l, $.r)),
+    ),
+  },
 } satisfies Record<string, Rec>;
