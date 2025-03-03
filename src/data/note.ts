@@ -1,7 +1,9 @@
 import { Rec } from ".";
 import { l, s, $, seq, u, __, f } from "../expr";
+import { pkg } from "../pkg";
 
-export const note = {
+export const note = pkg("note", {
+  // public
   note: {
     db__schema: "schema",
     file__name: "Note",
@@ -14,7 +16,8 @@ export const note = {
     db__type: "string",
   },
 
-  view__note_detail: {
+  // private
+  _view_detail: {
     rule__params: l($.out, $.id),
     rule__body: seq(
       f.note__content($.id, $.content),
@@ -29,13 +32,12 @@ export const note = {
         seq(
           s.receive($.e),
           u($.e, s.change($.next)),
-          s.on__note_update($.id, $.next),
+          s._on_update($.id, $.next),
         ),
       ),
     ),
   },
-
-  view__note: {
+  _view: {
     view__schema: "note",
     file__name: "Note",
     rule__params: l($.out, $.id, $.state),
@@ -63,7 +65,7 @@ export const note = {
                 seq(
                   f.note__content($.id, $.content),
                   s.clipboard__copy($.content),
-                  s.on__note_update($.id, ""),
+                  s._on_update($.id, ""),
                 ),
               ),
               l(
@@ -77,28 +79,18 @@ export const note = {
                 "paste",
                 seq(
                   s.clipboard__paste($.content),
-                  s.on__note_update($.id, $.content),
+                  s._on_update($.id, $.content),
                 ),
               ),
-              l("clear", seq(s.on__note_update($.id, ""))),
+              l("clear", seq(s._on_update($.id, ""))),
             ),
           ),
         ),
-        s.view__note_detail($.id),
+        s._view_detail($.id),
       ),
     ),
   },
-  view__all_notes: {
-    db__schema: "form",
-    file__name: "Notes",
-    rule__params: l($.out, __, __),
-    rule__body: s.view__subscribe_render(
-      $.out,
-      s.record("note"),
-      s.view__all_notes__(),
-    ),
-  },
-  view__all_notes__: {
+  _view_list: {
     rule__params: l($.out),
     rule__body: seq(
       s.column(
@@ -107,14 +99,24 @@ export const note = {
         s.view__button(
           l(),
           "New note",
-          seq(s.receive(s.click(__)), s.on__new_note()),
+          seq(s.receive(s.click(__)), s._on_new()),
         ),
-        s.expr_iter(f.db__schema($.id, "note"), s.view__note_detail($.id)),
+        s.expr_iter(f.db__schema($.id, "note"), s._view_detail($.id)),
       ),
     ),
   },
+  _view_all: {
+    db__schema: "form",
+    file__name: "Notes",
+    rule__params: l($.out, __, __),
+    rule__body: s.view__subscribe_render(
+      $.out,
+      s.record("note"),
+      s._view_list(),
+    ),
+  },
 
-  new__note: {
+  _new: {
     rule__params: l($.out, $.id, $.content),
     rule__body: seq(
       s.if_var($.id, s.id($.id)),
@@ -128,17 +130,15 @@ export const note = {
       ),
     ),
   },
-
-  on__note_update: {
+  _on_update: {
     rule__params: l($.id, $.value),
     rule__body: seq(s.db__update(l(s.update($.id, "note__content", $.value)))),
   },
-
-  on__new_note: {
+  _on_new: {
     rule__params: l(),
-    rule__body: seq(s.new__note($.batch, __, __), s.db__update($.batch)),
+    rule__body: seq(s._new($.batch, __, __), s.db__update($.batch)),
   },
-} satisfies Record<string, Rec>;
+});
 
 export const noteInitState = {
   example_note: {

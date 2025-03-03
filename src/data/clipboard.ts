@@ -1,7 +1,8 @@
 import { Rec } from ".";
 import { $, __, f, l, s, seq } from "../expr";
+import { pkg } from "../pkg";
 
-export const clipboardRules = {
+export const clipboardRules = pkg("clipboard", {
   // schema
   clipboard: {
     db__schema: "schema",
@@ -50,37 +51,39 @@ export const clipboardRules = {
   // TODO: "init" schema that runs on startup
   init_clipboard: {
     rule__params: l(),
-    rule__body: s.spawn_link("clipboard_server", s.clipboard_server()),
+    rule__body: s.spawn_link("clipboard_server", s._server()),
   },
 
+  // private
+
   // TODO: current clipboard ref is stored in browser
-  current_clipboard: {
+  _current: {
     rule__params: l("root_clipboard"),
   },
 
-  clipboard_server: {
+  _server: {
     rule__params: l(),
     rule__body: s.loop(
       seq(
         s.receive($.msg),
-        s.current_clipboard($.id),
+        s._current($.id),
         s.match_cond(
           $.msg,
-          l(s.copy($.value), s.clipboard__handle_copy($.id, $.value)),
+          l(s.copy($.value), s._handle_copy($.id, $.value)),
           l(
             s.paste($.pid),
             seq(
-              s.clipboard__handle_paste($.id, $.value),
+              s._handle_paste($.id, $.value),
               s.send($.pid, s.paste($.value)),
             ),
           ),
-          l(s.drop(), s.clipboard__handle_drop($.id)),
+          l(s.drop(), s._handle_drop($.id)),
         ),
       ),
     ),
   },
 
-  clipboard__handle_copy: {
+  _handle_copy: {
     rule__params: l($.id, $.value),
     rule__body: seq(
       f.clipboard__data($.id, $.prev),
@@ -88,14 +91,14 @@ export const clipboardRules = {
       s.db__update(l(s.update($.id, "clipboard__data", $.next))),
     ),
   },
-  clipboard__handle_paste: {
+  _handle_paste: {
     rule__params: l($.id, $.value),
     rule__body: seq(
       f.clipboard__data($.id, $.data),
       s.append_left_right($.data, __, l($.value)),
     ),
   },
-  clipboard__handle_drop: {
+  _handle_drop: {
     rule__params: l($.id),
     rule__body: seq(
       f.clipboard__data($.id, $.prev),
@@ -103,7 +106,7 @@ export const clipboardRules = {
       s.db__update(l(s.update($.id, "clipboard__data", $.rest))),
     ),
   },
-} satisfies Record<string, Rec>;
+});
 
 export const clipboardInitState = {
   root_clipboard: {

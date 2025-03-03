@@ -1,13 +1,13 @@
-import { Rec } from ".";
 import { l, s, $, __, seq, u } from "../expr";
+import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
-export const supervisor = {
+export const supervisor = pkg("supervisor", {
   supervisor: {
     rule__params: l($.pid, $.config, $.workers),
-    rule__body: seq(s.spawn($.pid, s.supervisor__init($.config, $.workers))),
+    rule__body: seq(s.spawn($.pid, s._init($.config, $.workers))),
   },
-  supervisor__init: {
+  _init: {
     rule__params: l($.sup_config, $.workers),
     rule__body: seq(
       s.trap_exit(),
@@ -17,7 +17,7 @@ export const supervisor = {
         l($.pid, $.worker_config),
         seq(
           s.value_box_index($.worker_config, $.workers, __),
-          s.supervisor__init_worker($.pid, $.worker_config),
+          s._init_worker($.pid, $.worker_config),
         ),
       ),
 
@@ -35,20 +35,14 @@ export const supervisor = {
             ),
             l(
               s.exit($.pid, $.reason),
-              s.supervisor__worker_exit(
-                $.next,
-                $.prev,
-                $.pid,
-                $.reason,
-                $.sup_config,
-              ),
+              s._worker_exit($.next, $.prev, $.pid, $.reason, $.sup_config),
             ),
           ),
         ),
       ),
     ),
   },
-  supervisor__workers: {
+  _workers: {
     rule__params: l($.workers, $.supervisor),
     rule__body: seq(
       s.self($.self),
@@ -58,11 +52,11 @@ export const supervisor = {
     ),
   },
 
-  supervisor__init_worker: {
+  _init_worker: {
     rule__params: l($.pid, s.worker(__, $.goal)),
     rule__body: s.spawn_link($.pid, $.goal),
   },
-  supervisor__worker_exit: {
+  _worker_exit: {
     rule__params: l($.next, $.prev, $.pid, $.reason, s.supervisor($.strategy)),
     rule__body: seq(
       s.value_box_index(l($.pid, s.worker($.restart, __)), $.prev, $.i),
@@ -78,30 +72,21 @@ export const supervisor = {
           s.updated_box_index_removed($.next, $.prev, $.i, l(__)),
         ),
         // restart
-        l(
-          l(__, __, s.one_for_one()),
-          s.supervisor__restart_one($.next, $.prev, $.i),
-        ),
-        l(
-          l(__, __, s.one_for_all()),
-          s.supervisor__restart_all($.next, $.prev),
-        ),
-        l(
-          l(__, __, s.one_for_all()),
-          s.supervisor__restart_rest($.next, $.prev, $.i),
-        ),
+        l(l(__, __, s.one_for_one()), s._restart_one($.next, $.prev, $.i)),
+        l(l(__, __, s.one_for_all()), s._restart_all($.next, $.prev)),
+        l(l(__, __, s.one_for_all()), s._restart_rest($.next, $.prev, $.i)),
       ),
     ),
   },
-  supervisor__restart_one: {
+  _restart_one: {
     rule__params: l($.next, $.prev, $.i),
     rule__body: seq(
       s.value_box_index(l($.old_pid, $.worker), $.prev, $.i),
-      s.supervisor__init_worker($.new_pid, $.worker),
+      s._init_worker($.new_pid, $.worker),
       s.updated_box_index_value($.next, $.prev, $.i, l($.new_pid, $.worker)),
     ),
   },
-  supervisor__restart_all: {
+  _restart_all: {
     rule__params: l($.next, $.prev),
     rule__body: s.collect_item_in(
       $.next,
@@ -110,20 +95,20 @@ export const supervisor = {
         s.value_box_index(l($.old_pid, $.worker), $.prev, __),
         s.exit($.old_pid, s.restart_all()),
         s.receive(s.exit($.old_pid, s.restart_all())),
-        s.supervisor__init_worker($.pid, $.worker),
+        s._init_worker($.pid, $.worker),
       ),
     ),
   },
-  supervisor__restart_rest: {
+  _restart_rest: {
     rule__params: l($.next, $.prev, $.i),
     rule__body: seq(
       s.left_right_box_split($.left, $.right, $.prev, $.i),
-      s.supervisor__restart_all($.right_restarted, $.right),
+      s._restart_all($.right_restarted, $.right),
       s.append_left_right($.next, $.left, $.right_restarted),
     ),
   },
 
-  test__supervisor_worker: {
+  _test_worker: {
     rule__params: l($.name, $.agent),
     rule__body: seq(
       seq(
@@ -143,15 +128,15 @@ export const supervisor = {
       ),
     ),
   },
-  test__supervisor_broadcast: {
+  _test_broadcast: {
     rule__params: l($.supervisor, $.message),
     rule__body: seq(
-      s.supervisor__workers($.workers, $.supervisor),
+      s._workers($.workers, $.supervisor),
       s.each_item_do($.workers, l($.w, __), seq(s.send($.w, $.message))),
       s.sleep(1),
     ),
   },
-  test__supervisor: {
+  _test: {
     test__group: "async",
     rule__params: l(),
     rule__body: seq(
@@ -160,9 +145,9 @@ export const supervisor = {
         $.supervisor,
         s.supervisor(s.one_for_one()),
         l(
-          s.worker(s.temporary(), s.test__supervisor_worker("foo", $.agent)),
-          s.worker(s.transient(), s.test__supervisor_worker("bar", $.agent)),
-          s.worker(s.permanent(), s.test__supervisor_worker("baz", $.agent)),
+          s.worker(s.temporary(), s._test_worker("foo", $.agent)),
+          s.worker(s.transient(), s._test_worker("bar", $.agent)),
+          s.worker(s.permanent(), s._test_worker("baz", $.agent)),
         ),
       ),
       test.collect(
@@ -172,7 +157,7 @@ export const supervisor = {
       ),
       s.agent__update($.agent, $.next, __, u($.next, l())),
 
-      s.test__supervisor_broadcast($.supervisor, s.continue()),
+      s._test_broadcast($.supervisor, s.continue()),
       test.collect(
         $.res,
         s.agent__get($.res, $.agent),
@@ -180,20 +165,20 @@ export const supervisor = {
       ),
       s.agent__update($.agent, $.next, __, u($.next, l())),
 
-      s.test__supervisor_broadcast($.supervisor, s.error()),
+      s._test_broadcast($.supervisor, s.error()),
       test.collect(
         $.res,
         s.agent__get($.res, $.agent),
         l(s.init("bar"), s.init("baz")),
       ),
-      // s.agent__update($.agent, $.next, __, u($.next, l())),
+      s.agent__update($.agent, $.next, __, u($.next, l())),
 
-      // s.test__supervisor_broadcast($.supervisor, s.stop()),
-      // test.collect(
-      //   $.res,
-      //   s.agent__get($.res, $.agent),
-      //   l(s.exit("bar"), s.exit("baz"), s.init("baz")),
-      // ),
+      s._test_broadcast($.supervisor, s.stop()),
+      test.collect(
+        $.res,
+        s.agent__get($.res, $.agent),
+        l(s.exit("bar"), s.exit("baz"), s.init("baz")),
+      ),
     ),
   },
-} satisfies Record<string, Rec>;
+});

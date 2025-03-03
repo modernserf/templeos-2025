@@ -1,7 +1,7 @@
 import { l, seq, s, $, __, f } from "../expr";
-import { Rec } from ".";
+import { pkg } from "../pkg";
 
-export const text = {
+export const text = pkg("text", {
   // types
   text: {
     db__schema: "type",
@@ -28,8 +28,21 @@ export const text = {
     db__type: "text",
   },
   // views
+  view__text: {
+    rule__params: l($.out, $.text),
+    rule__body: s.html(
+      $.out,
+      "div",
+      l(s.class("Text")),
+      s._view_node_list($.text),
+    ),
+  },
 
-  view__text_section_layout: {
+  // private
+
+  // views
+
+  _view_section_layout: {
     rule__params: l($.out, $.header, $.body),
     rule__body: seq(
       s.append_box_suffix($.header_wrap, s.wrap(l()), $.header),
@@ -43,22 +56,22 @@ export const text = {
       ),
     ),
   },
-  view__text_section: {
+  _view_section: {
     rule__params: l($.out, $.header, $.body),
-    rule__body: s.view__text_section_layout(
+    rule__body: s._view_section_layout(
       $.out,
-      l(s.view__text_node_list($.header)),
-      l(s.view__text_node_list($.body)),
+      l(s._view_node_list($.header)),
+      l(s._view_node_list($.body)),
     ),
   },
-  view__text_node_list: {
+  _view_node_list: {
     rule__params: l($.out, $.node_list),
     rule__body: seq(
       s.value_box_index($.node, $.node_list, __),
-      s.view__text_node($.out, $.node),
+      s._view_node($.out, $.node),
     ),
   },
-  view__text_node: {
+  _view_node: {
     rule__params: l($.out, $.node),
     rule__body: s.match_cond(
       $.node,
@@ -66,10 +79,7 @@ export const text = {
         s.link($.label, $.location),
         s.view__link($.out, l(), $.label, $.location),
       ),
-      l(
-        s.section($.header, $.body),
-        s.view__text_section($.out, $.header, $.body),
-      ),
+      l(s.section($.header, $.body), s._view_section($.out, $.header, $.body)),
       l(
         s.code($.expr),
         s.html($.out, "span", l(s.class("InlineBlock")), s.view__expr($.expr)),
@@ -77,17 +87,8 @@ export const text = {
       l(__, seq(s.string($.node), s.view__string($.out, $.node))),
     ),
   },
-  view__text: {
-    rule__params: l($.out, $.text),
-    rule__body: s.html(
-      $.out,
-      "div",
-      l(s.class("Text")),
-      s.view__text_node_list($.text),
-    ),
-  },
 
-  view__text_document: {
+  _view_document: {
     file__name: "Text viewer",
     view__schema: "text_document",
     rule__params: l($.out, $.id, $.state),
@@ -96,4 +97,4 @@ export const text = {
       s.column($.out, l(s.style("margin", "1rem")), s.view__text($.text)),
     ),
   },
-} satisfies Record<string, Rec>;
+});

@@ -1,19 +1,34 @@
-import { Rec } from ".";
 import { l, seq, s, $, __ } from "../expr";
+import { pkg } from "../pkg";
 
-export const viewAnyRecord = {
-  view__expr_var: {
+export const viewAnyRecord = pkg("any_record", {
+  // public
+  view__expr: {
+    rule__params: l($.out, $.value),
+    rule__body: seq(
+      s.type_value($.type, $.value),
+      s.match_cond(
+        $.type,
+        l(s.var(), s._view_var($.out, $.value)),
+        l(s.number(), s._view_number($.out, $.value)),
+        l(s.string(), s._view_string($.out, $.value)),
+        l(s.box(), s._view_box($.out, $.value)),
+      ),
+    ),
+  },
+
+  _view_var: {
     rule__params: l($.out, $.var),
     rule__body: seq(
       s.ident_var($.ident, $.var),
       s.view__string($.out, $.ident),
     ),
   },
-  view__expr_number: {
+  _view_number: {
     rule__params: l($.out, $.value),
     rule__body: seq(s.view__string($.out, $.value)),
   },
-  view__expr_string: {
+  _view_string: {
     rule__params: l($.out, $.value),
     rule__body: seq(
       s.html(
@@ -26,7 +41,7 @@ export const viewAnyRecord = {
       ),
     ),
   },
-  view__expr_box: {
+  _view_box: {
     rule__params: l($.out, $.value),
     rule__body: seq(
       s.box_tag_list($.value, $.tag, $.list),
@@ -44,30 +59,14 @@ export const viewAnyRecord = {
       ),
     ),
   },
-
-  view__expr: {
-    rule__params: l($.out, $.value),
-    rule__body: seq(
-      s.type_value($.type, $.value),
-      s.match_cond(
-        $.type,
-        l(s.var(), s.view__expr_var($.out, $.value)),
-        l(s.number(), s.view__expr_number($.out, $.value)),
-        l(s.string(), s.view__expr_string($.out, $.value)),
-        l(s.box(), s.view__expr_box($.out, $.value)),
-      ),
-    ),
-  },
-
-  view__any_field: {
+  _view_field: {
     rule__params: l($.out, $.field, $.id),
     rule__body: seq(
       s.value_record_field($.value, $.id, $.field),
       s.html($.out, "div", l(), s.view__expr($.value)),
     ),
   },
-
-  view__any_record: {
+  _view: {
     file__name: "Default viewer",
     view__schema: "any_record",
     rule__params: l($.out, $.id, $.state),
@@ -85,7 +84,7 @@ export const viewAnyRecord = {
               l(),
 
               s.view__file_link($.field),
-              s.view__any_field($.field, $.id),
+              s._view_field($.field, $.id),
             ),
           ),
         ),
@@ -104,4 +103,4 @@ export const viewAnyRecord = {
       ),
     ),
   },
-} satisfies Record<string, Rec>;
+});

@@ -28,6 +28,7 @@ export function pkg(
   for (const id in data) {
     const key = id.startsWith("_") ? `${name}_${id}` : id;
     // TODO: add package field & visibility flag
+    if (key in out) throw new Error(`duplicate key ${key}`);
     out[key] = {};
     for (const field in data[id]) {
       out[key][field] = expandNamespace(name, data[id][field]);
