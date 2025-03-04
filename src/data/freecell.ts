@@ -275,7 +275,7 @@ export const freeCell = pkg("free_cell", {
       s.add($.rrank, $.lrank, 1),
       s._suit_color($.lsuit, $.lcolor),
       s._suit_color($.rsuit, $.rcolor),
-      s("/=", $.lcolor, $.rcolor),
+      s.not_equal($.lcolor, $.rcolor),
     ),
   },
   _test_col_pair: {
@@ -345,7 +345,7 @@ export const freeCell = pkg("free_cell", {
       ),
       seq(
         s.value_box_index($.card, $.with, $.i),
-        s("/=", $.card, s.empty(__)),
+        s.not_equal($.card, s.empty(__)),
         s.updated_box_index_value($.without, $.with, $.i, s.empty("")),
       ),
     ),

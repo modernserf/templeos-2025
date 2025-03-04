@@ -134,7 +134,7 @@ export const dbRules = {
                   $.item,
                   seq(
                     s.value_box_index(s.subscribe($.p, $.sub), $.prev, __),
-                    s("/=", $.p, $.pid),
+                    s.not_equal($.p, $.pid),
                     u($.item, s.subscribe($.p, $.sub)),
                   ),
                 ),

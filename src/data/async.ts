@@ -22,7 +22,7 @@ export const asyncRules = {
           s.timestamp($.before),
           s.sleep(10),
           s.timestamp($.after),
-          s("/=", $.before, $.after),
+          s.not_equal($.before, $.after),
         ),
       ),
     ),

@@ -36,7 +36,7 @@ export const testUtils = {
       seq($.goal, s.throw(s.expected_throw($.error_expected))),
       $.error_received,
       s.if_then_else(
-        s("=", $.error_expected, $.error_received),
+        s.unify($.error_expected, $.error_received),
         s.ok(),
         s.throw(s.expected_received($.error_expected, $.error_received)),
       ),
@@ -45,7 +45,7 @@ export const testUtils = {
   expect_eq: {
     rule__params: l($.received, $.expected),
     rule__body: s.if_then_else(
-      s(",", s.nonvar($.received), s("=", $.received, $.expected)),
+      seq(s.nonvar($.received), s.unify($.received, $.expected)),
       s.ok(),
       s.throw(s.expected_received($.expected, $.received)),
     ),

@@ -74,10 +74,10 @@ export function l<Args extends Expr[]>(...args: Args) {
 }
 
 export const seq = (head: Expr, ...tail: Expr[]) =>
-  tail.reduce((l, r) => s(",", l, r), head) as Box<string, Expr[]>;
+  tail.reduce((l, r) => s("seq2", l, r), head) as Box<string, Expr[]>;
 export const alt = (head: Expr, ...tail: Expr[]) =>
-  tail.reduce((l, r) => s(";", l, r), head) as Box<string, Expr[]>;
-export const u = (l: Expr, r: Expr) => s("=", l, r);
+  tail.reduce((l, r) => s("alt2", l, r), head) as Box<string, Expr[]>;
+export const u = (l: Expr, r: Expr) => s("unify", l, r);
 
 function sameTypeExpr<T extends Expr>(l: T, r: Expr): r is T {
   if (typeof l === "object" && typeof r === "object") {

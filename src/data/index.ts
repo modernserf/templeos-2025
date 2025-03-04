@@ -27,7 +27,6 @@ export type Schema =
   | "any_record"
   | "clipboard"
   | "field"
-  | "free_cell__game"
   | "folder"
   | "form"
   | "history"
@@ -92,9 +91,9 @@ export type HtmlProp =
   | Box<"style", [key: string, value: string]>;
 
 type SchemaField =
-  | Box<"field", [Field]>
-  | Box<"field_optional", [Field]>
-  | Box<"field_default", [Field, Expr]>;
+  | Box<"field", [Expr]>
+  | Box<"field_optional", [Expr]>
+  | Box<"field_default", [Expr, Expr]>;
 
 type IndexType =
   | Box<"ref", []> // TODO: what does this mean now?

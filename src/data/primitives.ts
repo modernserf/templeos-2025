@@ -80,19 +80,19 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (term.tag !== "var" && term.tag !== "fresh") yield it.result();
     },
   },
-  "=": {
+  unify: {
     rule__params: l($.left, $.right),
     rule__primitive: function* (it, left, right) {
       if (it.unify(left, right)) yield it.result();
     },
   },
-  "/=": {
+  not_equal: {
     rule__params: l($.left, $.right),
     rule__primitive: function* (it, left, right) {
       if (dif(left, right)) yield it.result();
     },
   },
-  ",": {
+  seq2: {
     rule__params: l($.before, $.after),
     rule__primitive: function* (it, before, after) {
       const gen = it.eval(before);
@@ -107,7 +107,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       }
     },
   },
-  ";": {
+  alt2: {
     rule__params: l($.before, $.after),
     rule__primitive: function* (it, before, after) {
       const s = it.choice();
@@ -532,7 +532,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       test.ok(s.type_value(s.box(), s.id(123, "hello"))),
       test.ok(s.type_value(s.box(), l(__, __))),
 
-      s("=", $.y, 123),
+      s.unify($.y, 123),
       test.ok(s.type_value(s.number(), $.y)),
     ),
   },
@@ -566,11 +566,11 @@ export const { rules, rulePrimitives } = compilePrimitives({
       s.limit(
         3,
         alt(
-          s["="]($.item, 1),
-          s["="]($.item, 2),
-          s["="]($.item, 3),
-          s["="]($.item, 4),
-          s["="]($.item, 5),
+          s.unify($.item, 1),
+          s.unify($.item, 2),
+          s.unify($.item, 3),
+          s.unify($.item, 4),
+          s.unify($.item, 5),
         ),
       ),
       1,

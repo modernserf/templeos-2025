@@ -216,7 +216,7 @@ export const core = {
     rule__params: l($.expr),
     rule__body: s.if_then_else($.expr, s.fail(), s.ok()),
   },
-  "==": {
+  equal: {
     file__description: l("compare without unifying vars"),
     rule__params: l($.left, $.right),
     rule__body: seq(
@@ -236,27 +236,27 @@ export const core = {
             // note: first one iterates, second one indexes
             s.value_box_index($.l, $.ls, $.i),
             s.value_box_index($.r, $.rs, $.i),
-            s("==", $.l, $.r),
+            s.equal($.l, $.r),
           ),
         ),
         l(__, u($.left, $.right)),
       ),
     ),
   },
-  "test__==": {
+  test__equal: {
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
-      test.ok(s("==", 1, 1)),
-      test.ok(s("==", "foo", "foo")),
-      test.ok(s("==", s.foo(123), s.foo(123))),
-      test.ok(s("==", s.foo(123), s.foo(__))),
-      test.ok(s("==", s.foo(123), __)),
+      test.ok(s.equal(1, 1)),
+      test.ok(s.equal("foo", "foo")),
+      test.ok(s.equal(s.foo(123), s.foo(123))),
+      test.ok(s.equal(s.foo(123), s.foo(__))),
+      test.ok(s.equal(s.foo(123), __)),
 
-      test.fail(s("==", 1, "1")),
-      test.fail(s("==", s.foo(123), s.foo(456))),
-      test.fail(s("==", s.foo(123), s.bar(123))),
-      test.fail(s("==", s.foo(123), s.foo(123, 456))),
+      test.fail(s.equal(1, "1")),
+      test.fail(s.equal(s.foo(123), s.foo(456))),
+      test.fail(s.equal(s.foo(123), s.bar(123))),
+      test.fail(s.equal(s.foo(123), s.foo(123, 456))),
     ),
   },
 
