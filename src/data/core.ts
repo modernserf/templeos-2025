@@ -181,10 +181,6 @@ export const core = {
     file__name: "Rule params",
     // db__type: s.list( s.any()),
   },
-  rule__rest_params: {
-    db__schema: "field",
-    file__name: "Rule rest params",
-  },
   rule__body: {
     db__schema: "field",
     file__name: "Rule body",
@@ -282,9 +278,12 @@ export const core = {
     ),
   },
   call: {
-    rule__params: l($.id),
-    rule__rest_params: $.args,
-    rule__body: seq(s.box_tag_list($.callable, $.id, $.args), $.callable),
+    rule__params: $.xs,
+    rule__body: seq(
+      s.append_left_right($.xs, l($.id), $.args),
+      s.box_tag_list($.callable, $.id, $.args),
+      $.callable,
+    ),
   },
   apply: {
     rule__params: l($.target, $.args),
@@ -314,12 +313,14 @@ export const core = {
   },
   cond: {
     file__description: l("pattern match on a list of (if, then) pairs"),
-    rule__params: l(l($.if, $.then)),
-    rule__rest_params: $.else,
-    rule__body: s.if_then_else(
-      $.if,
-      $.then,
-      s.if_then_else(u($.else, l()), s.fail(), s.apply(s.cond(), $.else)),
+    rule__params: $.args,
+    rule__body: seq(
+      s.append_left_right($.args, l(l($.if, $.then)), $.else),
+      s.if_then_else(
+        $.if,
+        $.then,
+        s.if_then_else(u($.else, l()), s.fail(), s.apply(s.cond(), $.else)),
+      ),
     ),
   },
   test__cond: {
@@ -353,21 +354,25 @@ export const core = {
     ),
   },
   match: {
-    rule__params: l($.pattern, $.match),
-    rule__rest_params: $.rest,
-    rule__body: s.if_then_else(
-      u($.pattern, $.match),
-      s.ok(),
-      seq(s.nonempty($.rest), s.apply(s.match($.pattern), $.rest)),
+    rule__params: $.params,
+    rule__body: seq(
+      s.append_left_right($.params, l($.pattern, $.match), $.rest),
+      s.if_then_else(
+        u($.pattern, $.match),
+        s.ok(),
+        seq(s.nonempty($.rest), s.apply(s.match($.pattern), $.rest)),
+      ),
     ),
   },
   match_cond: {
-    rule__params: l($.pattern, l($.match, $.then)),
-    rule__rest_params: $.rest,
-    rule__body: s.if_then_else(
-      u($.pattern, $.match),
-      $.then,
-      seq(s.nonempty($.rest), s.apply(s.match_cond($.pattern), $.rest)),
+    rule__params: $.params,
+    rule__body: seq(
+      s.append_left_right($.params, l($.pattern, l($.match, $.then)), $.rest),
+      s.if_then_else(
+        u($.pattern, $.match),
+        $.then,
+        seq(s.nonempty($.rest), s.apply(s.match_cond($.pattern), $.rest)),
+      ),
     ),
   },
   test__match: {
@@ -514,9 +519,9 @@ export const core = {
   },
 
   expr_iter: {
-    rule__params: l($.out, $.iter),
-    rule__rest_params: $.children,
+    rule__params: $.params,
     rule__body: seq(
+      s.append_left_right($.params, l($.out, $.iter), $.children),
       $.iter,
       s.value_box_index($.child, $.children, __),
       s.expr($.out, $.child),
@@ -535,14 +540,16 @@ export const core = {
   },
 
   pipe: {
-    rule__params: l($.out, $.in, $.first),
-    rule__rest_params: $.rest,
-    rule__body: s.if_then_else(
-      s.empty($.rest),
-      s.preply($.first, l($.out, $.in)),
-      seq(
-        s.preply($.first, l($.next, $.in)),
-        s.apply(s.pipe($.out, $.next), $.rest),
+    rule__params: $.params,
+    rule__body: seq(
+      s.append_left_right($.params, l($.out, $.in, $.first), $.rest),
+      s.if_then_else(
+        s.empty($.rest),
+        s.preply($.first, l($.out, $.in)),
+        seq(
+          s.preply($.first, l($.next, $.in)),
+          s.apply(s.pipe($.out, $.next), $.rest),
+        ),
       ),
     ),
   },

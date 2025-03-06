@@ -200,7 +200,7 @@ export class State {
 
   *eval(value: Value): ProcGen {
     value = resolveVar(value);
-    const { id, args, params, restParams, body } = this.getRule(value);
+    const { id, args, params, body } = this.getRule(value);
     if (this.pm.rulePrimitives[id]) {
       try {
         yield* this.pm.rulePrimitives[id](
@@ -223,18 +223,10 @@ export class State {
       this.trail,
       this.lastSave,
     );
-    for (let i = 0; i < params.length; i++) {
-      if (!nextState.unify(args[i], nextState.exprValue(params[i]))) return;
-    }
-    if (restParams) {
-      if (
-        !nextState.unify(
-          box("", args.slice(params.length)),
-          nextState.exprValue(restParams),
-        )
-      ) {
-        return;
-      }
+    const ps = nextState.exprValue(params);
+    const as = box("", args);
+    if (!nextState.unify(ps, as)) {
+      throw new Exception(box("invalid_call", [k(id), ps, as]));
     }
 
     try {
@@ -261,27 +253,11 @@ export class State {
     const rule = this.pm.db.get(id);
     if (!rule) throw new Exception(box("unknown_rule", [value]));
     if (!rule.rule__params) throw new Exception(box("invalid_rule", [value]));
-    if (rule.rule__rest_params && rule.rule__params.args.length > args.length) {
-      throw new Exception(
-        box("invalid_variadic_arity", [
-          k(rule.rule__params.args.length),
-          value,
-        ]),
-      );
-    } else if (
-      !rule.rule__rest_params &&
-      rule.rule__params.args.length !== args.length
-    ) {
-      throw new Exception(
-        box("invalid_arity", [k(rule.rule__params.args.length), value]),
-      );
-    }
 
     return {
       id,
       args,
-      params: rule.rule__params.args,
-      restParams: rule.rule__rest_params ?? null,
+      params: rule.rule__params,
       body: rule.rule__body ?? s.ok(),
     };
   }
@@ -500,7 +476,8 @@ export class ProcessManager {
   // initTarget is proc that received exit -- this pid is what's included in trapped error
   // target is proc that exit has propagated to via link
   exit(currentProc: Pid, initTarget: Pid, reason: Value, target = initTarget) {
-    const proc = this.processes.get(target)!;
+    const proc = this.processes.get(target);
+    if (!proc) return;
     if (proc.flags.trapExit) {
       this.send(target, box("exit", [k(initTarget), reason]));
       return;

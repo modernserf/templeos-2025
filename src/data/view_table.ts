@@ -3,9 +3,9 @@ import { test } from "./test_utils";
 
 export const viewTable = {
   table: {
-    rule__params: l($.out, $.props),
-    rule__rest_params: $.sections,
+    rule__params: $.params,
     rule__body: seq(
+      s.append_left_right($.params, l($.out, $.props), $.sections),
       s.expr_children($.rendered_sections, $.sections),
       s.nonempty($.rendered_sections),
       s.collect_item_in(
@@ -22,9 +22,9 @@ export const viewTable = {
     ),
   },
   table_section: {
-    rule__params: l($.out, $.header_props, $.header),
-    rule__rest_params: $.rows,
+    rule__params: $.params,
     rule__body: seq(
+      s.append_left_right($.params, l($.out, $.header_props, $.header), $.rows),
       s.expr_children($.rendered_header, $.header),
       s.expr_children($.rendered_rows, $.rows),
       s.nonempty($.rendered_rows),
@@ -43,9 +43,9 @@ export const viewTable = {
     ),
   },
   table_row: {
-    rule__params: l($.out, $.props),
-    rule__rest_params: $.items,
+    rule__params: $.params,
     rule__body: seq(
+      s.append_left_right($.params, l($.out, $.props), $.items),
       s.expr_children($.rendered_items, $.items),
       s.collect_item_in(
         $.cells,

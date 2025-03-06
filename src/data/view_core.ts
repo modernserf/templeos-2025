@@ -4,9 +4,9 @@ import { test } from "./test_utils";
 
 export const viewCore = {
   html: {
-    rule__params: l($.out, $.tag, $.props),
-    rule__rest_params: $.children,
+    rule__params: $.params,
     rule__body: seq(
+      s.append_left_right($.params, l($.out, $.tag, $.props), $.children),
       s.expr_children($.rendered_children, $.children),
       u($.out, s.Html($.tag, $.props, $.rendered_children)),
     ),
@@ -18,27 +18,27 @@ export const viewCore = {
     ),
   },
   row: {
-    rule__params: l($.out, $.props),
-    rule__rest_params: $.children,
+    rule__params: $.params,
     rule__body: seq(
+      s.append_left_right($.params, l($.out, $.props), $.children),
       s.append_left_right($.node_props, $.props, l(s.class("Row"))),
       s.expr_children($.rendered_children, $.children),
       u($.out, s.Html("div", $.node_props, $.rendered_children)),
     ),
   },
   column: {
-    rule__params: l($.out, $.props),
-    rule__rest_params: $.children,
+    rule__params: $.params,
     rule__body: seq(
+      s.append_left_right($.params, l($.out, $.props), $.children),
       s.append_left_right($.node_props, $.props, l(s.class("Column"))),
       s.expr_children($.rendered_children, $.children),
       u($.out, s.Html("div", $.node_props, $.rendered_children)),
     ),
   },
   wrap: {
-    rule__params: l($.out, $.props),
-    rule__rest_params: $.children,
+    rule__params: $.params,
     rule__body: seq(
+      s.append_left_right($.params, l($.out, $.props), $.children),
       s.append_left_right($.node_props, $.props, l(s.class("Wrap"))),
       s.expr_children($.rendered_children, $.children),
       u($.out, s.Html("div", $.node_props, $.rendered_children)),

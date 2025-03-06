@@ -60,7 +60,6 @@ export type Field =
   | "note__content"
   | "rule__body"
   | "rule__params"
-  | "rule__rest_params"
   | "text__content"
   | "time__created"
   | "view__schema"
@@ -110,7 +109,6 @@ export type Rec = Record<string, Expr> & {
   db__default_view?: Id;
 
   rule__params?: List<Expr>;
-  rule__rest_params?: Expr;
   rule__body?: Box<string, Expr[]>;
   view__schema?: Schema;
 

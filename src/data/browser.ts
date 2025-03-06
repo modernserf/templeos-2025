@@ -250,8 +250,8 @@ export const browserData = {
       ),
       $.window,
       $.current_window,
+      $.children,
     ),
-    rule__rest_params: $.children,
     rule__body: seq(s.expr_children($.rendered_children, $.children)),
   },
 
@@ -284,16 +284,17 @@ export const browserData = {
             $.out,
             $.window,
             $.current_window,
-
-            s.view__window_bar($.window, $.id, $.view, $.name),
-            s.html(
-              "div",
-              l(s.class("AppWindow__content")),
-              s.view__subscribe_render(
-                s.oneof(
-                  l(s.record($.history), s.record($.id), s.record($.view)),
+            l(
+              s.view__window_bar($.window, $.id, $.view, $.name),
+              s.html(
+                "div",
+                l(s.class("AppWindow__content")),
+                s.view__subscribe_render(
+                  s.oneof(
+                    l(s.record($.history), s.record($.id), s.record($.view)),
+                  ),
+                  s.view__window_content($.view, $.id, $.window, $.history),
                 ),
-                s.view__window_content($.view, $.id, $.window, $.history),
               ),
             ),
           ),
@@ -306,12 +307,13 @@ export const browserData = {
             $.out,
             $.window,
             $.current_window,
-
-            s.view__window_bar($.window, $.id, $.view, "Home"),
-            s.html(
-              "div",
-              l(s.class("AppWindow__content")),
-              s.view__string("Error, see console for details"),
+            l(
+              s.view__window_bar($.window, $.id, $.view, "Home"),
+              s.html(
+                "div",
+                l(s.class("AppWindow__content")),
+                s.view__string("Error, see console for details"),
+              ),
             ),
           ),
         ),

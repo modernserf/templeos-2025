@@ -14,10 +14,7 @@ import {
 function compilePrimitives(
   map: Record<
     string,
-    Pick<
-      Rec,
-      "test__group" | "rule__params" | "rule__rest_params" | "rule__body"
-    > & {
+    Pick<Rec, "test__group" | "rule__params" | "rule__body"> & {
       rule__primitive?: RulePrimitive;
     }
   >,
@@ -944,8 +941,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     },
   },
   log: {
-    rule__params: l(),
-    rule__rest_params: $.messages,
+    rule__params: $.messages,
     rule__primitive: function* (it, ...args) {
       console.log(...args.map((arg) => printValue(arg)));
       yield it.result();
