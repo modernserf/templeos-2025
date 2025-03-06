@@ -5,7 +5,7 @@ export const viewTable = {
   table: {
     rule__params: $.params,
     rule__body: seq(
-      s.append_left_right($.params, l($.out, $.props), $.sections),
+      s.params_rest($.params, l($.out, $.props), $.sections),
       s.expr_children($.rendered_sections, $.sections),
       s.nonempty($.rendered_sections),
       s.collect_item_in(
@@ -24,7 +24,7 @@ export const viewTable = {
   table_section: {
     rule__params: $.params,
     rule__body: seq(
-      s.append_left_right($.params, l($.out, $.header_props, $.header), $.rows),
+      s.params_rest($.params, l($.out, $.header_props, $.header), $.rows),
       s.expr_children($.rendered_header, $.header),
       s.expr_children($.rendered_rows, $.rows),
       s.nonempty($.rendered_rows),
@@ -45,7 +45,7 @@ export const viewTable = {
   table_row: {
     rule__params: $.params,
     rule__body: seq(
-      s.append_left_right($.params, l($.out, $.props), $.items),
+      s.params_rest($.params, l($.out, $.props), $.items),
       s.expr_children($.rendered_items, $.items),
       s.collect_item_in(
         $.cells,

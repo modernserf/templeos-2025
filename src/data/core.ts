@@ -278,9 +278,9 @@ export const core = {
     ),
   },
   call: {
-    rule__params: $.xs,
+    rule__params: $.params,
     rule__body: seq(
-      s.append_left_right($.xs, l($.id), $.args),
+      s.params_rest($.params, l($.id), $.args),
       s.box_tag_list($.callable, $.id, $.args),
       $.callable,
     ),
@@ -356,7 +356,7 @@ export const core = {
   match: {
     rule__params: $.params,
     rule__body: seq(
-      s.append_left_right($.params, l($.pattern, $.match), $.rest),
+      s.params_rest($.params, l($.pattern, $.match), $.rest),
       s.if_then_else(
         u($.pattern, $.match),
         s.ok(),
@@ -367,7 +367,7 @@ export const core = {
   match_cond: {
     rule__params: $.params,
     rule__body: seq(
-      s.append_left_right($.params, l($.pattern, l($.match, $.then)), $.rest),
+      s.params_rest($.params, l($.pattern, l($.match, $.then)), $.rest),
       s.if_then_else(
         u($.pattern, $.match),
         $.then,
@@ -521,7 +521,7 @@ export const core = {
   expr_iter: {
     rule__params: $.params,
     rule__body: seq(
-      s.append_left_right($.params, l($.out, $.iter), $.children),
+      s.params_rest($.params, l($.out, $.iter), $.children),
       $.iter,
       s.value_box_index($.child, $.children, __),
       s.expr($.out, $.child),
@@ -542,7 +542,7 @@ export const core = {
   pipe: {
     rule__params: $.params,
     rule__body: seq(
-      s.append_left_right($.params, l($.out, $.in, $.first), $.rest),
+      s.params_rest($.params, l($.out, $.in, $.first), $.rest),
       s.if_then_else(
         s.empty($.rest),
         s.preply($.first, l($.out, $.in)),
@@ -608,6 +608,27 @@ export const core = {
       l(s.var($.l), s.sub__primitive($.l, $.sum, $.r)),
       l(s.var($.r), s.sub__primitive($.r, $.sum, $.l)),
       l(s.ok(), s.add__primitive($.sum, $.l, $.r)),
+    ),
+  },
+  ensure: {
+    rule__params: l($.goal, $.error),
+    rule__body: s.if_then_else($.goal, s.ok(), s.throw($.error)),
+  },
+  test__ensure: {
+    test__group: "core",
+    rule__params: l(),
+    rule__body: seq(
+      test.throw(
+        s.ensure(s.append_left_right(l(), l($.head), $.tail), s.invalid_args()),
+        s.invalid_args(),
+      ),
+    ),
+  },
+  params_rest: {
+    rule__params: l($.params, $.required, $.rest),
+    rule__body: s.ensure(
+      s.append_left_right($.params, $.required, $.rest),
+      s.invalid_params($.params, $.required, $.rest),
     ),
   },
 } satisfies Record<string, Rec>;

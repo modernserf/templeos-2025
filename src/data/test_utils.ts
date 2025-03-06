@@ -53,7 +53,7 @@ export const testUtils = {
   expect_collect: {
     rule__params: $.params,
     rule__body: seq(
-      s.append_left_right($.params, l($.pattern, $.goal), $.expected),
+      s.params_rest($.params, l($.pattern, $.goal), $.expected),
       s.if_then_else(
         s.collect_item_in($.received, $.pattern, $.goal),
         s.expect_eq($.received, $.expected),
