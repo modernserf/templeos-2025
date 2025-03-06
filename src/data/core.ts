@@ -539,6 +539,22 @@ export const core = {
     ),
   },
 
+  lapply: {
+    rule__params: l($.args, $.fn),
+    rule__body: s.cond(
+      l(u($.fn, s.fn($.params, $.goal)), seq(u($.args, $.params), $.goal)),
+      l(s.ok(), seq(s.append_box_prefix($.callable, $.fn, $.args), $.callable)),
+    ),
+  },
+
+  dot: {
+    rule__params: l($.out, $.left, $.right),
+    rule__body: seq(
+      s.lapply(l($.subject), $.left),
+      s.lapply(l($.out, $.subject), $.right),
+    ),
+  },
+
   pipe: {
     rule__params: $.params,
     rule__body: seq(

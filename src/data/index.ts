@@ -22,6 +22,7 @@ import { clipboardInitState, clipboardRules } from "./clipboard";
 import { asyncRules } from "./async";
 import { supervisor } from "./supervisor";
 import { freeCell } from "./freecell";
+import { ord } from "./ord";
 
 export type Schema =
   | "any_record"
@@ -161,6 +162,7 @@ export const data = mergeAndCheck(
     freeCell,
     note,
     omnibox,
+    ord,
     rulePrimitiveRecs,
     supervisor,
     testUtils,
