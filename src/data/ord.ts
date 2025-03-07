@@ -50,20 +50,7 @@ export const ord = pkg("ord", {
       s.expect_ok(s.ord(s.lt(), "foo", s.bar())),
     ),
   },
-  min: {
-    rule__params: l($.min, $.left, $.right),
-    rule__body: seq(
-      s.ord($.ord, $.left, $.right),
-      s.match(l($.min, $.ord), l($.left, s.lt()), l($.right, __)),
-    ),
-  },
-  max: {
-    rule__params: l($.max, $.left, $.right),
-    rule__body: seq(
-      s.ord($.ord, $.left, $.right),
-      s.match(l($.max, $.ord), l($.left, s.gt()), l($.right, __)),
-    ),
-  },
+
   lt: {
     rule__params: l($.left, $.right),
     rule__body: s.ord(s.lt(), $.left, $.right),

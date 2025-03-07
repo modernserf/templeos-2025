@@ -26,6 +26,7 @@ import { ord } from "./ord";
 import { debug } from "./debugger";
 import { time } from "./time";
 import { list } from "./list";
+import { number } from "./number";
 
 export type Schema =
   | "any_record"
@@ -166,6 +167,7 @@ export const data = mergeAndCheck(
     freeCell,
     list,
     note,
+    number,
     omnibox,
     ord,
     rulePrimitiveRecs,

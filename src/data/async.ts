@@ -8,7 +8,7 @@ export const asyncRules = pkg("async", {
     rule__body: seq(
       s.self($.self),
       s.id($.id),
-      s.expr($.time_ms, $.duration),
+      s.expr_number($.time_ms, $.duration),
       s.send_async($.self, s.wake($.id), $.time_ms),
       s.receive(s.wake($.id)),
     ),

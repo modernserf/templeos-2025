@@ -289,7 +289,7 @@ export const freeCell = pkg("free_cell", {
   _col_pair: {
     rule__params: l(s.card($.lsuit, $.lrank), s.card($.rsuit, $.rrank)),
     rule__body: seq(
-      s.add($.rrank, $.lrank, 1),
+      s.inc($.rrank, $.lrank),
       s._suit_color($.lsuit, $.lcolor),
       s._suit_color($.rsuit, $.rcolor),
       s.not_equal($.lcolor, $.rcolor),
@@ -375,7 +375,7 @@ export const freeCell = pkg("free_cell", {
         l(l(s.empty("A"), s.card(__, 1)), s.ok()),
         l(
           l(s.card($.suit, $.lrank), s.card($.suit, $.rrank)),
-          s.add($.rrank, $.lrank, 1),
+          s.inc($.rrank, $.lrank),
         ),
       ),
     ),

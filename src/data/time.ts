@@ -7,19 +7,19 @@ export const time = pkg("time", {
   },
   seconds: {
     rule__params: l($.ms, $.s),
-    rule__body: s.multiply($.ms, $.s, 1000),
+    rule__body: s.product($.ms, $.s, 1000),
   },
   minutes: {
     rule__params: l($.ms, $.m),
-    rule__body: s.multiply($.ms, $.m, 1000 * 60),
+    rule__body: s.product($.ms, $.m, 1000 * 60),
   },
   hours: {
     rule__params: l($.ms, $.h),
-    rule__body: s.multiply($.ms, $.h, 1000 * 60 * 60),
+    rule__body: s.product($.ms, $.h, 1000 * 60 * 60),
   },
   days: {
     rule__params: l($.ms, $.m),
-    rule__body: s.multiply($.ms, $.m, 1000 * 60 * 60 * 24),
+    rule__body: s.product($.ms, $.m, 1000 * 60 * 60 * 24),
   },
   _test_conversions: {
     test__group: "time",

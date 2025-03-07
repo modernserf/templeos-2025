@@ -15,7 +15,7 @@ export const list = pkg("list", {
           seq(
             s.value_box_index($.item, $.list, $.index),
             s.ensure_det(s.lapply(l($.next_state, $.state, $.item), $.fn)),
-            s.add($.next_index, $.index, 1),
+            s.inc($.next_index, $.index),
             s.fail(),
           ),
         ),

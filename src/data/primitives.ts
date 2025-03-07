@@ -1137,6 +1137,35 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (it.unify(sum, k(left.value / right.value))) yield it.result();
     },
   },
+  divrem__primitive: {
+    rule__params: l($.div, $.mod, $.left, $.right),
+    rule__primitive: function* (it, div, rem, left, right) {
+      ensure(left, "number");
+      ensure(right, "number");
+      const q = Math.trunc(left.value / right.value);
+      const r = left.value % right.value;
+      if (it.unify(div, k(q)) && it.unify(rem, k(r))) yield it.result();
+    },
+  },
+  mod__primitive: {
+    rule__params: l($.mod, $.left, $.right),
+    rule__primitive: function* (it, mod, left, right) {
+      ensure(left, "number");
+      ensure(right, "number");
+      const n = left.value;
+      const d = right.value;
+      if (it.unify(mod, k(((n % d) + d) % d))) yield it.result();
+    },
+  },
+  trunc__primitive: {
+    rule__params: l($.trunc, $.frac, $.value),
+    rule__primitive: function* (it, trunc, frac, value) {
+      ensure(value, "number");
+      const t = Math.trunc(value.value);
+      const f = value.value - t;
+      if (it.unify(trunc, k(t)) && it.unify(frac, k(f))) yield it.result();
+    },
+  },
   ord__string: {
     rule__params: l($.ord, $.left, $.right),
     rule__primitive: function* (it, ord, left, right) {

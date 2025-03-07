@@ -509,11 +509,13 @@ export const core = {
   expr: {
     file__description: l("evaluate box tree as expression"),
     rule__params: l($.out, $.expr),
+    rule__body: s.lapply(l($.out), $.expr),
+  },
+  expr_number: {
+    file__description: l("evaluate box tree as expression"),
+    rule__params: l($.out, $.expr),
     rule__body: s.cond(
-      l(s.var($.expr), s.throw(s.invalid_expr($.expr))),
-      l(s.string($.expr), u($.out, $.expr)),
       l(s.number($.expr), u($.out, $.expr)),
-      l(s.list($.expr), u($.out, $.expr)),
       l(s.ok(), s.lapply(l($.out), $.expr)),
     ),
   },
@@ -589,22 +591,7 @@ export const core = {
       ),
     ),
   },
-  add: {
-    rule__params: l($.sum, $.l, $.r),
-    rule__body: s.cond(
-      l(s.var($.l), s.sub__primitive($.l, $.sum, $.r)),
-      l(s.var($.r), s.sub__primitive($.r, $.sum, $.l)),
-      l(s.ok(), s.add__primitive($.sum, $.l, $.r)),
-    ),
-  },
-  multiply: {
-    rule__params: l($.product, $.l, $.r),
-    rule__body: s.cond(
-      l(s.var($.l), s.fdiv__primitive($.l, $.product, $.r)),
-      l(s.var($.r), s.fdiv__primitive($.r, $.product, $.l)),
-      l(s.ok(), s.mul__primitive($.product, $.l, $.r)),
-    ),
-  },
+
   ensure: {
     rule__params: l($.goal, $.error),
     rule__body: s.if_then_else($.goal, s.ok(), s.throw($.error)),
