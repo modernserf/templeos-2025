@@ -1,4 +1,4 @@
-import { l, seq, s, $, u, __ } from "../expr";
+import { l, seq, s, $, u, __, dot } from "../expr";
 import { test } from "./test_utils";
 
 export const viewTable = {
@@ -8,12 +8,13 @@ export const viewTable = {
       s.params_rest($.params, l($.out, $.props), $.sections),
       s.expr_children($.rendered_sections, $.sections),
       s.nonempty($.rendered_sections),
+
       s.collect_item_in(
         $.flat,
         $.item,
-        s.pipe(
+        dot(
           $.item,
-          $.rendered_sections,
+          s.unify($.rendered_sections),
           s.value_box_index(__),
           s.value_box_index(__),
         ),

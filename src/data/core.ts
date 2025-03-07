@@ -278,26 +278,36 @@ export const core = {
     ),
   },
   call: {
-    rule__params: $.params,
-    rule__body: seq(
-      s.params_rest($.params, l($.id), $.args),
-      s.box_tag_list($.callable, $.id, $.args),
-      $.callable,
+    rule__params: l($.tag, $.args),
+    rule__body: seq(s.box_tag_list($.callable, $.tag, $.args), $.callable),
+  },
+  lapply: {
+    rule__params: l($.args, $.fn),
+    rule__body: s.if_then_else(
+      u($.fn, s.fn($.params, $.goal)),
+      s._apply_fn($.args, $.fn),
+      s._lapply_partial($.args, $.fn),
     ),
   },
-  apply: {
-    rule__params: l($.target, $.args),
-    rule__body: seq(
-      s.append_box_suffix($.callable, $.target, $.args),
-      $.callable,
+  rapply: {
+    rule__params: l($.args, $.fn),
+    rule__body: s.if_then_else(
+      u($.fn, s.fn($.params, $.goal)),
+      s._apply_fn($.args, $.fn),
+      s._rapply_partial($.args, $.fn),
     ),
   },
-  preply: {
-    rule__params: l($.target, $.args),
-    rule__body: seq(
-      s.append_box_prefix($.callable, $.target, $.args),
-      $.callable,
-    ),
+  _apply_fn: {
+    rule__params: l($.args, s.fn($.params, $.goal)),
+    rule__body: seq(u($.args, $.params), $.goal),
+  },
+  _lapply_partial: {
+    rule__params: l($.args, $.fn),
+    rule__body: seq(s.append_box_prefix($.callable, $.fn, $.args), $.callable),
+  },
+  _rapply_partial: {
+    rule__params: l($.args, $.fn),
+    rule__body: seq(s.append_box_suffix($.callable, $.fn, $.args), $.callable),
   },
   empty: {
     rule__params: l($.box),
@@ -305,11 +315,7 @@ export const core = {
   },
   nonempty: {
     rule__params: l($.box),
-    rule__body: s.if_then_else(
-      s.box_tag_list($.box, __, l()),
-      s.fail(),
-      s.ok(),
-    ),
+    rule__body: s.none(s.box_tag_list($.box, __, l())),
   },
   cond: {
     file__description: l("pattern match on a list of (if, then) pairs"),
@@ -319,7 +325,11 @@ export const core = {
       s.if_then_else(
         $.if,
         $.then,
-        s.if_then_else(u($.else, l()), s.fail(), s.apply(s.cond(), $.else)),
+        s.if_then_else(
+          s.empty($.else),
+          s.fail(),
+          s._lapply_partial($.else, s.cond()),
+        ),
       ),
     ),
   },
@@ -360,7 +370,7 @@ export const core = {
       s.if_then_else(
         u($.pattern, $.match),
         s.ok(),
-        seq(s.nonempty($.rest), s.apply(s.match($.pattern), $.rest)),
+        seq(s.nonempty($.rest), s._rapply_partial($.rest, s.match($.pattern))),
       ),
     ),
   },
@@ -371,7 +381,10 @@ export const core = {
       s.if_then_else(
         u($.pattern, $.match),
         $.then,
-        seq(s.nonempty($.rest), s.apply(s.match_cond($.pattern), $.rest)),
+        seq(
+          s.nonempty($.rest),
+          s._rapply_partial($.rest, s.match_cond($.pattern)),
+        ),
       ),
     ),
   },
@@ -504,7 +517,13 @@ export const core = {
   expr: {
     file__description: l("evaluate box tree as expression"),
     rule__params: l($.out, $.expr),
-    rule__body: s.preply($.expr, l($.out)),
+    rule__body: s.cond(
+      l(s.var($.expr), s.throw(s.invalid_expr($.expr))),
+      l(s.string($.expr), u($.out, $.expr)),
+      l(s.number($.expr), u($.out, $.expr)),
+      l(s.list($.expr), u($.out, $.expr)),
+      l(s.ok(), s.lapply(l($.out), $.expr)),
+    ),
   },
   expr_children: {
     rule__params: l($.out, $.children),
@@ -539,51 +558,11 @@ export const core = {
     ),
   },
 
-  lapply: {
-    rule__params: l($.args, $.fn),
-    rule__body: s.cond(
-      l(u($.fn, s.fn($.params, $.goal)), seq(u($.args, $.params), $.goal)),
-      l(s.ok(), seq(s.append_box_prefix($.callable, $.fn, $.args), $.callable)),
-    ),
-  },
-
   dot: {
     rule__params: l($.out, $.left, $.right),
     rule__body: seq(
       s.lapply(l($.subject), $.left),
       s.lapply(l($.out, $.subject), $.right),
-    ),
-  },
-
-  pipe: {
-    rule__params: $.params,
-    rule__body: seq(
-      s.params_rest($.params, l($.out, $.in, $.first), $.rest),
-      s.if_then_else(
-        s.empty($.rest),
-        s.preply($.first, l($.out, $.in)),
-        seq(
-          s.preply($.first, l($.next, $.in)),
-          s.apply(s.pipe($.out, $.next), $.rest),
-        ),
-      ),
-    ),
-  },
-  test__pipe: {
-    test__group: "core",
-    rule__params: l(),
-    rule__body: seq(
-      test.collect(
-        $.result,
-        s.pipe(
-          $.result,
-          l(1, 2),
-          s.append_left_right(l(3)),
-          s.append_left_right(l(4, 5)),
-        ),
-
-        l(1, 2, 3, 4, 5),
-      ),
     ),
   },
 

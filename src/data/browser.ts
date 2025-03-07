@@ -142,7 +142,7 @@ export const browserData = {
               s.render(),
               seq(
                 s.if_then_else(
-                  s.preply($.render, l($.render_out)),
+                  s.lapply(l($.render_out), $.render),
                   s.send($.view, $.render_out),
                   // TODO: should something else happen when render fails?
                   s.send($.view, s.Null()),
@@ -258,7 +258,7 @@ export const browserData = {
 
   view__window_content: {
     rule__params: l($.out, $.view, $.id, $.window, $.history),
-    rule__body: seq(s.call($.view, $.out, $.id, $.history)),
+    rule__body: seq(s.call($.view, l($.out, $.id, $.history))),
   },
 
   view__window: {

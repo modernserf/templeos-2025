@@ -225,6 +225,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       while (!next.done) {
         if (next.value.tag === "result") {
           didSucceed = true;
+          it.cut(s);
           yield* next.value.result.eval(then_);
           next = gen.next();
         } else {
@@ -253,6 +254,17 @@ export const { rules, rulePrimitives } = compilePrimitives({
         "bar",
       ),
       test.fail(s.if_then_else(s.ok(), s.fail(), s.ok())),
+
+      test.collect(
+        $.result,
+        s.if_then_else(
+          alt(u($.foo, 1), u($.foo, 2)),
+          u($.result, $.foo),
+          s.ok(),
+        ),
+        1,
+        2,
+      ),
     ),
   },
   throw: {
