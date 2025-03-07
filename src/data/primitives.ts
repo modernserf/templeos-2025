@@ -432,7 +432,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
         $.bar,
         seq(
           s.link($.foo),
-          s.agent__update(
+          s.agent_update(
             $.agent,
             $.n,
             $.p,
@@ -441,7 +441,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
           s.send($.foo, l()),
           // yield to allow linked process to fail
           s.sleep(1),
-          s.agent__update(
+          s.agent_update(
             $.agent,
             $.n1,
             $.p1,
@@ -450,7 +450,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
         ),
       ),
       s.sleep(10),
-      test.collect($.res, s.agent__get($.res, $.agent), l(123, 456)),
+      test.collect($.res, s.agent_get($.res, $.agent), l(123, 456)),
     ),
   },
   test__exit: {
@@ -461,7 +461,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       s.spawn(
         $.bar,
         seq(
-          s.agent__update(
+          s.agent_update(
             $.agent,
             $.n,
             $.p,
@@ -469,7 +469,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
           ),
           // yield to allow parent process to kill
           s.sleep(1),
-          s.agent__update(
+          s.agent_update(
             $.agent,
             $.n1,
             $.p1,
@@ -478,7 +478,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
         ),
       ),
       s.exit($.bar, s.kill()),
-      test.collect($.res, s.agent__get($.res, $.agent), l(123, 456)),
+      test.collect($.res, s.agent_get($.res, $.agent), l(123, 456)),
     ),
   },
   trap_exit: {
@@ -499,7 +499,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
         seq(
           s.trap_exit(),
           s.link($.foo),
-          s.agent__update(
+          s.agent_update(
             $.agent,
             $.n,
             $.p,
@@ -510,7 +510,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
           s.sleep(1),
           s.receive(s.exit($.foo, s.fail())),
 
-          s.agent__update(
+          s.agent_update(
             $.agent,
             $.n1,
             $.p1,
@@ -519,7 +519,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
         ),
       ),
       s.sleep(10),
-      test.collect($.res, s.agent__get($.res, $.agent), l(123, 456, 789)),
+      test.collect($.res, s.agent_get($.res, $.agent), l(123, 456, 789)),
     ),
   },
 

@@ -517,6 +517,10 @@ export const core = {
       l(s.ok(), s.lapply(l($.out), $.expr)),
     ),
   },
+  expr_unify: {
+    rule__params: l($.left, $.right),
+    rule__body: seq(s.expr($.out, $.right), s.expr($.out, $.left)),
+  },
   expr_children: {
     rule__params: l($.out, $.children),
     rule__body: s.collect_item_in(
@@ -595,6 +599,14 @@ export const core = {
       l(s.var($.l), s.sub__primitive($.l, $.sum, $.r)),
       l(s.var($.r), s.sub__primitive($.r, $.sum, $.l)),
       l(s.ok(), s.add__primitive($.sum, $.l, $.r)),
+    ),
+  },
+  multiply: {
+    rule__params: l($.product, $.l, $.r),
+    rule__body: s.cond(
+      l(s.var($.l), s.fdiv__primitive($.l, $.product, $.r)),
+      l(s.var($.r), s.fdiv__primitive($.r, $.product, $.l)),
+      l(s.ok(), s.mul__primitive($.product, $.l, $.r)),
     ),
   },
   ensure: {

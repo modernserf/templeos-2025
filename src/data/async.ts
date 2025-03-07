@@ -1,26 +1,26 @@
-import { Rec } from ".";
 import { l, s, $, __, seq, u } from "../expr";
+import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
-export const asyncRules = {
-  // TODO: duration type
+export const asyncRules = pkg("async", {
   sleep: {
-    rule__params: l($.time_ms),
+    rule__params: l($.duration),
     rule__body: seq(
       s.self($.self),
       s.id($.id),
+      s.expr($.time_ms, $.duration),
       s.send_async($.self, s.wake($.id), $.time_ms),
       s.receive(s.wake($.id)),
     ),
   },
-  test__sleep: {
+  _test_sleep: {
     test__group: "async",
     rule__params: l(),
     rule__body: seq(
       test.ok(
         seq(
           s.timestamp($.before),
-          s.sleep(10),
+          s.sleep(s.seconds(0.01)),
           s.timestamp($.after),
           s.not_equal($.before, $.after),
         ),
@@ -38,23 +38,17 @@ export const asyncRules = {
       s.receive(s.right($.id)),
     ),
   },
-  test__async_join: {
+  _test_async_join: {
     test__group: "async",
     rule__params: l(),
     rule__body: seq(
-      test.collect(
-        l($.left, $.right),
-        seq(
-          s.self($.self),
-          s.async_join(
-            seq(s.sleep(10), s.send($.self, s.left_result("foo"))),
-            seq(s.sleep(20), s.send($.self, s.right_result("bar"))),
-          ),
-          s.receive(s.left_result($.left)),
-          s.receive(s.right_result($.right)),
-        ),
-        l("foo", "bar"),
+      s.agent($.agent, l()),
+      s.async_join(
+        seq(s.sleep(10), s.agent_push($.agent, s.left())),
+        seq(s.sleep(20), s.agent_push($.agent, s.right())),
       ),
+      s.agent_push($.agent, s.after()),
+      test.ok(s.agent_get(l(s.left(), s.right(), s.after()), $.agent)),
     ),
   },
   async_race: {
@@ -68,23 +62,19 @@ export const asyncRules = {
       s.receive(s.race(__, $.id)),
     ),
   },
-  test__async_race: {
+  _test_async_race: {
     test__group: "async",
     rule__params: l(),
     rule__body: seq(
-      test.collect(
-        $.result,
-        seq(
-          s.self($.self),
-          s.async_race(
-            seq(s.sleep(10), s.send($.self, s.race("foo"))),
-            seq(s.sleep(20), s.send($.self, s.race("bar"))),
-          ),
-          s.receive(s.race($.result)),
-          s.receive(s.race("bar")),
-        ),
-        "foo",
+      s.agent($.agent, l()),
+      s.async_race(
+        seq(s.sleep(10), s.agent_push($.agent, s.left())),
+        seq(s.sleep(20), s.agent_push($.agent, s.right())),
       ),
+      s.agent_push($.agent, s.after()),
+      test.ok(s.agent_get(l(s.left(), s.after()), $.agent)),
+      s.sleep(20),
+      test.ok(s.agent_get(l(s.left(), s.after(), s.right()), $.agent)),
     ),
   },
 
@@ -117,7 +107,7 @@ export const asyncRules = {
       ),
     ),
   },
-  agent__get: {
+  agent_get: {
     rule__params: l($.value, $.agent),
     rule__body: seq(
       s.id($.ref),
@@ -126,33 +116,33 @@ export const asyncRules = {
       s.receive(s.get($.ref, $.value)),
     ),
   },
-  agent__update: {
+  agent_update: {
     rule__params: l($.agent, $.out, $.in, $.goal),
     rule__body: seq(
       s.send($.agent, s.update($.out, $.in, $.goal)), //
     ),
   },
 
-  agent__push: {
+  agent_push: {
     rule__params: l($.agent, $.value),
-    rule__body: s.agent__update(
+    rule__body: s.agent_update(
       $.agent,
       $.next,
       $.prev,
       s.append_left_right($.next, $.prev, l($.value)),
     ),
   },
-  agent__pop: {
+  agent_pop: {
     rule__params: l($.agent, $.value),
     rule__body: seq(
-      s.agent__get($.stack, $.agent),
+      s.agent_get($.stack, $.agent),
       s.append_left_right($.stack, $.popped, l($.value)),
       // TODO: sync update that provides access to prev & next
-      s.agent__update($.agent, $.next, __, u($.next, $.popped)),
+      s.agent_update($.agent, $.next, __, u($.next, $.popped)),
     ),
   },
 
-  test__agent: {
+  _test_agent: {
     test__group: "async",
     rule__params: l(),
     rule__body: seq(
@@ -160,11 +150,11 @@ export const asyncRules = {
         $.res,
         seq(
           s.agent($.agent, l(123)),
-          s.agent__push($.agent, 456),
-          s.agent__get($.res, $.agent),
+          s.agent_push($.agent, 456),
+          s.agent_get($.res, $.agent),
         ),
         l(123, 456),
       ),
     ),
   },
-} satisfies Record<string, Rec>;
+});

@@ -112,19 +112,19 @@ export const supervisor = pkg("supervisor", {
     rule__params: l($.name, $.agent),
     rule__body: seq(
       seq(
-        s.agent__push($.agent, s.init($.name)),
+        s.agent_push($.agent, s.init($.name)),
         s.loop(
           seq(
             s.receive($.pat),
             s.match_cond(
               $.pat,
-              l(s.continue(), s.agent__push($.agent, s.continue($.name))),
+              l(s.continue(), s.agent_push($.agent, s.continue($.name))),
               l(s.stop(), s.fail()),
               l(s.error(), s.throw(s.error($.name))),
             ),
           ),
         ),
-        s.agent__push($.agent, s.exit($.name)),
+        s.agent_push($.agent, s.exit($.name)),
       ),
     ),
   },
@@ -152,31 +152,31 @@ export const supervisor = pkg("supervisor", {
       ),
       test.collect(
         $.res,
-        s.agent__get($.res, $.agent),
+        s.agent_get($.res, $.agent),
         l(s.init("foo"), s.init("bar"), s.init("baz")),
       ),
-      s.agent__update($.agent, $.next, __, u($.next, l())),
+      s.agent_update($.agent, $.next, __, u($.next, l())),
 
       s._test_broadcast($.supervisor, s.continue()),
       test.collect(
         $.res,
-        s.agent__get($.res, $.agent),
+        s.agent_get($.res, $.agent),
         l(s.continue("foo"), s.continue("bar"), s.continue("baz")),
       ),
-      s.agent__update($.agent, $.next, __, u($.next, l())),
+      s.agent_update($.agent, $.next, __, u($.next, l())),
 
       s._test_broadcast($.supervisor, s.error()),
       test.collect(
         $.res,
-        s.agent__get($.res, $.agent),
+        s.agent_get($.res, $.agent),
         l(s.init("bar"), s.init("baz")),
       ),
-      s.agent__update($.agent, $.next, __, u($.next, l())),
+      s.agent_update($.agent, $.next, __, u($.next, l())),
 
       s._test_broadcast($.supervisor, s.stop()),
       test.collect(
         $.res,
-        s.agent__get($.res, $.agent),
+        s.agent_get($.res, $.agent),
         l(s.exit("bar"), s.exit("baz"), s.init("baz")),
       ),
     ),

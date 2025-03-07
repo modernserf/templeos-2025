@@ -1,7 +1,7 @@
 import { Rec } from "./data";
 import { TransactDB } from "./db";
 import { EventSource } from "./event_source";
-import { $, Expr, l, s } from "./expr";
+import { Expr, s } from "./expr";
 import { Value, Fact, box, k, fresh, printValue } from "./value";
 
 type Proc =

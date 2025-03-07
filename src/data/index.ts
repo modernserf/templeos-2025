@@ -24,7 +24,7 @@ import { supervisor } from "./supervisor";
 import { freeCell } from "./freecell";
 import { ord } from "./ord";
 import { debug } from "./debugger";
-import { pkg } from "../pkg";
+import { time } from "./time";
 
 export type Schema =
   | "any_record"
@@ -174,6 +174,7 @@ export const data = mergeAndCheck(
     viewForm,
     viewTable,
     text,
+    time,
     {
       home: {
         db__schema: "form",
