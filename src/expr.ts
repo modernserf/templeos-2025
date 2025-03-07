@@ -15,18 +15,25 @@ export type Box<Id, Args extends Expr[]> = {
 export type List<T extends Expr> = Box<"", T[]>;
 export const __ = { tag: "placeholder" } as const;
 
+type SInfix = (...left: Expr[]) => Record<string, (...right: Expr[]) => Expr>;
+
 export const s = new Proxy(
-  <T extends Id, Args extends Expr[]>(id: T, ...args: Args) =>
-    ({ tag: "box", id, args } as const),
+  <Args extends Expr[]>(...left: Args) =>
+    new Proxy(
+      {},
+      {
+        get(_, id: string) {
+          return (...right: Expr[]) =>
+            ({ tag: "box", id, args: [...left, ...right] } as const);
+        },
+      },
+    ),
   {
-    get<T extends string>(_: unknown, tag: T) {
-      return (...args: Expr[]) => s(tag, ...args);
+    get<T extends string>(_: unknown, id: T) {
+      return (...args: Expr[]) => ({ tag: "box", id, args } as const);
     },
   },
-) as (<T extends Id, Args extends Expr[]>(
-  id: T,
-  ...args: Args
-) => Box<T, Args>) & { [Tag in Id]: S<Tag> } & Ss<"call"> &
+) as { [Tag in Id]: S<Tag> } & Ss<"call"> &
   Ss<"apply"> &
   Ss<"section"> &
   Ss<"link"> &
@@ -36,7 +43,8 @@ export const s = new Proxy(
   Ss<"sorted"> &
   Ss<"code"> &
   Ss<"field"> &
-  Ss<"field_optional">;
+  Ss<"field_optional"> &
+  SInfix;
 
 type Ss<Tag extends string> = { [t in Tag]: S<Tag> };
 
@@ -48,8 +56,7 @@ export const f = new Proxy(
   {},
   {
     get<T extends string>(_: unknown, field: T) {
-      return (id: Expr, value: Expr) =>
-        s("record_field_value", id, field, value);
+      return (id: Expr, value: Expr) => s.record_field_value(id, field, value);
     },
   },
 ) as Record<
@@ -70,14 +77,14 @@ export const $: any = new Proxy(
 );
 
 export function l<Args extends Expr[]>(...args: Args) {
-  return s("", ...args);
+  return { tag: "box", id: "", args } as const;
 }
 
 export const seq = (head: Expr, ...tail: Expr[]) =>
-  tail.reduce((l, r) => s("seq2", l, r), head) as Box<string, Expr[]>;
+  tail.reduce((l, r) => s.seq2(l, r), head) as Box<string, Expr[]>;
 export const alt = (head: Expr, ...tail: Expr[]) =>
-  tail.reduce((l, r) => s("alt2", l, r), head) as Box<string, Expr[]>;
-export const u = (l: Expr, r: Expr) => s("unify", l, r);
+  tail.reduce((l, r) => s.alt2(l, r), head) as Box<string, Expr[]>;
+export const u = (l: Expr, r: Expr) => s.unify(l, r);
 
 export function dot(out: Expr, first: Expr, ...rest: Expr[]): Expr {
   if (!rest.length) throw new Error("invalid dot chain");

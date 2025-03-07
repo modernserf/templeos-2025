@@ -40,7 +40,7 @@ export const collectionData = {
       l(),
       s.expr_iter(f.file__description($.id, $.desc), s.view__text($.desc)),
       s.expr_iter(
-        s.value_box_index($.item, $.collection, __),
+        s($.item).in($.collection),
         s.row(l(), s.view__file_info($.item)),
       ),
     ),
@@ -54,7 +54,7 @@ export const collectionData = {
       s.row(
         l(),
         s.expr_iter(
-          s.value_box_index($.item, $.collection, __),
+          s($.item).in($.collection),
           s.column(l(), s.view__icon(), s.view__file_link($.item)),
         ),
       ),

@@ -199,10 +199,7 @@ export const data = mergeAndCheck(
               l(s.style("flex", "0 0 50%")),
               s.view__text(l("helpful links")),
               s.expr_iter(
-                seq(
-                  f._left_links($.id, $.links),
-                  s.value_box_index($.link, $.links, __),
-                ),
+                seq(f._left_links($.id, $.links), s($.link).in($.links)),
                 s.view__file_info($.link),
               ),
             ),

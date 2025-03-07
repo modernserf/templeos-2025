@@ -212,12 +212,16 @@ export const core = {
     rule__params: l($.expr),
     rule__body: s.if_then_else($.expr, s.fail(), s.ok()),
   },
+  in: {
+    rule__params: l($.value, $.box),
+    rule__body: s.value_box_index($.value, $.box, __),
+  },
   equal: {
     file__description: l("compare without unifying vars"),
     rule__params: l($.left, $.right),
     rule__body: seq(
-      s.type_value($.tl, $.left),
-      s.type_value($.tr, $.right),
+      s($.tl).type_value($.left),
+      s($.tr).type_value($.right),
       s.match_cond(
         l($.tl, $.tr),
         l(l(s.var(), __), s.ok()),
@@ -449,11 +453,7 @@ export const core = {
     ),
     rule__params: l($.collection, $.item, $.do),
     rule__body: seq(
-      s.collect_item_in(
-        __,
-        __,
-        seq(s.value_box_index($.item, $.collection, __), $.do),
-      ),
+      s.collect_item_in(__, __, seq(s($.item).in($.collection), $.do)),
     ),
   },
 
@@ -527,7 +527,7 @@ export const core = {
       $.out,
       $.rendered,
       seq(
-        s.value_box_index($.value, $.children, __), //
+        s($.value).in($.children), //
         s.expr($.rendered, $.value),
       ),
     ),
@@ -538,18 +538,14 @@ export const core = {
     rule__body: seq(
       s.params_rest($.params, l($.out, $.iter), $.children),
       $.iter,
-      s.value_box_index($.child, $.children, __),
+      s($.child).in($.children),
       s.expr($.out, $.child),
     ),
   },
   expr_iter_else: {
     rule__params: l($.out, $.iter, $.then, $.else),
     rule__body: seq(
-      s.if_then_else(
-        $.iter,
-        s.value_box_index($.child, $.then, __),
-        s.value_box_index($.child, $.else, __),
-      ),
+      s.if_then_else($.iter, s($.child).in($.then), s($.child).in($.else)),
       s.expr($.out, $.child),
     ),
   },

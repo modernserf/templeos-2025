@@ -203,14 +203,14 @@ export const dbRules = {
             l(
               s.oneof($.patterns),
               seq(
-                s.value_box_index($.p, $.patterns, __),
+                s($.p).in($.patterns),
                 s.db__check_batch_pattern($.batch, $.p),
               ),
             ),
             l(
               s.record($.id),
               seq(
-                s.value_box_index($.change, $.batch, __),
+                s($.change).in($.batch),
                 s.match(
                   $.change,
                   s.update($.id, __, __),

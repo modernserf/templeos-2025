@@ -16,7 +16,7 @@ export const supervisor = pkg("supervisor", {
         $.init,
         l($.pid, $.worker_config),
         seq(
-          s.value_box_index($.worker_config, $.workers, __),
+          s($.worker_config).in($.workers),
           s._init_worker($.pid, $.worker_config),
         ),
       ),

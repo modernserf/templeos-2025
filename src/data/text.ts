@@ -66,10 +66,7 @@ export const text = pkg("text", {
   },
   _view_node_list: {
     rule__params: l($.out, $.node_list),
-    rule__body: seq(
-      s.value_box_index($.node, $.node_list, __),
-      s._view_node($.out, $.node),
-    ),
+    rule__body: seq(s($.node).in($.node_list), s._view_node($.out, $.node)),
   },
   _view_node: {
     rule__params: l($.out, $.node),

@@ -51,7 +51,7 @@ export const viewAnyRecord = pkg("any_record", {
         s.html("span", l(), s.view__file_link($.tag), s.view__string("(")),
         s.view__spacer("0.25rem"),
         s.expr_iter(
-          s.value_box_index($.arg, $.list, __),
+          s($.arg).in($.list),
           s.html("span", l(s.style("flex", "1 1 auto")), s.view__expr($.arg)),
           s.view__spacer("0.25rem"),
         ),

@@ -24,10 +24,7 @@ export const clipboardRules = pkg("clipboard", {
         $.out,
         l(),
         s.expr_iter_else(
-          seq(
-            f.clipboard__data($.id, $.data),
-            s.value_box_index($.value, $.data, __),
-          ),
+          seq(f.clipboard__data($.id, $.data), s($.value).in($.data)),
           l(s.view__expr($.value)),
           l(s.view__string("clipboard is empty")),
         ),

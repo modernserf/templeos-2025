@@ -62,10 +62,7 @@ export const viewCore = {
             s.value_box_index(s.meta_key(), $.params, 0),
             s.on__new_window($.location),
           ),
-          l(
-            s.value_box_index(s.target("new"), $.props, __),
-            s.on__new_window($.location),
-          ),
+          l(s(s.target("new")).in($.props), s.on__new_window($.location)),
           l(
             s.ok(),
             seq(s.current_window($.window), s.on__push($.window, $.location)),

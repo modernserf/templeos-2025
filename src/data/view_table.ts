@@ -32,7 +32,7 @@ export const viewTable = {
       s.collect_item_in(
         $.header_cells,
         s.Html("th", $.header_props, l($.item)),
-        s.value_box_index($.item, $.rendered_header, __),
+        s($.item).in($.rendered_header),
       ),
       u(
         $.out,
@@ -51,7 +51,7 @@ export const viewTable = {
       s.collect_item_in(
         $.cells,
         s.Html("td", l(), l($.item)),
-        s.value_box_index($.item, $.rendered_items, __),
+        s($.item).in($.rendered_items),
       ),
       u($.out, s.Html("tr", $.props, $.cells)),
     ),
