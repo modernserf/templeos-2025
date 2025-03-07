@@ -109,6 +109,7 @@ export const browserData = {
       s.init_clipboard(),
       s.init__db_server(),
       s.init__handler_monitor(),
+      s.init_debugger(),
       s.spawn(
         $.pid,
         // loop because we want this process to stay mounted

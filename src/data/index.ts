@@ -23,6 +23,7 @@ import { asyncRules } from "./async";
 import { supervisor } from "./supervisor";
 import { freeCell } from "./freecell";
 import { ord } from "./ord";
+import { debug } from "./debugger";
 
 export type Schema =
   | "any_record"
@@ -158,6 +159,7 @@ export const data = mergeAndCheck(
     collectionData,
     core,
     clipboardRules,
+    debug,
     dbRules,
     freeCell,
     note,
@@ -212,6 +214,16 @@ export const data = mergeAndCheck(
                   s.receive(__),
                   s.log("clicked"),
                   s.throw(s.error("clicked a button")),
+                ),
+              ),
+              s.view__button(
+                l(),
+                "test debugger",
+                seq(
+                  s.receive(__),
+                  s.log("before debugger"),
+                  s.debugger(),
+                  s.log("after debugger"),
                 ),
               ),
             ),
