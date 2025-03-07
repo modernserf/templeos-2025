@@ -587,6 +587,29 @@ export const { rules, rulePrimitives } = compilePrimitives({
       3,
     ),
   },
+  ensure_limit: {
+    rule__params: l($.limit, $.goal),
+    rule__primitive: function* (it, limit, goal) {
+      ensure(limit, "number");
+      let count = 0;
+
+      const gen = it.eval(goal);
+      let next = gen.next();
+      while (!next.done) {
+        if (next.value.tag === "result") {
+          yield next.value;
+          count += 1;
+          if (count > limit.value) {
+            throw new Exception(box("ensure_limit", [limit, goal]));
+          }
+          next = gen.next();
+        } else {
+          const result = yield next.value;
+          next = gen.next(result);
+        }
+      }
+    },
+  },
   ident_var: {
     rule__params: l($.ident, $.var),
     rule__primitive: function* (it, ident, v) {

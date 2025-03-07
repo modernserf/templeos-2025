@@ -619,6 +619,16 @@ export const core = {
       ),
     ),
   },
+  ensure_det: {
+    rule__params: l($.goal),
+    rule__body: seq(
+      s.if_then_else(
+        s.ensure_limit(1, $.goal),
+        s.ok(),
+        s.throw(s.expected_det($.goal)),
+      ),
+    ),
+  },
   params_rest: {
     rule__params: l($.params, $.required, $.rest),
     rule__body: s.ensure(
