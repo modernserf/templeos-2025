@@ -155,6 +155,18 @@ export const ord = pkg("ord", {
         s.sort($.result, l(1, 2, 3), s.ord()),
         l(1, 2, 3),
       ),
+
+      s.expect_collect(
+        $.result, //
+        s.sort($.result, l(3, 1, 2), s.ord()),
+        l(1, 2, 3),
+      ),
+
+      s.expect_collect(
+        $.result, //
+        s.sort($.result, l("foo", 3, "bar", 1, 2, "baz"), s.ord()),
+        l(1, 2, 3, "bar", "baz", "foo"),
+      ),
     ),
   },
 

@@ -98,8 +98,7 @@ export const freeCell = pkg("free_cell", {
           s.number_min_max($.rank, 1, 13),
         ),
       ),
-      // TODO: random seed
-      s.shuffled_list($.shuffled, $.cards),
+      s._shuffled_list($.shuffled, $.cards),
       // 7 card
       s.slice_box_from_to($.a, $.shuffled, 0, 7),
       s.slice_box_from_to($.b, $.shuffled, 7, 14),
@@ -112,6 +111,24 @@ export const freeCell = pkg("free_cell", {
       s.slice_box_from_to($.h, $.shuffled, 46, 52),
     ),
   },
+  // TODO: random seed
+  _shuffled_list: {
+    rule__params: l($.shuffled, $.list),
+    rule__body: seq(
+      s.collect_item_in(
+        $.with_rand,
+        l($.rand, $.item),
+        seq(s.value_box_index($.item, $.list, __), s.random($.rand)),
+      ),
+      s.sort($.sorted, $.with_rand, s.ord()),
+      s.collect_item_in(
+        $.shuffled,
+        $.item,
+        s.value_box_index(l(__, $.item), $.sorted, __),
+      ),
+    ),
+  },
+
   _view_card_label: {
     rule__params: l($.out, $.suit, $.rank),
     rule__body: seq(

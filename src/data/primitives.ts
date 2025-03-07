@@ -910,18 +910,6 @@ export const { rules, rulePrimitives } = compilePrimitives({
       ),
     ),
   },
-  shuffled_list: {
-    rule__params: l($.shuffled, $.list),
-    rule__primitive: function* (it, shuffled, list) {
-      ensure(list, "box");
-      const array = list.args.slice();
-      for (let i = list.args.length - 1; i >= 1; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      if (it.unify(shuffled, box(list.id, array))) yield it.result();
-    },
-  },
   timestamp_date: {
     rule__params: l($.ts, $.date),
     rule__primitive: function* (it, ts, date) {
@@ -957,6 +945,12 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__params: l($.timestamp),
     rule__primitive: function* (it, ts) {
       if (it.unify(ts, k(Date.now()))) yield it.result();
+    },
+  },
+  random: {
+    rule__params: l($.rand),
+    rule__primitive: function* (it, rand) {
+      if (it.unify(rand, k(Math.random()))) yield it.result();
     },
   },
   tx: {
