@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, seq, u, __, f } from "../expr";
+import { l, s, $, seq, u, __ } from "../expr";
 import { pkg } from "../pkg";
 
 export const note = pkg("note", {
@@ -9,18 +9,23 @@ export const note = pkg("note", {
     file__name: "Note",
     file__description: l("A plain text note"),
     db__fields: l(s.field("note__content")),
-  },
-  note__content: {
-    db__schema: "field",
-    file__name: "Note content",
-    db__type: "string",
+    rule__params: l($.id),
+    rule__body: s.record_field_value($.id, "db__schema", "note"),
   },
 
   // private
+  _content: {
+    db__schema: "field",
+    file__name: "Note content",
+    db__type: "string",
+    rule__params: l($.value, $.record),
+    rule__body: s.record_field_value($.record, "note__content", $.value),
+  },
+
   _view_detail: {
     rule__params: l($.out, $.id),
     rule__body: seq(
-      f.note__content($.id, $.content),
+      s._content($.content, $.id),
       s.view__textarea(
         $.out,
         l(
@@ -57,23 +62,19 @@ export const note = pkg("note", {
           seq(
             s.receive($.e),
             u($.e, s.change($.command)),
-            f.history__window($.state, $.window),
             s.match_cond(
               $.command,
               l(
                 "cut",
                 seq(
-                  f.note__content($.id, $.content),
+                  s._content($.content, $.id),
                   s.clipboard__copy($.content),
                   s._on_update($.id, ""),
                 ),
               ),
               l(
                 "copy",
-                seq(
-                  f.note__content($.id, $.content),
-                  s.clipboard__copy($.content),
-                ),
+                seq(s._content($.content, $.id), s.clipboard__copy($.content)),
               ),
               l(
                 "paste",
@@ -101,7 +102,7 @@ export const note = pkg("note", {
           "New note",
           seq(s.receive(s.click(__)), s._on_new()),
         ),
-        s.expr_iter(f.db__schema($.id, "note"), s._view_detail($.id)),
+        s.expr_iter(s.note($.id), s._view_detail($.id)),
       ),
     ),
   },
@@ -124,15 +125,15 @@ export const note = pkg("note", {
       u(
         $.out,
         l(
-          s.update($.id, "db__schema", "note"),
-          s.update($.id, "note__content", $.content),
+          s.update(s.db__schema("note", $.id)),
+          s.update(s._content($.content, $.id)),
         ),
       ),
     ),
   },
   _on_update: {
     rule__params: l($.id, $.value),
-    rule__body: seq(s.db__update(l(s.update($.id, "note__content", $.value)))),
+    rule__body: s.db__update(l(s.update(s._content($.value, $.id)))),
   },
   _on_new: {
     rule__params: l(),

@@ -322,15 +322,7 @@ export const core = {
     rule__params: $.args,
     rule__body: seq(
       s.append_left_right($.args, l(l($.if, $.then)), $.else),
-      s.if_then_else(
-        $.if,
-        $.then,
-        s.if_then_else(
-          s.empty($.else),
-          s.fail(),
-          s._lapply_partial($.else, s.cond()),
-        ),
-      ),
+      s.if_then_else($.if, $.then, s._lapply_partial($.else, s.cond())),
     ),
   },
   test__cond: {

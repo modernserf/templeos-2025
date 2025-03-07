@@ -24,6 +24,7 @@ import { supervisor } from "./supervisor";
 import { freeCell } from "./freecell";
 import { ord } from "./ord";
 import { debug } from "./debugger";
+import { pkg } from "../pkg";
 
 export type Schema =
   | "any_record"
