@@ -14,7 +14,7 @@ export const list = pkg("list", {
           s.ok(),
           seq(
             s.value_box_index($.item, $.list, $.index),
-            s.ensure_det(s.lapply(l($.next_state, $.state, $.item), $.fn)),
+            s.ensure_det(s.apply(l($.next_state, $.state, $.item), $.fn)),
             s.inc($.next_index, $.index),
             s.fail(),
           ),
@@ -46,7 +46,7 @@ export const list = pkg("list", {
     rule__body: s.collect_item_in(
       $.mapped,
       $.mapped_item,
-      seq(s($.item).in($.list), s.lapply(l($.mapped_item, $.item), $.fn)),
+      seq(s($.item).in($.list), s.apply(l($.mapped_item, $.item), $.fn)),
     ),
   },
   _test_map_list: {
@@ -83,7 +83,7 @@ export const list = pkg("list", {
     rule__body: s.collect_item_in(
       $.filtered,
       $.item,
-      seq(s($.item).in($.list), s.lapply(l($.item), $.fn)),
+      seq(s($.item).in($.list), s.apply(l($.item), $.fn)),
     ),
   },
   _test_filter_list: {
@@ -117,7 +117,7 @@ export const list = pkg("list", {
         s($.i).number_min_max(0, $.len_),
         s.map_list($.items, $.lists, s.value_box_index($.i)),
         s.append_left_right($.args, l($.zipped_item), $.items),
-        s.lapply($.args, $.fn),
+        s.apply($.args, $.fn),
       ),
     ),
   },

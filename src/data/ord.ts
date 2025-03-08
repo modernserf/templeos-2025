@@ -107,7 +107,7 @@ export const ord = pkg("ord", {
       u(l($.left, $.right), l(l(), l())),
       seq(
         s.append_left_right($.tail, l($.x), $.xs),
-        s.lapply(l($.ord, $.x, $.head), $.fn),
+        s.apply(l($.ord, $.x, $.head), $.fn),
         s.match_cond(
           $.ord,
           l(

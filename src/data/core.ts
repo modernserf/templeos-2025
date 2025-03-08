@@ -216,49 +216,6 @@ export const core = {
     rule__params: l($.value, $.box),
     rule__body: s.value_box_index($.value, $.box, __),
   },
-  equal: {
-    file__description: l("compare without unifying vars"),
-    rule__params: l($.left, $.right),
-    rule__body: seq(
-      s($.tl).type_value($.left),
-      s($.tr).type_value($.right),
-      s.match_cond(
-        l($.tl, $.tr),
-        l(l(s.var(), __), s.ok()),
-        l(l(__, s.var()), s.ok()),
-        l(
-          l(s.box(), s.box()),
-          seq(
-            s.box_tag_list($.left, $.tag, $.ls),
-            s.box_tag_list($.right, $.tag, $.rs),
-            s.length_box($.len, $.ls),
-            s.length_box($.len, $.rs),
-            // note: first one iterates, second one indexes
-            s.value_box_index($.l, $.ls, $.i),
-            s.value_box_index($.r, $.rs, $.i),
-            s.equal($.l, $.r),
-          ),
-        ),
-        l(__, u($.left, $.right)),
-      ),
-    ),
-  },
-  test__equal: {
-    test__group: "core",
-    rule__params: l(),
-    rule__body: seq(
-      test.ok(s.equal(1, 1)),
-      test.ok(s.equal("foo", "foo")),
-      test.ok(s.equal(s.foo(123), s.foo(123))),
-      test.ok(s.equal(s.foo(123), s.foo(__))),
-      test.ok(s.equal(s.foo(123), __)),
-
-      test.fail(s.equal(1, "1")),
-      test.fail(s.equal(s.foo(123), s.foo(456))),
-      test.fail(s.equal(s.foo(123), s.bar(123))),
-      test.fail(s.equal(s.foo(123), s.foo(123, 456))),
-    ),
-  },
 
   // TODO: check performance on this, maybe want native impl for this
   append_box_prefix: {
@@ -285,20 +242,12 @@ export const core = {
     rule__params: l($.tag, $.args),
     rule__body: seq(s.box_tag_list($.callable, $.tag, $.args), $.callable),
   },
-  lapply: {
+  apply: {
     rule__params: l($.args, $.fn),
     rule__body: s.if_then_else(
       u($.fn, s.fn($.params, $.goal)),
       s._apply_fn($.args, $.fn),
       s._lapply_partial($.args, $.fn),
-    ),
-  },
-  rapply: {
-    rule__params: l($.args, $.fn),
-    rule__body: s.if_then_else(
-      u($.fn, s.fn($.params, $.goal)),
-      s._apply_fn($.args, $.fn),
-      s._rapply_partial($.args, $.fn),
     ),
   },
   _apply_fn: {
@@ -509,14 +458,14 @@ export const core = {
   expr: {
     file__description: l("evaluate box tree as expression"),
     rule__params: l($.out, $.expr),
-    rule__body: s.lapply(l($.out), $.expr),
+    rule__body: s.apply(l($.out), $.expr),
   },
   expr_number: {
     file__description: l("evaluate box tree as expression"),
     rule__params: l($.out, $.expr),
     rule__body: s.cond(
       l(s.number($.expr), u($.out, $.expr)),
-      l(s.ok(), s.lapply(l($.out), $.expr)),
+      l(s.ok(), s.apply(l($.out), $.expr)),
     ),
   },
   expr_unify: {
@@ -555,8 +504,8 @@ export const core = {
   dot: {
     rule__params: l($.out, $.left, $.right),
     rule__body: seq(
-      s.lapply(l($.subject), $.left),
-      s.lapply(l($.out, $.subject), $.right),
+      s.apply(l($.subject), $.left),
+      s.apply(l($.out, $.subject), $.right),
     ),
   },
 
@@ -621,6 +570,25 @@ export const core = {
     rule__body: s.ensure(
       s.append_left_right($.params, $.required, $.rest),
       s.invalid_params($.params, $.required, $.rest),
+    ),
+  },
+
+  // semidet -> det
+  // nondet -> multi
+  option: {
+    rule__params: l($.opt, $.fn),
+    rule__body: s.if_then_else(
+      s.expr($.value, $.fn),
+      u($.opt, s.some($.value)),
+      u($.opt, s.none()),
+    ),
+  },
+  result: {
+    rule__params: l($.res, $.fn),
+    rule__body: s.try_error_catch(
+      seq(s.expr($.value, $.fn), u($.res, s.ok($.value))),
+      $.err,
+      u($.res, s.error($.err)),
     ),
   },
 } satisfies Record<string, Rec>;

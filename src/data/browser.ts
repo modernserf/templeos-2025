@@ -142,7 +142,7 @@ export const browserData = {
               s.render(),
               seq(
                 s.if_then_else(
-                  s.lapply(l($.render_out), $.render),
+                  s.apply(l($.render_out), $.render),
                   s.send($.view, $.render_out),
                   // TODO: should something else happen when render fails?
                   s.send($.view, s.Null()),
