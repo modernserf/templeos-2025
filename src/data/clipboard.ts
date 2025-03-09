@@ -34,21 +34,11 @@ export const clipboardRules = pkg("clipboard", {
   // public api
   clipboard__copy: {
     rule__params: l($.value),
-    rule__body: s.send("clipboard_server", s.copy($.value)),
+    rule__body: seq(s._current($.id), s._handle_copy($.id, $.value)),
   },
   clipboard__paste: {
     rule__params: l($.value),
-    rule__body: seq(
-      s.self($.pid),
-      s.send("clipboard_server", s.paste($.pid)),
-      s.receive(s.paste($.value)),
-    ),
-  },
-
-  // TODO: "init" schema that runs on startup
-  init_clipboard: {
-    rule__params: l(),
-    rule__body: s.spawn_link("clipboard_server", s._server()),
+    rule__body: seq(s._current($.id), s._handle_paste($.id, $.value)),
   },
 
   // private
@@ -56,28 +46,6 @@ export const clipboardRules = pkg("clipboard", {
   // TODO: current clipboard ref is stored in browser
   _current: {
     rule__params: l("root_clipboard"),
-  },
-
-  _server: {
-    rule__params: l(),
-    rule__body: s.loop(
-      seq(
-        s.receive($.msg),
-        s._current($.id),
-        s.match_cond(
-          $.msg,
-          l(s.copy($.value), s._handle_copy($.id, $.value)),
-          l(
-            s.paste($.pid),
-            seq(
-              s._handle_paste($.id, $.value),
-              s.send($.pid, s.paste($.value)),
-            ),
-          ),
-          l(s.drop(), s._handle_drop($.id)),
-        ),
-      ),
-    ),
   },
 
   _handle_copy: {

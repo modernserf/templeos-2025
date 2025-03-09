@@ -106,7 +106,6 @@ export const browserData = {
   boot: {
     rule__params: l($.pid),
     rule__body: seq(
-      s.init_clipboard(),
       s.init__db_server(),
       s.init__handler_monitor(),
       s.init_debugger(),
