@@ -230,10 +230,8 @@ export const browserData = {
         l(),
         $.selected,
         $.options,
-        seq(
-          s.ensure_var($.e),
-          s.receive($.e),
-          u($.e, s.change($.next_view)),
+        s.fn(
+          l(s.change($.next_view)),
           s.on__set_view_menu($.window, $.next_view),
         ),
       ),
@@ -245,14 +243,10 @@ export const browserData = {
       s.WindowContainer(
         $.window,
         $.current_window,
-        seq(
-          s.receive($.event),
-          s.match_cond(
-            $.event,
-            l(s.select_window(), s.on__select_window($.window)),
-            l(s.back(), s.on__back($.window)),
-            l(s.forward(), s.on__forward($.window)),
-          ),
+        s.match_cond(
+          l(s.select_window(), s.on__select_window($.window)),
+          l(s.back(), s.on__back($.window)),
+          l(s.forward(), s.on__forward($.window)),
         ),
         $.rendered_children,
       ),
@@ -348,11 +342,7 @@ export const browserData = {
         s.view__button(
           l(s.class("AppWindow__closeButton")),
           "",
-          seq(
-            s.receive($.e),
-            u($.e, s.click(__)),
-            s.on__close_window($.window),
-          ),
+          s.on_click(s.on__close_window($.window)),
         ),
         s.html("h1", l(s.class("AppWindow__title")), s.view__string($.name)),
 
@@ -360,12 +350,12 @@ export const browserData = {
         s.view__button(
           l(s.class($.back_class)),
           "←",
-          seq(s.receive($.e), u($.e, s.click(__)), s.on__back($.window)),
+          s.on_click(s.on__back($.window)),
         ),
         s.view__button(
           l(s.class($.forward_class)),
           "→",
-          seq(s.receive($.e), u($.e, s.click(__)), s.on__forward($.window)),
+          s.on_click(s.on__forward($.window)),
         ),
         s.view__view_menu($.window, $.id, $.view),
       ),
@@ -388,10 +378,8 @@ export const browserData = {
           s.option("omnibox", "Search"),
           s.option("reset", "Reset"),
         ),
-        seq(
-          s.receive(s.change($.app_menu)),
+        s.on_change(
           s.match_cond(
-            $.app_menu,
             l("home", s.on__new_window(s.location("home"))),
             l("omnibox", s.on__new_window(s.location("omnibox"))),
             l("reset", s.db__reset()),

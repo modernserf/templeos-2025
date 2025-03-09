@@ -38,10 +38,12 @@ export const freeCell = pkg("free_cell", {
         s.view__button(
           l(),
           "New game",
-          seq(
-            s._new_game($.new_game),
-            s.current_window($.window),
-            s.on__push($.window, s.location($.new_game)),
+          s.on_click(
+            seq(
+              s._new_game($.new_game),
+              s.current_window($.window),
+              s.on__push($.window, s.location($.new_game)),
+            ),
           ),
         ),
       ),
@@ -176,12 +178,7 @@ export const freeCell = pkg("free_cell", {
         l(s.empty($.label), s.ok()),
       ),
 
-      s.view__button(
-        $.out,
-        $.props,
-        $.label,
-        seq(s.receive(s.click(__)), $.handler),
-      ),
+      s.view__button($.out, $.props, $.label, s.on_click($.handler)),
     ),
   },
   _view_columns: {
@@ -269,9 +266,21 @@ export const freeCell = pkg("free_cell", {
         s._view_columns($.columns, $.selected, $.handler),
         s.row(
           l(s.style("gap", "0.5rem")),
-          s.view__button(l(), "Undo", s.fncall($.handler, s.undo())),
-          s.view__button(l(), "Reset", s.fncall($.handler, s.reset())),
-          s.view__button(l(), "Auto", s.fncall($.handler, s.auto())),
+          s.view__button(
+            l(),
+            "Undo",
+            s.on_click(s.fncall($.handler, s.undo())),
+          ),
+          s.view__button(
+            l(),
+            "Reset",
+            s.on_click(s.fncall($.handler, s.reset())),
+          ),
+          s.view__button(
+            l(),
+            "Auto",
+            s.on_click(s.fncall($.handler, s.auto())),
+          ),
         ),
       ),
     ),

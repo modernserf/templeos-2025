@@ -52,10 +52,8 @@ export const debug = pkg("debug", {
         s.view__button(
           l(),
           "Resume",
-          seq(
-            s.receive(s.click(__)),
-            s._resume($.pid, $.ref),
-            s.on__close_window($.window),
+          s.on_click(
+            seq(s._resume($.pid, $.ref), s.on__close_window($.window)),
           ),
         ),
       ),

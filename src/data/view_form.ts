@@ -51,4 +51,12 @@ export const viewForm = {
       s.view__select($.out, $.params, $.label, $.menu_options, $.handler),
     ),
   },
+  on_click: {
+    rule__params: l(s.click(__), $.fn),
+    rule__body: $.fn,
+  },
+  on_change: {
+    rule__params: l($.e, $.fn),
+    rule__body: seq(u($.e, s.change($.value)), s.apply(l($.value), $.fn)),
+  },
 } satisfies Record<string, Rec>;

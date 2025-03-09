@@ -18,8 +18,8 @@ export const codeExplorerData = {
             s.style("width", "100%"),
           ),
           $.search,
-          seq(
-            s.receive(s.change($.next)),
+          s.fn(
+            l(s.change($.next)),
             s.set_state($.state, s.code_explorer($.next)),
           ),
         ),

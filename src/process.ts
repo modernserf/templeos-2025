@@ -348,6 +348,9 @@ export class ProcessManager {
     this.send(pid, message);
     this.runAllQueued();
   }
+  getPid() {
+    return this.nextPid++;
+  }
   spawn(goal: Value, pid: Pid = this.nextPid++, linkTo?: Pid): Pid {
     this.processes.set(pid, {
       tag: "init",
@@ -487,6 +490,10 @@ export class ProcessManager {
     }
     if (currentProc === target) throw new Exception(reason);
     this.exit_(currentProc, initTarget, reason, target);
+  }
+  exitAsync(initTarget: Pid, reason: Value) {
+    this.exit(0, initTarget, reason);
+    this.runAllQueued();
   }
   private exitNormal(pid: Pid) {
     const links = this.links.get(pid) ?? new Set();

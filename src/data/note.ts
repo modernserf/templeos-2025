@@ -34,11 +34,7 @@ export const note = pkg("note", {
           s.debounce(500),
         ),
         $.content,
-        seq(
-          s.receive($.e),
-          u($.e, s.change($.next)),
-          s._on_update($.id, $.next),
-        ),
+        s.on_change(s._on_update($.id)),
       ),
     ),
   },
@@ -59,17 +55,14 @@ export const note = pkg("note", {
             s.option("paste", "Paste"),
             s.option("clear", "Clear"),
           ),
-          seq(
-            s.receive($.e),
-            u($.e, s.change($.command)),
+          s.on_change(
             s.match_cond(
-              $.command,
               l(
                 "cut",
                 seq(
                   s._content($.content, $.id),
                   s.clipboard__copy($.content),
-                  s._on_update($.id, ""),
+                  s._on_update("", $.id),
                 ),
               ),
               l(
@@ -80,10 +73,10 @@ export const note = pkg("note", {
                 "paste",
                 seq(
                   s.clipboard__paste($.content),
-                  s._on_update($.id, $.content),
+                  s._on_update($.content, $.id),
                 ),
               ),
-              l("clear", seq(s._on_update($.id, ""))),
+              l("clear", seq(s._on_update("", $.id))),
             ),
           ),
         ),
@@ -97,11 +90,7 @@ export const note = pkg("note", {
       s.column(
         $.out,
         l(),
-        s.view__button(
-          l(),
-          "New note",
-          seq(s.receive(s.click(__)), s._on_new()),
-        ),
+        s.view__button(l(), "New note", s.on_click(s._on_new())),
         s.expr_iter(s.note($.id), s._view_detail($.id)),
       ),
     ),
@@ -132,7 +121,7 @@ export const note = pkg("note", {
     ),
   },
   _on_update: {
-    rule__params: l($.id, $.value),
+    rule__params: l($.value, $.id),
     rule__body: s.db__update(l(s.update(s._content($.value, $.id)))),
   },
   _on_new: {

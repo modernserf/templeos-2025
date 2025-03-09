@@ -18,10 +18,7 @@ export const omnibox = {
             s.style("width", "100%"),
           ),
           $.search,
-          seq(
-            s.receive(s.change($.next)),
-            s.set_state($.state, s.omnibox($.next)),
-          ),
+          s.fn(l(s.change($.next)), s.set_state($.state, s.omnibox($.next))),
         ),
         s.column(
           l(s.style("padding", "0.5rem")),

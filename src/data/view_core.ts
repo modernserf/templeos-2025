@@ -53,10 +53,8 @@ export const viewCore = {
       $.out,
       l(s.class("Link")),
       $.label,
-      seq(
-        s.receive($.event),
-        // receive all events but drop everything except click
-        u(s.click($.params), $.event),
+      s.fn(
+        l(s.click($.params)),
         s.cond(
           l(
             s.value_box_index(s.meta_key(), $.params, 0),

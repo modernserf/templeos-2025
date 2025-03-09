@@ -213,20 +213,19 @@ export const data = mergeAndCheck(
               s.view__button(
                 l(),
                 "throw an error",
-                seq(
-                  s.receive(__),
-                  s.log("clicked"),
-                  s.throw(s.error("clicked a button")),
+                s.on_click(
+                  seq(s.log("clicked"), s.throw(s.error("clicked a button"))),
                 ),
               ),
               s.view__button(
                 l(),
                 "test debugger",
-                seq(
-                  s.receive(__),
-                  s.log("before debugger"),
-                  s.debugger(),
-                  s.log("after debugger"),
+                s.on_click(
+                  seq(
+                    s.log("before debugger"),
+                    s.debugger(),
+                    s.log("after debugger"),
+                  ),
                 ),
               ),
             ),

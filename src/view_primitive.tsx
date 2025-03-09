@@ -1,6 +1,6 @@
 import { Component, FC, ReactNode, useEffect, useRef, useState } from "react";
 import { __, l, s } from "./expr";
-import { ProcessManager, ensure, ensurePid } from "./process";
+import { Exception, ProcessManager, ensure, ensurePid } from "./process";
 import { box, k, printValue, Value } from "./value";
 import { debounce } from "./util";
 
@@ -20,6 +20,24 @@ type Props = {
   placeholder?: string;
   debounce?: number;
 };
+
+function handle(
+  pm: ProcessManager,
+  pid: string | number,
+  handler: Value,
+  arg: Value,
+) {
+  const childPid = pm.getPid();
+  try {
+    return pm.spawn(box("apply", [box("", [arg]), handler]), childPid, pid);
+  } catch (e) {
+    if (e instanceof Exception) {
+      pm.exitAsync(childPid, e.error);
+    } else {
+      throw e;
+    }
+  }
+}
 
 function getProps(props: Value): Props {
   const out: Record<string, unknown> = {};
@@ -135,9 +153,10 @@ const Button: VC = ({ pm, values: [props, label, handler], pid }) => {
       {...getProps(props)}
       type="button"
       onClick={(e) => {
-        const handlerPid = pm.spawn(handler, undefined, pid);
-        pm.sendAsync(
-          handlerPid,
+        handle(
+          pm,
+          pid,
+          handler,
           e.metaKey ? s.click(l(s.meta_key())) : s.click(l()),
         );
       }}
@@ -161,16 +180,13 @@ const Input: VC = ({ pm, values: [props, value, handler], pid }) => {
       {...jsProps}
       defaultValue={value.value}
       onChange={debounce(db, (e) => {
-        pm.sendAsync(
-          pm.spawn(handler, undefined, pid),
-          box("change", [k(e.target.value)]),
-        );
+        handle(pm, pid, handler, box("change", [k(e.target.value)]));
       })}
       onFocus={() => {
-        pm.sendAsync(pm.spawn(handler, undefined, pid), s.focus());
+        handle(pm, pid, handler, s.focus());
       }}
       onBlur={() => {
-        pm.sendAsync(pm.spawn(handler, undefined, pid), s.blur());
+        handle(pm, pid, handler, s.blur());
       }}
     />
   );
@@ -186,16 +202,13 @@ const Textarea: VC = ({ pm, values: [props, value, handler], pid }) => {
       key={Date.now()}
       defaultValue={value.value}
       onChange={debounce(db, (e) => {
-        pm.sendAsync(
-          pm.spawn(handler, undefined, pid),
-          box("change", [k(e.target.value)]),
-        );
+        handle(pm, pid, handler, box("change", [k(e.target.value)]));
       })}
       onFocus={() => {
-        pm.sendAsync(pm.spawn(handler, undefined, pid), s.focus());
+        handle(pm, pid, handler, s.focus());
       }}
       onBlur={() => {
-        pm.sendAsync(pm.spawn(handler, undefined, pid), s.blur());
+        handle(pm, pid, handler, s.blur());
       }}
     />
   );
@@ -210,16 +223,13 @@ const Select: VC = ({ pm, values: [props, value, options, handler], pid }) => {
       {...getProps(props)}
       value={value.value}
       onChange={(e) => {
-        pm.sendAsync(
-          pm.spawn(handler, undefined, pid),
-          box("change", [k(e.target.value)]),
-        );
+        handle(pm, pid, handler, box("change", [k(e.target.value)]));
       }}
       onFocus={() => {
-        pm.sendAsync(pm.spawn(handler, undefined, pid), s.focus());
+        handle(pm, pid, handler, s.focus());
       }}
       onBlur={() => {
-        pm.sendAsync(pm.spawn(handler, undefined, pid), s.blur());
+        handle(pm, pid, handler, s.blur());
       }}
     >
       {options.args.map((opt) => {
@@ -256,17 +266,16 @@ const WindowContainer: VC = ({
         .filter(Boolean)
         .join(" ")}
       onMouseDownCapture={() => {
-        if (!isCurrent)
-          pm.sendAsync(pm.spawn(handler, undefined, pid), s.select_window());
+        if (!isCurrent) handle(pm, pid, handler, s.select_window());
       }}
       onKeyDownCapture={(e) => {
         if (e.key == "[" && e.metaKey) {
           e.preventDefault();
-          pm.sendAsync(pm.spawn(handler, undefined, pid), s.back());
+          handle(pm, pid, handler, s.back());
         }
         if (e.key == "]" && e.metaKey) {
           e.preventDefault();
-          pm.sendAsync(pm.spawn(handler, undefined, pid), s.forward());
+          handle(pm, pid, handler, s.forward());
         }
       }}
     >
