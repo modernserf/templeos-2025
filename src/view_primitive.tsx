@@ -1,4 +1,4 @@
-import { Component, FC, ReactNode, useEffect, useState } from "react";
+import { Component, FC, ReactNode, useEffect, useRef, useState } from "react";
 import { __, l, s } from "./expr";
 import { ProcessManager, ensure, ensurePid } from "./process";
 import { box, k, printValue, Value } from "./value";
@@ -11,6 +11,7 @@ type VC = FC<{
   pm: ProcessManager;
   id: string;
   values: Value[];
+  pid: string | number;
 }>;
 
 type Props = {
@@ -50,12 +51,12 @@ function getProps(props: Value): Props {
   return { ...out, className: classList.join(" "), style };
 }
 
-const Html: VC = ({ pm, values: [tag, props, children] }) => {
+const Html: VC = ({ pm, values: [tag, props, children], pid }) => {
   ensure(tag, "string");
   const El = tag.value;
   return (
     <El {...getProps(props)}>
-      <Children pm={pm} children={children} />
+      <Children pid={pid} pm={pm} children={children} />
     </El>
   );
 };
@@ -80,18 +81,25 @@ const Receiver2: VC = ({ pm, values: [procPid] }) => {
   if (!result) return <>loading</>;
   return (
     <ErrorBoundary>
-      <Primitive pm={pm} id={result.id} values={result.args} />
+      <Primitive
+        pid={procPid.value}
+        pm={pm}
+        id={result.id}
+        values={result.args}
+      />
     </ErrorBoundary>
   );
 };
 
-const Receiver: VC = ({ pm, values: [proc] }) => {
+const Receiver: VC = ({ pm, values: [proc], pid }) => {
   const [result, setResult] = useState<Value & { tag: "box" }>();
+  const procPidRef = useRef(pid);
 
   useEffect(() => {
     const eventSource = new EventSource<Value>();
     const renderPid = pm.addExternal(eventSource);
-    const procPid = pm.spawn(proc);
+    const procPid = pm.spawn(proc, undefined, pid);
+    procPidRef.current = procPid;
     const unsub = eventSource.addEventListener((it) => {
       setResult(it as Value & { tag: "box" });
     });
@@ -100,12 +108,17 @@ const Receiver: VC = ({ pm, values: [proc] }) => {
       pm.sendAsync(procPid, box("unmount", []));
       unsub();
     };
-  }, [pm, proc]);
+  }, [pm, proc, pid]);
 
   if (!result) return <>loading</>;
   return (
     <ErrorBoundary>
-      <Primitive pm={pm} id={result.id} values={result.args} />
+      <Primitive
+        pid={procPidRef.current}
+        pm={pm}
+        id={result.id}
+        values={result.args}
+      />
     </ErrorBoundary>
   );
 };
@@ -116,28 +129,29 @@ const String: VC = ({ values: [value] }) => {
   return value.value;
 };
 
-const Button: VC = ({ pm, values: [props, label, handler] }) => {
+const Button: VC = ({ pm, values: [props, label, handler], pid }) => {
   return (
     <button
       {...getProps(props)}
       type="button"
       onClick={(e) => {
+        const handlerPid = pm.spawn(handler, undefined, pid);
         pm.sendAsync(
-          pm.spawn(handler, undefined, "handler_monitor"),
+          handlerPid,
           e.metaKey ? s.click(l(s.meta_key())) : s.click(l()),
         );
       }}
     >
       {label.tag === "box" ? (
-        <Primitive pm={pm} id={label.id} values={label.args} />
+        <Primitive pid={pid} pm={pm} id={label.id} values={label.args} />
       ) : (
-        <Primitive pm={pm} id="String" values={[label]} />
+        <Primitive pid={pid} pm={pm} id="String" values={[label]} />
       )}
     </button>
   );
 };
 
-const Input: VC = ({ pm, values: [props, value, handler] }) => {
+const Input: VC = ({ pm, values: [props, value, handler], pid }) => {
   if (value.tag !== "string" && value.tag !== "number") return null;
 
   const { debounce: db = 0, ...jsProps } = getProps(props);
@@ -148,24 +162,21 @@ const Input: VC = ({ pm, values: [props, value, handler] }) => {
       defaultValue={value.value}
       onChange={debounce(db, (e) => {
         pm.sendAsync(
-          pm.spawn(handler, undefined, "handler_monitor"),
+          pm.spawn(handler, undefined, pid),
           box("change", [k(e.target.value)]),
         );
       })}
       onFocus={() => {
-        pm.sendAsync(
-          pm.spawn(handler, undefined, "handler_monitor"),
-          s.focus(),
-        );
+        pm.sendAsync(pm.spawn(handler, undefined, pid), s.focus());
       }}
       onBlur={() => {
-        pm.sendAsync(pm.spawn(handler, undefined, "handler_monitor"), s.blur());
+        pm.sendAsync(pm.spawn(handler, undefined, pid), s.blur());
       }}
     />
   );
 };
 
-const Textarea: VC = ({ pm, values: [props, value, handler] }) => {
+const Textarea: VC = ({ pm, values: [props, value, handler], pid }) => {
   ensure(value, "string");
   const { debounce: db = 0, ...jsProps } = getProps(props);
 
@@ -176,24 +187,21 @@ const Textarea: VC = ({ pm, values: [props, value, handler] }) => {
       defaultValue={value.value}
       onChange={debounce(db, (e) => {
         pm.sendAsync(
-          pm.spawn(handler, undefined, "handler_monitor"),
+          pm.spawn(handler, undefined, pid),
           box("change", [k(e.target.value)]),
         );
       })}
       onFocus={() => {
-        pm.sendAsync(
-          pm.spawn(handler, undefined, "handler_monitor"),
-          s.focus(),
-        );
+        pm.sendAsync(pm.spawn(handler, undefined, pid), s.focus());
       }}
       onBlur={() => {
-        pm.sendAsync(pm.spawn(handler, undefined, "handler_monitor"), s.blur());
+        pm.sendAsync(pm.spawn(handler, undefined, pid), s.blur());
       }}
     />
   );
 };
 
-const Select: VC = ({ pm, values: [props, value, options, handler] }) => {
+const Select: VC = ({ pm, values: [props, value, options, handler], pid }) => {
   ensure(value, "string");
   ensure(options, "box");
 
@@ -203,18 +211,15 @@ const Select: VC = ({ pm, values: [props, value, options, handler] }) => {
       value={value.value}
       onChange={(e) => {
         pm.sendAsync(
-          pm.spawn(handler, undefined, "handler_monitor"),
+          pm.spawn(handler, undefined, pid),
           box("change", [k(e.target.value)]),
         );
       }}
       onFocus={() => {
-        pm.sendAsync(
-          pm.spawn(handler, undefined, "handler_monitor"),
-          s.focus(),
-        );
+        pm.sendAsync(pm.spawn(handler, undefined, pid), s.focus());
       }}
       onBlur={() => {
-        pm.sendAsync(pm.spawn(handler, undefined, "handler_monitor"), s.blur());
+        pm.sendAsync(pm.spawn(handler, undefined, pid), s.blur());
       }}
     >
       {options.args.map((opt) => {
@@ -239,6 +244,7 @@ const Icon: VC = () => (
 const WindowContainer: VC = ({
   pm,
   values: [windowId, currentWindowId, handler, children],
+  pid,
 }) => {
   ensure(windowId, "string");
   ensure(currentWindowId, "string");
@@ -251,29 +257,20 @@ const WindowContainer: VC = ({
         .join(" ")}
       onMouseDownCapture={() => {
         if (!isCurrent)
-          pm.sendAsync(
-            pm.spawn(handler, undefined, "handler_monitor"),
-            s.select_window(),
-          );
+          pm.sendAsync(pm.spawn(handler, undefined, pid), s.select_window());
       }}
       onKeyDownCapture={(e) => {
         if (e.key == "[" && e.metaKey) {
           e.preventDefault();
-          pm.sendAsync(
-            pm.spawn(handler, undefined, "handler_monitor"),
-            s.back(),
-          );
+          pm.sendAsync(pm.spawn(handler, undefined, pid), s.back());
         }
         if (e.key == "]" && e.metaKey) {
           e.preventDefault();
-          pm.sendAsync(
-            pm.spawn(handler, undefined, "handler_monitor"),
-            s.forward(),
-          );
+          pm.sendAsync(pm.spawn(handler, undefined, pid), s.forward());
         }
       }}
     >
-      <Children pm={pm} children={children} />
+      <Children pid={pid} pm={pm} children={children} />
     </div>
   );
 };
@@ -327,7 +324,15 @@ export class ErrorBoundary extends Component<
   }
 }
 
-function Children({ pm, children }: { pm: ProcessManager; children: Value }) {
+function Children({
+  pm,
+  children,
+  pid,
+}: {
+  pm: ProcessManager;
+  children: Value;
+  pid: string | number;
+}) {
   if (!children) {
     return (
       <div style={{ backgroundColor: "pink" }}>
@@ -338,7 +343,7 @@ function Children({ pm, children }: { pm: ProcessManager; children: Value }) {
   return (
     <>
       {(children.args as (Value & { tag: "box" })[]).map((arg, i) => (
-        <Primitive key={i} pm={pm} id={arg.id} values={arg.args} />
+        <Primitive pid={pid} key={i} pm={pm} id={arg.id} values={arg.args} />
       ))}
     </>
   );
@@ -348,15 +353,17 @@ export function Primitive({
   pm,
   id,
   values,
+  pid,
 }: {
   pm: ProcessManager;
   id: string;
   values: Value[];
+  pid: string | number;
 }) {
   const View = viewPrimitives[id] ?? DefaultRenderer;
   return (
     <ErrorBoundary>
-      <View pm={pm} id={id} values={values} />
+      <View pm={pm} id={id} values={values} pid={pid} />
     </ErrorBoundary>
   );
 }

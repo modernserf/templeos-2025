@@ -354,7 +354,9 @@ export class ProcessManager {
       mailbox: [],
       flags: { trapExit: false },
     });
-    if (linkTo) this.link(linkTo, pid);
+    if (linkTo != null) {
+      this.link(linkTo, pid);
+    }
 
     const state = State.init(this, pid);
     const gen = state.eval(resolveDeep(goal));

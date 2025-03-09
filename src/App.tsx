@@ -7,5 +7,12 @@ const rootViewPid = k("root_view_manager");
 pm.spawn(box("boot", [rootViewPid]));
 
 export function App() {
-  return <Primitive id="Receiver2" pm={pm} values={[rootViewPid]} />;
+  return (
+    <Primitive
+      pid={rootViewPid.value}
+      id="Receiver2"
+      pm={pm}
+      values={[rootViewPid]}
+    />
+  );
 }

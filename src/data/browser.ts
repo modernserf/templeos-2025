@@ -107,9 +107,8 @@ export const browserData = {
     rule__params: l($.pid),
     rule__body: seq(
       s.init__db_server(),
-      s.init__handler_monitor(),
       s.init_debugger(),
-      s.spawn(
+      s.spawn_link(
         $.pid,
         // loop because we want this process to stay mounted
         s.loop(
@@ -124,6 +123,7 @@ export const browserData = {
   view__subscribe_render__internal: {
     rule__params: l($.subscriptions, $.render),
     rule__body: seq(
+      s.trap_exit(),
       s.self($.self),
       s.receive(s.mount($.view)),
       s.send($.self, s.render()),
@@ -149,6 +149,14 @@ export const browserData = {
               ),
             ),
             l(s.unmount(), seq(s.db__unsubscribe($.sub), s.fail())),
+            l(
+              s.exit($.p, $.reason),
+              s.if_then_else(
+                u($.reason, s.normal()),
+                s.ok(),
+                seq(s.log("error", $.p, $.reason), s.send($.self, s.render())),
+              ),
+            ),
             l(__, s.throw(s.unknown_message($.self, $.e))),
           ),
         ),

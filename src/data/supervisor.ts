@@ -5,7 +5,7 @@ import { test } from "./test_utils";
 export const supervisor = pkg("supervisor", {
   supervisor: {
     rule__params: l($.pid, $.config, $.workers),
-    rule__body: seq(s.spawn($.pid, s._init($.config, $.workers))),
+    rule__body: seq(s.spawn_link($.pid, s._init($.config, $.workers))),
   },
   _init: {
     rule__params: l($.sup_config, $.workers),

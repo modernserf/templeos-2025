@@ -51,26 +51,4 @@ export const viewForm = {
       s.view__select($.out, $.params, $.label, $.menu_options, $.handler),
     ),
   },
-  init__handler_monitor: {
-    file__description: l("Logs errors from spawned event handlers"),
-    rule__params: l(),
-    rule__body: seq(
-      s.spawn_link(
-        "handler_monitor",
-        seq(
-          s.trap_exit(),
-          s.loop(
-            alt(
-              seq(
-                s.receive(s.exit(__, $.err)),
-                s.if_then_else(u($.err, s.normal()), s.ok(), s.log($.err)),
-              ),
-              s.ok(),
-            ),
-          ),
-          s.log("handler monitor exit"),
-        ),
-      ),
-    ),
-  },
 } satisfies Record<string, Rec>;
