@@ -121,6 +121,7 @@ export const browserData = pkg("browser", {
     rule__body: seq(
       s.init__db_server(),
       s.init_debugger(),
+      s._init_app_menu(),
       s.spawn_link(
         $.pid,
         // loop because we want this process to stay mounted
@@ -288,7 +289,7 @@ export const browserData = pkg("browser", {
       $.out,
       "div",
       l(),
-      s._app_menu(),
+      s._app_menu_render(),
       s.expr_iter(
         seq(
           s.record_field_value($.window, "db__schema", "window"),
@@ -385,6 +386,9 @@ export const browserData = pkg("browser", {
           s._record_view($.id, $.view),
         ),
       ),
+      // TODO: get menu content from view
+      s._app_menu_content($.content),
+      s._app_menu_update($.content),
 
       s.try_error_trace_catch(
         seq(
@@ -467,29 +471,96 @@ export const browserData = pkg("browser", {
       ),
     ),
   },
+  _init_app_menu: {
+    rule__params: l(),
+    rule__body: s.spawn_link(
+      "app_menu",
+      seq(
+        s.self($.self),
+        s.agent($.menu_ref, l()),
+        s.receive(s.mount($.view)),
 
+        s.loop(
+          seq(
+            s.receive($.e),
+            s.match_cond(
+              $.e,
+              l(s.unmount(), s.fail()),
+              l(
+                s.render(),
+                seq(
+                  s.agent_get($.menu, $.menu_ref),
+                  s._app_menu($.render_out, $.menu),
+                  s.send($.view, $.render_out),
+                ),
+              ),
+              l(
+                s.update_menu($.next_menu),
+                seq(
+                  s.agent_update($.menu_ref, $.next_menu, __, s.ok()),
+                  s.send($.self, s.render()),
+                ),
+              ),
+              l(__, s.throw(s.unknown_message($.self, $.e))),
+            ),
+          ),
+        ),
+      ),
+    ),
+  },
+  _app_menu_render: {
+    rule__params: l(s.Receiver2("app_menu")),
+  },
+  _app_menu_update: {
+    rule__params: l($.content),
+    rule__body: s.send("app_menu", s.update_menu($.content)),
+  },
+
+  _app_menu_content: {
+    rule__params: l(
+      l(
+        s.menu(
+          "Menu",
+          l(
+            s.menu_option("home", "Home", s.on__new_window(s.location("home"))),
+            s.menu_option(
+              "search",
+              "Search",
+              s.on__new_window(s.location("omnibox")),
+            ),
+            s.menu_option("reset", "Reset", s.db__reset()),
+          ),
+        ),
+      ),
+    ),
+  },
   _app_menu: {
     file__name: "App menu",
-    rule__params: l($.out),
-    rule__body: s.row(
-      $.out,
-      l(
-        s.style("backgroundColor", "white"),
-        s.style("borderBottom", "1px solid black"),
-      ),
-      s.view__menu(
-        l(s.class("AppMenu")),
-        "Menu",
+    rule__params: l($.out, $.menu_bar),
+    rule__body: seq(
+      s.row(
+        $.out,
         l(
-          s.option("home", "Home"),
-          s.option("omnibox", "Search"),
-          s.option("reset", "Reset"),
+          s.style("backgroundColor", "white"),
+          s.style("borderBottom", "1px solid black"),
         ),
-        s.on_change(
-          s.match_cond(
-            l("home", s.on__new_window(s.location("home"))),
-            l("omnibox", s.on__new_window(s.location("omnibox"))),
-            l("reset", s.db__reset()),
+        s.expr_iter(
+          seq(
+            s(s.menu($.title, $.menu)).in($.menu_bar),
+            s.collect_item_in(
+              $.options,
+              s.option($.id, $.label),
+              s(s.menu_option($.id, $.label, __)).in($.menu),
+            ),
+          ),
+          s.view__menu(
+            l(s.class("AppMenu")),
+            $.title,
+            $.options,
+            s.fn(
+              l(s.change($.id)),
+              seq(s(s.menu_option($.id, __, $.handler)).in($.menu), $.handler),
+            ),
           ),
         ),
       ),

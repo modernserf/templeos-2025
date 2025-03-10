@@ -116,6 +116,7 @@ export const asyncRules = pkg("async", {
       s.receive(s.get($.ref, $.value)),
     ),
   },
+  // TODO: this should be $agent, ($out, in) :- $goal
   agent_update: {
     rule__params: l($.agent, $.out, $.in, $.goal),
     rule__body: seq(
