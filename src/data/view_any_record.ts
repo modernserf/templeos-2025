@@ -1,4 +1,4 @@
-import { l, seq, s, $, __ } from "../expr";
+import { l, seq, s, $, __, u } from "../expr";
 import { pkg } from "../pkg";
 
 export const viewAnyRecord = pkg("any_record", {
@@ -66,37 +66,131 @@ export const viewAnyRecord = pkg("any_record", {
       s.html($.out, "div", l(), s.view__expr($.value)),
     ),
   },
+  _clickable: {
+    rule__params: $.params,
+    rule__body: seq(
+      s.params_rest($.params, l($.out, $.props, $.handler), $.children),
+      s.expr_children($.rendered_children, $.children),
+      u($.out, s.Clickable($.props, $.handler, $.rendered_children)),
+    ),
+  },
+  _focus_cell: {
+    rule__params: l($.out, $.state, $.path, $.item),
+    rule__body: seq(
+      s.get_focus($.focus, $.state, s.none()),
+      s.match(
+        l($.focus, $.props),
+        l($.path, l(s.style("outline", "2px solid black"))),
+        l(__, l()),
+      ),
+      s._clickable(
+        $.out,
+        $.props,
+        s.fn(
+          l(s.click(__)),
+          s.if_then_else(
+            u($.focus, $.path),
+            s.set_focus($.state, s.none()),
+            s.set_focus($.state, $.path),
+          ),
+        ),
+        $.item,
+      ),
+    ),
+  },
+  _copy_selected: {
+    rule__params: l($.id, $.state),
+    rule__body: seq(
+      s.get_focus($.focus, $.state, s.none()),
+      s.match_cond(
+        $.focus,
+        l(s.id_key(), s.clipboard__copy("id")),
+        l(s.id_value(), s.clipboard__copy($.id)),
+        l(s.field_key($.field), s.clipboard__copy($.field)),
+        l(
+          s.field_value($.field),
+          seq(
+            s.value_record_field($.value, $.id, $.field),
+            s.clipboard__copy($.value),
+          ),
+        ),
+        l(s.ref_key($.field), s.clipboard__copy($.field)),
+        l(
+          s.ref_value($.field),
+          seq(
+            s.ref_field_record($.ref, $.field, $.id),
+            s.clipboard__copy($.ref),
+          ),
+        ),
+      ),
+    ),
+  },
   _view: {
     file__name: "Default viewer",
     view__schema: "any_record",
     rule__params: l($.out, $.id, $.state),
     rule__body: seq(
-      s.table(
+      s.get_focus($.focus, $.state, s.none()),
+      // FIXME: put in menu bar
+      s.column(
         $.out,
         l(),
-        s.table_section(
+        s.row(
           l(),
-          l(s.view__string("Field"), s.view__string("Value")),
-          s.table_row(l(), s.view__string("id"), s.view__string($.id)),
-          s.expr_iter(
-            s.field_record($.field, $.id),
-            s.table_row(
-              l(),
-
-              s.view__file_link($.field),
-              s._view_field($.field, $.id),
+          s.view__menu(
+            l(),
+            "Edit",
+            l(s.option("copy", "Copy")),
+            s.on_change(
+              s.match_cond(l("copy", s._copy_selected($.id, $.state))),
             ),
           ),
         ),
-        s.table_section(
+        s.table(
           l(),
-          l(s.view__string("Reference"), s.view__string("Record")),
-          s.expr_iter(
-            s.ref_field_record($.ref, $.field, $.id),
+          s.table_section(
+            l(),
+            l(s.view__string("Field"), s.view__string("Value")),
             s.table_row(
               l(),
-              s.view__file_link($.field),
-              s.view__file_link($.ref),
+              s._focus_cell($.state, s.id_key(), s.view__string("id")),
+              s._focus_cell($.state, s.id_value(), s.view__string($.id)),
+            ),
+            s.expr_iter(
+              s.field_record($.field, $.id),
+              s.table_row(
+                l(),
+                s._focus_cell(
+                  $.state,
+                  s.field_key($.field),
+                  s.view__file_link($.field),
+                ),
+                s._focus_cell(
+                  $.state,
+                  s.field_value($.field),
+                  s._view_field($.field, $.id),
+                ),
+              ),
+            ),
+          ),
+          s.table_section(
+            l(),
+            l(s.view__string("Reference"), s.view__string("Record")),
+            s.expr_iter(
+              s.ref_field_record($.ref, $.field, $.id),
+              s.table_row(
+                l(),
+                s._focus_cell(
+                  $.state,
+                  s.ref_key($.field),
+                  s.view__file_link($.field),
+                ),
+                s._focus_cell(
+                  $.state,
+                  s.ref_key($.field),
+                  s.view__file_link($.ref),
+                ),
+              ),
             ),
           ),
         ),

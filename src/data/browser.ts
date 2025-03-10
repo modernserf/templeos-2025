@@ -18,6 +18,7 @@ export const browserData = {
       s.field("history__id"),
       s.field_optional("history__view"),
       s.field_optional("history__params"),
+      s.field_optional("history__focus"),
       s.field("history__forward"),
       s.field("history__back"),
     ),
@@ -37,6 +38,10 @@ export const browserData = {
   history__params: {
     db__schema: "field",
     file__name: "History view params",
+  },
+  history__focus: {
+    db__schema: "field",
+    file__name: "History focused element",
   },
   history__back: {
     db__schema: "field",
@@ -97,7 +102,14 @@ export const browserData = {
     rule__params: l($.window),
     rule__body: f.browser__current_window("browser", $.window),
   },
-
+  current_focus: {
+    rule__params: l($.focus),
+    rule__body: seq(
+      f.browser__current_window("browser", $.window),
+      f.window__current_history($.window, $.history),
+      f.history__focus($.history, $.focus),
+    ),
+  },
   render_root: {
     rule__params: l(),
     rule__body: s.send("root_view_manager", s.render()),
@@ -154,7 +166,11 @@ export const browserData = {
               s.if_then_else(
                 u($.reason, s.normal()),
                 s.ok(),
-                seq(s.log("error", $.p, $.reason), s.send($.self, s.render())),
+                seq(
+                  s.log("error", $.p, $.reason),
+                  // s.debugger(),
+                  // s.send($.self, s.render()),
+                ),
               ),
             ),
             l(__, s.throw(s.unknown_message($.self, $.e))),
@@ -479,10 +495,20 @@ export const browserData = {
   },
   set_state: {
     rule__params: l($.state, $.value),
-    rule__body: seq(
-      s.db__update(l(s.update($.state, "history__params", $.value))),
-      f.history__window($.state, $.window),
+    rule__body: s.db__update(l(s.update($.state, "history__params", $.value))),
+  },
+  get_focus: {
+    rule__params: l($.value, $.state, $.default),
+    rule__body: s.value_record_field_default(
+      $.value,
+      $.state,
+      "history__focus",
+      $.default,
     ),
+  },
+  set_focus: {
+    rule__params: l($.state, $.value),
+    rule__body: s.db__update(l(s.update($.state, "history__focus", $.value))),
   },
 
   // event handlers

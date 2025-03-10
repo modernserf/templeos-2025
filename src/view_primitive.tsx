@@ -147,6 +147,19 @@ const String: VC = ({ values: [value] }) => {
   return value.value;
 };
 
+const Clickable: VC = ({ pm, values: [props, handler, children], pid }) => {
+  return (
+    <div
+      {...getProps(props)}
+      onClick={() => {
+        handle(pm, pid, handler, s.click(l()));
+      }}
+    >
+      <Children pid={pid} pm={pm} children={children} />
+    </div>
+  );
+};
+
 const Button: VC = ({ pm, values: [props, label, handler], pid }) => {
   return (
     <button
@@ -291,6 +304,7 @@ const Null: VC = () => {
 const viewPrimitives: Record<string, VC> = {
   Html,
   String,
+  Clickable,
   Button,
   Select,
   Icon,
