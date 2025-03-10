@@ -1,7 +1,8 @@
 import { Rec } from ".";
 import { l, s, $, seq, u, __, alt, f } from "../expr";
+import { pkg } from "../pkg";
 
-export const browserData = {
+export const browserData = pkg("browser", {
   // schemas
   window: {
     db__schema: "schema",
@@ -123,16 +124,116 @@ export const browserData = {
       s.spawn_link(
         $.pid,
         // loop because we want this process to stay mounted
-        s.loop(
-          s.view__subscribe_render__internal(
-            s.record("browser"),
-            s.view__desktop(),
-          ),
+        s.loop(s._subscribe_render(s.record("browser"), s._desktop())),
+      ),
+    ),
+  },
+  get_state: {
+    rule__params: l($.value, $.state, $.default),
+    rule__body: s.value_record_field_default(
+      $.value,
+      $.state,
+      "history__params",
+      $.default,
+    ),
+  },
+  set_state: {
+    rule__params: l($.state, $.value),
+    rule__body: s.db__update(l(s.update($.state, "history__params", $.value))),
+  },
+  get_focus: {
+    rule__params: l($.value, $.state, $.default),
+    rule__body: s.value_record_field_default(
+      $.value,
+      $.state,
+      "history__focus",
+      $.default,
+    ),
+  },
+  set_focus: {
+    rule__params: l($.state, $.value),
+    rule__body: s.db__update(l(s.update($.state, "history__focus", $.value))),
+  },
+
+  // event handlers
+  on__set_view_menu: {
+    rule__params: l($.window, $.next_view),
+    rule__body: seq(
+      f.window__current_history($.window, $.history),
+      s.db__update(l(s.update($.history, "history__view", $.next_view))),
+    ),
+  },
+  on__select_window: {
+    rule__params: l($.window),
+    rule__body: seq(
+      s.db__update(l(s.update("browser", "browser__current_window", $.window))),
+    ),
+  },
+  on__new_window: {
+    rule__params: l($.location),
+    rule__body: seq(
+      s._new_window($.out, __, $.location),
+      s.db__update($.out),
+      s.render_root(),
+    ),
+  },
+  on__close_window: {
+    rule__params: l($.window),
+    rule__body: seq(s.db__update(l(s.delete($.window))), s.render_root()),
+  },
+  on__push: {
+    rule__params: l($.window, $.location),
+    rule__body: seq(
+      f.window__current_history($.window, $.prev),
+      s._new_history($.h, $.next, $.window, $.location),
+      s.append_left_right(
+        $.batch,
+        $.h,
+        l(
+          s.update($.next, "history__back", $.prev),
+          s.update($.prev, "history__forward", $.next),
+          s.update($.window, "window__current_history", $.next),
+        ),
+      ),
+      s.db__update($.batch),
+    ),
+  },
+
+  on__back: {
+    rule__params: l($.window),
+    rule__body: seq(
+      f.window__current_history($.window, $.forward),
+      f.history__back($.forward, $.back),
+      s.db__update(
+        l(
+          s.update($.window, "window__current_history", $.back),
+          s.update($.back, "history__forward", $.forward),
+          s.delete($.forward, "history__back"),
         ),
       ),
     ),
   },
-  view__subscribe_render__internal: {
+  on__forward: {
+    rule__params: l($.window),
+    rule__body: seq(
+      f.window__current_history($.window, $.back),
+      f.history__forward($.back, $.forward),
+      s.db__update(
+        l(
+          s.update($.window, "window__current_history", $.forward),
+          s.update($.forward, "history__back", $.back),
+          s.delete($.back, "history__forward"),
+        ),
+      ),
+    ),
+  },
+  view__subscribe_render: {
+    rule__params: l($.out, $.subscriptions, $.render),
+    rule__body: seq(
+      u($.out, s.Receiver(s._subscribe_render($.subscriptions, $.render))),
+    ),
+  },
+  _subscribe_render: {
     rule__params: l($.subscriptions, $.render),
     rule__body: seq(
       s.trap_exit(),
@@ -179,26 +280,15 @@ export const browserData = {
       ),
     ),
   },
-  view__subscribe_render: {
-    rule__params: l($.out, $.subscriptions, $.render),
-    rule__body: seq(
-      u(
-        $.out,
-        s.Receiver(
-          s.view__subscribe_render__internal($.subscriptions, $.render),
-        ),
-      ),
-    ),
-  },
 
   // views
-  view__desktop: {
+  _desktop: {
     rule__params: l($.out),
     rule__body: s.html(
       $.out,
       "div",
       l(),
-      s.view__app_menu(),
+      s._app_menu(),
       s.expr_iter(
         seq(
           s.record_field_value($.window, "db__schema", "window"),
@@ -206,13 +296,13 @@ export const browserData = {
         ),
         s.view__subscribe_render(
           s.oneof(l(s.record($.window), s.record($.history))),
-          s.view__window($.window),
+          s._view_window($.window),
         ),
       ),
     ),
   },
 
-  record_view: {
+  _record_view: {
     rule__params: l($.id, $.view),
     rule__body: alt(
       // id for view type
@@ -231,7 +321,7 @@ export const browserData = {
       f.view__schema($.view, "any_record"),
     ),
   },
-  view__view_menu: {
+  _view_menu: {
     file__name: "View menu",
     file__description: l("the view selection menu on window chrome"),
     rule__params: l($.out, $.window, $.id, $.selected),
@@ -239,7 +329,7 @@ export const browserData = {
       s.collect_item_in(
         $.options,
         s.option($.view, $.name),
-        seq(s.record_view($.id, $.view), f.file__name($.view, $.name)),
+        seq(s._record_view($.id, $.view), f.file__name($.view, $.name)),
       ),
       s.view__select(
         $.out,
@@ -254,7 +344,7 @@ export const browserData = {
     ),
   },
 
-  view__window_container: {
+  _window_container: {
     rule__params: l(
       s.WindowContainer(
         $.window,
@@ -273,12 +363,12 @@ export const browserData = {
     rule__body: seq(s.expr_children($.rendered_children, $.children)),
   },
 
-  view__window_content: {
+  _window_content: {
     rule__params: l($.out, $.view, $.id, $.window, $.history),
     rule__body: seq(s.call($.view, l($.out, $.id, $.history))),
   },
 
-  view__window: {
+  _view_window: {
     file__name: "Window",
     rule__params: l($.out, $.window),
     rule__body: seq(
@@ -292,18 +382,18 @@ export const browserData = {
           // view from params
           f.history__view($.history, $.view),
           // view from id
-          s.record_view($.id, $.view),
+          s._record_view($.id, $.view),
         ),
       ),
 
       s.try_error_trace_catch(
         seq(
-          s.view__window_container(
+          s._window_container(
             $.out,
             $.window,
             $.current_window,
             l(
-              s.view__window_bar($.window, $.id, $.view, $.name),
+              s._window_bar($.window, $.id, $.view, $.name),
               s.html(
                 "div",
                 l(s.class("AppWindow__content")),
@@ -311,7 +401,7 @@ export const browserData = {
                   s.oneof(
                     l(s.record($.history), s.record($.id), s.record($.view)),
                   ),
-                  s.view__window_content($.view, $.id, $.window, $.history),
+                  s._window_content($.view, $.id, $.window, $.history),
                 ),
               ),
             ),
@@ -321,12 +411,12 @@ export const browserData = {
         $.trace,
         seq(
           s.log("error", $.error, $.trace),
-          s.view__window_container(
+          s._window_container(
             $.out,
             $.window,
             $.current_window,
             l(
-              s.view__window_bar($.window, $.id, $.view, "Home"),
+              s._window_bar($.window, $.id, $.view, "Home"),
               s.html(
                 "div",
                 l(s.class("AppWindow__content")),
@@ -338,7 +428,7 @@ export const browserData = {
       ),
     ),
   },
-  view__window_bar: {
+  _window_bar: {
     rule__params: l($.out, $.window, $.id, $.view, $.name),
     rule__body: seq(
       f.window__current_history($.window, $.history),
@@ -373,11 +463,12 @@ export const browserData = {
           "→",
           s.on_click(s.on__forward($.window)),
         ),
-        s.view__view_menu($.window, $.id, $.view),
+        s._view_menu($.window, $.id, $.view),
       ),
     ),
   },
-  view__app_menu: {
+
+  _app_menu: {
     file__name: "App menu",
     rule__params: l($.out),
     rule__body: s.row(
@@ -404,51 +495,12 @@ export const browserData = {
       ),
     ),
   },
-  // view__window_history: {
-  //   file__name: "Window - History",
-  //   view__schema: "window",
-  //   rule__params: l($.id, $.state, $.out),
-  //   rule__body: view.render(
-  //     view.table(
-  //       l(),
-  //       s.children(
-  //         view.table_header(
-  //           l(),
-  //           s.children(
-  //             view.string("id"),
-  //             view.string("view"),
-  //             view.string("time"),
-  //           ),
-  //         ),
-  //       ),
-  //       s.children(
-  //         view.iter(
-  //           s.history__window($.history, $.id),
-  //           l(
-  //             view.table_row(
-  //               l(),
-  //               s.children(
-  //                 view.id_field($.history, "history__id"),
-  //                 view.or_default(
-  //                   view.id_field($.history, "history__view"),
-  //                   view.string(""),
-  //                 ),
-  //                 view.id_field($.history, "time__created"),
-  //               ),
-  //             ),
-  //           ),
-  //         ),
-  //       ),
-  //     ),
-  //     $.out,
-  //   ),
-  // },
 
-  new__window: {
+  _new_window: {
     rule__params: l($.out, $.window, $.location),
     rule__body: seq(
       s.if_var($.window, s.id($.window)),
-      s.new__history($.h, $.history, $.window, $.location),
+      s._new_history($.h, $.history, $.window, $.location),
       s.append_left_right(
         $.out,
         $.h,
@@ -459,7 +511,7 @@ export const browserData = {
       ),
     ),
   },
-  new__history: {
+  _new_history: {
     rule__params: l($.out, $.history, $.window, $.location),
     rule__body: seq(
       s.if_var($.history, s.id($.history)),
@@ -483,107 +535,7 @@ export const browserData = {
       ),
     ),
   },
-
-  get_state: {
-    rule__params: l($.value, $.state, $.default),
-    rule__body: s.value_record_field_default(
-      $.value,
-      $.state,
-      "history__params",
-      $.default,
-    ),
-  },
-  set_state: {
-    rule__params: l($.state, $.value),
-    rule__body: s.db__update(l(s.update($.state, "history__params", $.value))),
-  },
-  get_focus: {
-    rule__params: l($.value, $.state, $.default),
-    rule__body: s.value_record_field_default(
-      $.value,
-      $.state,
-      "history__focus",
-      $.default,
-    ),
-  },
-  set_focus: {
-    rule__params: l($.state, $.value),
-    rule__body: s.db__update(l(s.update($.state, "history__focus", $.value))),
-  },
-
-  // event handlers
-  on__set_view_menu: {
-    rule__params: l($.window, $.next_view),
-    rule__body: seq(
-      f.window__current_history($.window, $.history),
-      s.db__update(l(s.update($.history, "history__view", $.next_view))),
-    ),
-  },
-  on__select_window: {
-    rule__params: l($.window),
-    rule__body: seq(
-      s.db__update(l(s.update("browser", "browser__current_window", $.window))),
-    ),
-  },
-  on__new_window: {
-    rule__params: l($.location),
-    rule__body: seq(
-      s.new__window($.out, __, $.location),
-      s.db__update($.out),
-      s.render_root(),
-    ),
-  },
-  on__close_window: {
-    rule__params: l($.window),
-    rule__body: seq(s.db__update(l(s.delete($.window))), s.render_root()),
-  },
-  on__push: {
-    rule__params: l($.window, $.location),
-    rule__body: seq(
-      f.window__current_history($.window, $.prev),
-      s.new__history($.h, $.next, $.window, $.location),
-      s.append_left_right(
-        $.batch,
-        $.h,
-        l(
-          s.update($.next, "history__back", $.prev),
-          s.update($.prev, "history__forward", $.next),
-          s.update($.window, "window__current_history", $.next),
-        ),
-      ),
-      s.db__update($.batch),
-    ),
-  },
-
-  on__back: {
-    rule__params: l($.window),
-    rule__body: seq(
-      f.window__current_history($.window, $.forward),
-      f.history__back($.forward, $.back),
-      s.db__update(
-        l(
-          s.update($.window, "window__current_history", $.back),
-          s.update($.back, "history__forward", $.forward),
-          s.delete($.forward, "history__back"),
-        ),
-      ),
-    ),
-  },
-  on__forward: {
-    rule__params: l($.window),
-    rule__body: seq(
-      f.window__current_history($.window, $.back),
-      f.history__forward($.back, $.forward),
-      s.db__update(
-        l(
-          s.update($.window, "window__current_history", $.forward),
-          s.update($.forward, "history__back", $.back),
-          s.delete($.back, "history__forward"),
-        ),
-      ),
-    ),
-  },
-} satisfies Record<string, Rec>;
+});
 
 export const browserInitState = {
   root_history: {
