@@ -198,14 +198,6 @@ export const core = pkg("core", {
     file__description: l("describes the content of the record"),
     db__type: "text",
   },
-  view__schema: {
-    db__schema: "field",
-    file__name: "View for schema",
-    file__description: l("the schema that this view is supposed to render"),
-    db__type: "ref",
-    // db__type: s.ref( "schema" as const),
-    db__index: s.ref(),
-  },
   // utilities
   none: {
     rule__params: l($.expr),

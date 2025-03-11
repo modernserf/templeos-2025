@@ -34,20 +34,18 @@ export const clipboardRules = pkg("clipboard", {
   // public api
   clipboard__copy: {
     rule__params: l($.value),
-    rule__body: seq(s._current($.id), s._handle_copy($.id, $.value)),
+    rule__body: seq(s.current_clipboard($.id), s._handle_copy($.id, $.value)),
   },
   clipboard__paste: {
     rule__params: l($.value),
-    rule__body: seq(s._current($.id), s._handle_paste($.id, $.value)),
+    rule__body: seq(s.current_clipboard($.id), s._handle_paste($.id, $.value)),
   },
-
-  // private
-
   // TODO: current clipboard ref is stored in browser
-  _current: {
+  current_clipboard: {
     rule__params: l("root_clipboard"),
   },
 
+  // private
   _handle_copy: {
     rule__params: l($.id, $.value),
     rule__body: seq(

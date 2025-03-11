@@ -161,5 +161,5 @@ export const exprOrd: Ord<Expr> = {
 
 export const fn =
   (...params: Expr[]) =>
-  (head = s.ok(), ...body: Expr[]) =>
+  (head: Expr = s.ok(), ...body: Expr[]) =>
     s.fn(l(...params), seq(head, ...body));

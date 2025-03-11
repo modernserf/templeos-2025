@@ -26,6 +26,18 @@ export const browserData = pkg("browser", {
   },
 
   // fields
+  view__schema: {
+    db__schema: "field",
+    file__name: "View for schema",
+    file__description: l("the schema that this view is supposed to render"),
+    db__type: "ref",
+    // db__type: s.ref( "schema" as const),
+    db__index: s.ref(),
+  },
+  view__menu_items: {
+    db__schema: "field",
+    file__name: "View menu items",
+  },
   _id: {
     db__schema: "field",
     file__name: "History id ref",
@@ -121,7 +133,6 @@ export const browserData = pkg("browser", {
     rule__body: seq(
       s.init__db_server(),
       s.init_debugger(),
-      s._init_app_menu(),
       s.spawn_link(
         $.pid,
         // loop because we want this process to stay mounted
@@ -288,7 +299,7 @@ export const browserData = pkg("browser", {
       $.out,
       "div",
       l(),
-      s._app_menu_render(),
+      s.view__subscribe_render(s.record("browser"), s._app_menu()),
       s.expr_iter(
         seq(
           s.record_field_value($.window, "db__schema", "window"),
@@ -357,29 +368,33 @@ export const browserData = pkg("browser", {
       $.current_window,
       $.children,
     ),
-    rule__body: seq(s.expr_children($.rendered_children, $.children)),
+    rule__body: s.expr_children($.rendered_children, $.children),
   },
 
   _window_content: {
     rule__params: l($.out, $.view, $.id, $.window, $.history),
-    rule__body: seq(s.call($.view, $.out, $.id, $.history)),
+    rule__body: s.call($.view, $.out, $.id, $.history),
+  },
+
+  _window_params: {
+    rule__params: l($.id, $.view, $.history, $.window),
+    rule__body: seq(
+      f._current_history($.window, $.history),
+      f._id($.history, $.id),
+      s.cond(
+        f._view($.history, $.view),
+        s.limit(1, s._record_view($.id, $.view)),
+      ),
+    ),
   },
 
   _view_window: {
     file__name: "Window",
     rule__params: l($.out, $.window),
     rule__body: seq(
-      f._current_history($.window, $.history),
+      s._window_params($.id, $.view, $.history, $.window),
       f._current_window("browser", $.current_window),
-      f._id($.history, $.id),
       s.cond(f.file__name($.id, $.name), u($.name, $.id)),
-      s.cond(
-        f._view($.history, $.view),
-        s.limit(1, s._record_view($.id, $.view)),
-      ),
-      // TODO: get menu content from view
-      s._app_menu_content($.content),
-      s._app_menu_update($.content),
 
       s.try_error_trace_catch(
         seq(
@@ -462,51 +477,26 @@ export const browserData = pkg("browser", {
       ),
     ),
   },
-  _init_app_menu: {
-    rule__params: l(),
-    rule__body: s.spawn_link(
-      "app_menu",
-      seq(
-        s.self($.self),
-        s.agent($.menu_ref, l()),
-        s.receive(s.mount($.view)),
-
-        s.loop(
-          seq(
-            s.receive($.e),
-            s.match_cond(
-              $.e,
-              l(s.unmount(), s.fail()),
-              l(
-                s.render(),
-                seq(
-                  s.agent_get($.menu, $.menu_ref),
-                  s._app_menu($.render_out, $.menu),
-                  s.send($.view, $.render_out),
-                ),
-              ),
-              l(
-                s.update_menu($.next_menu),
-                seq(
-                  s.agent_set($.menu_ref, $.next_menu),
-                  s.send($.self, s.render()),
-                ),
-              ),
-              l(__, s.throw(s.unknown_message($.self, $.e))),
-            ),
-          ),
+  _bind_window_menu: {
+    rule__params: l($.bound, $.unbound, $.id, $.state),
+    rule__body: s.map_list(
+      $.bound,
+      $.unbound,
+      fn(
+        s.menu($.menu_label, $.bound_options),
+        s.menu($.menu_label, $.options),
+      )(
+        s.map_list(
+          $.bound_options,
+          $.options,
+          fn(
+            s.menu_option($.opt_id, $.opt_label, s.call($.fn, $.id, $.state)),
+            s.menu_option($.opt_id, $.opt_label, $.fn),
+          )(),
         ),
       ),
     ),
   },
-  _app_menu_render: {
-    rule__params: l(s.Receiver2("app_menu")),
-  },
-  _app_menu_update: {
-    rule__params: l($.content),
-    rule__body: s.send("app_menu", s.update_menu($.content)),
-  },
-
   _app_menu_content: {
     rule__params: l(
       l(
@@ -527,8 +517,25 @@ export const browserData = pkg("browser", {
   },
   _app_menu: {
     file__name: "App menu",
-    rule__params: l($.out, $.menu_bar),
+    rule__params: l($.out),
     rule__body: seq(
+      s.current_window($.window),
+      s.cond(
+        seq(
+          s._window_params($.id, $.view, $.history, $.window),
+          f.view__menu_items($.view, $.window_menu_base),
+          s._bind_window_menu(
+            $.window_menu,
+            $.window_menu_base,
+            $.id,
+            $.history,
+          ),
+        ),
+        u($.window_menu, l()),
+      ),
+      s._app_menu_content($.base_menu),
+      s.append_left_right($.menu_bar, $.base_menu, $.window_menu),
+
       s.row(
         $.out,
         l(
@@ -540,16 +547,16 @@ export const browserData = pkg("browser", {
             s(s.menu($.title, $.menu)).in($.menu_bar),
             s.collect_item_in(
               $.options,
-              s.option($.id, $.label),
-              s(s.menu_option($.id, $.label, __)).in($.menu),
+              s.option($.opt_id, $.label),
+              s(s.menu_option($.opt_id, $.label, __)).in($.menu),
             ),
           ),
           s.view__menu(
             l(s.class("AppMenu")),
             $.title,
             $.options,
-            fn(s.change($.id))(
-              s(s.menu_option($.id, __, $.handler)).in($.menu),
+            fn(s.change($.opt_id))(
+              s(s.menu_option($.opt_id, __, $.handler)).in($.menu),
               $.handler,
             ),
           ),

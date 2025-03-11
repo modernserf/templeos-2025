@@ -127,24 +127,28 @@ export const viewAnyRecord = pkg("any_record", {
   _view: {
     file__name: "Default viewer",
     view__schema: "any_record",
-    rule__params: l($.out, $.id, $.state),
-    rule__body: seq(
-      s.get_focus($.focus, $.state, s.none()),
-      // FIXME: put in menu bar
-      s.column(
-        $.out,
-        l(),
-        s.row(
-          l(),
-          s.view__menu(
-            l(),
-            "Edit",
-            l(s.option("copy", "Copy")),
-            s.on_change(
-              s.match_cond(l("copy", s._copy_selected($.id, $.state))),
+    view__menu_items: l(
+      s.menu(
+        "Edit",
+        l(
+          s.menu_option("copy", "Copy", s._copy_selected()),
+          s.menu_option(
+            "clipboard",
+            "Show Clipboard",
+            fn(__, __)(
+              s.current_clipboard($.clipboard),
+              s.on__new_window(s.location($.clipboard)),
             ),
           ),
         ),
+      ),
+    ),
+    rule__params: l($.out, $.id, $.state),
+    rule__body: seq(
+      s.get_focus($.focus, $.state, s.none()),
+      s.column(
+        $.out,
+        l(),
         s.table(
           l(),
           s.table_section(
