@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, seq, s, $, f } from "../expr";
+import { l, seq, s, $, f, fn } from "../expr";
 
 export const omnibox = {
   omnibox: {
@@ -18,7 +18,7 @@ export const omnibox = {
             s.style("width", "100%"),
           ),
           $.search,
-          s.fn(l(s.change($.next)), s.set_state($.state, s.omnibox($.next))),
+          fn(s.change($.next))(s.set_state($.state, s.omnibox($.next))),
         ),
         s.column(
           l(s.style("padding", "0.5rem")),

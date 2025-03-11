@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, seq, s, $, u, __, f } from "../expr";
+import { l, seq, s, $, u, __, f, fn } from "../expr";
 import { test } from "./test_utils";
 
 export const viewCore = {
@@ -53,8 +53,7 @@ export const viewCore = {
       $.out,
       l(s.class("Link")),
       $.label,
-      s.fn(
-        l(s.click($.params)),
+      fn(s.click($.params))(
         s.cond(
           l(
             s.value_box_index(s.meta_key(), $.params, 0),

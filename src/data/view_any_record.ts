@@ -1,4 +1,4 @@
-import { l, seq, s, $, __, u } from "../expr";
+import { l, seq, s, $, __, u, fn } from "../expr";
 import { pkg } from "../pkg";
 
 export const viewAnyRecord = pkg("any_record", {
@@ -86,8 +86,7 @@ export const viewAnyRecord = pkg("any_record", {
       s._clickable(
         $.out,
         $.props,
-        s.fn(
-          l(s.click(__)),
+        fn(s.click(__))(
           s.if_then_else(
             u($.focus, $.path),
             s.set_focus($.state, s.none()),

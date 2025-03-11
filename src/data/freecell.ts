@@ -1,4 +1,4 @@
-import { l, s, $, __, u, seq, alt, f } from "../expr";
+import { l, s, $, __, u, seq, alt, f, fn } from "../expr";
 import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
@@ -50,15 +50,15 @@ export const freeCell = pkg("free_cell", {
     ),
   },
   fncall: {
-    rule__params: l(s.fn($.params, $.body), $.args),
-    rule__body: seq(u($.params, $.args), $.body),
+    rule__params: l($.fn, $.args),
+    rule__body: s.apply(l($.args), $.fn),
   },
   get_state_else: {
     rule__params: l($.value, $.state, $.fn),
     rule__body: s.if_then_else(
       s.value_record_field($.value, $.state, "history__params"),
       s.ok(),
-      s.fncall($.fn, $.value),
+      s.apply(l($.value), $.fn),
     ),
   },
 
@@ -254,7 +254,7 @@ export const freeCell = pkg("free_cell", {
     rule__body: seq(
       f.free_cell__game_state($.id, s.state($.stacks, $.cells, $.columns)),
       s._selected_param($.selected, $.p),
-      u($.handler, s.fn($.e, s._dispatch($.e, $.id, $.p))),
+      u($.handler, s._dispatch($.id, $.p)),
       s.column(
         $.out,
         l(s.style("padding", "0.5rem"), s.style("gap", "0.5rem")),

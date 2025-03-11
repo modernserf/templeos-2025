@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, seq, s, $, __, f } from "../expr";
+import { l, seq, s, $, __, f, fn } from "../expr";
 
 export const codeExplorerData = {
   code_explorer: {
@@ -18,10 +18,7 @@ export const codeExplorerData = {
             s.style("width", "100%"),
           ),
           $.search,
-          s.fn(
-            l(s.change($.next)),
-            s.set_state($.state, s.code_explorer($.next)),
-          ),
+          fn(s.change($.next))(s.set_state($.state, s.code_explorer($.next))),
         ),
         s.expr_iter_else(
           s.limit(

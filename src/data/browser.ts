@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, seq, u, __, alt, f } from "../expr";
+import { l, s, $, seq, u, __, alt, f, fn } from "../expr";
 import { pkg } from "../pkg";
 
 export const browserData = pkg("browser", {
@@ -337,10 +337,7 @@ export const browserData = pkg("browser", {
         l(),
         $.selected,
         $.options,
-        s.fn(
-          l(s.change($.next_view)),
-          s.on__set_view_menu($.window, $.next_view),
-        ),
+        fn(s.change($.next_view))(s.on__set_view_menu($.window, $.next_view)),
       ),
     ),
   },
@@ -557,9 +554,9 @@ export const browserData = pkg("browser", {
             l(s.class("AppMenu")),
             $.title,
             $.options,
-            s.fn(
-              l(s.change($.id)),
-              seq(s(s.menu_option($.id, __, $.handler)).in($.menu), $.handler),
+            fn(s.change($.id))(
+              s(s.menu_option($.id, __, $.handler)).in($.menu),
+              $.handler,
             ),
           ),
         ),

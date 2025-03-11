@@ -158,3 +158,8 @@ export const exprOrd: Ord<Expr> = {
     return defaultOrd.cmp(exprTypeOrd(l), exprTypeOrd(r));
   },
 };
+
+export const fn =
+  (...params: Expr[]) =>
+  (head: Expr, ...body: Expr[]) =>
+    s.fn(l(...params), seq(head, ...body));
