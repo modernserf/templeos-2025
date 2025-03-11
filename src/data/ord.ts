@@ -67,7 +67,7 @@ export const ord = pkg("ord", {
     rule__body: s.ord(s.eq(), $.left, $.right),
   },
   not_eq: {
-    ule__params: l($.left, $.right),
+    rule__params: l($.left, $.right),
     rule__body: seq(
       s.ord($.ord, $.left, $.right),
       s.match($.ord, s.lt(), s.gt()),

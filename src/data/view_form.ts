@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, seq, s, $, Expr, Box, List, __, u, alt } from "../expr";
+import { l, seq, s, $, Expr, Box, List, __, u } from "../expr";
 
 type ClickParam = Box<"meta_key", []>;
 type ClickEvent = Box<"click", [List<ClickParam>]>;

@@ -27,6 +27,7 @@ import { debug } from "./debugger";
 import { time } from "./time";
 import { list } from "./list";
 import { number } from "./number";
+import { parse } from "./parse";
 
 export type Schema =
   | "any_record"
@@ -148,6 +149,7 @@ export const data = mergeAndCheck(
     number,
     omnibox,
     ord,
+    parse,
     rulePrimitiveRecs,
     supervisor,
     testUtils,

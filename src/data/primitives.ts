@@ -630,6 +630,42 @@ export const { rules, rulePrimitives } = compilePrimitives({
       test.fail(s.string_substring("foobar", "baz")),
     ),
   },
+  string_length: {
+    rule__params: l($.len, $.str),
+    rule__primitive: function* (it, len, str) {
+      ensure(str, "string");
+      if (it.unify(len, k(str.value.length))) yield it.result();
+    },
+  },
+  string_char: {
+    rule__params: l($.char, $.string, $.index),
+    rule__primitive: function* (it, char, string, index) {
+      ensure(string, "string");
+      ensure(index, "number");
+      if (it.unify(char, k(string.value.charAt(index.value))))
+        yield it.result();
+    },
+  },
+  string_char_code: {
+    rule__params: l($.code, $.string, $.index),
+    rule__primitive: function* (it, code, string, index) {
+      ensure(string, "string");
+      ensure(index, "number");
+      if (it.unify(code, k(string.value.charCodeAt(index.value))))
+        yield it.result();
+    },
+  },
+  string_slice: {
+    rule__params: l($.slice, $.string, $.from, $.to),
+    rule__primitive: function* (it, slice, string, from, to) {
+      ensure(string, "string");
+      ensure(from, "number");
+      ensure(to, "number");
+      if (it.unify(slice, k(string.value.slice(from.value, to.value)))) {
+        yield it.result();
+      }
+    },
+  },
   number_min_max: {
     rule__params: l($.number, $.min, $.max),
     rule__primitive: function* (it, num, min, max) {
