@@ -110,8 +110,8 @@ export const note = pkg("note", {
   _new: {
     rule__params: l($.out, $.id, $.content),
     rule__body: seq(
-      s.if_var($.id, s.id($.id)),
-      s.if_var($.content, u($.content, "")),
+      s.var_expr($.id, s.id()),
+      s.var_expr($.content, s.unify("")),
       u(
         $.out,
         l(

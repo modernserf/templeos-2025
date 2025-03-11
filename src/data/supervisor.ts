@@ -155,7 +155,7 @@ export const supervisor = pkg("supervisor", {
         s.agent_get($.res, $.agent),
         l(s.init("foo"), s.init("bar"), s.init("baz")),
       ),
-      s.agent_update($.agent, $.next, __, u($.next, l())),
+      s.agent_set($.agent, l()),
 
       s._test_broadcast($.supervisor, s.continue()),
       test.collect(
@@ -163,7 +163,7 @@ export const supervisor = pkg("supervisor", {
         s.agent_get($.res, $.agent),
         l(s.continue("foo"), s.continue("bar"), s.continue("baz")),
       ),
-      s.agent_update($.agent, $.next, __, u($.next, l())),
+      s.agent_set($.agent, l()),
 
       s._test_broadcast($.supervisor, s.error()),
       test.collect(
@@ -171,7 +171,7 @@ export const supervisor = pkg("supervisor", {
         s.agent_get($.res, $.agent),
         l(s.init("bar"), s.init("baz")),
       ),
-      s.agent_update($.agent, $.next, __, u($.next, l())),
+      s.agent_set($.agent, l()),
 
       s._test_broadcast($.supervisor, s.stop()),
       test.collect(

@@ -60,10 +60,7 @@ export const viewCore = {
             s.on__new_window($.location),
           ),
           l(s(s.target("new")).in($.props), s.on__new_window($.location)),
-          l(
-            s.ok(),
-            seq(s.current_window($.window), s.on__push($.window, $.location)),
-          ),
+          seq(s.current_window($.window), s.on__push($.window, $.location)),
         ),
       ),
     ),

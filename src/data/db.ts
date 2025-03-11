@@ -13,15 +13,14 @@ export const dbRules = {
         s.nonvar($.field),
         seq(s.record($.id), s.value_record_field($.value, $.id, $.field)),
       ),
-      l(s.ok(), s.throw(s.not_yet_implemented("record_field_value modes"))),
+      s.throw(s.not_yet_implemented("record_field_value modes")),
     ),
   },
   value_record_field_default: {
     rule__params: l($.value, $.record, $.field, $.default),
     rule__body: seq(
-      s.if_then_else(
+      s.cond(
         s.value_record_field($.value, $.record, $.field),
-        s.ok(),
         u($.value, $.default),
       ),
     ),
@@ -143,7 +142,7 @@ export const dbRules = {
             ),
             l(__, s.throw(s.not_implemented($.message))),
           ),
-          s.if_var($.next, u($.prev, $.next)),
+          s.var_expr($.next, s.unify($.prev)),
           s.fail(),
         ),
       ),

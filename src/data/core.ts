@@ -52,9 +52,8 @@ export const core = pkg("core", {
   },
   ensure_var: {
     rule__params: l($.item),
-    rule__body: s.if_then_else(
+    rule__body: s.cond(
       s.var($.item),
-      s.ok(),
       s.throw(s.expected_type(s.var(), $.item)),
     ),
   },
@@ -238,6 +237,14 @@ export const core = pkg("core", {
       s.box_tag_list($.updated, $.tag, $.next),
     ),
   },
+  params_rest: {
+    rule__params: l($.params, $.required, $.rest),
+    rule__body: s.if_then_else(
+      s.append_left_right($.params, $.required, $.rest),
+      s.ok(),
+      s.throw(s.invalid_params($.params, $.required, $.rest)),
+    ),
+  },
   call: {
     rule__params: $.params,
     rule__body: seq(
@@ -251,7 +258,7 @@ export const core = pkg("core", {
       l(u($.fn, s.fn($.params, $.goal)), s._apply_fn($.args, $.fn)),
       l(s.box($.fn), s._lapply_partial($.args, $.fn)),
       l(s.string($.fn), s._apply_id($.args, $.fn)),
-      l(s.ok(), s.throw(s.invalid_apply($.args, $.fn))),
+      s.throw(s.invalid_apply($.args, $.fn)),
     ),
   },
   _apply_id: {
@@ -279,11 +286,15 @@ export const core = pkg("core", {
     rule__body: s.none(s.box_tag_list($.box, __, l())),
   },
   cond: {
-    file__description: l("pattern match on a list of (if, then) pairs"),
-    rule__params: $.args,
+    rule__params: $.options,
     rule__body: seq(
-      s.append_left_right($.args, l(l($.if, $.then)), $.else),
-      s.if_then_else($.if, $.then, s._lapply_partial($.else, s.cond())),
+      s.nonempty($.options),
+      s.params_rest($.options, l($.cond), $.else),
+      s.if_then_else(
+        u(l($.if, $.then), $.cond),
+        s.if_then_else($.if, $.then, s._lapply_partial($.else, s.cond())),
+        s.if_then_else($.cond, s.ok(), s._lapply_partial($.else, s.cond())),
+      ),
     ),
   },
   _test_cond: {
@@ -295,7 +306,7 @@ export const core = pkg("core", {
         s.cond(
           l(u(123, 456), u($.result, "foo")),
           l(u(456, 456), u($.result, "bar")),
-          l(s.ok(), u($.result, "baz")),
+          u($.result, "baz"),
         ),
         "bar",
       ),
@@ -304,10 +315,11 @@ export const core = pkg("core", {
         s.cond(
           l(u(123, 789), u($.result, "foo")),
           l(u(456, 789), u($.result, "bar")),
-          l(s.ok(), u($.result, "baz")),
+          u($.result, "baz"),
         ),
         "baz",
       ),
+      test.fail(s.cond()),
       test.fail(
         s.cond(
           l(u(123, 789), u($.result, "foo")),
@@ -413,11 +425,9 @@ export const core = pkg("core", {
       s.collect_item_in(__, __, seq(s($.item).in($.collection), $.do)),
     ),
   },
-
-  if_var: {
-    file__description: l("if arg is var, run body"),
-    rule__params: l($.arg, $.body),
-    rule__body: s.if_then_else(s.var($.arg), $.body, s.ok()),
+  var_expr: {
+    rule__params: l($.var, $.expr),
+    rule__body: s.cond(s.nonvar($.var), s.expr($.var, $.expr)),
   },
   _test_var: {
     test__group: "core",
@@ -473,7 +483,7 @@ export const core = pkg("core", {
     rule__params: l($.out, $.expr),
     rule__body: s.cond(
       l(s.number($.expr), u($.out, $.expr)),
-      l(s.ok(), s.apply(l($.out), $.expr)),
+      s.apply(l($.out), $.expr),
     ),
   },
   expr_unify: {
@@ -549,35 +559,10 @@ export const core = pkg("core", {
     ),
   },
 
-  ensure: {
-    rule__params: l($.goal, $.error),
-    rule__body: s.if_then_else($.goal, s.ok(), s.throw($.error)),
-  },
-  _test_ensure: {
-    test__group: "core",
-    rule__params: l(),
-    rule__body: seq(
-      test.throw(
-        s.ensure(s.append_left_right(l(), l($.head), $.tail), s.invalid_args()),
-        s.invalid_args(),
-      ),
-    ),
-  },
   ensure_det: {
     rule__params: l($.goal),
     rule__body: seq(
-      s.if_then_else(
-        s.ensure_limit(1, $.goal),
-        s.ok(),
-        s.throw(s.expected_det($.goal)),
-      ),
-    ),
-  },
-  params_rest: {
-    rule__params: l($.params, $.required, $.rest),
-    rule__body: s.ensure(
-      s.append_left_right($.params, $.required, $.rest),
-      s.invalid_params($.params, $.required, $.rest),
+      s.cond(s.ensure_limit(1, $.goal), s.throw(s.expected_det($.goal))),
     ),
   },
 

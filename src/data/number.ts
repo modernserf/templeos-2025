@@ -8,7 +8,7 @@ export const number = pkg("number", {
     rule__body: s.cond(
       l(s.var($.l), s.sub__primitive($.l, $.sum, $.r)),
       l(s.var($.r), s.sub__primitive($.r, $.sum, $.l)),
-      l(s.ok(), s.add__primitive($.sum, $.l, $.r)),
+      s.add__primitive($.sum, $.l, $.r),
     ),
   },
   inc: {
@@ -31,7 +31,7 @@ export const number = pkg("number", {
     rule__body: s.cond(
       l(s.var($.l), s.fdiv__primitive($.l, $.product, $.r)),
       l(s.var($.r), s.fdiv__primitive($.r, $.product, $.l)),
-      l(s.ok(), s.mul__primitive($.product, $.l, $.r)),
+      s.mul__primitive($.product, $.l, $.r),
     ),
   },
   product_rem: {
@@ -39,10 +39,7 @@ export const number = pkg("number", {
     rule__body: s.cond(
       l(s.var($.l), s.divrem__primitive($.l, $.rem, $.result, $.r)),
       l(s.var($.r), s.divrem__primitive($.r, $.rem, $.result, $.l)),
-      l(
-        s.ok(),
-        seq(s.mul__primitive($.mul, $.l, $.r), s.sum($.result, $.mul, $.rem)),
-      ),
+      seq(s.mul__primitive($.mul, $.l, $.r), s.sum($.result, $.mul, $.rem)),
     ),
   },
   _test_product_rem: {

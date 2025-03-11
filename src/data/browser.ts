@@ -95,7 +95,7 @@ export const browserData = pkg("browser", {
         s.location($.id, $.view),
         s.location($.id, $.view, $.params),
       ),
-      s.if_var($.params, u($.params, l())),
+      s.var_expr($.params, s.unify(l())),
     ),
   },
 
@@ -265,9 +265,8 @@ export const browserData = pkg("browser", {
             l(s.unmount(), seq(s.db__unsubscribe($.sub), s.fail())),
             l(
               s.exit($.p, $.reason),
-              s.if_then_else(
+              s.cond(
                 u($.reason, s.normal()),
-                s.ok(),
                 seq(
                   s.log("error", $.p, $.reason),
                   // s.debugger(),
@@ -373,16 +372,8 @@ export const browserData = pkg("browser", {
       f.window__current_history($.window, $.history),
       f.browser__current_window("browser", $.current_window),
       f.history__id($.history, $.id),
-      s.if_then_else(f.file__name($.id, $.name), s.ok(), u($.name, $.id)),
-      s.limit(
-        1,
-        alt(
-          // view from params
-          f.history__view($.history, $.view),
-          // view from id
-          s._record_view($.id, $.view),
-        ),
-      ),
+      s.cond(f.file__name($.id, $.name), u($.name, $.id)),
+      s.cond(f.history__view($.history, $.view), s._record_view($.id, $.view)),
       // TODO: get menu content from view
       s._app_menu_content($.content),
       s._app_menu_update($.content),
@@ -494,7 +485,7 @@ export const browserData = pkg("browser", {
               l(
                 s.update_menu($.next_menu),
                 seq(
-                  s.agent_update($.menu_ref, $.next_menu, __, s.ok()),
+                  s.agent_set($.menu_ref, $.next_menu),
                   s.send($.self, s.render()),
                 ),
               ),
@@ -567,7 +558,7 @@ export const browserData = pkg("browser", {
   _new_window: {
     rule__params: l($.out, $.window, $.location),
     rule__body: seq(
-      s.if_var($.window, s.id($.window)),
+      s.var_expr($.window, s.id()),
       s._new_history($.h, $.history, $.window, $.location),
       s.append_left_right(
         $.out,
@@ -582,7 +573,7 @@ export const browserData = pkg("browser", {
   _new_history: {
     rule__params: l($.out, $.history, $.window, $.location),
     rule__body: seq(
-      s.if_var($.history, s.id($.history)),
+      s.var_expr($.history, s.id()),
       s.timestamp($.ts),
       s.location_id_view_params($.location, $.id, $.view, $.params),
 

@@ -1,4 +1,4 @@
-import { l, s, $, __, seq, u } from "../expr";
+import { l, s, $, __, seq, u, fn } from "../expr";
 import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
@@ -94,11 +94,15 @@ export const asyncRules = pkg("async", {
                 $.e,
                 l(s.get($.pid, $.ref), s.send($.pid, s.get($.ref, $.prev))),
                 l(
-                  s.update($.out, $.prev, $.goal),
-                  s.if_then_else($.goal, u($.next, $.out), s.ok()),
+                  s.update($.fn),
+                  s.if_then_else(
+                    s.apply(l($.out, $.prev), $.fn),
+                    u($.next, $.out),
+                    s.ok(),
+                  ),
                 ),
               ),
-              s.if_var($.next, u($.next, $.prev)),
+              s.var_expr($.next, s.unify($.prev)),
               s.fail(),
             ),
           ),
@@ -116,22 +120,24 @@ export const asyncRules = pkg("async", {
       s.receive(s.get($.ref, $.value)),
     ),
   },
-  // TODO: this should be $agent, ($out, in) :- $goal
   agent_update: {
-    rule__params: l($.agent, $.out, $.in, $.goal),
-    rule__body: seq(
-      s.send($.agent, s.update($.out, $.in, $.goal)), //
+    rule__params: l($.agent, $.fn),
+    rule__body: s.send($.agent, s.update($.fn)), //
+  },
+  agent_expr: {
+    rule__params: l($.agent, $.expr),
+    rule__body: s.send(
+      $.agent,
+      s.update(fn($.out, $.in)(s.expr($.out, $.expr))),
     ),
   },
-
+  agent_set: {
+    rule__params: l($.agent, $.value),
+    rule__body: s.send($.agent, s.update(fn($.out, __)(u($.out, $.value)))),
+  },
   agent_push: {
     rule__params: l($.agent, $.value),
-    rule__body: s.agent_update(
-      $.agent,
-      $.next,
-      $.prev,
-      s.append_left_right($.next, $.prev, l($.value)),
-    ),
+    rule__body: s.agent_update($.agent, s.append_left_right(l($.value))),
   },
   agent_pop: {
     rule__params: l($.agent, $.value),
@@ -139,7 +145,7 @@ export const asyncRules = pkg("async", {
       s.agent_get($.stack, $.agent),
       s.append_left_right($.stack, $.popped, l($.value)),
       // TODO: sync update that provides access to prev & next
-      s.agent_update($.agent, $.next, __, u($.next, $.popped)),
+      s.agent_set($.agent, $.popped),
     ),
   },
 

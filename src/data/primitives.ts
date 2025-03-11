@@ -432,21 +432,11 @@ export const { rules, rulePrimitives } = compilePrimitives({
         $.bar,
         seq(
           s.link($.foo),
-          s.agent_update(
-            $.agent,
-            $.n,
-            $.p,
-            s.append_left_right($.n, $.p, l(456)),
-          ),
+          s.agent_push($.agent, 456),
           s.send($.foo, l()),
           // yield to allow linked process to fail
           s.sleep(1),
-          s.agent_update(
-            $.agent,
-            $.n1,
-            $.p1,
-            s.append_left_right($.n1, $.p1, l(789)),
-          ),
+          s.agent_push($.agent, 789),
         ),
       ),
       s.sleep(10),
@@ -461,20 +451,10 @@ export const { rules, rulePrimitives } = compilePrimitives({
       s.spawn(
         $.bar,
         seq(
-          s.agent_update(
-            $.agent,
-            $.n,
-            $.p,
-            s.append_left_right($.n, $.p, l(456)),
-          ),
+          s.agent_push($.agent, 456),
           // yield to allow parent process to kill
           s.sleep(1),
-          s.agent_update(
-            $.agent,
-            $.n1,
-            $.p1,
-            s.append_left_right($.n1, $.p1, l(789)),
-          ),
+          s.agent_push($.agent, 789),
         ),
       ),
       s.exit($.bar, s.kill()),
@@ -499,23 +479,13 @@ export const { rules, rulePrimitives } = compilePrimitives({
         seq(
           s.trap_exit(),
           s.link($.foo),
-          s.agent_update(
-            $.agent,
-            $.n,
-            $.p,
-            s.append_left_right($.n, $.p, l(456)),
-          ),
+          s.agent_push($.agent, 456),
           s.send($.foo, l()),
           // yield to allow linked process to fail
           s.sleep(1),
           s.receive(s.exit($.foo, s.fail())),
 
-          s.agent_update(
-            $.agent,
-            $.n1,
-            $.p1,
-            s.append_left_right($.n1, $.p1, l(789)),
-          ),
+          s.agent_push($.agent, 789),
         ),
       ),
       s.sleep(10),

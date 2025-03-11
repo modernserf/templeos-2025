@@ -49,7 +49,7 @@ export const freeCell = pkg("free_cell", {
   _new_game: {
     rule__params: l($.id),
     rule__body: seq(
-      s.if_var($.id, s.id($.id)),
+      s.var_expr($.id, s.id()),
       s.timestamp($.ts),
       s._init($.value),
       s.db__update(
@@ -310,9 +310,8 @@ export const freeCell = pkg("free_cell", {
     rule__params: l($.with, $.without, $.card, $.x),
     rule__body: seq(
       s.value_box_index($.col, $.without, $.x),
-      s.if_then_else(
+      s.cond(
         s.empty($.col),
-        s.ok(),
         seq(
           s.append_left_right($.col, __, l($.top)),
           s._col_pair($.card, $.top),
