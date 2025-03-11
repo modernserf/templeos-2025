@@ -1,4 +1,4 @@
-import { s, __, seq, $, l, u, alt, f } from "../expr";
+import { s, __, seq, $, l, u, alt, f, fn } from "../expr";
 import { pkg } from "../pkg";
 
 export const dbRules = pkg("db", {
@@ -128,14 +128,10 @@ export const dbRules = pkg("db", {
             l(
               s.unsubscribe($.pid),
               seq(
-                s.collect_item_in(
+                s.filter_list(
                   $.next,
-                  $.item,
-                  seq(
-                    s.value_box_index(s.subscribe($.p, $.sub), $.prev, __),
-                    s.not_equal($.p, $.pid),
-                    u($.item, s.subscribe($.p, $.sub)),
-                  ),
+                  $.prev,
+                  fn(s.subscribe($.p, __))(s.not_equal($.p, $.pid)),
                 ),
                 s.send($.pid, s.close()),
               ),

@@ -44,7 +44,6 @@ export type Schema =
   | `_${string}`;
 
 export type Field =
-  | "clipboard__data"
   | "db__default_value"
   | "db__default_view"
   | "db__fields"
@@ -53,7 +52,6 @@ export type Field =
   | "db__type"
   | "file__name"
   | "file__description"
-  | "file__tags"
   | "note__content"
   | "rule__body"
   | "rule__params"
@@ -113,9 +111,6 @@ export type Rec = Record<string, Expr> & {
 
   file__name?: string;
   file__description?: List<FormatText>;
-  file__tags?: List<string>;
-
-  folder__items?: List<Id>;
 
   note__content?: string;
 

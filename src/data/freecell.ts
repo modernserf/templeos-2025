@@ -102,11 +102,7 @@ export const freeCell = pkg("free_cell", {
         seq(s($.item).in($.list), s.random($.rand)),
       ),
       s.sort($.sorted, $.with_rand, s.ord()),
-      s.collect_item_in(
-        $.shuffled,
-        $.item,
-        s.value_box_index(l(__, $.item), $.sorted, __),
-      ),
+      s.collect_item_in($.shuffled, $.item, s(l(__, $.item)).in($.sorted)),
     ),
   },
 

@@ -1,4 +1,4 @@
-import { l, seq, s, $, u, __, dot } from "../expr";
+import { l, seq, s, $, u, __, dot, fn } from "../expr";
 import { test } from "./test_utils";
 
 export const viewTable = {
@@ -12,12 +12,7 @@ export const viewTable = {
       s.collect_item_in(
         $.flat,
         $.item,
-        dot(
-          $.item,
-          s.unify($.rendered_sections),
-          s.value_box_index(__),
-          s.value_box_index(__),
-        ),
+        dot($.item, s.unify($.rendered_sections), s.in(), s.in()),
       ),
       u($.out, s.Html("table", $.props, $.flat)),
     ),
@@ -29,10 +24,10 @@ export const viewTable = {
       s.expr_children($.rendered_header, $.header),
       s.expr_children($.rendered_rows, $.rows),
       s.nonempty($.rendered_rows),
-      s.collect_item_in(
+      s.map_list(
         $.header_cells,
-        s.Html("th", $.header_props, l($.item)),
-        s($.item).in($.rendered_header),
+        $.rendered_header,
+        fn(s.Html("th", $.header_props, l($.item)), $.item)(),
       ),
       u(
         $.out,
@@ -48,10 +43,10 @@ export const viewTable = {
     rule__body: seq(
       s.params_rest($.params, l($.out, $.props), $.items),
       s.expr_children($.rendered_items, $.items),
-      s.collect_item_in(
+      s.map_list(
         $.cells,
-        s.Html("td", l(), l($.item)),
-        s($.item).in($.rendered_items),
+        $.rendered_items,
+        fn(s.Html("td", l(), l($.item)), $.item)(),
       ),
       u($.out, s.Html("tr", $.props, $.cells)),
     ),
