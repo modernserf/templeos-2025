@@ -8,9 +8,9 @@ export const clipboardRules = pkg("clipboard", {
     db__schema: "schema",
     file__name: "Clipboard",
     file__description: l("stores clipboard data"),
-    db__fields: l(s.field("clipboard__data")),
+    db__fields: l(s.field("_data")),
   },
-  clipboard__data: {
+  _data: {
     db__schema: "field",
     file__name: "Clipboard data",
   },
@@ -24,7 +24,7 @@ export const clipboardRules = pkg("clipboard", {
         $.out,
         l(),
         s.expr_iter_else(
-          seq(f.clipboard__data($.id, $.data), s($.value).in($.data)),
+          seq(f._data($.id, $.data), s($.value).in($.data)),
           l(s.view__expr($.value)),
           l(s.view__string("clipboard is empty")),
         ),
@@ -51,24 +51,24 @@ export const clipboardRules = pkg("clipboard", {
   _handle_copy: {
     rule__params: l($.id, $.value),
     rule__body: seq(
-      f.clipboard__data($.id, $.prev),
+      f._data($.id, $.prev),
       s.append_left_right($.next, $.prev, l($.value)),
-      s.db__update(l(s.update($.id, "clipboard__data", $.next))),
+      s.db__update(l(s.update($.id, "_data", $.next))),
     ),
   },
   _handle_paste: {
     rule__params: l($.id, $.value),
     rule__body: seq(
-      f.clipboard__data($.id, $.data),
+      f._data($.id, $.data),
       s.append_left_right($.data, __, l($.value)),
     ),
   },
   _handle_drop: {
     rule__params: l($.id),
     rule__body: seq(
-      f.clipboard__data($.id, $.prev),
+      f._data($.id, $.prev),
       s.append_left_right($.prev, $.rest, l(__)),
-      s.db__update(l(s.update($.id, "clipboard__data", $.rest))),
+      s.db__update(l(s.update($.id, "_data", $.rest))),
     ),
   },
 });

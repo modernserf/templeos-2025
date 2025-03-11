@@ -40,7 +40,8 @@ export type Schema =
   | "tag"
   | "text_document"
   | "type"
-  | "window";
+  | "window"
+  | `_${string}`;
 
 export type Field =
   | "browser__current_window"
@@ -54,8 +55,6 @@ export type Field =
   | "file__name"
   | "file__description"
   | "file__tags"
-  | "free_cell__game_state"
-  | "free_cell__init_state"
   | "history__back"
   | "history__forward"
   | "history__id"
@@ -68,7 +67,8 @@ export type Field =
   | "text__content"
   | "time__created"
   | "view__schema"
-  | "window__current_history";
+  | "window__current_history"
+  | `_${string}`;
 
 export type TypeId =
   | "any_type"
@@ -188,7 +188,7 @@ export const data = mergeAndCheck(
         _left_links: l(
           "code_explorer",
           "omnibox",
-          "view__all_notes",
+          "note__view_all",
           "free_cell",
         ),
         rule__body: s.column(

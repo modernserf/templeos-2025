@@ -8,7 +8,7 @@ export const note = pkg("note", {
     db__schema: "schema",
     file__name: "Note",
     file__description: l("A plain text note"),
-    db__fields: l(s.field("note__content")),
+    db__fields: l(s.field("_content")),
     rule__params: l($.id),
     rule__body: s.record_field_value($.id, "db__schema", "note"),
   },
@@ -19,7 +19,7 @@ export const note = pkg("note", {
     file__name: "Note content",
     db__type: "string",
     rule__params: l($.value, $.record),
-    rule__body: s.record_field_value($.record, "note__content", $.value),
+    rule__body: s.record_field_value($.record, "_content", $.value),
   },
 
   _view_detail: {

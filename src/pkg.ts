@@ -6,7 +6,8 @@ function nsId(ns: string, id: string) {
 }
 
 function expandNamespace(name: string, expr: Expr): Expr {
-  if (typeof expr !== "object") return expr;
+  if (typeof expr === "string") return nsId(name, expr);
+  if (typeof expr === "number") return expr;
   switch (expr.tag) {
     case "placeholder":
     case "ident":
