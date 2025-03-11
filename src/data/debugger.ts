@@ -1,4 +1,4 @@
-import { l, s, $, __, seq, f } from "../expr";
+import { l, s, $, __, seq } from "../expr";
 import { pkg } from "../pkg";
 
 export const debug = pkg("debug", {
@@ -44,7 +44,7 @@ export const debug = pkg("debug", {
     db__schema: "form",
     rule__params: l($.out, $.id, $.state),
     rule__body: seq(
-      f.history__window($.state, $.window),
+      s.current_window($.window),
       s.get_state(s.debugger($.pid, $.ref), $.state, s.none()),
       s.column(
         $.out,

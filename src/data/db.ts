@@ -1,7 +1,7 @@
-import { Rec } from ".";
 import { s, __, seq, $, l, u, alt, f } from "../expr";
+import { pkg } from "../pkg";
 
-export const dbRules = {
+export const dbRules = pkg("db", {
   // db
   record_field_value: {
     rule__params: l($.id, $.field, $.value),
@@ -63,7 +63,7 @@ export const dbRules = {
 
   init__db_server: {
     rule__params: l(),
-    rule__body: s.spawn_link("db_server", s.db_server("local_storage")),
+    rule__body: s.spawn_link("db_server", s._db_server("local_storage")),
   },
 
   db__update: {
@@ -97,7 +97,7 @@ export const dbRules = {
     rule__params: l($.pid),
     rule__body: s.send("db_server", s.unsubscribe($.pid)),
   },
-  db_server: {
+  _db_server: {
     rule__params: l($.local_storage),
     rule__body: seq(
       s.loop_fail(
@@ -111,9 +111,9 @@ export const dbRules = {
             l(
               s.update($.batch),
               seq(
-                s.db__apply_update($.batch),
+                s._apply_update($.batch),
                 s.send($.local_storage, s.update()),
-                s.db__notify_subscribers($.batch, $.prev),
+                s._notify_subscribers($.batch, $.prev),
               ),
             ),
             l(s.reset(), s.send($.local_storage, s.clear())),
@@ -149,7 +149,7 @@ export const dbRules = {
       s.log("db exit"),
     ),
   },
-  db__apply_update: {
+  _apply_update: {
     rule__params: l($.batch),
     rule__body: s.with_tx(
       $.tx,
@@ -178,20 +178,20 @@ export const dbRules = {
       ),
     ),
   },
-  db__notify_subscribers: {
+  _notify_subscribers: {
     rule__params: l($.batch, $.subscribers),
     rule__body: seq(
       s.each_item_do(
         $.subscribers,
         s.subscribe($.pid, $.pattern),
         seq(
-          s.db__check_batch_pattern($.batch, $.pattern),
+          s._check_batch_pattern($.batch, $.pattern),
           s.send($.pid, s.change()),
         ),
       ),
     ),
   },
-  db__check_batch_pattern: {
+  _check_batch_pattern: {
     rule__params: l($.batch, $.pattern),
     rule__body: seq(
       s.limit(
@@ -201,10 +201,7 @@ export const dbRules = {
             $.pattern,
             l(
               s.oneof($.patterns),
-              seq(
-                s($.p).in($.patterns),
-                s.db__check_batch_pattern($.batch, $.p),
-              ),
+              seq(s($.p).in($.patterns), s._check_batch_pattern($.batch, $.p)),
             ),
             l(
               s.record($.id),
@@ -224,4 +221,4 @@ export const dbRules = {
       ),
     ),
   },
-} satisfies Record<string, Rec>;
+});

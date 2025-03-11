@@ -8,67 +8,67 @@ export const browserData = pkg("browser", {
     db__schema: "schema",
     file__name: "Window",
     file__description: l("A window"),
-    db__fields: l(s.field("window__current_history")),
+    db__fields: l(s.field("_current_history")),
   },
   history: {
     db__schema: "schema",
     file__name: "History",
     file__description: l("A history entry"),
     db__fields: l(
-      s.field("history__window"),
-      s.field("history__id"),
-      s.field_optional("history__view"),
-      s.field_optional("history__params"),
-      s.field_optional("history__focus"),
-      s.field("history__forward"),
-      s.field("history__back"),
+      s.field("_window"),
+      s.field("_id"),
+      s.field_optional("_view"),
+      s.field_optional("_params"),
+      s.field_optional("_focus"),
+      s.field("_forward"),
+      s.field("_back"),
     ),
   },
 
   // fields
-  history__id: {
+  _id: {
     db__schema: "field",
     file__name: "History id ref",
     db__type: "ref",
   },
-  history__view: {
+  _view: {
     db__schema: "field",
     file__name: "History view ref",
     db__type: "ref",
   },
-  history__params: {
+  _params: {
     db__schema: "field",
     file__name: "History view params",
   },
-  history__focus: {
+  _focus: {
     db__schema: "field",
     file__name: "History focused element",
   },
-  history__back: {
+  _back: {
     db__schema: "field",
     file__name: "History back ref",
     db__type: "ref",
     // db__type: s.ref( "history" as const),
   },
-  history__forward: {
+  _forward: {
     db__schema: "field",
     file__name: "History forward ref",
     db__type: "ref",
     // db__type: s.ref( "history" as const),
   },
-  history__window: {
+  _window: {
     db__schema: "field",
     file__name: "History window ref",
     db__type: "ref",
     // db__type: s.ref( "window"),
   },
-  window__current_history: {
+  _current_history: {
     db__schema: "field",
     file__name: "Window current history ref",
     db__type: "ref",
     // db__type: s.ref( "history" as const),
   },
-  browser__current_window: {
+  _current_window: {
     db__schema: "field",
     file__name: "Focused window in browser",
     db__type: "ref",
@@ -101,17 +101,17 @@ export const browserData = pkg("browser", {
 
   current_window: {
     rule__params: l($.window),
-    rule__body: f.browser__current_window("browser", $.window),
+    rule__body: f._current_window("browser", $.window),
   },
   current_focus: {
     rule__params: l($.focus),
     rule__body: seq(
-      f.browser__current_window("browser", $.window),
-      f.window__current_history($.window, $.history),
-      f.history__focus($.history, $.focus),
+      f._current_window("browser", $.window),
+      f._current_history($.window, $.history),
+      f._focus($.history, $.focus),
     ),
   },
-  render_root: {
+  _render_root: {
     rule__params: l(),
     rule__body: s.send("root_view_manager", s.render()),
   },
@@ -134,40 +134,40 @@ export const browserData = pkg("browser", {
     rule__body: s.value_record_field_default(
       $.value,
       $.state,
-      "history__params",
+      "_params",
       $.default,
     ),
   },
   set_state: {
     rule__params: l($.state, $.value),
-    rule__body: s.db__update(l(s.update($.state, "history__params", $.value))),
+    rule__body: s.db__update(l(s.update($.state, "_params", $.value))),
   },
   get_focus: {
     rule__params: l($.value, $.state, $.default),
     rule__body: s.value_record_field_default(
       $.value,
       $.state,
-      "history__focus",
+      "_focus",
       $.default,
     ),
   },
   set_focus: {
     rule__params: l($.state, $.value),
-    rule__body: s.db__update(l(s.update($.state, "history__focus", $.value))),
+    rule__body: s.db__update(l(s.update($.state, "_focus", $.value))),
   },
 
   // event handlers
   on__set_view_menu: {
     rule__params: l($.window, $.next_view),
     rule__body: seq(
-      f.window__current_history($.window, $.history),
-      s.db__update(l(s.update($.history, "history__view", $.next_view))),
+      f._current_history($.window, $.history),
+      s.db__update(l(s.update($.history, "_view", $.next_view))),
     ),
   },
   on__select_window: {
     rule__params: l($.window),
     rule__body: seq(
-      s.db__update(l(s.update("browser", "browser__current_window", $.window))),
+      s.db__update(l(s.update("browser", "_current_window", $.window))),
     ),
   },
   on__new_window: {
@@ -175,25 +175,25 @@ export const browserData = pkg("browser", {
     rule__body: seq(
       s._new_window($.out, __, $.location),
       s.db__update($.out),
-      s.render_root(),
+      s._render_root(),
     ),
   },
   on__close_window: {
     rule__params: l($.window),
-    rule__body: seq(s.db__update(l(s.delete($.window))), s.render_root()),
+    rule__body: seq(s.db__update(l(s.delete($.window))), s._render_root()),
   },
   on__push: {
     rule__params: l($.window, $.location),
     rule__body: seq(
-      f.window__current_history($.window, $.prev),
+      f._current_history($.window, $.prev),
       s._new_history($.h, $.next, $.window, $.location),
       s.append_left_right(
         $.batch,
         $.h,
         l(
-          s.update($.next, "history__back", $.prev),
-          s.update($.prev, "history__forward", $.next),
-          s.update($.window, "window__current_history", $.next),
+          s.update($.next, "_back", $.prev),
+          s.update($.prev, "_forward", $.next),
+          s.update($.window, "_current_history", $.next),
         ),
       ),
       s.db__update($.batch),
@@ -203,13 +203,13 @@ export const browserData = pkg("browser", {
   on__back: {
     rule__params: l($.window),
     rule__body: seq(
-      f.window__current_history($.window, $.forward),
-      f.history__back($.forward, $.back),
+      f._current_history($.window, $.forward),
+      f._back($.forward, $.back),
       s.db__update(
         l(
-          s.update($.window, "window__current_history", $.back),
-          s.update($.back, "history__forward", $.forward),
-          s.delete($.forward, "history__back"),
+          s.update($.window, "_current_history", $.back),
+          s.update($.back, "_forward", $.forward),
+          s.delete($.forward, "_back"),
         ),
       ),
     ),
@@ -217,13 +217,13 @@ export const browserData = pkg("browser", {
   on__forward: {
     rule__params: l($.window),
     rule__body: seq(
-      f.window__current_history($.window, $.back),
-      f.history__forward($.back, $.forward),
+      f._current_history($.window, $.back),
+      f._forward($.back, $.forward),
       s.db__update(
         l(
-          s.update($.window, "window__current_history", $.forward),
-          s.update($.forward, "history__back", $.back),
-          s.delete($.back, "history__forward"),
+          s.update($.window, "_current_history", $.forward),
+          s.update($.forward, "_back", $.back),
+          s.delete($.back, "_forward"),
         ),
       ),
     ),
@@ -292,7 +292,7 @@ export const browserData = pkg("browser", {
       s.expr_iter(
         seq(
           s.record_field_value($.window, "db__schema", "window"),
-          f.window__current_history($.window, $.history),
+          f._current_history($.window, $.history),
         ),
         s.view__subscribe_render(
           s.oneof(l(s.record($.window), s.record($.history))),
@@ -369,11 +369,14 @@ export const browserData = pkg("browser", {
     file__name: "Window",
     rule__params: l($.out, $.window),
     rule__body: seq(
-      f.window__current_history($.window, $.history),
-      f.browser__current_window("browser", $.current_window),
-      f.history__id($.history, $.id),
+      f._current_history($.window, $.history),
+      f._current_window("browser", $.current_window),
+      f._id($.history, $.id),
       s.cond(f.file__name($.id, $.name), u($.name, $.id)),
-      s.cond(f.history__view($.history, $.view), s._record_view($.id, $.view)),
+      s.cond(
+        f._view($.history, $.view),
+        s.limit(1, s._record_view($.id, $.view)),
+      ),
       // TODO: get menu content from view
       s._app_menu_content($.content),
       s._app_menu_update($.content),
@@ -423,14 +426,14 @@ export const browserData = pkg("browser", {
   _window_bar: {
     rule__params: l($.out, $.window, $.id, $.view, $.name),
     rule__body: seq(
-      f.window__current_history($.window, $.history),
+      f._current_history($.window, $.history),
       s.if_then_else(
-        f.history__back($.history, __),
+        f._back($.history, __),
         u($.back_class, "AppWindow__nav"),
         u($.back_class, "AppWindow__nav AppWindow__nav--disabled"),
       ),
       s.if_then_else(
-        f.history__forward($.history, __),
+        f._forward($.history, __),
         u($.forward_class, "AppWindow__nav"),
         u($.forward_class, "AppWindow__nav AppWindow__nav--disabled"),
       ),
@@ -565,7 +568,7 @@ export const browserData = pkg("browser", {
         $.h,
         l(
           s.update($.window, "db__schema", "window"),
-          s.update($.window, "window__current_history", $.history),
+          s.update($.window, "_current_history", $.history),
         ),
       ),
     ),
@@ -583,13 +586,10 @@ export const browserData = pkg("browser", {
         alt(
           u(l($.f, $.v), l("db__schema", "history")),
           u(l($.f, $.v), l("time__created", $.ts)),
-          u(l($.f, $.v), l("history__window", $.window)),
-          u(l($.f, $.v), l("history__id", $.id)),
-          seq(s.nonvar($.view), u(l($.f, $.v), l("history__view", $.view))),
-          seq(
-            s.nonvar($.params),
-            u(l($.f, $.v), l("history__params", $.params)),
-          ),
+          u(l($.f, $.v), l("_window", $.window)),
+          u(l($.f, $.v), l("_id", $.id)),
+          seq(s.nonvar($.view), u(l($.f, $.v), l("_view", $.view))),
+          seq(s.nonvar($.params), u(l($.f, $.v), l("_params", $.params))),
         ),
       ),
     ),
@@ -599,12 +599,12 @@ export const browserData = pkg("browser", {
 export const browserInitState = {
   root_history: {
     db__schema: "history",
-    history__window: "root_window",
-    history__id: "home",
+    browser__window: "root_window",
+    browser__id: "home",
   },
   root_window: {
     db__schema: "window",
-    window__current_history: "root_history",
+    browser__current_history: "root_history",
   },
   browser: {
     file__name: "Browser state",

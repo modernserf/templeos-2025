@@ -44,7 +44,6 @@ export type Schema =
   | `_${string}`;
 
 export type Field =
-  | "browser__current_window"
   | "clipboard__data"
   | "db__default_value"
   | "db__default_view"
@@ -55,19 +54,12 @@ export type Field =
   | "file__name"
   | "file__description"
   | "file__tags"
-  | "history__back"
-  | "history__forward"
-  | "history__id"
-  | "history__view"
-  | "history__params"
-  | "history__window"
   | "note__content"
   | "rule__body"
   | "rule__params"
   | "text__content"
   | "time__created"
   | "view__schema"
-  | "window__current_history"
   | `_${string}`;
 
 export type TypeId =
@@ -124,15 +116,6 @@ export type Rec = Record<string, Expr> & {
   file__tags?: List<string>;
 
   folder__items?: List<Id>;
-
-  history__window?: Id;
-  history__id?: Id;
-  history__view?: Id;
-  history__params?: Expr;
-  history__back?: Id;
-  history__forward?: Id;
-  window__current_history?: Id;
-  browser__current_window?: Id;
 
   note__content?: string;
 
