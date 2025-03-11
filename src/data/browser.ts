@@ -569,6 +569,7 @@ export const browserData = pkg("browser", {
         l(
           s.update($.window, "db__schema", "window"),
           s.update($.window, "_current_history", $.history),
+          s.update("browser", "_current_window", $.window),
         ),
       ),
     ),
