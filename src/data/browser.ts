@@ -363,7 +363,7 @@ export const browserData = pkg("browser", {
 
   _window_content: {
     rule__params: l($.out, $.view, $.id, $.window, $.history),
-    rule__body: seq(s.call($.view, l($.out, $.id, $.history))),
+    rule__body: seq(s.call($.view, $.out, $.id, $.history)),
   },
 
   _view_window: {

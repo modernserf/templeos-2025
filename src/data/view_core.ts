@@ -136,6 +136,6 @@ export const viewCore = {
     file__name: "Form",
     view__schema: "form",
     rule__params: l($.out, $.id, $.state),
-    rule__body: s.call($.id, l($.out, $.id, $.state)),
+    rule__body: s.call($.id, $.out, $.id, $.state),
   },
 } satisfies Record<string, Rec>;

@@ -1,4 +1,4 @@
-import { l, s, $, __, u, seq, alt, f, fn } from "../expr";
+import { l, s, $, __, u, seq, alt, f } from "../expr";
 import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
@@ -48,10 +48,6 @@ export const freeCell = pkg("free_cell", {
         ),
       ),
     ),
-  },
-  fncall: {
-    rule__params: l($.fn, $.args),
-    rule__body: s.apply(l($.args), $.fn),
   },
   get_state_else: {
     rule__params: l($.value, $.state, $.fn),
@@ -197,14 +193,14 @@ export const freeCell = pkg("free_cell", {
                 s._view_card(
                   $.card,
                   u($.selected, s.columns($.x, $.y)),
-                  s.fncall($.handler, s.columns($.x, $.y)),
+                  s.call($.handler, s.columns($.x, $.y)),
                 ),
               ),
               l(
                 s._view_card(
                   s.empty(""),
                   u($.selected, s.columns($.x, $.y)),
-                  s.fncall($.handler, s.columns($.x, $.y)),
+                  s.call($.handler, s.columns($.x, $.y)),
                 ),
               ),
             ),
@@ -224,7 +220,7 @@ export const freeCell = pkg("free_cell", {
           s._view_card(
             $.card,
             u($.selected, s.stacks($.i)),
-            s.fncall($.handler, s.stacks($.i)),
+            s.call($.handler, s.stacks($.i)),
           ),
         ),
       ),
@@ -241,7 +237,7 @@ export const freeCell = pkg("free_cell", {
           s._view_card(
             $.card,
             u($.selected, s.cells($.i)),
-            s.fncall($.handler, s.cells($.i)),
+            s.call($.handler, s.cells($.i)),
           ),
         ),
       ),
@@ -266,21 +262,13 @@ export const freeCell = pkg("free_cell", {
         s._view_columns($.columns, $.selected, $.handler),
         s.row(
           l(s.style("gap", "0.5rem")),
-          s.view__button(
-            l(),
-            "Undo",
-            s.on_click(s.fncall($.handler, s.undo())),
-          ),
+          s.view__button(l(), "Undo", s.on_click(s.call($.handler, s.undo()))),
           s.view__button(
             l(),
             "Reset",
-            s.on_click(s.fncall($.handler, s.reset())),
+            s.on_click(s.call($.handler, s.reset())),
           ),
-          s.view__button(
-            l(),
-            "Auto",
-            s.on_click(s.fncall($.handler, s.auto())),
-          ),
+          s.view__button(l(), "Auto", s.on_click(s.call($.handler, s.auto()))),
         ),
       ),
     ),

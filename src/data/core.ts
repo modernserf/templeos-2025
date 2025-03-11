@@ -1,8 +1,8 @@
-import { Rec } from ".";
 import { l, s, $, __, u, seq } from "../expr";
+import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
-export const core = {
+export const core = pkg("core", {
   // types
   any_type: {
     db__schema: "type",
@@ -239,16 +239,24 @@ export const core = {
     ),
   },
   call: {
-    rule__params: l($.tag, $.args),
-    rule__body: seq(s.box_tag_list($.callable, $.tag, $.args), $.callable),
+    rule__params: $.params,
+    rule__body: seq(
+      s.params_rest($.params, l($.fn), $.args),
+      s.apply($.args, $.fn),
+    ),
   },
   apply: {
     rule__params: l($.args, $.fn),
-    rule__body: s.if_then_else(
-      u($.fn, s.fn($.params, $.goal)),
-      s._apply_fn($.args, $.fn),
-      s._lapply_partial($.args, $.fn),
+    rule__body: s.cond(
+      l(u($.fn, s.fn($.params, $.goal)), s._apply_fn($.args, $.fn)),
+      l(s.box($.fn), s._lapply_partial($.args, $.fn)),
+      l(s.string($.fn), s._apply_id($.args, $.fn)),
+      l(s.ok(), s.throw(s.invalid_apply($.args, $.fn))),
     ),
+  },
+  _apply_id: {
+    rule__params: l($.args, $.id),
+    rule__body: seq(s.box_tag_list($.callable, $.id, $.args), $.callable),
   },
   _apply_fn: {
     rule__params: l($.args, s.fn($.params, $.goal)),
@@ -278,7 +286,7 @@ export const core = {
       s.if_then_else($.if, $.then, s._lapply_partial($.else, s.cond())),
     ),
   },
-  test__cond: {
+  _test_cond: {
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
@@ -333,7 +341,7 @@ export const core = {
       ),
     ),
   },
-  test__match: {
+  _test_match: {
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
@@ -350,7 +358,7 @@ export const core = {
       test.fail(s.match(s.baz($.result), s.foo(123), s.bar(456))),
     ),
   },
-  test__match_cond: {
+  _test_match_cond: {
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
@@ -411,7 +419,7 @@ export const core = {
     rule__params: l($.arg, $.body),
     rule__body: s.if_then_else(s.var($.arg), $.body, s.ok()),
   },
-  test__var: {
+  _test_var: {
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
@@ -421,7 +429,7 @@ export const core = {
     ),
   },
 
-  test__typechecks: {
+  _test_typechecks: {
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
@@ -524,7 +532,7 @@ export const core = {
       s.append_left_right($.updated, $.pre, $.post),
     ),
   },
-  test__updated_box_index_removed: {
+  _test_updated_box_index_removed: {
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
@@ -545,7 +553,7 @@ export const core = {
     rule__params: l($.goal, $.error),
     rule__body: s.if_then_else($.goal, s.ok(), s.throw($.error)),
   },
-  test__ensure: {
+  _test_ensure: {
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
@@ -591,4 +599,4 @@ export const core = {
       u($.res, s.error($.err)),
     ),
   },
-} satisfies Record<string, Rec>;
+});

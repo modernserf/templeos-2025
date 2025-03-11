@@ -69,7 +69,7 @@ export const testUtils = {
   view__test_result: {
     rule__params: l($.out, $.test_id),
     rule__body: s.try_error_catch(
-      seq(s.call($.test_id, l()), s.view__string($.out, "ok")),
+      seq(s.call($.test_id), s.view__string($.out, "ok")),
       $.error,
       s.view__expr($.out, $.error),
     ),
