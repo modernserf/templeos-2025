@@ -258,8 +258,12 @@ export const core = pkg("core", {
     rule__body: seq(s.box_tag_list($.callable, $.id, $.args), $.callable),
   },
   _apply_fn: {
-    rule__params: l($.args, s.fn($.params, $.goal)),
-    rule__body: seq(u($.args, $.params), $.goal),
+    rule__params: l($.args, $.fn),
+    rule__body: seq(
+      s.resolve_deep(s.fn($.params, $.goal), $.fn),
+      u($.args, $.params),
+      $.goal,
+    ),
   },
   _lapply_partial: {
     rule__params: l($.args, $.fn),

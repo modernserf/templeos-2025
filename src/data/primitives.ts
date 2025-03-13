@@ -1205,4 +1205,10 @@ export const { rules, rulePrimitives } = compilePrimitives({
       }
     },
   },
+  resolve_deep: {
+    rule__params: l($.resolved, $.value),
+    rule__primitive: function* (it, res, val) {
+      if (it.unify(res, resolveDeep(val))) yield it.result();
+    },
+  },
 });

@@ -28,6 +28,7 @@ import { time } from "./time";
 import { list } from "./list";
 import { number } from "./number";
 import { parse } from "./parse";
+import { iter } from "./iter";
 
 export type Schema =
   | "any_record"
@@ -144,6 +145,7 @@ export const data = mergeAndCheck(
     debug,
     dbRules,
     freeCell,
+    iter,
     list,
     note,
     number,
