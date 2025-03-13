@@ -71,6 +71,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__params: l(),
     rule__primitive: function* () {},
   },
+  // TODO: move to core
   nonvar: {
     rule__params: l($.term),
     rule__primitive: function* (it, term) {
@@ -113,108 +114,68 @@ export const { rules, rulePrimitives } = compilePrimitives({
       yield* it.eval(after);
     },
   },
-  loop: {
-    rule__params: l($.goal),
-    rule__primitive: function* (it, goal) {
-      while (true) {
-        const s = it.choice();
-        const gen = it.eval(goal);
-        let next = gen.next();
-        let didSucceed = false;
-        while (!next.done) {
-          if (next.value.tag === "result") {
-            didSucceed = true;
-            next = gen.next();
-          } else {
-            next = gen.next(yield next.value);
-          }
-        }
 
-        it.backtrack(s);
-        if (!didSucceed) break;
-      }
-      yield it.result();
-    },
-  },
-  loop_fail: {
-    rule__params: l($.next, $.prev, $.init, $.goal),
-    rule__primitive: function* (it, nextVal, prev, init, goal) {
-      let value = resolveDeep(init);
-      while (true) {
-        const s = it.choice();
-        if (!it.unify(value, prev)) break;
-        const gen = it.eval(goal);
-        let next = gen.next();
-        let didSucceed = false;
-        while (!next.done) {
-          if (next.value.tag === "result") {
-            didSucceed = true;
-            next = gen.next();
-          } else {
-            next = gen.next(yield next.value);
-          }
-        }
-        if (didSucceed) {
-          it.cut(s);
-          yield it.result();
-          return;
+  block: {
+    rule__params: l($.out, $.goal),
+    rule__primitive: function* (it, out, goal) {
+      const s = it.choice();
+      let value: Value;
+
+      const gen = it.eval(goal);
+      let next = gen.next();
+      while (!next.done) {
+        if (next.value.tag === "result") {
+          value = resolveDeep(out);
+          next = gen.next();
         } else {
-          value = resolveDeep(nextVal);
-          it.backtrack(s);
+          const result = yield next.value;
+          next = gen.next(result);
         }
       }
+      it.backtrack(s);
+      if (value! && it.unify(out, value)) yield it.result();
     },
   },
-  loop_state: {
-    rule__params: l($.next, $.prev, $.init, $.goal),
-    rule__primitive: function* (it, nextVal, prev, init, goal) {
-      let value = resolveDeep(init);
+
+  loop_iter: {
+    rule__params: l($.next, $.state, $.init, $.goal),
+    rule__primitive: function* (it, nextState, state, initState, goal) {
+      let value = resolveDeep(initState);
       while (true) {
         const s = it.choice();
-        if (!it.unify(value, prev)) break;
+        if (!it.unify(value, state)) return;
         const gen = it.eval(goal);
         let next = gen.next();
         let didSucceed = false;
         while (!next.done) {
           if (next.value.tag === "result") {
+            value = resolveDeep(nextState);
             didSucceed = true;
-            value = resolveDeep(nextVal);
             next = gen.next();
+            yield it.result();
           } else {
             next = gen.next(yield next.value);
           }
         }
-
+        if (!didSucceed) return;
         it.backtrack(s);
-        if (!didSucceed) break;
       }
-      yield it.result();
     },
   },
-  test__loop_fail: {
-    test__group: "core",
+  test__loop_iter: {
+    test__group: "primitives",
     rule__params: l(),
     rule__body: seq(
-      test.collect(
-        $.acc,
-        s.loop_fail(
-          l($.sum, $.rest),
-          l($.acc, $.items),
-          l(0, l(1, 2, 3, 4, 5)),
-          s.if_then_else(
-            s.empty($.items),
-            s.ok(),
-            seq(
-              s.append_left_right($.items, $.rest, l($.value)),
-              s.add__primitive($.sum, $.acc, $.value),
-              s.fail(),
-            ),
-          ),
-        ),
-        15,
+      s.expect_collect(
+        l($.result, $.next),
+        s.limit(3, s.loop_iter($.next, $.result, 0, s.inc($.next, $.result))),
+        l(0, 1),
+        l(1, 2),
+        l(2, 3),
       ),
     ),
   },
+
   if_then_else: {
     rule__params: l($.if, $.then, $.else),
     rule__primitive: function* (it, if_, then_, else_) {

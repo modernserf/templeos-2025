@@ -80,37 +80,28 @@ export const asyncRules = pkg("async", {
 
   agent: {
     rule__params: l($.pid, $.init_state),
-    rule__body: seq(
-      s.spawn_link(
-        $.pid,
+    rule__body: s.spawn_link(
+      $.pid,
+      s.loop_iter(
+        $.next,
+        $.prev,
+        $.init_state,
         seq(
-          s.loop_fail(
-            $.next,
-            $.prev,
-            $.init_state,
-            seq(
-              s.receive($.e),
-              s.match_cond(
-                $.e,
-                l(s.get($.pid, $.ref), s.send($.pid, s.get($.ref, $.prev))),
-                l(
-                  s.update($.fn),
-                  s.if_then_else(
-                    s.apply(l($.out, $.prev), $.fn),
-                    u($.next, $.out),
-                    s.ok(),
-                  ),
-                ),
-              ),
-              s.var_expr($.next, s.unify($.prev)),
-              s.fail(),
+          s.receive($.e),
+          s.match_cond(
+            $.e,
+            l(
+              s.get($.pid, $.ref),
+              seq(s.send($.pid, s.get($.ref, $.prev)), u($.next, $.prev)),
             ),
+            l(s.update($.fn), s.ensure_det(s.apply(l($.next, $.prev), $.fn))),
+            l(__, s.throw(s.unknown_message($.e))),
           ),
-          s.log("agent exit"),
         ),
       ),
     ),
   },
+
   agent_get: {
     rule__params: l($.value, $.agent),
     rule__body: seq(

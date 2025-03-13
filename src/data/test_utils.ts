@@ -105,8 +105,7 @@ export const testUtils = {
   test__run_all: {
     rule__params: l($.resolve),
     rule__body: seq(
-      s.collect_item_in(
-        __,
+      s.block(
         __,
         seq(
           f.test__group($.test, $.group),

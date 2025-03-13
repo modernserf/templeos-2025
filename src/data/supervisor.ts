@@ -1,4 +1,4 @@
-import { l, s, $, __, seq, u } from "../expr";
+import { l, s, $, __, seq, u, fn } from "../expr";
 import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
@@ -12,16 +12,13 @@ export const supervisor = pkg("supervisor", {
     rule__body: seq(
       s.trap_exit(),
       s.self($.supervisor),
-      s.collect_item_in(
+      s.map_list(
         $.init,
-        l($.pid, $.worker_config),
-        seq(
-          s($.worker_config).in($.workers),
-          s._init_worker($.pid, $.worker_config),
-        ),
+        $.workers,
+        fn(l($.pid, $.cfg), $.cfg)(s._init_worker($.pid, $.cfg)),
       ),
 
-      s.loop_state(
+      s.loop_iter(
         $.next,
         $.prev,
         $.init,
@@ -35,8 +32,13 @@ export const supervisor = pkg("supervisor", {
             ),
             l(
               s.exit($.pid, $.reason),
-              s._worker_exit($.next, $.prev, $.pid, $.reason, $.sup_config),
+              seq(
+                s.ensure_det(
+                  s._worker_exit($.next, $.prev, $.pid, $.reason, $.sup_config),
+                ),
+              ),
             ),
+            l(__, s.throw(s.unknown_message($.e))),
           ),
         ),
       ),
@@ -75,6 +77,7 @@ export const supervisor = pkg("supervisor", {
         l(l(__, __, s.one_for_one()), s._restart_one($.next, $.prev, $.i)),
         l(l(__, __, s.one_for_all()), s._restart_all($.next, $.prev)),
         l(l(__, __, s.one_for_all()), s._restart_rest($.next, $.prev, $.i)),
+        l($.match, s.throw(s.unknown_message($.match))),
       ),
     ),
   },

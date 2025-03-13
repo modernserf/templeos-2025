@@ -36,11 +36,7 @@ export const dbRules = pkg("db", {
     rule__params: l($.tx, $.goal),
     rule__body: seq(
       s.tx($.tx),
-      s.if_then_else(
-        s.collect_item_in(__, __, $.goal),
-        s.commit($.tx),
-        s.rollback($.tx),
-      ),
+      s.if_then_else(s.block(__, $.goal), s.commit($.tx), s.rollback($.tx)),
     ),
   },
   tx_update_field_value: {
@@ -100,7 +96,7 @@ export const dbRules = pkg("db", {
   _db_server: {
     rule__params: l($.local_storage),
     rule__body: seq(
-      s.loop_fail(
+      s.loop_iter(
         $.next,
         $.prev,
         l(),
@@ -136,13 +132,11 @@ export const dbRules = pkg("db", {
                 s.send($.pid, s.close()),
               ),
             ),
-            l(__, s.throw(s.not_implemented($.message))),
+            l(__, s.throw(s.unknown_message($.message))),
           ),
           s.var_expr($.next, s.unify($.prev)),
-          s.fail(),
         ),
       ),
-      s.log("db exit"),
     ),
   },
   _apply_update: {
@@ -170,20 +164,19 @@ export const dbRules = pkg("db", {
             s.tx_delete_field__primitive($.tx, $.id, $.field),
           ),
           l(s.delete($.id), s.tx_delete_record__primitive($.tx, $.id)),
+          l(__, s.throw(s.unknown_message($.item))),
         ),
       ),
     ),
   },
   _notify_subscribers: {
     rule__params: l($.batch, $.subscribers),
-    rule__body: seq(
-      s.each_item_do(
-        $.subscribers,
-        s.subscribe($.pid, $.pattern),
-        seq(
-          s._check_batch_pattern($.batch, $.pattern),
-          s.send($.pid, s.change()),
-        ),
+    rule__body: s.each_item_do(
+      $.subscribers,
+      s.subscribe($.pid, $.pattern),
+      seq(
+        s._check_batch_pattern($.batch, $.pattern),
+        s.send($.pid, s.change()),
       ),
     ),
   },

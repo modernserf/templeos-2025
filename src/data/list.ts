@@ -2,25 +2,33 @@ import { pkg } from "../pkg";
 import { l, s, $, __, u, seq, alt } from "../expr";
 
 export const list = pkg("list", {
-  fold_list: {
-    rule__params: l($.result, $.list, $.init, $.fn),
-    rule__body: seq(
-      s.loop_fail(
-        l($.next_state, $.next_index),
-        l($.state, $.index),
-        l($.init, 0),
-        s.if_then_else(
-          s.length_box($.index, $.list),
-          s.ok(),
-          seq(
-            s.value_box_index($.item, $.list, $.index),
-            s.ensure_det(s.apply(l($.next_state, $.state, $.item), $.fn)),
-            s.inc($.next_index, $.index),
-            s.fail(),
-          ),
+  _scan: {
+    rule__params: l($.next_state, $.init, $.list, $.fn),
+    rule__body: s.loop_iter(
+      l($.next_state, $.next_index),
+      l($.state, $.index),
+      l($.init, 0),
+      s.if_then_else(
+        s.length_box($.index, $.list),
+        s.fail(),
+        seq(
+          s.value_box_index($.item, $.list, $.index),
+          s.inc($.next_index, $.index),
+          s.ensure_det(s.apply(l($.next_state, $.state, $.item), $.fn)),
         ),
       ),
-      u($.result, $.state),
+    ),
+  },
+  fold_list: {
+    rule__params: l($.next_state, $.init, $.list, $.fn),
+    rule__body: seq(
+      s.block(
+        $.next_state,
+        alt(
+          u($.next_state, $.init),
+          s._scan($.next_state, $.init, $.list, $.fn),
+        ),
+      ),
     ),
   },
   _test_fold_list: {
@@ -29,7 +37,7 @@ export const list = pkg("list", {
     rule__body: seq(
       s.expect_collect(
         $.result,
-        s.fold_list($.result, l(1, 2, 3, 4, 5), 0, s.add()),
+        s.fold_list($.result, 0, l(1, 2, 3, 4, 5), s.add()),
         15,
       ),
     ),
@@ -38,7 +46,7 @@ export const list = pkg("list", {
     rule__params: l($.result, $.list, $.fn),
     rule__body: seq(
       s.append_left_right($.list, l($.first), $.rest),
-      s.fold_list($.result, $.rest, $.first, $.fn),
+      s.fold_list($.result, $.first, $.rest, $.fn),
     ),
   },
   map_list: {

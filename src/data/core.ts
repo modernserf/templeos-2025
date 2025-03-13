@@ -207,6 +207,14 @@ export const core = pkg("core", {
     rule__params: l($.value, $.box),
     rule__body: s.value_box_index($.value, $.box, __),
   },
+  do: {
+    rule__params: l($.goal),
+    rule__body: s.if_then_else($.goal, s.ok(), s.ok()),
+  },
+  loop: {
+    rule__params: l($.goal),
+    rule__body: s.do(s.block(__, s.loop_iter(__, __, __, $.goal))),
+  },
 
   // TODO: check performance on this, maybe want native impl for this
   append_box_prefix: {
@@ -417,9 +425,7 @@ export const core = pkg("core", {
       "for each item in collection, run do block but discard results (e.g. for side effects). succeed if collection is empty.",
     ),
     rule__params: l($.collection, $.item, $.do),
-    rule__body: seq(
-      s.collect_item_in(__, __, seq(s($.item).in($.collection), $.do)),
-    ),
+    rule__body: seq(s.block(__, seq(s($.item).in($.collection), $.do))),
   },
   var_expr: {
     rule__params: l($.var, $.expr),
