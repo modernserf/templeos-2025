@@ -8,7 +8,7 @@ export const collectionData = pkg("collection", {
     db__schema: "schema",
     file__name: "Folder",
     file__description: l("A collection of records"),
-    db__fields: l(s.field("rule__params"), s.field("rule__body")),
+    schema__fields: l(s.field("rule__params"), s.field("rule__body")),
   },
   tag: {
     db__schema: "schema",
@@ -16,7 +16,7 @@ export const collectionData = pkg("collection", {
     file__description: l(
       "Tags are used to organize records. A record can have and belongs to many tags.",
     ),
-    db__fields: l(s.field("file__name")),
+    schema__fields: l(s.field("file__name")),
   },
   // fields
   _folder_items: {

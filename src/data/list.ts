@@ -140,4 +140,30 @@ export const list = pkg("list", {
       ),
     ),
   },
+
+  _every: {
+    rule__params: l($.list, $.fn),
+    rule__body: s.cond(
+      s.empty($.list),
+      seq(
+        s.try_error_catch(
+          seq(
+            s($.item).in($.list),
+            s.cond(s.call($.fn, $.item), s.throw(s._every_fail())),
+          ),
+          s._every_fail(),
+          s.fail(),
+        ),
+      ),
+    ),
+  },
+  _test_every: {
+    test__group: "list",
+    rule__params: l(),
+    rule__body: seq(
+      s.expect_ok(s._every(l(10, 11, 12), s.gt(5))),
+      s.expect_ok(s._every(l(), s.gt(5))),
+      s.expect_fail(s._every(l(3, 11, 12), s.gt(5))),
+    ),
+  },
 });

@@ -8,13 +8,13 @@ export const browserData = pkg("browser", {
     db__schema: "schema",
     file__name: "Window",
     file__description: l("A window"),
-    db__fields: l(s.field("_current_history")),
+    schema__fields: l(s.field("_current_history")),
   },
   history: {
     db__schema: "schema",
     file__name: "History",
     file__description: l("A history entry"),
-    db__fields: l(
+    schema__fields: l(
       s.field("_window"),
       s.field("_id"),
       s.field_optional("_view"),

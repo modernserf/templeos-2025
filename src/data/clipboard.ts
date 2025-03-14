@@ -8,7 +8,7 @@ export const clipboardRules = pkg("clipboard", {
     db__schema: "schema",
     file__name: "Clipboard",
     file__description: l("stores clipboard data"),
-    db__fields: l(s.field("_data")),
+    schema__fields: l(s.field("_data")),
   },
   _data: {
     db__schema: "field",

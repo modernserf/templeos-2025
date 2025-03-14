@@ -6,11 +6,11 @@ export const freeCell = pkg("free_cell", {
   _game: {
     db__schema: "schema",
     file__name: "FreeCell game",
-    db__fields: l(
+    schema__fields: l(
       s.field("_game_state"),
       s.field("_undo_state"),
       s.field("time__created"),
-      // TODO: move history, game stats
+      // TODO: game stats
     ),
   },
   _game_state: {
@@ -21,32 +21,9 @@ export const freeCell = pkg("free_cell", {
     db__schema: "field",
     file__name: "FreeCell undo history",
   },
-  // TODO: _game schema record renders this
-  free_cell: {
-    db__schema: "form",
-    file__name: "FreeCell",
-    rule__params: l($.out, $.id, $.params),
-    rule__body: seq(
-      s.column(
-        $.out,
-        l(),
-        s.view__string("Current games"),
-        s.expr_iter(f.db__schema($.game, "_game"), s.view__file_link($.game)),
-        s.view__button(
-          l(),
-          "New game",
-          s.on_click(
-            seq(
-              s._new_game($.new_game),
-              s.current_window($.window),
-              s.on__push($.window, s.location($.new_game)),
-            ),
-          ),
-        ),
-      ),
-    ),
-  },
   _new_game: {
+    file__name: "New Game",
+    schema__constructor: "_game",
     rule__params: l($.id),
     rule__body: seq(
       s.var_expr($.id, s.id()),
@@ -224,7 +201,6 @@ export const freeCell = pkg("free_cell", {
   },
   _view_game: {
     view__schema: "_game",
-    file__name: "FreeCell",
     rule__params: l($.out, $.id, $.p),
     rule__body: seq(
       f._game_state($.id, s.state($.stacks, $.cells, $.columns)),

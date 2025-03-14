@@ -30,6 +30,7 @@ import { number } from "./number";
 import { parse } from "./parse";
 import { iter } from "./iter";
 import { error } from "./error";
+import { schema } from "./schema";
 
 export type Schema =
   | "any_record"
@@ -49,7 +50,7 @@ export type Schema =
 export type Field =
   | "db__default_value"
   | "db__default_view"
-  | "db__fields"
+  | "schema__fields"
   | "db__index"
   | "db__schema"
   | "db__type"
@@ -101,7 +102,7 @@ type IndexType =
 export type Rec = Record<string, Expr> & {
   time__created?: number;
   db__schema?: Schema;
-  db__fields?: List<SchemaField>;
+  schema__fields?: List<SchemaField>;
   db__type?: TypeId;
   db__index?: IndexType;
   db__default_view?: Id;
@@ -160,6 +161,7 @@ export const data = mergeAndCheck(
     viewAnyRecord,
     viewCore,
     viewForm,
+    schema,
     viewTable,
     text,
     time,
@@ -173,7 +175,7 @@ export const data = mergeAndCheck(
           "code_explorer",
           "omnibox",
           "note__view_all",
-          "free_cell",
+          "free_cell__game",
         ),
         rule__body: s.column(
           $.out,

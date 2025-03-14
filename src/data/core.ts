@@ -82,35 +82,30 @@ export const core = pkg("core", {
   },
   // schemas
   // TODO: calling schema on record ID should check conformance
-  schema: {
-    db__schema: "schema",
-    file__name: "Schema",
-    file__description: l("Schema for schema definitions"),
-    db__fields: l(s.field("db__fields")),
-  },
+
   field: {
     db__schema: "schema",
     file__name: "Field",
     file__description: l("Schema for field definitions"),
-    db__fields: l(s.field_optional("db__index")),
+    schema__fields: l(s.field_optional("db__index")),
   },
   any_record: {
     db__schema: "schema",
     file__name: "Any Record",
     file__description: l("Fallback schema for any type of record"),
-    db__fields: l(),
+    schema__fields: l(),
   },
   type: {
     db__schema: "schema",
     file__name: "Type",
     file__description: l("Schema for type definitions"),
-    db__fields: l(s.field("db__type")),
+    schema__fields: l(s.field("db__type")),
   },
   form: {
     db__schema: "schema",
     file__name: "Form",
     file__description: l("A self rendering form UI"),
-    db__fields: l(s.field("rule__params"), s.field("rule__body")),
+    schema__fields: l(s.field("rule__params"), s.field("rule__body")),
   },
   // fields
   // TODO: foo_field($.value, $.id) -> value_record_field($.value, $.id, "foo_field")
@@ -122,19 +117,7 @@ export const core = pkg("core", {
     db__type: "ref",
     db__index: s.ref(),
   },
-  db__fields: {
-    db__schema: "field",
-    file__name: "DB Fields",
-    // db__type: s(
-    //   "list",
-    //   s(
-    //     "oneof",
-    //     s.box( "field", fieldRef),
-    //     s.box( "field__optional", fieldRef),
-    //     s.box( "field__default", fieldRef, s.any())
-    //   )
-    // ),
-  },
+
   db__type: {
     db__schema: "field",
     file__name: "Field type",
@@ -214,6 +197,14 @@ export const core = pkg("core", {
   loop: {
     rule__params: l($.goal),
     rule__body: s.do(s.block(__, s.loop_iter(__, __, __, $.goal))),
+  },
+  bool_goal: {
+    rule__params: l($.bool, $.goal),
+    rule__body: s.if_then_else(
+      s.block(__, $.goal),
+      u($.bool, s.ok()),
+      u($.bool, s.fail()),
+    ),
   },
 
   // TODO: check performance on this, maybe want native impl for this

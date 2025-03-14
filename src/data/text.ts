@@ -18,7 +18,7 @@ export const text = pkg("text", {
     db__schema: "schema",
     file__name: "Text",
     file__description: l("A text document"),
-    db__fields: l(s.field("text__content")),
+    schema__fields: l(s.field("text__content")),
   },
   // fields
   text__content: {
