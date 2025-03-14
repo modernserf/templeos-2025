@@ -29,6 +29,7 @@ import { list } from "./list";
 import { number } from "./number";
 import { parse } from "./parse";
 import { iter } from "./iter";
+import { error } from "./error";
 
 export type Schema =
   | "any_record"
@@ -144,6 +145,7 @@ export const data = mergeAndCheck(
     clipboardRules,
     debug,
     dbRules,
+    error,
     freeCell,
     iter,
     list,

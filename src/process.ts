@@ -23,7 +23,7 @@ export function ensure<T extends Value["tag"]>(
   tag: T,
 ): asserts value is Value & { tag: T } {
   if (value.tag !== tag) {
-    throw new Exception(box("expected_type", [k(tag), value]));
+    throw new Exception(box("expected_type", [box(tag, []), value]));
   }
 }
 
@@ -31,7 +31,7 @@ export function ensurePid(
   pid: Value,
 ): asserts pid is Value & { tag: "string" | "number" } {
   if (pid.tag !== "number" && pid.tag !== "string")
-    throw new Exception(box("expected_type", [k("pid"), pid]));
+    throw new Exception(box("expected_type", [box("pid", []), pid]));
 }
 
 export function resolveDeep(

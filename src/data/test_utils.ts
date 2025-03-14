@@ -20,7 +20,7 @@ export const testUtils = {
   // test utils
   expect_ok: {
     rule__params: l($.goal),
-    rule__body: s.if_then_else($.goal, s.ok(), s.throw(s.expected_ok($.goal))),
+    rule__body: s.if_then_else($.goal, s.ok(), s.expected_ok($.goal)),
   },
   expect_fail: {
     rule__params: l($.goal),
@@ -38,7 +38,7 @@ export const testUtils = {
       s.if_then_else(
         u($.error_expected, $.error_received),
         s.ok(),
-        s.throw(s.expected_received($.error_expected, $.error_received)),
+        s.expected_received($.error_expected, $.error_received),
       ),
     ),
   },
@@ -51,7 +51,7 @@ export const testUtils = {
         u($.received, $.expected),
       ),
       s.ok(),
-      s.throw(s.expected_received($.expected, $.received)),
+      s.expected_received($.expected, $.received),
     ),
   },
   expect_collect: {
@@ -61,7 +61,7 @@ export const testUtils = {
       s.if_then_else(
         s.collect_item_in($.received, $.pattern, $.goal),
         s.expect_eq($.received, $.expected),
-        s.throw(s.expected_received($.expected, l())),
+        s.expected_received($.expected, l()),
       ),
     ),
   },
