@@ -1,4 +1,4 @@
-import { $, __, alt, f, l, s, seq } from "../expr";
+import { $, __, f, l, s, seq } from "../expr";
 import { pkg } from "../pkg";
 
 export const schema = pkg("schema", {
@@ -13,33 +13,12 @@ export const schema = pkg("schema", {
     db__schema: "field",
     file__name: "Fields",
   },
-  // fields that ref schema
+  // fields that ref schema but don't belong to other package
   _constructor: {
     db__schema: "field",
     file__name: "Constructor",
     file__description: l("rule creates records of this schema"),
     field__index: s.ref(),
-  },
-  // ok these should be their own thing
-  _view_id: {
-    db__schema: "field",
-    file__name: "View for specific record",
-    field__index: s.ref(),
-  },
-  _view_record: {
-    db__schema: "field",
-    file__name: "View for record with schema",
-    file__description: l("the schema that this view is supposed to render"),
-    field__index: s.ref(),
-  },
-  _views: {
-    rule__params: l($.view, $.record),
-    rule__body: alt(
-      seq(f._view_id($.view, $.record)),
-      seq(f.db__schema($.record, $.schema), f._view_record($.view, $.schema)),
-      // view for any type
-      f._view_record($.view, "any_record"),
-    ),
   },
 
   schema_check: {
@@ -73,7 +52,7 @@ export const schema = pkg("schema", {
   },
   _view_schema_records: {
     file__name: "Schema records",
-    _view_record: "schema",
+    view__subject: s.schema("schema"),
     rule__params: l($.out, $.id, $.params),
     rule__body: seq(
       s.column(

@@ -313,7 +313,7 @@ export const browserData = pkg("browser", {
         $.options,
         s.option($.view, $.name),
         seq(
-          s.schema__views($.view, $.id),
+          s.view__for_record($.view, $.id),
           s.cond(f.file__name($.view, $.name), u($.view, $.name)),
         ),
       ),
@@ -358,7 +358,7 @@ export const browserData = pkg("browser", {
       f._id($.history, $.id),
       s.cond(
         f._view($.history, $.view),
-        s.limit(1, s.schema__views($.view, $.id)),
+        s.limit(1, s.view__for_record($.view, $.id)),
       ),
     ),
   },

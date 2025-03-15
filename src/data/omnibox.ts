@@ -3,7 +3,7 @@ import { l, seq, s, $, f, fn } from "../expr";
 
 export const omnibox = {
   omnibox: {
-    schema__view_id: "omnibox",
+    view__subject: s.self(),
     file__name: "Search",
     rule__params: l($.out, $.id, $.state),
     rule__body: seq(

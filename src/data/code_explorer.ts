@@ -4,7 +4,7 @@ import { l, seq, s, $, __, f, fn } from "../expr";
 export const codeExplorerData = {
   code_explorer: {
     file__name: "Code explorer",
-    schema__view_id: "code_explorer",
+    view__subject: s.self(),
     rule__params: l($.out, $.self, $.state),
     rule__body: seq(
       s.get_state(s.code_explorer($.search), $.state, s.code_explorer("")),

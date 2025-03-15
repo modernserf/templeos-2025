@@ -42,7 +42,7 @@ export const debug = pkg("debug", {
   },
   view__debugger: {
     file__name: "Debugger",
-    schema__view_id: "view__debugger",
+    view__subject: s.self(),
     rule__params: l($.out, $.id, $.state),
     rule__body: seq(
       s.current_window($.window),

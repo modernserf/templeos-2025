@@ -39,7 +39,7 @@ export const note = pkg("note", {
     ),
   },
   _view: {
-    schema__view_record: "note",
+    view__subject: s.schema("note"),
     file__name: "Note",
     rule__params: l($.out, $.id, $.state),
     rule__body: seq(
@@ -97,7 +97,7 @@ export const note = pkg("note", {
     ),
   },
   _view_all: {
-    schema__view_id: "_view_all",
+    view__subject: s.self(),
     file__name: "Notes",
     rule__params: l($.out, __, __),
     rule__body: s.view__subscribe_render(

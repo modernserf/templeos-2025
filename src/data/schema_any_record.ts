@@ -2,14 +2,6 @@ import { l, seq, s, $, __, u, fn } from "../expr";
 import { pkg } from "../pkg";
 
 export const viewAnyRecord = pkg("any_record", {
-  // public
-  any_record: {
-    db__schema: "schema",
-    file__name: "Any Record",
-    file__description: l("Fallback schema for any type of record"),
-    _fields: l(),
-  },
-
   view__expr: {
     rule__params: l($.out, $.value),
     rule__body: seq(
@@ -133,7 +125,7 @@ export const viewAnyRecord = pkg("any_record", {
   },
   _view: {
     file__name: "Default viewer",
-    schema__view_record: "any_record",
+    view__subject: s.any(),
     view__menu_items: l(
       s.menu(
         "Edit",

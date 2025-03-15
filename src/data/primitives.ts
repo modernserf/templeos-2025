@@ -1036,7 +1036,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       const idx = it.pm.db.getIndex(field.value);
       if (!idx) return;
 
-      const indexExpr = valueExpr(index);
+      const indexExpr = valueExpr(resolveDeep(index));
       for (const [{ entityId }] of idx.tree.getRange(
         { value: indexExpr, entityId: "" },
         { value: indexExpr, entityId: "~" },

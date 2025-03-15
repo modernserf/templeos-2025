@@ -32,6 +32,7 @@ import { iter } from "./iter";
 import { error } from "./error";
 import { schema } from "./schema";
 import { field } from "./field";
+import { view } from "./view";
 
 export type Schema =
   | "any_record"
@@ -61,7 +62,6 @@ export type Field =
   | "rule__params"
   | "text__content"
   | "time__created"
-  | "schema__view_record"
   | `_${string}`;
 
 export type TypeId =
@@ -109,7 +109,6 @@ export type Rec = Record<string, Expr> & {
 
   rule__params?: List<Expr>;
   rule__body?: Box<string, Expr[]>;
-  schema__view_record?: Schema;
 
   test__group?: string;
 
@@ -157,18 +156,19 @@ export const data = mergeAndCheck(
     ord,
     parse,
     rulePrimitiveRecs,
+    schema,
     supervisor,
     testUtils,
+    view,
     viewAnyRecord,
     viewCore,
     viewForm,
-    schema,
     viewTable,
     text,
     time,
     {
       home: {
-        schema__view_id: "home",
+        view__subject: s.self(),
         file__name: "Home",
         file__description: l("This is the home card"),
         rule__params: l($.out, $.id, $.state),

@@ -201,7 +201,7 @@ export const freeCell = pkg("free_cell", {
   },
   _view_game: {
     file__name: "FreeCell",
-    schema__view_record: "_game",
+    view__subject: s.schema("_game"),
     rule__params: l($.out, $.id, $.p),
     rule__body: seq(
       f._game_state($.id, s.state($.stacks, $.cells, $.columns)),
