@@ -74,25 +74,25 @@ export const collectionData = pkg("collection", {
 
   _folder_list: {
     file__name: "Folder - List",
-    view__schema: "folder",
+    schema__view_record: "folder",
     rule__params: l($.out, $.id, $.state),
     rule__body: s.dot($.out, s._folder_items($.id), s._view_list($.id)),
   },
   _folder_icon: {
     file__name: "Folder - Icon",
-    view__schema: "folder",
+    schema__view_record: "folder",
     rule__params: l($.out, $.id, $.state),
     rule__body: s.dot($.out, s._folder_items($.id), s._view_icons($.id)),
   },
   _tag_list: {
     file__name: "Tag - List",
-    view__schema: "tag",
+    schema__view_record: "tag",
     rule__params: l($.out, $.id, $.state),
     rule__body: s.dot($.out, s._tag_files($.id), s._view_list($.id)),
   },
   _tag_icon: {
     file__name: "Tag - Icon",
-    view__schema: "tag",
+    schema__view_record: "tag",
     rule__params: l($.out, $.id, $.state),
     rule__body: s.dot($.out, s._tag_files($.id), s._view_icons($.id)),
   },

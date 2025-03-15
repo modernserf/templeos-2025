@@ -16,7 +16,7 @@ export const clipboardRules = pkg("clipboard", {
   },
   // views
   view__clipboard: {
-    view__schema: "clipboard",
+    schema__view_record: "clipboard",
     view__name: "Clipboard",
     rule__params: l($.out, $.id, $.state),
     rule__body: seq(

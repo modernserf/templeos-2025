@@ -8,7 +8,7 @@ import { browserData, browserInitState } from "./browser";
 import { testUtils } from "./test_utils";
 import { viewForm } from "./view_form";
 import { viewTable } from "./view_table";
-import { viewAnyRecord } from "./view_any_record";
+import { viewAnyRecord } from "./schema_any_record";
 import { dbRules } from "./db";
 import { loadState } from "../storage";
 import { EventSource } from "../event_source";
@@ -62,7 +62,7 @@ export type Field =
   | "rule__params"
   | "text__content"
   | "time__created"
-  | "view__schema"
+  | "schema__view_record"
   | `_${string}`;
 
 export type TypeId =
@@ -110,7 +110,7 @@ export type Rec = Record<string, Expr> & {
 
   rule__params?: List<Expr>;
   rule__body?: Box<string, Expr[]>;
-  view__schema?: Schema;
+  schema__view_record?: Schema;
 
   test__group?: string;
 

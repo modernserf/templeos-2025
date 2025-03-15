@@ -200,7 +200,7 @@ export const freeCell = pkg("free_cell", {
     ),
   },
   _view_game: {
-    view__schema: "_game",
+    schema__view_record: "_game",
     rule__params: l($.out, $.id, $.p),
     rule__body: seq(
       f._game_state($.id, s.state($.stacks, $.cells, $.columns)),
@@ -328,6 +328,7 @@ export const freeCell = pkg("free_cell", {
           l(s.card($.suit, $.lrank), s.card($.suit, $.rrank)),
           s.inc($.rrank, $.lrank),
         ),
+        l(__, s.fail()),
       ),
     ),
   },
@@ -368,7 +369,6 @@ export const freeCell = pkg("free_cell", {
             u(l($.stacks_wo, $.columns_wo), l($.stacks_w, $.columns_w)),
           ),
         ),
-
         l(
           s.stacks($.i),
           seq(
@@ -504,13 +504,6 @@ export const freeCell = pkg("free_cell", {
           seq(
             s._clear_selection($.params),
             s._on_update_state($.id, s.move($.to, $.from)),
-          ),
-        ),
-        l(
-          __,
-          seq(
-            s.log("unknown dispatch", $.event, $.selected),
-            s._clear_selection($.params),
           ),
         ),
       ),

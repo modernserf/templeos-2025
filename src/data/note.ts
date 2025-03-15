@@ -39,7 +39,7 @@ export const note = pkg("note", {
     ),
   },
   _view: {
-    view__schema: "note",
+    schema__view_record: "note",
     file__name: "Note",
     rule__params: l($.out, $.id, $.state),
     rule__body: seq(

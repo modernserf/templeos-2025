@@ -26,14 +26,7 @@ export const browserData = pkg("browser", {
   },
 
   // fields
-  view__schema: {
-    db__schema: "field",
-    file__name: "View for schema",
-    file__description: l("the schema that this view is supposed to render"),
-    field__type: "ref",
-    // field__type: s.ref( "schema" as const),
-    field__index: s.ref(),
-  },
+
   view__menu_items: {
     db__schema: "field",
     file__name: "View menu items",
@@ -311,26 +304,6 @@ export const browserData = pkg("browser", {
       ),
     ),
   },
-
-  _record_view: {
-    rule__params: l($.id, $.view),
-    rule__body: alt(
-      // id for view type
-      seq(
-        s.nonvar($.view),
-        f.view__schema($.view, $.schema),
-        f.db__schema($.id, $.schema),
-      ),
-      // view for id type
-      seq(
-        s.nonvar($.id),
-        f.db__schema($.id, $.schema),
-        f.view__schema($.view, $.schema),
-      ),
-      // view for any type
-      f.view__schema($.view, "any_record"),
-    ),
-  },
   _view_menu: {
     file__name: "View menu",
     file__description: l("the view selection menu on window chrome"),
@@ -339,7 +312,7 @@ export const browserData = pkg("browser", {
       s.collect_item_in(
         $.options,
         s.option($.view, $.name),
-        seq(s._record_view($.id, $.view), f.file__name($.view, $.name)),
+        seq(s.schema__views($.view, $.id), f.file__name($.view, $.name)),
       ),
       s.view__select(
         $.out,
@@ -382,7 +355,7 @@ export const browserData = pkg("browser", {
       f._id($.history, $.id),
       s.cond(
         f._view($.history, $.view),
-        s.limit(1, s._record_view($.id, $.view)),
+        s.limit(1, s.schema__views($.view, $.id)),
       ),
     ),
   },

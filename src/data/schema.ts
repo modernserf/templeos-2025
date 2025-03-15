@@ -1,4 +1,4 @@
-import { $, __, f, l, s, seq } from "../expr";
+import { $, __, alt, f, l, s, seq } from "../expr";
 import { pkg } from "../pkg";
 
 export const schema = pkg("schema", {
@@ -8,16 +8,46 @@ export const schema = pkg("schema", {
     file__description: l("Schema for schema definitions"),
     _fields: l(s.field("_fields")),
   },
+  // fields that go on schema
   _fields: {
     db__schema: "field",
     file__name: "Fields",
   },
+  // fields that ref schema
   _constructor: {
     db__schema: "field",
     file__name: "Constructor",
     file__description: l("rule creates records of this schema"),
     field__index: s.ref(),
   },
+  _view_record: {
+    db__schema: "field",
+    file__name: "View for schema",
+    file__description: l("the schema that this view is supposed to render"),
+    field__type: "ref",
+    // field__type: s.ref( "schema" as const),
+    field__index: s.ref(),
+  },
+  _views: {
+    rule__params: l($.view, $.record),
+    rule__body: alt(
+      // id for view type
+      seq(
+        s.nonvar($.view),
+        f._view_record($.view, $.schema),
+        f.db__schema($.record, $.schema),
+      ),
+      // view for id type
+      seq(
+        s.nonvar($.record),
+        f.db__schema($.record, $.schema),
+        f._view_record($.view, $.schema),
+      ),
+      // view for any type
+      f._view_record($.view, "any_record"),
+    ),
+  },
+
   schema_check: {
     rule__params: l($.schema, $.record),
     rule__body: seq(
@@ -47,10 +77,9 @@ export const schema = pkg("schema", {
       s.expect_fail(s.schema_check("schema", "_test_invalid_schema")),
     ),
   },
-
   _view_schema_records: {
     file__name: "Schema records",
-    view__schema: "schema",
+    _view_record: "schema",
     rule__params: l($.out, $.id, $.params),
     rule__body: seq(
       s.column(
@@ -80,7 +109,6 @@ export const schema = pkg("schema", {
       ),
     ),
   },
-
   _view_constructor: {
     rule__params: l($.out, $.ctor),
     rule__body: seq(

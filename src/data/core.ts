@@ -83,12 +83,6 @@ export const core = pkg("core", {
   // schemas
   // TODO: calling schema on record ID should check conformance
 
-  any_record: {
-    db__schema: "schema",
-    file__name: "Any Record",
-    file__description: l("Fallback schema for any type of record"),
-    schema__fields: l(),
-  },
   type: {
     db__schema: "schema",
     file__name: "Type",

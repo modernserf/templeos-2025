@@ -131,7 +131,7 @@ export const viewCore = {
 
   view__form: {
     file__name: "Form",
-    view__schema: "form",
+    schema__view_record: "form",
     rule__params: l($.out, $.id, $.state),
     rule__body: s.call($.id, $.out, $.id, $.state),
   },

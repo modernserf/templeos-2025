@@ -87,7 +87,7 @@ export const text = pkg("text", {
 
   _view_document: {
     file__name: "Text viewer",
-    view__schema: "text_document",
+    schema__view_record: "text_document",
     rule__params: l($.out, $.id, $.state),
     rule__body: seq(
       f.text__content($.id, $.text),
