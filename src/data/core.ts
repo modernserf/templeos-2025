@@ -64,6 +64,24 @@ export const core = pkg("core", {
       u($.bool, s.fail()),
     ),
   },
+  value_box_index_default: {
+    rule__params: l($.value, $.box, $.index, $.default),
+    rule__body: s.cond(
+      s.value_box_index($.value, $.box, $.index),
+      u($.value, $.default),
+    ),
+  },
+  every: {
+    rule__params: l($.if, $.then),
+    rule__body: seq(
+      s.id($.id),
+      s.try_error_catch(
+        s.block(__, seq($.if, s.cond($.then, s.throw(s.fail($.id))))),
+        s.fail($.id),
+        s.fail(),
+      ),
+    ),
+  },
 
   // TODO: check performance on this, maybe want native impl for this
   append_box_prefix: {

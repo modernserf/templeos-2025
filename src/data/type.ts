@@ -1,4 +1,4 @@
-import { l, s, $, __, u, seq, fn } from "../expr";
+import { l, s, $, __, u, seq } from "../expr";
 import { pkg } from "../pkg";
 
 export const typeRecs = pkg("type", {
@@ -118,19 +118,16 @@ export const typeRecs = pkg("type", {
       s.length_box($.val_len, $.vals),
       s.gt_eq($.val_len, $.tuple_len),
 
-      s.slice_box_from_to($.tuple_vals, $.vals, 0, $.tuple_len),
-      s.try_error_catch(
-        s.zip_lists(
-          __,
-          l($.tuple_vals, $.tuple_types),
-          fn(__, $.v, $.t)(s.cond(s._check_value($.v, $.t), s.throw(s.fail()))),
+      s.cond(
+        s.empty($.vals),
+        s.every(
+          s.value_box_index($.v, $.vals, $.i),
+          seq(
+            s.value_box_index_default($.t, $.tuple_types, $.i, $.rest_type),
+            s._check_value($.v, $.t),
+          ),
         ),
-        s.fail(),
-        s.fail(),
       ),
-
-      s.slice_box_from_to($.rest_vals, $.vals, $.tuple_len, __),
-      s.list__every($.rest_vals, s._check_value($.rest_type)),
     ),
   },
   _test_check: {
@@ -171,12 +168,74 @@ export const typeRecs = pkg("type", {
       s.expect_fail(
         s._check(
           l("foo", "bar"),
-          // s._and(
-          // s.box("", s.string(), s._any()),
-          s.box("", s._any(), s.number()),
-          // ),
+          s._and(
+            s.box("", s.string(), s._any()),
+            s.box("", s._any(), s.number()),
+          ),
         ),
       ),
+    ),
+  },
+  subtype: {
+    rule__params: l($.sub, $.type),
+    rule__body: s.match_cond(
+      l($.sub, $.type),
+      l(l($.t, $.t), s.ok()),
+      l(l(s.none(), __), s.ok()),
+      l(l(__, s.any()), s.ok()),
+      l(l(s.const($.val), s.string()), s.is_string($.val)),
+      l(l(s.const($.val), s.number()), s.is_number($.val)),
+      l(l($.t, s.and($.l, $.r)), seq(s.subtype($.t, $.l), s.subtype($.t, $.r))),
+      l(
+        l($.t, s.or($.l, $.r)),
+        s.cond(s.subtype($.t, $.l), s.subtype($.t, $.r)),
+      ),
+      l(
+        l(s.and($.l, $.r), $.t),
+        s.cond(s.subtype($.l, $.t), s.subtype($.r, $.t)),
+      ),
+      l(l(s.or($.l, $.r), $.t), seq(s.subtype($.l, $.t), s.subtype($.r, $.t))),
+      l(
+        l(s.box($.ltag, $.largs, $.lrest), s.box($.rtag, $.rargs, $.rrest)),
+        seq(
+          s.subtype($.ltag, $.rtag),
+          s._subtype_box($.largs, $.lrest, $.rargs, $.rrest),
+        ),
+      ),
+      l(__, s.fail()),
+    ),
+  },
+  _subtype_box: {
+    rule__params: l($.largs, $.lrest, $.rargs, $.rrest),
+    rule__body: seq(
+      s.length_box($.llen, $.largs),
+      s.length_box($.rlen, $.rargs),
+      s.max($.len, $.llen, $.rlen),
+      s.every(
+        s.number_min_max($.i, 0, $.len),
+        seq(
+          s.value_box_index_default($.l, $.largs, $.i, $.lrest),
+          s.value_box_index_default($.r, $.rargs, $.i, $.rrest),
+          s.subtype($.l, $.r),
+        ),
+      ),
+    ),
+  },
+  _subtype_expr: {
+    rule__params: l($.sub, $.type),
+    rule__body: seq(
+      s.expr($.l, $.sub),
+      s.expr($.r, $.type),
+      s.subtype($.l, $.r),
+    ),
+  },
+  _test_subtype: {
+    test__group: "type",
+    rule__params: l(),
+    rule__body: seq(
+      s.expect_ok(s._subtype_expr(s.number(), s.number())),
+      s.expect_ok(s._subtype_expr(s.number(), s._any())),
+      s.expect_fail(s._subtype_expr(s.number(), s.string())),
     ),
   },
 

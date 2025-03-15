@@ -145,19 +145,7 @@ export const list = pkg("list", {
     rule__params: l($.list, $.fn),
     rule__body: s.cond(
       s.empty($.list),
-      seq(
-        s.try_error_catch(
-          s.block(
-            __,
-            seq(
-              s($.item).in($.list),
-              s.cond(s.call($.fn, $.item), s.throw(s._every_fail())),
-            ),
-          ),
-          s._every_fail(),
-          s.fail(),
-        ),
-      ),
+      s.every(s($.item).in($.list), s.call($.fn, $.item)),
     ),
   },
   _test_every: {
