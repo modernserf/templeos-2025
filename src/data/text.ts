@@ -6,12 +6,6 @@ export const text = pkg("text", {
   text: {
     db__schema: "type",
     file__name: "Text",
-    db__default_value: l(),
-    db__default_view: "view__text_type",
-    // field__type: s(
-    //   "list",
-    //   s.oneof( s.string(), s.box( "link", s.string(), s.ref()))
-    // ),
   },
   // schemas
   text_document: {
@@ -81,7 +75,7 @@ export const text = pkg("text", {
         s.code($.expr),
         s.html($.out, "span", l(s.class("InlineBlock")), s.view__expr($.expr)),
       ),
-      l(__, seq(s.string($.node), s.view__string($.out, $.node))),
+      l(__, seq(s.is_string($.node), s.view__string($.out, $.node))),
     ),
   },
 

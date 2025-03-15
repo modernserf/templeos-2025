@@ -3,92 +3,6 @@ import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
 export const core = pkg("core", {
-  // types
-  any_type: {
-    db__schema: "type",
-    file__name: "Any",
-    db__default_value: l(),
-    db__default_view: "view__any_type",
-    rule__params: l($.item),
-    rule__body: s.ok(),
-  },
-  string: {
-    db__schema: "type",
-    file__name: "String",
-    db__default_value: "",
-    db__default_view: "view__string_type",
-    rule__params: l($.item),
-    rule__body: s.type_value(s.string(), $.item),
-  },
-  number: {
-    db__schema: "type",
-    file__name: "Number",
-    db__default_value: 0,
-    rule__params: l($.item),
-    rule__body: s.type_value(s.number(), $.item),
-  },
-  box: {
-    db__schema: "type",
-    file__description: l(
-      "A box is a data structure with a tag and a list of values.",
-    ),
-    db__default_value: l(),
-    rule__params: l($.item),
-    rule__body: s.type_value(s.box(), $.item),
-  },
-  list: {
-    db__schema: "type",
-    file__description: l(
-      "A list is a box with the empty string for a tag and an arbitrary number of values.",
-    ),
-    db__default_value: l(),
-    rule__params: l($.item),
-    rule__body: s.box_tag_list($.item, "", __),
-  },
-  var: {
-    db__schema: "type",
-    rule__params: l($.item),
-    rule__body: s.type_value(s.var(), $.item),
-  },
-  ensure_var: {
-    rule__params: l($.item),
-    rule__body: s.cond(
-      s.var($.item),
-      s.throw(s.expected_type(s.var(), $.item)),
-    ),
-  },
-  time: {
-    db__schema: "type",
-    file__name: "Time",
-    db__default_value: 0,
-    db__default_view: "view__time_type",
-  },
-  ref: {
-    db__schema: "type",
-    file__name: "Ref",
-    file__description: l("A record id."),
-    db__default_value: "",
-    db__default_view: "view__ref",
-    // field__type: s.number(),
-  },
-  multi_ref: {
-    db__schema: "type",
-    file__name: "Multi ref",
-    file__description: l(
-      "A list of record ids, which are indexed individually.",
-    ),
-    db__default_value: l(),
-    // field__type: s("list,s.number()),
-  },
-  // schemas
-  // TODO: calling schema on record ID should check conformance
-
-  type: {
-    db__schema: "schema",
-    file__name: "Type",
-    file__description: l("Schema for type definitions"),
-    schema__fields: l(s.field("field__type")),
-  },
   // fields
   // TODO: foo_field($.value, $.id) -> value_record_field($.value, $.id, "foo_field")
   db__schema: {
@@ -99,19 +13,6 @@ export const core = pkg("core", {
     field__type: "ref",
     field__index: s.ref(),
   },
-
-  db__default_view: {
-    db__schema: "field",
-    file__name: "Default view",
-    file__description: l(
-      "the default view for this entity ",
-      "(e.g. a type, field or schema).",
-    ),
-  },
-  db__default_value: {
-    db__schema: "field",
-    file__name: "Default value",
-  },
   time__created: {
     db__schema: "field",
     file__name: "Time created",
@@ -121,13 +22,10 @@ export const core = pkg("core", {
   rule__params: {
     db__schema: "field",
     file__name: "Rule params",
-    // field__type: s.list( s.any()),
   },
   rule__body: {
     db__schema: "field",
     file__name: "Rule body",
-    db__default_view: "view__rule__body",
-    // field__type: s.box(),
   },
   file__name: {
     db__schema: "field",
@@ -207,8 +105,8 @@ export const core = pkg("core", {
     rule__params: l($.args, $.fn),
     rule__body: s.cond(
       l(u($.fn, s.fn($.params, $.goal)), s._apply_fn($.args, $.fn)),
-      l(s.box($.fn), s._lapply_partial($.args, $.fn)),
-      l(s.string($.fn), s._apply_id($.args, $.fn)),
+      l(s.is_box($.fn), s._lapply_partial($.args, $.fn)),
+      l(s.is_string($.fn), s._apply_id($.args, $.fn)),
       s.throw(s.invalid_apply($.args, $.fn)),
     ),
   },
@@ -398,13 +296,13 @@ export const core = pkg("core", {
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
-      test.ok(s.string("hello")),
-      test.ok(s.number(123)),
-      test.ok(s.box(l())),
-      test.ok(s.box(s.atom())),
-      test.fail(s.string(s.atom())),
-      test.fail(s.number("123")),
-      test.fail(s.box("")),
+      test.ok(s.is_string("hello")),
+      test.ok(s.is_number(123)),
+      test.ok(s.is_box(l())),
+      test.ok(s.is_box(s.atom())),
+      test.fail(s.is_string(s.atom())),
+      test.fail(s.is_number("123")),
+      test.fail(s.is_box("")),
     ),
   },
   expr_value: {
@@ -437,7 +335,7 @@ export const core = pkg("core", {
     file__description: l("evaluate box tree as expression"),
     rule__params: l($.out, $.expr),
     rule__body: s.cond(
-      l(s.number($.expr), u($.out, $.expr)),
+      l(s.is_number($.expr), u($.out, $.expr)),
       s.apply(l($.out), $.expr),
     ),
   },

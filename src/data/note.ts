@@ -73,7 +73,7 @@ export const note = pkg("note", {
                 "paste",
                 seq(
                   s.clipboard__paste($.content),
-                  s.string($.content),
+                  s.is_string($.content),
                   s._on_update($.content, $.id),
                 ),
               ),

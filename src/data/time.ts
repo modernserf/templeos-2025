@@ -2,6 +2,11 @@ import { pkg } from "../pkg";
 import { l, s, $, __, seq } from "../expr";
 
 export const time = pkg("time", {
+  // TODO: timestamp, time-location, duration constructors
+  time: {
+    db__schema: "type",
+    file__name: "Time",
+  },
   milliseconds: {
     rule__params: l($.ms, $.ms),
   },

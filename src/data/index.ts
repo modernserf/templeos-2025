@@ -33,9 +33,9 @@ import { error } from "./error";
 import { schema } from "./schema";
 import { field } from "./field";
 import { view } from "./view";
+import { typeRecs } from "./type";
 
 export type Schema =
-  | "any_record"
   | "clipboard"
   | "field"
   | "folder"
@@ -49,8 +49,6 @@ export type Schema =
   | `_${string}`;
 
 export type Field =
-  | "db__default_value"
-  | "db__default_view"
   | "schema__fields"
   | "field__index"
   | "db__schema"
@@ -63,15 +61,6 @@ export type Field =
   | "text__content"
   | "time__created"
   | `_${string}`;
-
-export type TypeId =
-  | "any_type"
-  | "multi_ref"
-  | "number"
-  | "ref"
-  | "string"
-  | "text"
-  | "time";
 
 export type Location =
   | Box<"location", [id: Id]>
@@ -100,24 +89,15 @@ type IndexType =
   | Box<"unique", []>;
 
 export type Rec = Record<string, Expr> & {
-  time__created?: number;
   db__schema?: Schema;
   schema__fields?: List<SchemaField>;
-  field__type?: TypeId;
   field__index?: IndexType;
-  db__default_view?: Id;
 
   rule__params?: List<Expr>;
   rule__body?: Box<string, Expr[]>;
 
-  test__group?: string;
-
   file__name?: string;
   file__description?: List<FormatText>;
-
-  note__content?: string;
-
-  text__content?: List<FormatText>;
 };
 
 function mergeAndCheck(
@@ -159,6 +139,7 @@ export const data = mergeAndCheck(
     schema,
     supervisor,
     testUtils,
+    typeRecs,
     view,
     viewAnyRecord,
     viewCore,
