@@ -244,6 +244,10 @@ export const typeRecs = pkg("type", {
     rule__params: l($.item),
     rule__body: s.type_value(s.var(), $.item),
   },
+  nonvar: {
+    rule__params: l($.item),
+    rule__body: seq(s.type_value($.t, $.item), s.not_equal($.t, s.var())),
+  },
   is_string: {
     rule__params: l($.item),
     rule__body: s.type_value(s.string(), $.item),

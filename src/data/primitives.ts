@@ -71,13 +71,6 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__params: l(),
     rule__primitive: function* () {},
   },
-  // TODO: move to core
-  nonvar: {
-    rule__params: l($.term),
-    rule__primitive: function* (it, term) {
-      if (term.tag !== "var" && term.tag !== "fresh") yield it.result();
-    },
-  },
   unify: {
     rule__params: l($.left, $.right),
     rule__primitive: function* (it, left, right) {

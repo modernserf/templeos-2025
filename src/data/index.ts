@@ -96,6 +96,8 @@ export type Rec = Record<string, Expr> & {
   rule__params?: List<Expr>;
   rule__body?: Box<string, Expr[]>;
 
+  test__group?: string;
+
   file__name?: string;
   file__description?: List<FormatText>;
 };
