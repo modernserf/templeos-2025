@@ -28,18 +28,6 @@ export const core = pkg("core", {
     file__name: "Rule body",
     field__type: s.goal(),
   },
-  file__name: {
-    db__schema: "field",
-    file__name: "File name",
-    file__description: l("field used for name in tab header & file explorer"),
-    field__type: s.string(),
-  },
-  file__description: {
-    db__schema: "field",
-    file__name: "File description",
-    file__description: l("describes the content of the record"),
-    field__type: s.text(),
-  },
   // utilities
   none: {
     rule__params: l($.expr),

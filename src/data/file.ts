@@ -1,8 +1,8 @@
 import { Rec } from ".";
-import { l, s, $, f, __ } from "../expr";
+import { l, s, $, f, __, seq } from "../expr";
 import { pkg } from "../pkg";
 
-export const collectionData = pkg("collection", {
+export const collectionData = pkg("file", {
   // schemas
   folder: {
     db__schema: "schema",
@@ -19,6 +19,18 @@ export const collectionData = pkg("collection", {
     schema__fields: l(s.field("file__name")),
   },
   // fields
+  file__name: {
+    db__schema: "field",
+    file__name: "File name",
+    file__description: l("field used for name in tab header & file explorer"),
+    field__type: s.string(),
+  },
+  file__description: {
+    db__schema: "field",
+    file__name: "File description",
+    file__description: l("describes the content of the record"),
+    field__type: s.text(),
+  },
   _folder_items: {
     db__schema: "field",
     file__name: "File folder items",
@@ -96,6 +108,34 @@ export const collectionData = pkg("collection", {
     rule__params: l($.out, $.id, $.state),
     rule__body: s.dot($.out, s._tag_files($.id), s._view_icons($.id)),
   },
+
+  view__file_link: {
+    rule__params: l($.out, $.id),
+    rule__body: seq(
+      s.value_record_field_default($.name, $.id, "file__name", $.id),
+      s.view__link($.out, l(), $.name, s.location($.id)),
+    ),
+  },
+  view__file_info: {
+    rule__params: l($.out, $.id),
+    rule__body: seq(
+      s.column(
+        $.out,
+        l(),
+        s.row(
+          l(),
+          s.expr_iter(
+            f.db__schema($.id, $.schema),
+            s.view__file_link($.schema),
+            s.view__string(":"),
+            s.view__spacer("0.5rem"),
+          ),
+          s.view__file_link($.id),
+        ),
+        s.expr_iter(f.file__description($.id, $.desc), s.view__text($.desc)),
+      ),
+    ),
+  },
 });
 
 export const collectionInitState = {
@@ -109,7 +149,7 @@ export const collectionInitState = {
     db__schema: "folder",
     file__name: "Example Folder",
     file__description: l("A folder with some items"),
-    collection__tags: l("example_tag"),
-    collection__folder_items: l("home"),
+    file__tags: l("example_tag"),
+    file__folder_items: l("home"),
   },
 } satisfies Record<string, Rec>;

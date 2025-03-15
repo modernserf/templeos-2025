@@ -15,7 +15,7 @@ import { EventSource } from "../event_source";
 import { Value } from "../value";
 import { omnibox } from "./omnibox";
 import { codeExplorerData } from "./code_explorer";
-import { collectionData, collectionInitState } from "./collection";
+import { collectionData, collectionInitState } from "./file";
 import { text } from "./text";
 import { note, noteInitState } from "./note";
 import { clipboardInitState, clipboardRules } from "./clipboard";

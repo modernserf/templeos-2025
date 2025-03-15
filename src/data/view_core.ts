@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, seq, s, $, u, __, f, fn } from "../expr";
+import { l, seq, s, $, u, __, fn } from "../expr";
 import { test } from "./test_utils";
 
 export const viewCore = {
@@ -97,34 +97,6 @@ export const viewCore = {
         s.view__string($.minute),
         s.view__string(":"),
         s.view__string($.second),
-      ),
-    ),
-  },
-
-  view__file_link: {
-    rule__params: l($.out, $.id),
-    rule__body: seq(
-      s.value_record_field_default($.name, $.id, "file__name", $.id),
-      s.view__link($.out, l(), $.name, s.location($.id)),
-    ),
-  },
-  view__file_info: {
-    rule__params: l($.out, $.id),
-    rule__body: seq(
-      s.column(
-        $.out,
-        l(),
-        s.row(
-          l(),
-          s.expr_iter(
-            f.db__schema($.id, $.schema),
-            s.view__file_link($.schema),
-            s.view__string(":"),
-            s.view__spacer("0.5rem"),
-          ),
-          s.view__file_link($.id),
-        ),
-        s.expr_iter(f.file__description($.id, $.desc), s.view__text($.desc)),
       ),
     ),
   },
