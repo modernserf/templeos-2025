@@ -84,7 +84,7 @@ type SchemaField =
 
 type IndexType =
   | Box<"ref", []> // TODO: what does this mean now?
-  | Box<"multiRef", []>
+  | Box<"multi_ref", []>
   | Box<"sorted", []>
   | Box<"unique", []>;
 

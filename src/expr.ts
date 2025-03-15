@@ -39,7 +39,7 @@ export const s = new Proxy(
   Ss<"link"> &
   Ss<"location"> &
   Ss<"ref"> &
-  Ss<"multiRef"> &
+  Ss<"multi_ref"> &
   Ss<"sorted"> &
   Ss<"code"> &
   Ss<"field"> &

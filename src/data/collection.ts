@@ -24,7 +24,7 @@ export const collectionData = pkg("collection", {
     file__name: "File folder items",
     file__description: l("ids of files in folder"),
     field__type: s.list(s.ref(__)),
-    field__index: s.multiRef(),
+    field__index: s.multi_ref(),
     rule__params: l($.items, $.id),
     rule__body: f._folder_items($.id, $.items),
   },
@@ -33,7 +33,7 @@ export const collectionData = pkg("collection", {
     file__name: "File tags",
     file__description: l("The list of tags associated with a record."),
     field__type: s.list(s.ref(__)),
-    field__index: s.multiRef(),
+    field__index: s.multi_ref(),
   },
   _tag_files: {
     rule__params: l($.files, $.tag),

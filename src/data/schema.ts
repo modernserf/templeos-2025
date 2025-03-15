@@ -74,10 +74,13 @@ export const schema = pkg("schema", {
   _test_schema_check_all: {
     test__group: "schema",
     rule__params: l(),
-    rule__body: seq(
-      f.db__schema($.id, $.schema),
-      s.none(f._ignore_schema_check_all($.id, __)),
-      s.expect_ok(s.schema_check($.schema, $.id)),
+    rule__body: s.block(
+      __,
+      seq(
+        f.db__schema($.id, $.schema),
+        s.none(f._ignore_schema_check_all($.id, __)),
+        s.expect_ok(s.schema_check($.schema, $.id)),
+      ),
     ),
   },
 

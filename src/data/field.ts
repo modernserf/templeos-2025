@@ -14,7 +14,7 @@ export const field = pkg("field", {
     file__description: l(
       "If set, the field is indexed using an index of this type.",
     ),
-    field__type: s.oneof(s.box("ref"), s.box("multiRef"), s.box("sorted")),
+    field__type: s.oneof(s.box("ref"), s.box("multi_ref"), s.box("sorted")),
     field_index: s.sorted(),
   },
   _type: {

@@ -6,7 +6,7 @@ type Id = string;
 type Field = string;
 
 type BaseRec = Record<Field, unknown>;
-type IndexType = "ref" | "multiRef" | "sorted";
+type IndexType = "ref" | "multi_ref" | "sorted";
 
 type Index = {
   tree: BTree<ExprIndex, null>;
@@ -92,7 +92,7 @@ export class DB<Rec extends BaseRec> {
       case "sorted":
         idx.tree.set({ entityId, value: value as Expr }, null);
         return;
-      case "multiRef":
+      case "multi_ref":
         for (const v of (value as List<Expr>).args) {
           idx.tree.set({ entityId, value: v }, null);
         }
@@ -107,7 +107,7 @@ export class DB<Rec extends BaseRec> {
       case "sorted":
         idx.tree.delete({ entityId, value: value as Expr });
         return;
-      case "multiRef":
+      case "multi_ref":
         for (const v of (value as List<Expr>).args) {
           idx.tree.delete({ entityId, value: v });
         }
