@@ -35,4 +35,25 @@ export const time = pkg("time", {
       s.expect_ok(s.expr_unify(s.hours(48), s.days(2))),
     ),
   },
+
+  view__time: {
+    rule__params: l($.out, $.ts),
+    rule__body: seq(
+      // TODO: adjust for timezone
+      s.timestamp_date(
+        $.ts,
+        s.date(__, __, __, $.hour, $.minute, $.second, __),
+      ),
+      s.html(
+        $.out,
+        "span",
+        l(),
+        s.view__string($.hour),
+        s.view__string(":"),
+        s.view__string($.minute),
+        s.view__string(":"),
+        s.view__string($.second),
+      ),
+    ),
+  },
 });

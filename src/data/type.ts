@@ -1,24 +1,17 @@
-import { l, s, $, __, u, seq, fn, f } from "../expr";
+import { l, s, $, __, u, seq, fn, f, alt } from "../expr";
 import { pkg } from "../pkg";
 
 export const typeRecs = pkg("type", {
   type: {
     db__schema: "schema",
-    schema__fields: l(
-      s.field("rule__params"),
-      s.field_optional("_super_sub"),
-      s.field_optional("_sub_super"),
+    schema__fields: l(s.field("rule__params"), s.field_optional("_hierarchy")),
+  },
+  _hierarchy: {
+    db__schema: "field",
+    file__name: "Hierarchy",
+    field__type: s.list(
+      s.box("", s._option(s._type()), s._option(s._type()), s.goal()),
     ),
-  },
-  _super_sub: {
-    db__schema: "field",
-    file__name: "Subtype of",
-    field__type: s.any_box(),
-  },
-  _sub_super: {
-    db__schema: "field",
-    file__name: "Subtype of",
-    field__type: s.any_box(),
   },
 
   // type values are partially applied check fns
@@ -27,7 +20,10 @@ export const typeRecs = pkg("type", {
     db__schema: "type",
     rule__params: l($.value, $.const),
     rule__body: u($.value, $.const),
-    _super_sub: fn($.super, $.self)(u($.super, s._t_string())),
+    _hierarchy: l(
+      l(s._t_const($.val), s._t_string(), s.is_string($.val)),
+      l(s._t_const($.val), s._t_number(), s.is_number($.val)),
+    ),
   },
   _t_string: {
     db__schema: "type",
@@ -66,18 +62,23 @@ export const typeRecs = pkg("type", {
         ),
       ),
     ),
-    _super_sub: fn($.super, s.box($.ltag, $.largs, $.lrest))(
-      u(s.box($.rtag, $.rargs, $.rrest), $.super),
-      s.subtype($.ltag, $.rtag),
-      s.length_box($.llen, $.largs),
-      s.length_box($.rlen, $.rargs),
-      s.max($.len, $.llen, $.rlen),
-      s.every(
-        s.number_min_max($.i, 0, $.len),
+    _hierarchy: l(
+      l(
+        s._t_box($.ltag, $.largs, $.lrest),
+        s._t_box($.rtag, $.rargs, $.rrest),
         seq(
-          s.value_box_index_default($.l, $.largs, $.i, $.lrest),
-          s.value_box_index_default($.r, $.rargs, $.i, $.rrest),
-          s.subtype($.l, $.r),
+          s.subtype($.ltag, $.rtag),
+          s.length_box($.llen, $.largs),
+          s.length_box($.rlen, $.rargs),
+          s.max($.len, $.llen, $.rlen),
+          s.every(
+            s.number_min_max($.i, 0, $.len),
+            seq(
+              s.value_box_index_default($.l, $.largs, $.i, $.lrest),
+              s.value_box_index_default($.r, $.rargs, $.i, $.rrest),
+              s.subtype($.l, $.r),
+            ),
+          ),
         ),
       ),
     ),
@@ -86,39 +87,63 @@ export const typeRecs = pkg("type", {
     db__schema: "type",
     rule__params: l($.value),
     rule__body: s.ok(),
-    _sub_super: fn(__, __)(s.ok()),
+    _hierarchy: l(l(__, s._t_any(), s.ok())),
   },
   _t_none: {
     db__schema: "type",
     rule__params: l($.value),
     rule__body: s.fail(),
-    _super_sub: fn(__, __)(s.ok()),
+    _hierarchy: l(l(s._t_none(), __, s.ok())),
   },
   _t_and: {
     db__schema: "type",
     rule__params: l($.value, $.left, $.right),
     rule__body: seq(s.call($.left, $.value), s.call($.right, $.value)),
-    _super_sub: fn(
-      $.t,
-      s._t_and($.l, $.r),
-    )(s.cond(s.subtype($.l, $.t), s.subtype($.r, $.t))),
-    _sub_super: fn(
-      $.t,
-      s._t_and($.l, $.r),
-    )(seq(s.subtype($.t, $.l), s.subtype($.t, $.r))),
+    _hierarchy: l(
+      l(
+        s._t_and($.l, $.r),
+        $.t,
+        s.cond(s.subtype($.l, $.t), s.subtype($.r, $.t)),
+      ),
+      l($.t, s._t_and($.l, $.r), seq(s.subtype($.t, $.l), s.subtype($.t, $.r))),
+    ),
   },
   _t_or: {
     db__schema: "type",
     rule__params: l($.value, $.left, $.right),
     rule__body: s.cond(s.call($.left, $.value), s.call($.right, $.value)),
-    _sub_super: fn(
-      $.t,
-      s._t_or($.l, $.r),
-    )(s.cond(s.subtype($.t, $.l), s.subtype($.t, $.r))),
-    _super_sub: fn(
-      $.t,
-      s._t_or($.l, $.r),
-    )(seq(s.subtype($.l, $.t), s.subtype($.r, $.t))),
+    _hierarchy: l(
+      l(s._t_or($.l, $.r), $.t, seq(s.subtype($.l, $.t), s.subtype($.r, $.t))),
+      l(
+        $.t,
+        s._t_or($.l, $.r),
+        s.cond(s.subtype($.t, $.l), s.subtype($.t, $.r)),
+      ),
+    ),
+  },
+
+  // types that interact with db
+  _t_goal: {
+    db__schema: "type",
+    rule__params: l($.value),
+    rule__body: seq(
+      s.box_tag_list($.value, $.tag, $.args),
+      f.rule__params($.tag, $.params),
+      // TODO: typecheck args
+    ),
+    _hierarchy: l(
+      // TODO: check if box is valid goal
+      l(s._t_box(__, __, __), s._t_goal(), s.ok()),
+    ),
+  },
+  _t_ref: {
+    db__schema: "type",
+    rule__params: l($.record, $.schema),
+    rule__body: s.cond(s.var($.schema), f.db__schema($.record, $.schema)),
+    _hierarchy: l(
+      l(s._t_ref(__), s._t_string(), s.ok()),
+      l(s._const($.id), s._t_ref($.schema), s._t_ref($.id, $.schema)),
+    ),
   },
 
   // type constructors are partially applied exprs that produce type values
@@ -130,6 +155,9 @@ export const typeRecs = pkg("type", {
   },
   number: {
     rule__params: l(s._t_number()),
+  },
+  _var: {
+    rule__params: l(s._t_var()),
   },
   _box: {
     rule__params: l(
@@ -180,10 +208,14 @@ export const typeRecs = pkg("type", {
       s.fold_op($.out, $.types, fn($.t, $.l, $.r)(u($.t, s._t_or($.l, $.r)))),
     ),
   },
+  _option: {
+    rule__params: l($.out, $.t),
+    rule__body: s.oneof($.out, $.t, s._var()),
+  },
   _type: {
     rule__params: l($.out),
     // TODO
-    rule__body: s.any_box(),
+    rule__body: s.any_box($.out),
   },
   _check: {
     rule__params: l($.value, $.type_expr),
@@ -237,18 +269,22 @@ export const typeRecs = pkg("type", {
   },
   subtype: {
     rule__params: l($.sub, $.super),
-    rule__body: s.cond(
-      u($.sub, $.super),
-      l(
-        seq(s.box_tag_list($.sub, $.sub_id, __), f._super_sub($.sub_id, $.fn)),
-        s.call($.fn, $.super, $.sub),
-      ),
-      l(
+    rule__body: s.limit(
+      1,
+      alt(
+        u($.sub, $.super),
+        seq(
+          s.box_tag_list($.sub, $.sub_id, __),
+          f._hierarchy($.sub_id, $.rows),
+          s(l($.sub, $.super, $.goal)).in($.rows),
+          $.goal,
+        ),
         seq(
           s.box_tag_list($.super, $.super_id, __),
-          f._sub_super($.super_id, $.fn),
+          f._hierarchy($.super_id, $.rows),
+          s(l($.sub, $.super, $.goal)).in($.rows),
+          $.goal,
         ),
-        s.call($.fn, $.sub, $.super),
       ),
     ),
   },
@@ -285,16 +321,11 @@ export const typeRecs = pkg("type", {
     ),
   },
 
-  // types that interact with db
   goal: {
-    rule__params: l($.t),
-    // TODO: check id exists, is rule, args typecheck
-    rule__body: s.any_box($.t),
+    rule__params: l(s._t_goal()),
   },
   ref: {
-    rule__params: l($.t, $.schema),
-    // TODO: check that ref points to extant record & has schema
-    rule__body: s.string($.t),
+    rule__params: l(s._t_ref($.schema), $.schema),
   },
 
   // type checking

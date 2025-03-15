@@ -79,25 +79,4 @@ export const viewCore = {
   view__icon: {
     rule__params: l(s.Icon()),
   },
-
-  view__time: {
-    rule__params: l($.out, $.ts),
-    rule__body: seq(
-      // TODO: adjust for timezone
-      s.timestamp_date(
-        $.ts,
-        s.date(__, __, __, $.hour, $.minute, $.second, __),
-      ),
-      s.html(
-        $.out,
-        "span",
-        l(),
-        s.view__string($.hour),
-        s.view__string(":"),
-        s.view__string($.minute),
-        s.view__string(":"),
-        s.view__string($.second),
-      ),
-    ),
-  },
 } satisfies Record<string, Rec>;
