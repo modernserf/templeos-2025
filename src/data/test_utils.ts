@@ -14,6 +14,7 @@ export const testUtils = {
   test__group: {
     db__schema: "field",
     file__name: "Test group",
+    field__type: s.string(),
     field__index: s.ref(),
   },
 

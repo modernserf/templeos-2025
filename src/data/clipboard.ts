@@ -13,6 +13,7 @@ export const clipboardRules = pkg("clipboard", {
   _data: {
     db__schema: "field",
     file__name: "Clipboard data",
+    field__type: s.list(s.type__any()),
   },
   // views
   view__clipboard: {

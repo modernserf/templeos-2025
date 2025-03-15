@@ -4,22 +4,30 @@ import { pkg } from "../pkg";
 export const text = pkg("text", {
   // types
   text: {
-    db__schema: "type",
-    file__name: "Text",
+    rule__params: l($.t),
+    rule__body: s.list(
+      $.t,
+      s.oneof(
+        s.string(),
+        s.box("link", s.string(), s.location()),
+        s.box("code", s.type__any()),
+        s.box("section", s.text(), s.text()),
+      ),
+    ),
   },
   // schemas
   text_document: {
     db__schema: "schema",
     file__name: "Text",
     file__description: l("A text document"),
-    schema__fields: l(s.field("text__content")),
+    schema__fields: l(s.field("_content")),
   },
   // fields
-  text__content: {
+  _content: {
     db__schema: "field",
     file__name: "Text content",
     file__description: l("a list of text nodes used in text schema"),
-    field__type: "text",
+    field__type: s.text(),
   },
   // views
   view__text: {

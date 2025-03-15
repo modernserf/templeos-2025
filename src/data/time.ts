@@ -3,9 +3,10 @@ import { l, s, $, __, seq } from "../expr";
 
 export const time = pkg("time", {
   // TODO: timestamp, time-location, duration constructors
-  time: {
-    db__schema: "type",
+  t_timestamp: {
     file__name: "Time",
+    rule__params: l($.t),
+    rule__body: s.number($.t),
   },
   milliseconds: {
     rule__params: l($.ms, $.ms),

@@ -92,6 +92,7 @@ export type Rec = Record<string, Expr> & {
   db__schema?: Schema;
   schema__fields?: List<SchemaField>;
   field__index?: IndexType;
+  field__type?: Expr;
 
   rule__params?: List<Expr>;
   rule__body?: Box<string, Expr[]>;

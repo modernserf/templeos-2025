@@ -20,8 +20,27 @@ export const browserData = pkg("browser", {
       s.field_optional("_view"),
       s.field_optional("_params"),
       s.field_optional("_focus"),
-      s.field("_forward"),
-      s.field("_back"),
+      s.field_optional("_forward"),
+      s.field_optional("_back"),
+    ),
+  },
+  // types
+  _t_menu_items: {
+    rule__params: l($.t),
+    rule__body: s.list(
+      $.t,
+      s.box(
+        "menu",
+        s.string(),
+        s.list(
+          s.box(
+            "menu_option",
+            s.string(),
+            s.string(),
+            s.fn(s.ref(__), s.ref("history")),
+          ),
+        ),
+      ),
     ),
   },
 
@@ -30,64 +49,65 @@ export const browserData = pkg("browser", {
   view__menu_items: {
     db__schema: "field",
     file__name: "View menu items",
+    field__type: s._t_menu_items(),
   },
   _id: {
     db__schema: "field",
     file__name: "History id ref",
-    field__type: "ref",
+    field__type: s.ref(__), // the type here unifies with view
   },
   _view: {
     db__schema: "field",
     file__name: "History view ref",
-    field__type: "ref",
+    field__type: s.ref(__), // TODO: view schema
   },
   _params: {
     db__schema: "field",
     file__name: "History view params",
+    field__type: s.type__any(), // TODO: view schema defines params type, this references that value
   },
   _focus: {
     db__schema: "field",
     file__name: "History focused element",
+    field__type: s.type__any(), // TODO: ditto view schema referernce
   },
   _back: {
     db__schema: "field",
     file__name: "History back ref",
-    field__type: "ref",
-    // field__type: s.ref( "history" as const),
+    field__type: s.ref("history"),
   },
   _forward: {
     db__schema: "field",
     file__name: "History forward ref",
-    field__type: "ref",
-    // field__type: s.ref( "history" as const),
+    field__type: s.ref("history"),
   },
   _window: {
     db__schema: "field",
     file__name: "History window ref",
-    field__type: "ref",
-    // field__type: s.ref( "window"),
+    field__type: s.ref("window"),
   },
   _current_history: {
     db__schema: "field",
     file__name: "Window current history ref",
-    field__type: "ref",
-    // field__type: s.ref( "history" as const),
+    field__type: s.ref("history"),
   },
   _current_window: {
     db__schema: "field",
     file__name: "Focused window in browser",
-    field__type: "ref",
-    // field__type: s.ref( "window" ),
+    field__type: s.ref("window"),
   },
 
   location: {
-    db__schema: "type",
     file__name: "location",
     file__description: l(
       "A location is a what a link points to. It is a box containing the record ID, with an optional view ID and parameters",
     ),
-    rule__params: l($.item),
-    rule__body: s.location_id_view_params($.item, __, __, __),
+    rule__params: l($.t),
+    rule__body: s.oneof(
+      s.box("location", s.ref(__)),
+      s.box("location", s.ref(__), s.ref(__)),
+      s.box("location", s.ref(__), s.ref(__), s.type__any()),
+    ),
   },
   location_id_view_params: {
     file__description: l("destruct a location into its constituent parts"),

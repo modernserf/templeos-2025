@@ -6,7 +6,7 @@ export const field = pkg("field", {
     db__schema: "schema",
     file__name: "Field",
     file__description: l("Schema for field definitions"),
-    schema__fields: l(s.field_optional("_index"), s.field_optional("_type")),
+    schema__fields: l(s.field("_type"), s.field_optional("_index")),
   },
   _index: {
     db__schema: "field",
@@ -14,13 +14,13 @@ export const field = pkg("field", {
     file__description: l(
       "If set, the field is indexed using an index of this type.",
     ),
-    _index: s.sorted(),
+    field__type: s.oneof(s.box("ref"), s.box("multiRef"), s.box("sorted")),
+    field_index: s.sorted(),
   },
   _type: {
     db__schema: "field",
     file__name: "Field type",
-    field__type: "ref",
-    field__index: s.ref(),
+    field__type: s.type__fn(s.type__type()),
   },
   field_check: {
     rule__params: l($.field, $.record),
@@ -41,8 +41,7 @@ export const field = pkg("field", {
     rule__params: l($.field, $.value),
     rule__body: s.if_then_else(
       f._type($.field, $.type),
-      // TODO: typechecking isnt just fn call
-      s.call($.type, $.value),
+      s.type__check($.value, $.type),
       s.ok(),
     ),
   },

@@ -14,7 +14,12 @@ export const view = pkg("view", {
   _subject: {
     db__schema: "field",
     file__name: "View subject",
-    // type: self(), record(id), schema(id), any()
+    field__type: s.oneof(
+      s.box("self"),
+      s.box("record", s.ref(__)),
+      s.box("schema", s.ref("schema")),
+      s.box("any"),
+    ),
     field__index: s.ref(),
   },
   _for_record: {

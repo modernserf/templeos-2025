@@ -1,4 +1,4 @@
-import { l, s, $, __, u, seq } from "../expr";
+import { l, s, $, __, u, seq, fn } from "../expr";
 import { pkg } from "../pkg";
 
 export const typeRecs = pkg("type", {
@@ -59,10 +59,12 @@ export const typeRecs = pkg("type", {
   oneof: {
     rule__params: $.params,
     rule__body: seq(
-      s.params_rest($.params, l($.out), $.ts),
-      s.fold_op($.out, $.ts, s._or()),
+      s.params_rest($.params, l($.out), $.type_exprs),
+      s.map_list($.types, $.type_exprs, s.expr()),
+      s.fold_op($.out, $.types, fn($.t, $.l, $.r)(u($.t, s.or($.l, $.r)))),
     ),
   },
+  // TODO: ref(type)
   _type: {
     rule__params: l($.out),
     rule__body: s.oneof(
@@ -77,7 +79,6 @@ export const typeRecs = pkg("type", {
       s.box("or", s._type(), s._type()),
     ),
   },
-
   _check: {
     rule__params: l($.value, $.type_expr),
     rule__body: seq(
@@ -237,6 +238,32 @@ export const typeRecs = pkg("type", {
       s.expect_ok(s._subtype_expr(s.number(), s._any())),
       s.expect_fail(s._subtype_expr(s.number(), s.string())),
     ),
+  },
+
+  _fn: {
+    rule__params: $.params,
+    rule__body: seq(
+      s.params_rest($.params, l($.t), $.args),
+      s.oneof(
+        $.t,
+        // TODO: check fn / goal args
+        s.box("fn", s.list(s._any()), s.goal()),
+        s.ref(__),
+        s.goal(),
+      ),
+    ),
+  },
+
+  // types that interact with db
+  goal: {
+    rule__params: l($.t),
+    // TODO: check id exists, is rule, args typecheck
+    rule__body: s.any_box($.t),
+  },
+  ref: {
+    rule__params: l($.t, $.schema),
+    // TODO: check that ref points to extant record & has schema
+    rule__body: s.string($.t),
   },
 
   // type checking

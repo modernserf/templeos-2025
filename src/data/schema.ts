@@ -9,15 +9,35 @@ export const schema = pkg("schema", {
     _fields: l(s.field("_fields")),
   },
   // fields that go on schema
+  _t_field_def: {
+    rule__params: l($.out),
+    rule__body: s.oneof(
+      $.out,
+      s.box("field", s.ref("field")),
+      s.box("field_optional", s.ref("field")),
+    ),
+  },
+  _test_t_field_def: {
+    test__group: "schema",
+    rule__params: l(),
+    rule__body: seq(
+      s.expect_ok(s.type__check(s.field("_fields"), s._t_field_def())),
+      s.expect_ok(
+        s.type__check(s.field_optional("_constructor"), s._t_field_def()),
+      ),
+    ),
+  },
   _fields: {
     db__schema: "field",
     file__name: "Fields",
+    field__type: s.list(s._t_field_def()),
   },
   // fields that ref schema but don't belong to other package
   _constructor: {
     db__schema: "field",
     file__name: "Constructor",
     file__description: l("rule creates records of this schema"),
+    field__type: s.ref("schema"),
     field__index: s.ref(),
   },
 
@@ -40,6 +60,7 @@ export const schema = pkg("schema", {
   _test_invalid_schema: {
     // missing schema__fields
     db__schema: "schema",
+    _ignore_schema_check_all: s.ok(),
   },
   _test_schema_check: {
     test__group: "schema",
@@ -50,6 +71,16 @@ export const schema = pkg("schema", {
       s.expect_fail(s.schema_check("schema", "_test_invalid_schema")),
     ),
   },
+  _test_schema_check_all: {
+    test__group: "schema",
+    rule__params: l(),
+    rule__body: seq(
+      f.db__schema($.id, $.schema),
+      s.none(f._ignore_schema_check_all($.id, __)),
+      s.expect_ok(s.schema_check($.schema, $.id)),
+    ),
+  },
+
   _view_schema_records: {
     file__name: "Schema records",
     view__subject: s.schema("schema"),

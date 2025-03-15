@@ -13,13 +13,71 @@ export const freeCell = pkg("free_cell", {
       // TODO: game stats
     ),
   },
+  // TODO: an enum that acts as both a type and a generator
+  _t_suit: {
+    rule__params: l($.out),
+    rule__body: s.oneof(
+      $.out,
+      s.box("clubs"),
+      s.box("spades"),
+      s.box("hearts"),
+      s.box("diamonds"),
+    ),
+  },
+  _t_rank: {
+    rule__params: l($.out),
+    rule__body: s.number($.out), // TODO: number domain
+  },
+  _t_card: {
+    rule__params: l($.out),
+    rule__body: s.box($.out, "card", s._t_suit(), s._t_rank()),
+  },
+  _t_slot: {
+    rule__params: l($.out),
+    rule__body: s.oneof($.out, s._t_card(), s.box("empty", s.string())),
+  },
+
+  _t_state: {
+    rule__params: l($.out),
+    rule__body: s.box(
+      $.out,
+      "state",
+      s.box("stacks", s._t_slot(), s._t_slot(), s._t_slot(), s._t_slot()),
+      s.box("cells", s._t_slot(), s._t_slot(), s._t_slot(), s._t_slot()),
+      s.box(
+        "columns",
+        s.list(s._t_card()),
+        s.list(s._t_card()),
+        s.list(s._t_card()),
+        s.list(s._t_card()),
+        s.list(s._t_card()),
+        s.list(s._t_card()),
+        s.list(s._t_card()),
+        s.list(s._t_card()),
+      ),
+    ),
+  },
+  _t_location: {
+    rule__params: l($.out),
+    rule__body: s.oneof(
+      $.out,
+      s.box("stacks", s.number()),
+      s.box("cells", s.number()),
+      s.box("columns", s.number(), s.number()),
+    ),
+  },
+
   _game_state: {
     db__schema: "field",
     file__name: "FreeCell game state",
+    field__type: s._t_state(),
   },
   _undo_state: {
     db__schema: "field",
     file__name: "FreeCell undo history",
+    field__type: s.list(
+      s.oneof(s.box("move", s._t_location(), s._t_location())),
+    ),
   },
   _new_game: {
     file__name: "New Game",

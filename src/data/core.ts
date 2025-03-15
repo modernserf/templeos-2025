@@ -9,35 +9,36 @@ export const core = pkg("core", {
     db__schema: "field",
     file__name: "DB Schema",
     file__description: l("schema used to validate & render this record"),
-    // field__type: s.ref( "schema" as const),
-    field__type: "ref",
+    field__type: s.ref("schema"),
     field__index: s.ref(),
   },
   time__created: {
     db__schema: "field",
     file__name: "Time created",
-    field__type: "time",
+    field__type: s.t_timestamp(),
     field__index: s.sorted(),
   },
   rule__params: {
     db__schema: "field",
     file__name: "Rule params",
+    field__type: s.list(s.type__any()),
   },
   rule__body: {
     db__schema: "field",
     file__name: "Rule body",
+    field__type: s.goal(),
   },
   file__name: {
     db__schema: "field",
     file__name: "File name",
     file__description: l("field used for name in tab header & file explorer"),
-    field__type: "string",
+    field__type: s.string(),
   },
   file__description: {
     db__schema: "field",
     file__name: "File description",
     file__description: l("describes the content of the record"),
-    field__type: "text",
+    field__type: s.text(),
   },
   // utilities
   none: {
