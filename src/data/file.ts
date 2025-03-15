@@ -56,16 +56,47 @@ export const collectionData = pkg("file", {
     rule__body: f.file__description($.id, $.desc),
   },
 
+  _view_table: {
+    rule__params: l($.out, $.collection),
+    // TODO: sort columns
+    rule__body: s.table(
+      $.out,
+      l(),
+      s.table_section(
+        l(),
+        l(
+          s.view__string("Name"),
+          s.view__string("Schema"),
+          s.view__string("Description"),
+        ),
+        s.expr_iter(
+          s($.item).in($.collection),
+          s.table_row(
+            l(),
+            s.view__file_link($.item),
+            s.expr_iter_else(
+              f.db__schema($.item, $.schema),
+              l(s.view__file_link($.schema)),
+              l(s.view__string("")),
+            ),
+            s.expr_iter_else(
+              f.file__description($.item, $.desc),
+              l(s.view__text($.desc)),
+              l(s.view__string("")),
+            ),
+          ),
+        ),
+      ),
+    ),
+  },
+
   _view_list: {
     rule__params: l($.out, $.collection, $.id),
     rule__body: s.column(
       $.out,
       l(),
       s.dot(s._file_desc($.id), s.view__text()),
-      s.expr_iter(
-        s($.item).in($.collection),
-        s.row(l(), s.view__file_info($.item)),
-      ),
+      s._view_table($.collection),
     ),
   },
   _view_icons: {
