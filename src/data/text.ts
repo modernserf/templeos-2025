@@ -8,7 +8,7 @@ export const text = pkg("text", {
     file__name: "Text",
     db__default_value: l(),
     db__default_view: "view__text_type",
-    // db__type: s(
+    // field__type: s(
     //   "list",
     //   s.oneof( s.string(), s.box( "link", s.string(), s.ref()))
     // ),
@@ -25,7 +25,7 @@ export const text = pkg("text", {
     db__schema: "field",
     file__name: "Text content",
     file__description: l("a list of text nodes used in text schema"),
-    db__type: "text",
+    field__type: "text",
   },
   // views
   view__text: {

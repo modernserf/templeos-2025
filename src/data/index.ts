@@ -31,6 +31,7 @@ import { parse } from "./parse";
 import { iter } from "./iter";
 import { error } from "./error";
 import { schema } from "./schema";
+import { field } from "./field";
 
 export type Schema =
   | "any_record"
@@ -51,9 +52,9 @@ export type Field =
   | "db__default_value"
   | "db__default_view"
   | "schema__fields"
-  | "db__index"
+  | "field__index"
   | "db__schema"
-  | "db__type"
+  | "field__type"
   | "file__name"
   | "file__description"
   | "note__content"
@@ -103,8 +104,8 @@ export type Rec = Record<string, Expr> & {
   time__created?: number;
   db__schema?: Schema;
   schema__fields?: List<SchemaField>;
-  db__type?: TypeId;
-  db__index?: IndexType;
+  field__type?: TypeId;
+  field__index?: IndexType;
   db__default_view?: Id;
 
   rule__params?: List<Expr>;
@@ -147,6 +148,7 @@ export const data = mergeAndCheck(
     debug,
     dbRules,
     error,
+    field,
     freeCell,
     iter,
     list,

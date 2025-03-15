@@ -17,7 +17,7 @@ export const note = pkg("note", {
   _content: {
     db__schema: "field",
     file__name: "Note content",
-    db__type: "string",
+    field__type: "string",
     rule__params: l($.value, $.record),
     rule__body: s.record_field_value($.record, "_content", $.value),
   },

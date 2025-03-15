@@ -147,9 +147,12 @@ export const list = pkg("list", {
       s.empty($.list),
       seq(
         s.try_error_catch(
-          seq(
-            s($.item).in($.list),
-            s.cond(s.call($.fn, $.item), s.throw(s._every_fail())),
+          s.block(
+            __,
+            seq(
+              s($.item).in($.list),
+              s.cond(s.call($.fn, $.item), s.throw(s._every_fail())),
+            ),
           ),
           s._every_fail(),
           s.fail(),

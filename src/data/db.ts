@@ -28,7 +28,10 @@ export const dbRules = pkg("db", {
   ref_field_record: {
     rule__params: l($.ref, $.field, $.record),
     rule__body: seq(
-      alt(f.db__index($.field, s.ref()), f.db__index($.field, s.multi_ref())),
+      alt(
+        f.field__index($.field, s.ref()),
+        f.field__index($.field, s.multi_ref()),
+      ),
       s.record_field_value($.ref, $.field, $.record),
     ),
   },

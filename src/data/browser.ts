@@ -30,9 +30,9 @@ export const browserData = pkg("browser", {
     db__schema: "field",
     file__name: "View for schema",
     file__description: l("the schema that this view is supposed to render"),
-    db__type: "ref",
-    // db__type: s.ref( "schema" as const),
-    db__index: s.ref(),
+    field__type: "ref",
+    // field__type: s.ref( "schema" as const),
+    field__index: s.ref(),
   },
   view__menu_items: {
     db__schema: "field",
@@ -41,12 +41,12 @@ export const browserData = pkg("browser", {
   _id: {
     db__schema: "field",
     file__name: "History id ref",
-    db__type: "ref",
+    field__type: "ref",
   },
   _view: {
     db__schema: "field",
     file__name: "History view ref",
-    db__type: "ref",
+    field__type: "ref",
   },
   _params: {
     db__schema: "field",
@@ -59,32 +59,32 @@ export const browserData = pkg("browser", {
   _back: {
     db__schema: "field",
     file__name: "History back ref",
-    db__type: "ref",
-    // db__type: s.ref( "history" as const),
+    field__type: "ref",
+    // field__type: s.ref( "history" as const),
   },
   _forward: {
     db__schema: "field",
     file__name: "History forward ref",
-    db__type: "ref",
-    // db__type: s.ref( "history" as const),
+    field__type: "ref",
+    // field__type: s.ref( "history" as const),
   },
   _window: {
     db__schema: "field",
     file__name: "History window ref",
-    db__type: "ref",
-    // db__type: s.ref( "window"),
+    field__type: "ref",
+    // field__type: s.ref( "window"),
   },
   _current_history: {
     db__schema: "field",
     file__name: "Window current history ref",
-    db__type: "ref",
-    // db__type: s.ref( "history" as const),
+    field__type: "ref",
+    // field__type: s.ref( "history" as const),
   },
   _current_window: {
     db__schema: "field",
     file__name: "Focused window in browser",
-    db__type: "ref",
-    // db__type: s.ref( "window" ),
+    field__type: "ref",
+    // field__type: s.ref( "window" ),
   },
 
   location: {

@@ -16,7 +16,7 @@ export const schema = pkg("schema", {
     db__schema: "field",
     file__name: "Constructor",
     file__description: l("rule creates records of this schema"),
-    db__index: s.ref(),
+    field__index: s.ref(),
   },
   schema_check: {
     rule__params: l($.schema, $.record),
@@ -26,13 +26,12 @@ export const schema = pkg("schema", {
       s.list__every($.fields, s._check_field($.record)),
     ),
   },
-  // TODO: check field value types
   _check_field: {
     rule__params: l($.field_def, $.record),
     rule__body: s.match_cond(
       $.field_def,
-      l(s.field($.field), s.value_record_field(__, $.record, $.field)),
-      l(s.field_optional($.field), s.ok()),
+      l(s.field($.field), s.field_check($.field, $.record)),
+      l(s.field_optional($.field), s.field_check_opt($.field, $.record)),
     ),
   },
   _test_invalid_schema: {

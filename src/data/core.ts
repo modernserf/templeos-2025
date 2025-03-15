@@ -69,7 +69,7 @@ export const core = pkg("core", {
     file__description: l("A record id."),
     db__default_value: "",
     db__default_view: "view__ref",
-    // db__type: s.number(),
+    // field__type: s.number(),
   },
   multi_ref: {
     db__schema: "type",
@@ -78,17 +78,11 @@ export const core = pkg("core", {
       "A list of record ids, which are indexed individually.",
     ),
     db__default_value: l(),
-    // db__type: s("list,s.number()),
+    // field__type: s("list,s.number()),
   },
   // schemas
   // TODO: calling schema on record ID should check conformance
 
-  field: {
-    db__schema: "schema",
-    file__name: "Field",
-    file__description: l("Schema for field definitions"),
-    schema__fields: l(s.field_optional("db__index")),
-  },
   any_record: {
     db__schema: "schema",
     file__name: "Any Record",
@@ -99,7 +93,7 @@ export const core = pkg("core", {
     db__schema: "schema",
     file__name: "Type",
     file__description: l("Schema for type definitions"),
-    schema__fields: l(s.field("db__type")),
+    schema__fields: l(s.field("field__type")),
   },
   form: {
     db__schema: "schema",
@@ -113,33 +107,11 @@ export const core = pkg("core", {
     db__schema: "field",
     file__name: "DB Schema",
     file__description: l("schema used to validate & render this record"),
-    // db__type: s.ref( "schema" as const),
-    db__type: "ref",
-    db__index: s.ref(),
+    // field__type: s.ref( "schema" as const),
+    field__type: "ref",
+    field__index: s.ref(),
   },
 
-  db__type: {
-    db__schema: "field",
-    file__name: "Field type",
-    db__type: "ref",
-    // db__type: s.ref( "schema" as const),
-    db__index: s.ref(),
-  },
-  db__index: {
-    db__schema: "field",
-    file__name: "Field index",
-    file__description: l(
-      "If set, the field is indexed using an index of this type.",
-    ),
-    // db__type: s(
-    //   "oneof",
-    //   s.box( "ref"),
-    //   s.box( "multiRef"),
-    //   s.box( "sorted"),
-    //   s.box( "unique")
-    // ),
-    db__index: s.sorted(),
-  },
   db__default_view: {
     db__schema: "field",
     file__name: "Default view",
@@ -155,31 +127,31 @@ export const core = pkg("core", {
   time__created: {
     db__schema: "field",
     file__name: "Time created",
-    db__type: "time",
-    db__index: s.sorted(),
+    field__type: "time",
+    field__index: s.sorted(),
   },
   rule__params: {
     db__schema: "field",
     file__name: "Rule params",
-    // db__type: s.list( s.any()),
+    // field__type: s.list( s.any()),
   },
   rule__body: {
     db__schema: "field",
     file__name: "Rule body",
     db__default_view: "view__rule__body",
-    // db__type: s.box(),
+    // field__type: s.box(),
   },
   file__name: {
     db__schema: "field",
     file__name: "File name",
     file__description: l("field used for name in tab header & file explorer"),
-    db__type: "string",
+    field__type: "string",
   },
   file__description: {
     db__schema: "field",
     file__name: "File description",
     file__description: l("describes the content of the record"),
-    db__type: "text",
+    field__type: "text",
   },
   // utilities
   none: {
