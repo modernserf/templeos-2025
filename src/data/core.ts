@@ -89,12 +89,6 @@ export const core = pkg("core", {
     file__description: l("Schema for type definitions"),
     schema__fields: l(s.field("field__type")),
   },
-  form: {
-    db__schema: "schema",
-    file__name: "Form",
-    file__description: l("A self rendering form UI"),
-    schema__fields: l(s.field("rule__params"), s.field("rule__body")),
-  },
   // fields
   // TODO: foo_field($.value, $.id) -> value_record_field($.value, $.id, "foo_field")
   db__schema: {

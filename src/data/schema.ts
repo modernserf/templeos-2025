@@ -20,29 +20,23 @@ export const schema = pkg("schema", {
     file__description: l("rule creates records of this schema"),
     field__index: s.ref(),
   },
+  // ok these should be their own thing
+  _view_id: {
+    db__schema: "field",
+    file__name: "View for specific record",
+    field__index: s.ref(),
+  },
   _view_record: {
     db__schema: "field",
-    file__name: "View for schema",
+    file__name: "View for record with schema",
     file__description: l("the schema that this view is supposed to render"),
-    field__type: "ref",
-    // field__type: s.ref( "schema" as const),
     field__index: s.ref(),
   },
   _views: {
     rule__params: l($.view, $.record),
     rule__body: alt(
-      // id for view type
-      seq(
-        s.nonvar($.view),
-        f._view_record($.view, $.schema),
-        f.db__schema($.record, $.schema),
-      ),
-      // view for id type
-      seq(
-        s.nonvar($.record),
-        f.db__schema($.record, $.schema),
-        f._view_record($.view, $.schema),
-      ),
+      seq(f._view_id($.view, $.record)),
+      seq(f.db__schema($.record, $.schema), f._view_record($.view, $.schema)),
       // view for any type
       f._view_record($.view, "any_record"),
     ),

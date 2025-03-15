@@ -75,7 +75,7 @@ export const testUtils = {
     ),
   },
   test_runner: {
-    db__schema: "form",
+    schema__view_id: "test_runner",
     file__name: "Unit tests",
     rule__params: l($.out, $.self, $.state),
     rule__body: seq(

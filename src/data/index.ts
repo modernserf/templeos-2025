@@ -38,7 +38,6 @@ export type Schema =
   | "clipboard"
   | "field"
   | "folder"
-  | "form"
   | "history"
   | "note"
   | "schema"
@@ -169,8 +168,8 @@ export const data = mergeAndCheck(
     time,
     {
       home: {
-        db__schema: "form",
-        file__name: "home",
+        schema__view_id: "home",
+        file__name: "Home",
         file__description: l("This is the home card"),
         rule__params: l($.out, $.id, $.state),
         _left_links: l(

@@ -97,7 +97,7 @@ export const note = pkg("note", {
     ),
   },
   _view_all: {
-    db__schema: "form",
+    schema__view_id: "_view_all",
     file__name: "Notes",
     rule__params: l($.out, __, __),
     rule__body: s.view__subscribe_render(

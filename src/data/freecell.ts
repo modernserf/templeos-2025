@@ -200,6 +200,7 @@ export const freeCell = pkg("free_cell", {
     ),
   },
   _view_game: {
+    file__name: "FreeCell",
     schema__view_record: "_game",
     rule__params: l($.out, $.id, $.p),
     rule__body: seq(

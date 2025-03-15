@@ -312,7 +312,10 @@ export const browserData = pkg("browser", {
       s.collect_item_in(
         $.options,
         s.option($.view, $.name),
-        seq(s.schema__views($.view, $.id), f.file__name($.view, $.name)),
+        seq(
+          s.schema__views($.view, $.id),
+          s.cond(f.file__name($.view, $.name), u($.view, $.name)),
+        ),
       ),
       s.view__select(
         $.out,
