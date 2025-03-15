@@ -33,7 +33,6 @@ export const schema = pkg("schema", {
       $.field_def,
       l(s.field($.field), s.value_record_field(__, $.record, $.field)),
       l(s.field_optional($.field), s.ok()),
-      l(__, s.unknown_message($.field_def)),
     ),
   },
   _test_invalid_schema: {

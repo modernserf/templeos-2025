@@ -2,9 +2,9 @@ import { l, s, $ } from "../expr";
 import { pkg } from "../pkg";
 
 export const error = pkg("error", {
-  unknown_message: {
+  no_match: {
     rule__params: l($.message),
-    rule__body: s.throw(s.unknown_message($.message)),
+    rule__body: s.throw(s.no_match($.message)),
   },
   expected_received: {
     rule__params: l($.expected, $.received),

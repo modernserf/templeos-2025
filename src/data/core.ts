@@ -341,8 +341,9 @@ export const core = pkg("core", {
       s.if_then_else(
         u($.pattern, $.match),
         $.then,
-        seq(
-          s.nonempty($.rest),
+        s.if_then_else(
+          s.empty($.rest),
+          s.no_match($.pattern),
           s._rapply_partial($.rest, s.match_cond($.pattern)),
         ),
       ),
@@ -402,12 +403,13 @@ export const core = pkg("core", {
         "ok",
       ),
 
-      test.fail(
+      test.throw(
         s.match_cond(
           s.baz($.pat),
           l(s.foo(123), u($.result, l($.pat))),
           l(s.bar(456), u($.result, l($.pat, $.pat))),
         ),
+        s.no_match(s.baz(__)),
       ),
     ),
   },

@@ -285,7 +285,6 @@ export const browserData = pkg("browser", {
                 ),
               ),
             ),
-            l(__, s.unknown_message($.e)),
           ),
         ),
       ),

@@ -95,7 +95,6 @@ export const asyncRules = pkg("async", {
               seq(s.send($.pid, s.get($.ref, $.prev)), u($.next, $.prev)),
             ),
             l(s.update($.fn), s.ensure_det(s.apply(l($.next, $.prev), $.fn))),
-            l(__, s.unknown_message($.e)),
           ),
         ),
       ),
