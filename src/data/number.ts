@@ -1,8 +1,7 @@
 import { pkg } from "../pkg";
-import { l, s, $, __, u, seq, alt } from "../expr";
+import { l, s, $, __, u, seq, alt, x } from "../expr";
 
 export const number = pkg("number", {
-  // operates on values
   sum: {
     rule__params: l($.sum, $.l, $.r),
     rule__body: s.cond(
@@ -81,77 +80,49 @@ export const number = pkg("number", {
       s.expect_collect($.rec, s.reciprocal(1 / 4, $.rec), 4),
     ),
   },
-  // operates on exprs
+  // TODO: impl these directly as primitives
   add: {
-    rule__params: l($.out, $.left, $.right),
-    rule__body: seq(
-      s.expr_number($.l, $.left),
-      s.expr_number($.r, $.right),
-      s.add__primitive($.out, $.l, $.r),
-    ),
+    rule__params: l($.out, $.l, $.r),
+    rule__body: seq(s.add__primitive($.out, $.l, $.r)),
   },
   sub: {
-    rule__params: l($.out, $.left, $.right),
-    rule__body: seq(
-      s.expr_number($.l, $.left),
-      s.expr_number($.r, $.right),
-      s.sub__primitive($.out, $.l, $.r),
-    ),
+    rule__params: l($.out, $.l, $.r),
+    rule__body: seq(s.sub__primitive($.out, $.l, $.r)),
   },
   mul: {
-    rule__params: l($.out, $.left, $.right),
-    rule__body: seq(
-      s.expr_number($.l, $.left),
-      s.expr_number($.r, $.right),
-      s.mul__primitive($.out, $.l, $.r),
-    ),
+    rule__params: l($.out, $.l, $.r),
+    rule__body: seq(s.mul__primitive($.out, $.l, $.r)),
   },
   fdiv: {
-    rule__params: l($.out, $.left, $.right),
-    rule__body: seq(
-      s.expr_number($.l, $.left),
-      s.expr_number($.r, $.right),
-      s.fdiv__primitive($.out, $.l, $.r),
-    ),
+    rule__params: l($.out, $.l, $.r),
+    rule__body: seq(s.fdiv__primitive($.out, $.l, $.r)),
   },
   mod: {
-    rule__params: l($.out, $.left, $.right),
-    rule__body: seq(
-      s.expr_number($.l, $.left),
-      s.expr_number($.r, $.right),
-      s.mod__primitive($.out, $.l, $.r),
-    ),
+    rule__params: l($.out, $.l, $.r),
+    rule__body: seq(s.mod__primitive($.out, $.l, $.r)),
   },
   min: {
-    rule__params: l($.min, $.left, $.right),
+    rule__params: l($.min, $.l, $.r),
     rule__body: seq(
-      s.expr_number($.l, $.left),
-      s.expr_number($.r, $.right),
       s.ord($.ord, $.l, $.r),
       s.match(l($.min, $.ord), l($.l, s.lt()), l($.r, __)),
     ),
   },
   max: {
-    rule__params: l($.max, $.left, $.right),
+    rule__params: l($.max, $.l, $.r),
     rule__body: seq(
-      s.expr_number($.l, $.left),
-      s.expr_number($.r, $.right),
       s.ord($.ord, $.l, $.r),
       s.match(l($.max, $.ord), l($.l, s.gt()), l($.r, __)),
     ),
   },
 
   trunc: {
-    rule__params: l($.trunc, $.expr),
-    rule__body: seq(
-      s.expr_number($.val, $.expr),
-      s.trunc__primitive($.trunc, __, $.val),
-    ),
+    rule__params: l($.trunc, $.val),
+    rule__body: seq(s.trunc__primitive($.trunc, __, $.val)),
   },
   floor: {
-    rule__params: l($.floor, $.expr),
+    rule__params: l($.floor, $.val),
     rule__body: seq(
-      s.expr_number($.val, $.expr),
       s.trunc__primitive($.trunc, $.frac, $.val),
       s.if_then_else(
         s.lt($.frac, 0),
@@ -161,9 +132,8 @@ export const number = pkg("number", {
     ),
   },
   ceil: {
-    rule__params: l($.ceil, $.expr),
+    rule__params: l($.ceil, $.val),
     rule__body: seq(
-      s.expr_number($.val, $.expr),
       s.trunc__primitive($.trunc, $.frac, $.val),
       s.if_then_else(
         s.gt($.frac, 0),
@@ -173,8 +143,8 @@ export const number = pkg("number", {
     ),
   },
   round: {
-    rule__params: l($.round, $.expr),
-    rule__body: s.floor($.round, s.add($.expr, 0.5)),
+    rule__params: l($.round, $.val),
+    rule__body: s.floor($.round, x(s.add($.val, 0.5))),
   },
 
   _test_round: {

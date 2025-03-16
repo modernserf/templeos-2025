@@ -43,6 +43,8 @@ export function resolveDeep(
     case "number":
     case "fresh":
       return value;
+    case "expand":
+      return { tag: "expand", value: resolveDeep(value.value, state) };
     case "box":
       return {
         tag: "box",
@@ -117,6 +119,8 @@ export class State {
               id: expr.id,
               args: expr.args.map((arg) => this.exprValue(arg, scope)),
             };
+          case "expand":
+            return { tag: "expand", value: this.exprValue(expr.expr, scope) };
         }
     }
   }
@@ -198,9 +202,34 @@ export class State {
     }
   }
 
+  private *expandArgs(args: Value[]) {
+    const out: Value[] = [];
+    for (const arg of args) {
+      if (arg.tag === "expand") {
+        const result = { tag: "var", fact: this.fresh("result") } as const;
+        const call = box("call", [arg.value, result]);
+
+        const gen = this.eval(call);
+        let next = gen.next();
+        while (!next.done) {
+          if (next.value.tag === "result") {
+            args.push(resolveDeep(result));
+            next = gen.next();
+          } else {
+            next = gen.next(yield next.value);
+          }
+        }
+      } else {
+        out.push(arg);
+      }
+    }
+    return out;
+  }
+
   *eval(value: Value): ProcGen {
     value = resolveVar(value);
-    const { id, args, params, body } = this.getRule(value);
+    const { id, args: args_, params, body } = this.getRule(value);
+    const args = yield* this.expandArgs(args_);
     if (this.pm.rulePrimitives[id]) {
       try {
         yield* this.pm.rulePrimitives[id](

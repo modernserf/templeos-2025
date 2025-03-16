@@ -1,4 +1,4 @@
-import { l, s, $, __, u, seq, alt, f } from "../expr";
+import { l, s, $, __, u, seq, alt, f, x } from "../expr";
 import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
@@ -84,7 +84,7 @@ export const freeCell = pkg("free_cell", {
     schema__constructor: "_game",
     rule__params: l($.id),
     rule__body: seq(
-      s.var_expr($.id, s.id()),
+      s.or_default($.id, x(s.id())),
       s.timestamp($.ts),
       s._init($.value),
       s.db__update(

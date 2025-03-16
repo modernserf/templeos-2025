@@ -8,7 +8,7 @@ export const asyncRules = pkg("async", {
     rule__body: seq(
       s.self($.self),
       s.id($.id),
-      s.expr_number($.time_ms, $.duration),
+      s.ms_duration($.time_ms, $.duration),
       s.send_async($.self, s.wake($.id), $.time_ms),
       s.receive(s.wake($.id)),
     ),
@@ -113,13 +113,6 @@ export const asyncRules = pkg("async", {
   agent_update: {
     rule__params: l($.agent, $.fn),
     rule__body: s.send($.agent, s.update($.fn)), //
-  },
-  agent_expr: {
-    rule__params: l($.agent, $.expr),
-    rule__body: s.send(
-      $.agent,
-      s.update(fn($.out, $.in)(s.expr($.out, $.expr))),
-    ),
   },
   agent_set: {
     rule__params: l($.agent, $.value),

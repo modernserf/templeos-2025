@@ -136,7 +136,7 @@ export const dbRules = pkg("db", {
               ),
             ),
           ),
-          s.var_expr($.next, s.unify($.prev)),
+          s.or_default($.next, $.prev),
         ),
       ),
     ),

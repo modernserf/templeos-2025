@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, seq, u, __ } from "../expr";
+import { l, s, $, seq, u, __, x } from "../expr";
 import { pkg } from "../pkg";
 
 export const note = pkg("note", {
@@ -110,8 +110,8 @@ export const note = pkg("note", {
   _new: {
     rule__params: l($.out, $.id, $.content),
     rule__body: seq(
-      s.var_expr($.id, s.id()),
-      s.var_expr($.content, s.unify("")),
+      s.or_default($.id, x(s.id())),
+      s.or_default($.content, ""),
       u(
         $.out,
         l(

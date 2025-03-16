@@ -7,7 +7,8 @@ export type Value =
   | { tag: "number"; value: number }
   | { tag: "box"; id: string; args: Value[] }
   | { tag: "fresh" }
-  | { tag: "var"; fact: Fact };
+  | { tag: "var"; fact: Fact }
+  | { tag: "expand"; value: Value };
 
 export const fresh = { tag: "fresh" } as const;
 
@@ -36,6 +37,8 @@ export function printValue(value: Value, indent = ""): string {
       return `${value.id}(\n${indent}  ${value.args
         .map((f) => printValue(f, indent + "  "))
         .join("\n" + indent + "  ")}\n${indent})`;
+    case "expand":
+      return `{ ${printValue(value, indent)} }`;
   }
 }
 
@@ -50,5 +53,7 @@ export function valueExpr(value: Value): Expr {
       return { tag: "placeholder" };
     case "var":
       return { tag: "ident", ident: value.fact.name };
+    case "expand":
+      return { tag: "expand", expr: valueExpr(value.value) };
   }
 }

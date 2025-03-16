@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, seq, u, __, alt, f, fn } from "../expr";
+import { l, s, $, seq, u, __, alt, f, fn, x } from "../expr";
 import { pkg } from "../pkg";
 
 export const browserData = pkg("browser", {
@@ -120,7 +120,7 @@ export const browserData = pkg("browser", {
         s.location($.id, $.view),
         s.location($.id, $.view, $.params),
       ),
-      s.var_expr($.params, s.unify(l())),
+      s.or_default($.params, l()),
     ),
   },
 
@@ -563,7 +563,7 @@ export const browserData = pkg("browser", {
   _new_window: {
     rule__params: l($.out, $.window, $.location),
     rule__body: seq(
-      s.var_expr($.window, s.id()),
+      s.or_default($.window, x(s.id())),
       s._new_history($.h, $.history, $.window, $.location),
       s.append_left_right(
         $.out,
@@ -579,7 +579,7 @@ export const browserData = pkg("browser", {
   _new_history: {
     rule__params: l($.out, $.history, $.window, $.location),
     rule__body: seq(
-      s.var_expr($.history, s.id()),
+      s.or_default($.history, x(s.id())),
       s.timestamp($.ts),
       s.location_id_view_params($.location, $.id, $.view, $.params),
 

@@ -1,5 +1,5 @@
 import { pkg } from "../pkg";
-import { l, s, $, __, seq } from "../expr";
+import { l, s, $, __, seq, u, x } from "../expr";
 
 export const time = pkg("time", {
   // TODO: timestamp, time-location, duration constructors
@@ -27,12 +27,20 @@ export const time = pkg("time", {
     rule__params: l($.ms, $.m),
     rule__body: s.product($.ms, $.m, 1000 * 60 * 60 * 24),
   },
+  ms_duration: {
+    rule__params: l($.ms, $.duration),
+    rule__body: s.if_then_else(
+      s.is_number($.duration),
+      u($.ms, $.duration),
+      u($.ms, x($.duration)),
+    ),
+  },
   _test_conversions: {
     test__group: "time",
     rule__params: l(),
     rule__body: seq(
-      s.expect_ok(s.expr_unify(s.milliseconds(2000), s.seconds(2))),
-      s.expect_ok(s.expr_unify(s.hours(48), s.days(2))),
+      s.expect_ok(u(x(s.milliseconds(2000)), x(s.seconds(2)))),
+      s.expect_ok(u(x(s.hours(48)), x(s.days(2)))),
     ),
   },
 

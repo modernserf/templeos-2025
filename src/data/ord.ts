@@ -173,12 +173,12 @@ export const ord = pkg("ord", {
   },
 
   ord_seq: {
-    rule__params: l($.result, $.left, $.right),
+    rule__params: l($.result, $.left_fn, $.right_fn),
     rule__body: seq(
-      s.expr($.l, $.left),
+      s.call($.left_fn, $.l),
       s.match_cond(
         $.l,
-        l(s.eq(), s.expr($.result, $.right)),
+        l(s.eq(), s.call($.right_fn, $.result)),
         l(__, u($.result, $.l)),
       ),
     ),

@@ -12,6 +12,11 @@ function expandNamespace(name: string, expr: Expr): Expr {
     case "placeholder":
     case "ident":
       return expr;
+    case "expand":
+      return {
+        tag: "expand",
+        expr: expandNamespace(name, expr.expr),
+      };
     case "box":
       return {
         tag: "box",

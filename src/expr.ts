@@ -6,6 +6,7 @@ export type Expr =
   | number
   | { tag: "box"; id: Id; args: Expr[] }
   | { tag: "placeholder" }
+  | { tag: "expand"; expr: Expr }
   | { tag: "ident"; ident: string };
 export type Box<Id, Args extends Expr[]> = {
   tag: "box";
@@ -163,3 +164,5 @@ export const fn =
   (...params: Expr[]) =>
   (head: Expr = s.ok(), ...body: Expr[]) =>
     s.fn(l(...params), seq(head, ...body));
+
+export const x = (expr: Expr) => ({ tag: "expand", expr } as const);

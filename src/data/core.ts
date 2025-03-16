@@ -285,9 +285,9 @@ export const core = pkg("core", {
     rule__params: l($.collection, $.item, $.do),
     rule__body: seq(s.block(__, seq(s($.item).in($.collection), $.do))),
   },
-  var_expr: {
-    rule__params: l($.var, $.expr),
-    rule__body: s.cond(s.nonvar($.var), s.expr($.var, $.expr)),
+  or_default: {
+    rule__params: l($.val, $.default),
+    rule__body: s.cond(s.nonvar($.var), u($.val, $.default)),
   },
   _test_var: {
     test__group: "core",
@@ -337,18 +337,6 @@ export const core = pkg("core", {
     file__description: l("evaluate box tree as expression"),
     rule__params: l($.out, $.expr),
     rule__body: s.apply(l($.out), $.expr),
-  },
-  expr_number: {
-    file__description: l("evaluate box tree as expression"),
-    rule__params: l($.out, $.expr),
-    rule__body: s.cond(
-      l(s.is_number($.expr), u($.out, $.expr)),
-      s.apply(l($.out), $.expr),
-    ),
-  },
-  expr_unify: {
-    rule__params: l($.left, $.right),
-    rule__body: seq(s.expr($.out, $.right), s.expr($.out, $.left)),
   },
   expr_children: {
     rule__params: l($.out, $.children),
