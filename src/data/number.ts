@@ -144,7 +144,7 @@ export const number = pkg("number", {
   },
   round: {
     rule__params: l($.round, $.val),
-    rule__body: s.floor($.round, x(s.add($.val, 0.5))),
+    rule__body: s.floor($.round, x.add($.val, 0.5)),
   },
 
   _test_round: {

@@ -27,17 +27,19 @@ export const browserData = pkg("browser", {
   // types
   _t_menu_items: {
     rule__params: l($.t),
-    rule__body: s.list(
+    rule__body: s.list_of(
       $.t,
-      s.box(
-        "menu",
-        s.string(),
-        s.list(
-          s.box(
-            "menu_option",
-            s.string(),
-            s.string(),
-            s.fn(s.ref(__), s.ref("history")),
+      x.enum(
+        s.menu(
+          s.string(),
+          x.list_of(
+            x.enum(
+              x.menu_option(
+                s.string(),
+                s.string(),
+                s.type__fn(s.ref(__), s.ref("history")),
+              ),
+            ),
           ),
         ),
       ),
@@ -49,7 +51,7 @@ export const browserData = pkg("browser", {
   view__menu_items: {
     db__schema: "field",
     file__name: "View menu items",
-    field__type: s._t_menu_items(),
+    field__type: x._t_menu_items(),
   },
   _id: {
     db__schema: "field",
@@ -64,12 +66,12 @@ export const browserData = pkg("browser", {
   _params: {
     db__schema: "field",
     file__name: "History view params",
-    field__type: s.type__any(), // TODO: view schema defines params type, this references that value
+    field__type: s.any_type(), // TODO: view schema defines params type, this references that value
   },
   _focus: {
     db__schema: "field",
     file__name: "History focused element",
-    field__type: s.type__any(), // TODO: ditto view schema referernce
+    field__type: s.any_type(), // TODO: ditto view schema referernce
   },
   _back: {
     db__schema: "field",
@@ -103,10 +105,11 @@ export const browserData = pkg("browser", {
       "A location is a what a link points to. It is a box containing the record ID, with an optional view ID and parameters",
     ),
     rule__params: l($.t),
-    rule__body: s.oneof(
-      s.box("location", s.ref(__)),
-      s.box("location", s.ref(__), s.ref(__)),
-      s.box("location", s.ref(__), s.ref(__), s.type__any()),
+    rule__body: s.enum(
+      $.t,
+      s.location(s.ref(__)),
+      s.location(s.ref(__), s.ref(__)),
+      s.location(s.ref(__), s.ref(__), s.type__any()),
     ),
   },
   location_id_view_params: {
@@ -563,7 +566,7 @@ export const browserData = pkg("browser", {
   _new_window: {
     rule__params: l($.out, $.window, $.location),
     rule__body: seq(
-      s.or_default($.window, x(s.id())),
+      s.or_default($.window, x.id()),
       s._new_history($.h, $.history, $.window, $.location),
       s.append_left_right(
         $.out,
@@ -579,7 +582,7 @@ export const browserData = pkg("browser", {
   _new_history: {
     rule__params: l($.out, $.history, $.window, $.location),
     rule__body: seq(
-      s.or_default($.history, x(s.id())),
+      s.or_default($.history, x.id()),
       s.timestamp($.ts),
       s.location_id_view_params($.location, $.id, $.view, $.params),
 

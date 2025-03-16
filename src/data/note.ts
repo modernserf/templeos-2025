@@ -73,7 +73,7 @@ export const note = pkg("note", {
                 "paste",
                 seq(
                   s.clipboard__paste($.content),
-                  s.is_string($.content),
+                  s.string($.content),
                   s._on_update($.content, $.id),
                 ),
               ),
@@ -110,7 +110,7 @@ export const note = pkg("note", {
   _new: {
     rule__params: l($.out, $.id, $.content),
     rule__body: seq(
-      s.or_default($.id, x(s.id())),
+      s.or_default($.id, x.id()),
       s.or_default($.content, ""),
       u(
         $.out,

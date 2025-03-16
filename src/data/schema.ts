@@ -1,4 +1,4 @@
-import { $, __, f, l, s, seq } from "../expr";
+import { $, __, f, l, s, seq, x } from "../expr";
 import { pkg } from "../pkg";
 
 export const schema = pkg("schema", {
@@ -11,26 +11,31 @@ export const schema = pkg("schema", {
   // fields that go on schema
   _t_field_def: {
     rule__params: l($.out),
-    rule__body: s.oneof(
+    rule__body: s.enum(
       $.out,
-      s.box("field", s.ref("field")),
-      s.box("field_optional", s.ref("field")),
+      s.field(s.ref("field")),
+      s.field_optional(s.ref("field")),
     ),
   },
   _test_t_field_def: {
     test__group: "schema",
     rule__params: l(),
     rule__body: seq(
-      s.expect_ok(s.type__check(s.field("_fields"), s._t_field_def())),
+      s.expect_eq(
+        x._t_field_def(),
+        s.type__union(s.type__box(__, __, __), s.type__box(__, __, __)),
+      ),
+
+      s.expect_ok(s.type__check(s.field("_fields"), x._t_field_def())),
       s.expect_ok(
-        s.type__check(s.field_optional("_constructor"), s._t_field_def()),
+        s.type__check(s.field_optional("_constructor"), x._t_field_def()),
       ),
     ),
   },
   _fields: {
     db__schema: "field",
     file__name: "Fields",
-    field__type: s.list(s._t_field_def()),
+    field__type: x.list_of(x._t_field_def()),
   },
   // fields that ref schema but don't belong to other package
   _constructor: {
@@ -79,6 +84,7 @@ export const schema = pkg("schema", {
       seq(
         f.db__schema($.id, $.schema),
         s.none(f._ignore_schema_check_all($.id, __)),
+        s.log("check", $.id),
         s.expect_ok(s.schema_check($.schema, $.id)),
       ),
     ),

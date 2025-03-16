@@ -1,4 +1,4 @@
-import { l, s, $, __, u, seq, fn, f, alt } from "../expr";
+import { l, s, $, __, u, seq, fn, f, alt, x } from "../expr";
 import { pkg } from "../pkg";
 
 export const typeRecs = pkg("type", {
@@ -9,38 +9,49 @@ export const typeRecs = pkg("type", {
   _hierarchy: {
     db__schema: "field",
     file__name: "Hierarchy",
-    field__type: s.list(
-      s.box("", s._option(s._type()), s._option(s._type()), s.goal()),
-    ),
+    field__type: x.list_of(x.tuple(s.any_type(), s.any_type(), s.goal())),
   },
-
-  // type values are partially applied check fns
-
-  _t_const: {
+  any_type: {
+    db__schema: "type",
+    rule__params: l($.value),
+    rule__body: s.ok(),
+    _hierarchy: l(l(__, s.any_type(), s.ok())),
+  },
+  no_type: {
+    db__schema: "type",
+    rule__params: l($.value),
+    rule__body: s.fail(),
+    _hierarchy: l(l(s.no_type(), __, s.ok())),
+  },
+  const: {
     db__schema: "type",
     rule__params: l($.value, $.const),
     rule__body: u($.value, $.const),
     _hierarchy: l(
-      l(s._t_const($.val), s._t_string(), s.is_string($.val)),
-      l(s._t_const($.val), s._t_number(), s.is_number($.val)),
+      l(s.const($.val), s.string(), s.string($.val)),
+      l(s.const($.val), s.number(), s.number($.val)),
     ),
   },
-  _t_string: {
+  string: {
     db__schema: "type",
     rule__params: l($.value),
     rule__body: s.type_value(s.string(), $.value),
   },
-  _t_number: {
+  number: {
     db__schema: "type",
     rule__params: l($.value),
     rule__body: s.type_value(s.number(), $.value),
   },
-  _t_var: {
+  var: {
     db__schema: "type",
     rule__params: l($.value),
     rule__body: s.type_value(s.var(), $.value),
   },
-  _t_box: {
+  nonvar: {
+    rule__params: l($.item),
+    rule__body: s.not_equal(x.type_value($.item), s.var()),
+  },
+  _box: {
     db__schema: "type",
     rule__params: l($.value, $.tag_type, $.tuple_types, $.rest_type),
     rule__body: seq(
@@ -64,8 +75,8 @@ export const typeRecs = pkg("type", {
     ),
     _hierarchy: l(
       l(
-        s._t_box($.ltag, $.largs, $.lrest),
-        s._t_box($.rtag, $.rargs, $.rrest),
+        s._box($.ltag, $.largs, $.lrest),
+        s._box($.rtag, $.rargs, $.rrest),
         seq(
           s.subtype($.ltag, $.rtag),
           s.length_box($.llen, $.largs),
@@ -83,47 +94,115 @@ export const typeRecs = pkg("type", {
       ),
     ),
   },
-  _t_any: {
-    db__schema: "type",
-    rule__params: l($.value),
-    rule__body: s.ok(),
-    _hierarchy: l(l(__, s._t_any(), s.ok())),
+  any_box: {
+    rule__params: l(s._box(s.string(), l(), s.any_type())),
   },
-  _t_none: {
-    db__schema: "type",
+  is_box: {
     rule__params: l($.value),
-    rule__body: s.fail(),
-    _hierarchy: l(l(s._t_none(), __, s.ok())),
+    rule__body: s.type_value(s.box(), $.value),
   },
-  _t_and: {
+  list_of: {
+    rule__params: l(s._box(s.const(""), l(), $.t), $.t),
+  },
+  tuple: {
+    rule__params: $.params,
+    rule__body: seq(
+      s.params_rest($.params, l($.t), $.tuple),
+      u($.t, s._box(s.const(""), $.tuple, s.none())),
+    ),
+  },
+  _test_tuple: {
+    test__group: "type",
+    rule__params: l(),
+
+    rule__body: seq(
+      s.expect_ok(
+        s._check(
+          l("foo", "bar", 123),
+          x.tuple(s.string(), s.any_type(), s.number()),
+        ),
+      ),
+    ),
+  },
+  _intersection: {
     db__schema: "type",
     rule__params: l($.value, $.left, $.right),
     rule__body: seq(s.call($.left, $.value), s.call($.right, $.value)),
     _hierarchy: l(
       l(
-        s._t_and($.l, $.r),
+        s._intersection($.l, $.r),
         $.t,
         s.cond(s.subtype($.l, $.t), s.subtype($.r, $.t)),
       ),
-      l($.t, s._t_and($.l, $.r), seq(s.subtype($.t, $.l), s.subtype($.t, $.r))),
+      l(
+        $.t,
+        s._intersection($.l, $.r),
+        seq(s.subtype($.t, $.l), s.subtype($.t, $.r)),
+      ),
     ),
   },
-  _t_or: {
+  _union: {
     db__schema: "type",
     rule__params: l($.value, $.left, $.right),
     rule__body: s.cond(s.call($.left, $.value), s.call($.right, $.value)),
     _hierarchy: l(
-      l(s._t_or($.l, $.r), $.t, seq(s.subtype($.l, $.t), s.subtype($.r, $.t))),
+      l(s._union($.l, $.r), $.t, seq(s.subtype($.l, $.t), s.subtype($.r, $.t))),
       l(
         $.t,
-        s._t_or($.l, $.r),
+        s._union($.l, $.r),
         s.cond(s.subtype($.t, $.l), s.subtype($.t, $.r)),
+      ),
+    ),
+  },
+  _option: {
+    rule__params: l($.out, $.t),
+    rule__body:
+      // s.log("_option before", $.t), //
+      u($.out, s._union(s.var(), $.t)),
+    // s.log("_option after", $.out), //
+  },
+  _test_option: {
+    test__group: "type",
+    rule__params: l(),
+    rule__body: seq(
+      // s.log("_option", x._option(x._type())),
+      s.expect_eq(x._option(x._type()), s._union(s.var(), s._box(__, __, __))),
+
+      // s.expect_eq(x._option(x._type()), s._union(s.var(), x.any_box())),
+    ),
+  },
+
+  enum: {
+    rule__params: $.params,
+    rule__body: seq(
+      s.params_rest($.params, l($.t), $.boxes),
+      s.map_list(
+        $.mapped,
+        $.boxes,
+        fn(
+          s._box(s.const($.tag), $.tuple, s.no_type()),
+          $.box,
+        )(s.box_tag_list($.box, $.tag, $.tuple)),
+      ),
+      s.fold_op($.t, $.mapped, fn(s._union($.l, $.r), $.l, $.r)()),
+    ),
+  },
+  _test_enum: {
+    test__group: "type",
+    rule__params: l(),
+    rule__body: seq(
+      s.expect_eq(
+        x.enum(s.foo(s.number()), s.bar(s.string(), s.string())),
+        s._union(
+          s._box(s.const("foo"), l(s.number()), s.no_type()),
+          s._box(s.const("bar"), l(s.string(), s.string()), s.no_type()),
+        ),
       ),
     ),
   },
 
   // types that interact with db
-  _t_goal: {
+  goal: {
     db__schema: "type",
     rule__params: l($.value),
     rule__body: seq(
@@ -133,135 +212,94 @@ export const typeRecs = pkg("type", {
     ),
     _hierarchy: l(
       // TODO: check if box is valid goal
-      l(s._t_box(__, __, __), s._t_goal(), s.ok()),
+      l(s._box(__, __, __), s.goal(), s.ok()),
     ),
   },
-  _t_ref: {
+  ref: {
     db__schema: "type",
     rule__params: l($.record, $.schema),
     rule__body: s.cond(s.var($.schema), f.db__schema($.record, $.schema)),
     _hierarchy: l(
-      l(s._t_ref(__), s._t_string(), s.ok()),
-      l(s._const($.id), s._t_ref($.schema), s._t_ref($.id, $.schema)),
+      l(s.ref(__), s.string(), s.ok()),
+      l(s._const($.id), s.ref($.schema), s.ref($.id, $.schema)),
     ),
-  },
-
-  // type constructors are partially applied exprs that produce type values
-  _const: {
-    rule__params: l(s._t_const($.id), $.id),
-  },
-  string: {
-    rule__params: l(s._t_string()),
-  },
-  number: {
-    rule__params: l(s._t_number()),
-  },
-  _var: {
-    rule__params: l(s._t_var()),
-  },
-  _box: {
-    rule__params: l(
-      s._t_box($.tag, $.tuple, $.rest),
-      $.tag_,
-      $.tuple_,
-      $.rest_,
-    ),
-    rule__body: seq(
-      s.expr($.tag, $.tag_),
-      s.expr_children($.tuple, $.tuple_),
-      s.expr($.rest, $.rest_),
-    ),
-  },
-  box: {
-    file__description: l(
-      "A box is a data structure with a tag and a list of values.",
-    ),
-    rule__params: $.params,
-    rule__body: seq(
-      s.params_rest($.params, l($.out, $.tag), $.tuple),
-      s._box($.out, s._const($.tag), $.tuple, s._none()),
-    ),
-  },
-  any_box: {
-    rule__params: l($.out),
-    rule__body: s._box($.out, s.string(), l(), s._any()),
-  },
-  list: {
-    rule__params: l($.out, $.item),
-    rule__body: s._box($.out, s._const(""), l(), $.item),
-  },
-  _any: {
-    rule__params: l(s._t_any()),
-  },
-  _none: {
-    rule__params: l(s._t_none()),
-  },
-  _and: {
-    rule__params: l(s._t_and($.l, $.r), $.left, $.right),
-    rule__body: seq(s.expr($.l, $.left), s.expr($.r, $.right)),
-  },
-  oneof: {
-    rule__params: $.params,
-    rule__body: seq(
-      s.params_rest($.params, l($.out), $.type_exprs),
-      s.map_list($.types, $.type_exprs, s.expr()),
-      s.fold_op($.out, $.types, fn($.t, $.l, $.r)(u($.t, s._t_or($.l, $.r)))),
-    ),
-  },
-  _option: {
-    rule__params: l($.out, $.t),
-    rule__body: s.oneof($.out, $.t, s._var()),
   },
   _type: {
     rule__params: l($.out),
     // TODO
     rule__body: s.any_box($.out),
   },
+  _fn: {
+    rule__params: $.params,
+    rule__body: seq(
+      s.params_rest($.params, l($.t), $.args),
+      u(
+        $.t,
+        s._union(
+          s._union(
+            // TODO: check fn / goal args
+            s._box(
+              s.const("fn"),
+              l(x.list_of(s.any_type()), s.goal()),
+              s.no_type(),
+            ),
+            s.goal(),
+          ),
+          s.ref(__),
+        ),
+      ),
+    ),
+  },
+
   _check: {
-    rule__params: l($.value, $.type_expr),
-    rule__body: seq(s.expr($.type, $.type_expr), s.call($.type, $.value)),
+    rule__params: l($.value, $.type),
+    rule__body: s.call($.type, $.value),
   },
   _test_check: {
     test__group: "type",
     rule__params: l(),
     rule__body: seq(
       s.expect_ok(s._check(1, s.number())),
-      s.expect_ok(s._check(1, s._any())),
+      s.expect_ok(s._check(1, s.any_type())),
       s.expect_fail(s._check(1, s.string())),
-      s.expect_fail(s._check(1, s._none())),
+      s.expect_fail(s._check(1, s.no_type())),
 
-      s.expect_ok(s._check("foo", s._const("foo"))),
-      s.expect_fail(s._check("foo", s._const("bar"))),
+      s.expect_ok(s._check("foo", s.const("foo"))),
+      s.expect_fail(s._check("foo", s.const("bar"))),
 
-      s.expect_ok(s._check(s.foo(), s.box("foo"))),
-      s.expect_ok(s._check(s.foo(), s.any_box())),
-      s.expect_fail(s._check(s.foo(), s.box("bar"))),
-      s.expect_fail(s._check(s.foo(), s.box("foo", s._any()))),
-      s.expect_fail(s._check(s.foo(1), s.box("foo"))),
+      s.expect_ok(s._check(s.foo(), s._box(s.const("foo"), l(), s.none()))),
+      s.expect_ok(s._check(s.foo(), x.enum(s.foo()))),
+      s.expect_ok(s._check(s.foo(), x.any_box())),
+      s.expect_fail(s._check(s.foo(), x.enum(s.bar()))),
+      s.expect_fail(s._check(s.foo(), x.enum(s.foo(s.any_type())))),
+      s.expect_fail(s._check(s.foo(1), x.enum(s.foo()))),
 
-      s.expect_ok(s._check(l(1, 2, 3), s.list(s.number()))),
+      s.expect_ok(s._check(l(1, 2, 3), x.list_of(s.number()))),
 
       s.expect_ok(
-        s._check(l("foo", 1), s.list(s.oneof(s.string(), s.number()))),
+        s._check(l("foo", 1), x.list_of(s._union(s.string(), s.number()))),
       ),
       s.expect_fail(
-        s._check(l(s.foo(), s.bar()), s.list(s.oneof(s.string(), s.number()))),
+        s._check(
+          l(s.foo(), s.bar()),
+          x.list_of(s._union(s.string(), s.number())),
+        ),
       ),
       s.expect_ok(
         s._check(
           l("foo", 1),
-          s._and(
-            s.box("", s.string(), s._any()),
-            s.box("", s._any(), s.number()),
+          s._intersection(
+            x.tuple(s.string(), s.any_type()),
+            x.tuple(s.any_type(), s.number()),
           ),
         ),
       ),
       s.expect_fail(
         s._check(
           l("foo", "bar"),
-          s._and(
-            s.box("", s.string(), s._any()),
-            s.box("", s._any(), s.number()),
+          s._intersection(
+            x.tuple(s.string(), s.any_type()),
+            x.tuple(s.any_type(), s.number()),
           ),
         ),
       ),
@@ -289,64 +327,13 @@ export const typeRecs = pkg("type", {
     ),
   },
 
-  _subtype_expr: {
-    rule__params: l($.sub, $.type),
-    rule__body: seq(
-      s.expr($.l, $.sub),
-      s.expr($.r, $.type),
-      s.subtype($.l, $.r),
-    ),
-  },
   _test_subtype: {
     test__group: "type",
     rule__params: l(),
     rule__body: seq(
-      s.expect_ok(s._subtype_expr(s.number(), s.number())),
-      s.expect_ok(s._subtype_expr(s.number(), s._any())),
-      s.expect_fail(s._subtype_expr(s.number(), s.string())),
+      s.expect_ok(s.subtype(s.number(), s.number())),
+      s.expect_ok(s.subtype(s.number(), s.any_type())),
+      s.expect_fail(s.subtype(s.number(), s.string())),
     ),
-  },
-
-  _fn: {
-    rule__params: $.params,
-    rule__body: seq(
-      s.params_rest($.params, l($.t), $.args),
-      s.oneof(
-        $.t,
-        // TODO: check fn / goal args
-        s.box("fn", s.list(s._any()), s.goal()),
-        s.ref(__),
-        s.goal(),
-      ),
-    ),
-  },
-
-  goal: {
-    rule__params: l(s._t_goal()),
-  },
-  ref: {
-    rule__params: l(s._t_ref($.schema), $.schema),
-  },
-
-  // type checking
-  var: {
-    rule__params: l($.item),
-    rule__body: s.type_value(s.var(), $.item),
-  },
-  nonvar: {
-    rule__params: l($.item),
-    rule__body: seq(s.type_value($.t, $.item), s.not_equal($.t, s.var())),
-  },
-  is_string: {
-    rule__params: l($.item),
-    rule__body: s.type_value(s.string(), $.item),
-  },
-  is_number: {
-    rule__params: l($.item),
-    rule__body: s.type_value(s.number(), $.item),
-  },
-  is_box: {
-    rule__params: l($.item),
-    rule__body: s.type_value(s.box(), $.item),
   },
 });

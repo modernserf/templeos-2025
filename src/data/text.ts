@@ -1,17 +1,19 @@
-import { l, seq, s, $, __, f } from "../expr";
+import { l, seq, s, $, __, f, x } from "../expr";
 import { pkg } from "../pkg";
 
 export const text = pkg("text", {
   // types
   text: {
     rule__params: l($.t),
-    rule__body: s.list(
+    rule__body: s.list_of(
       $.t,
-      s.oneof(
+      s.type__union(
         s.string(),
-        s.box("link", s.string(), s.location()),
-        s.box("code", s.type__any()),
-        s.box("section", s.text(), s.text()),
+        x.enum(
+          s.link(s.string(), s.location()),
+          s.code(s.type__any()),
+          s.section(s.text(), s.text()),
+        ),
       ),
     ),
   },
@@ -27,7 +29,7 @@ export const text = pkg("text", {
     db__schema: "field",
     file__name: "Text content",
     file__description: l("a list of text nodes used in text schema"),
-    field__type: s.text(),
+    field__type: x.text(),
   },
   // views
   view__text: {
@@ -83,7 +85,7 @@ export const text = pkg("text", {
         s.code($.expr),
         s.html($.out, "span", l(s.class("InlineBlock")), s.view__expr($.expr)),
       ),
-      l(__, seq(s.is_string($.node), s.view__string($.out, $.node))),
+      l(__, seq(s.string($.node), s.view__string($.out, $.node))),
     ),
   },
 

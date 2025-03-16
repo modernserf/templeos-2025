@@ -1,4 +1,4 @@
-import { l, s, $, __, u, seq } from "../expr";
+import { l, s, $, __, u, seq, x } from "../expr";
 import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
@@ -15,13 +15,13 @@ export const core = pkg("core", {
   time__created: {
     db__schema: "field",
     file__name: "Time created",
-    field__type: s.t_timestamp(),
+    field__type: x.t_timestamp(),
     field__index: s.sorted(),
   },
   rule__params: {
     db__schema: "field",
     file__name: "Rule params",
-    field__type: s.list(s.type__any()),
+    field__type: x.list_of(s.any_type()),
   },
   rule__body: {
     db__schema: "field",
@@ -113,7 +113,7 @@ export const core = pkg("core", {
     rule__body: s.cond(
       l(u($.fn, s.fn($.params, $.goal)), s._apply_fn($.args, $.fn)),
       l(s.is_box($.fn), s._lapply_partial($.args, $.fn)),
-      l(s.is_string($.fn), s._apply_id($.args, $.fn)),
+      l(s.string($.fn), s._apply_id($.args, $.fn)),
       s.throw(s.invalid_apply($.args, $.fn)),
     ),
   },
@@ -303,12 +303,12 @@ export const core = pkg("core", {
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
-      test.ok(s.is_string("hello")),
-      test.ok(s.is_number(123)),
+      test.ok(s.string("hello")),
+      test.ok(s.number(123)),
       test.ok(s.is_box(l())),
       test.ok(s.is_box(s.atom())),
-      test.fail(s.is_string(s.atom())),
-      test.fail(s.is_number("123")),
+      test.fail(s.string(s.atom())),
+      test.fail(s.number("123")),
       test.fail(s.is_box("")),
     ),
   },

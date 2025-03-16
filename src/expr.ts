@@ -165,4 +165,9 @@ export const fn =
   (head: Expr = s.ok(), ...body: Expr[]) =>
     s.fn(l(...params), seq(head, ...body));
 
-export const x = (expr: Expr) => ({ tag: "expand", expr } as const);
+export const x = new Proxy((expr: Expr) => ({ tag: "expand", expr } as const), {
+  get<T extends string>(_: unknown, id: T) {
+    return (...args: Expr[]) =>
+      ({ tag: "expand", expr: { tag: "box", id, args } } as const);
+  },
+}) as ((expr: Expr) => Expr) & Record<string, (...args: Expr[]) => Expr>;

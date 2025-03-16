@@ -4,9 +4,7 @@ import { l, s, $, __, seq, u, x } from "../expr";
 export const time = pkg("time", {
   // TODO: timestamp, time-location, duration constructors
   t_timestamp: {
-    file__name: "Time",
-    rule__params: l($.t),
-    rule__body: s.number($.t),
+    rule__params: l(s.number()),
   },
   milliseconds: {
     rule__params: l($.ms, $.ms),
@@ -30,17 +28,17 @@ export const time = pkg("time", {
   ms_duration: {
     rule__params: l($.ms, $.duration),
     rule__body: s.if_then_else(
-      s.is_number($.duration),
+      s.number($.duration),
       u($.ms, $.duration),
-      u($.ms, x($.duration)),
+      s.call($.duration, $.ms),
     ),
   },
   _test_conversions: {
     test__group: "time",
     rule__params: l(),
     rule__body: seq(
-      s.expect_ok(u(x(s.milliseconds(2000)), x(s.seconds(2)))),
-      s.expect_ok(u(x(s.hours(48)), x(s.days(2)))),
+      s.expect_ok(u(x.milliseconds(2000), x.seconds(2))),
+      s.expect_ok(u(x.hours(48), x.days(2))),
     ),
   },
 

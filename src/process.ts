@@ -202,7 +202,7 @@ export class State {
     }
   }
 
-  private *expandArgs(args: Value[]) {
+  *expandArgs(args: Value[]) {
     const out: Value[] = [];
     for (const arg of args) {
       if (arg.tag === "expand") {

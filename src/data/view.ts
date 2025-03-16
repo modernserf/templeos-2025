@@ -1,4 +1,4 @@
-import { $, __, alt, f, l, s, seq, u } from "../expr";
+import { $, __, alt, f, l, s, seq, u, x } from "../expr";
 import { pkg } from "../pkg";
 
 export const view = pkg("view", {
@@ -14,11 +14,11 @@ export const view = pkg("view", {
   _subject: {
     db__schema: "field",
     file__name: "View subject",
-    field__type: s.oneof(
-      s.box("self"),
-      s.box("record", s.ref(__)),
-      s.box("schema", s.ref("schema")),
-      s.box("any"),
+    field__type: x.enum(
+      s.self(),
+      s.record(s.ref(__)),
+      s.schema(s.ref("schema")),
+      s.any(),
     ),
     field__index: s.ref(),
   },
