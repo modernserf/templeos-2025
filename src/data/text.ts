@@ -38,34 +38,21 @@ export const text = pkg("text", {
       $.out,
       "div",
       l(s.class("Text")),
-      s._view_node_list($.text),
+      x._view_node_list($.text),
     ),
   },
 
   // private
 
   // views
-
-  _view_section_layout: {
-    rule__params: l($.out, $.header, $.body),
-    rule__body: seq(
-      s.append_box_suffix($.header_wrap, s.wrap(l()), $.header),
-      s.append_box_suffix($.body_wrap, s.wrap(l()), $.body),
-      s.html(
-        $.out,
-        "section",
-        l(),
-        s.html("header", l(), $.header_wrap),
-        s.wrap(l(), $.body_wrap),
-      ),
-    ),
-  },
   _view_section: {
     rule__params: l($.out, $.header, $.body),
-    rule__body: s._view_section_layout(
+    rule__body: s.html(
       $.out,
-      l(s._view_node_list($.header)),
-      l(s._view_node_list($.body)),
+      "section",
+      l(),
+      x.html("header", l(), x.wrap(l(), x._view_node_list($.header))),
+      x.wrap(l(), x._view_node_list($.body)),
     ),
   },
   _view_node_list: {
@@ -83,7 +70,7 @@ export const text = pkg("text", {
       l(s.section($.header, $.body), s._view_section($.out, $.header, $.body)),
       l(
         s.code($.expr),
-        s.html($.out, "span", l(s.class("InlineBlock")), s.view__expr($.expr)),
+        s.html($.out, "span", l(s.class("InlineBlock")), x.view__expr($.expr)),
       ),
       l(__, seq(s.string($.node), s.view__string($.out, $.node))),
     ),
@@ -95,7 +82,7 @@ export const text = pkg("text", {
     rule__params: l($.out, $.id, $.state),
     rule__body: seq(
       f.text__content($.id, $.text),
-      s.column($.out, l(s.style("margin", "1rem")), s.view__text($.text)),
+      s.column($.out, l(s.style("margin", "1rem")), x.view__text($.text)),
     ),
   },
 });

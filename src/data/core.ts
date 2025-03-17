@@ -334,68 +334,6 @@ export const core = pkg("core", {
       test.fail(s.is_box("")),
     ),
   },
-  expr_value: {
-    rule__params: l($.expr, $.value),
-    rule__body: seq(
-      s.type_value($.type, $.value),
-      s.match_cond(
-        $.type,
-        l(s.var(), seq(s.var_name($.value, $.name), u($.expr, s.var($.name)))),
-        l(s.number(), u($.expr, s.number($.value))),
-        l(s.string(), u($.expr, s.string($.value))),
-        l(
-          s.box(),
-          seq(
-            s.box($.value, $.tag, $.list_2),
-            u($.expr, s.box($.tag, $.list_2)),
-          ),
-        ),
-      ),
-    ),
-  },
-
-  // expr
-  expr: {
-    file__description: l("evaluate box tree as expression"),
-    rule__params: l($.out, $.expr),
-    rule__body: s.apply(l($.out), $.expr),
-  },
-  expr_children: {
-    rule__params: l($.out, $.children),
-    rule__body: s.collect_item_in(
-      $.out,
-      $.rendered,
-      seq(
-        s($.value).in($.children), //
-        s.expr($.rendered, $.value),
-      ),
-    ),
-  },
-  expr_iter: {
-    rule__params: $.params,
-    rule__body: seq(
-      s.params_rest($.params, l($.out, $.iter), $.children),
-      $.iter,
-      s($.child).in($.children),
-      s.expr($.out, $.child),
-    ),
-  },
-  expr_iter_else: {
-    rule__params: l($.out, $.iter, $.then, $.else),
-    rule__body: seq(
-      s.if_then_else($.iter, s($.child).in($.then), s($.child).in($.else)),
-      s.expr($.out, $.child),
-    ),
-  },
-
-  dot: {
-    rule__params: l($.out, $.left, $.right),
-    rule__body: seq(
-      s.apply(l($.subject), $.left),
-      s.apply(l($.out, $.subject), $.right),
-    ),
-  },
-
   left_right_box_split: {
     rule__params: l($.left, $.right, $.box, $.split),
     rule__body: seq(
@@ -440,7 +378,7 @@ export const core = pkg("core", {
   option: {
     rule__params: l($.opt, $.fn),
     rule__body: s.if_then_else(
-      s.expr($.value, $.fn),
+      s.call($.fn, $.value),
       u($.opt, s.some($.value)),
       u($.opt, s.none()),
     ),
@@ -448,7 +386,7 @@ export const core = pkg("core", {
   result: {
     rule__params: l($.res, $.fn),
     rule__body: s.try_error_catch(
-      seq(s.expr($.value, $.fn), u($.res, s.ok($.value))),
+      seq(s.call($.fn, $.value), u($.res, s.ok($.value))),
       $.err,
       u($.res, s.error($.err)),
     ),

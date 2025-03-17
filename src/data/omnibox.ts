@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, seq, s, $, f, fn } from "../expr";
+import { l, seq, s, $, f, fn, x, xfn, alt } from "../expr";
 
 export const omnibox = {
   omnibox: {
@@ -11,7 +11,7 @@ export const omnibox = {
       s.column(
         $.out,
         l(),
-        s.view__input(
+        x.view__input(
           l(
             s.debounce(300),
             s.placeholder("Search..."),
@@ -20,18 +20,23 @@ export const omnibox = {
           $.search,
           fn(s.change($.next))(s.set_state($.state, s.omnibox($.next))),
         ),
-        s.column(
+        x.column(
           l(s.style("padding", "0.5rem")),
-          s.expr_iter_else(
-            s.limit(
-              10,
-              seq(
-                f.file__name($.result, $.result_name),
-                s.string_substring($.result_name, $.search),
+          xfn($.out)(
+            s.if_then_else(
+              s.limit(
+                10,
+                seq(
+                  f.file__name($.result, $.result_name),
+                  s.string_substring($.result_name, $.search),
+                ),
               ),
+              alt(
+                s.view__file_info($.out, $.result),
+                s.view__spacer($.out, "0.5rem"),
+              ),
+              s.view__string($.out, "no results"),
             ),
-            l(s.view__file_info($.result), s.view__spacer("0.5rem")),
-            l(s.view__string("no results")),
           ),
         ),
       ),

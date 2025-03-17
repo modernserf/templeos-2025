@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, seq, u, __, x } from "../expr";
+import { l, s, $, seq, u, __, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 
 export const note = pkg("note", {
@@ -46,7 +46,7 @@ export const note = pkg("note", {
       s.column(
         $.out,
         l(),
-        s.view__menu(
+        x.view__menu(
           l(),
           "Edit",
           l(
@@ -81,7 +81,7 @@ export const note = pkg("note", {
             ),
           ),
         ),
-        s._view_detail($.id),
+        x._view_detail($.id),
       ),
     ),
   },
@@ -91,8 +91,8 @@ export const note = pkg("note", {
       s.column(
         $.out,
         l(),
-        s.view__button(l(), "New note", s.on_click(s._on_new())),
-        s.expr_iter(s.note($.id), s._view_detail($.id)),
+        x.view__button(l(), "New note", s.on_click(s._on_new())),
+        xfn($.out)(s.note($.id), s._view_detail($.out, $.id)),
       ),
     ),
   },

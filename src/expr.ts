@@ -87,16 +87,6 @@ export const alt = (head: Expr, ...tail: Expr[]) =>
   tail.reduce((l, r) => s.alt2(l, r), head) as Box<string, Expr[]>;
 export const u = (l: Expr, r: Expr) => s.unify(l, r);
 
-export function dot(out: Expr, first: Expr, ...rest: Expr[]): Expr {
-  if (!rest.length) throw new Error("invalid dot chain");
-  const res = rest.reduce((l, r) => s.dot(l, r), first) as Box<
-    "dot",
-    [Expr, Expr]
-  >;
-  res.args.unshift(out);
-  return res;
-}
-
 function sameTypeExpr<T extends Expr>(l: T, r: Expr): r is T {
   if (typeof l === "object" && typeof r === "object") {
     return l.tag === r.tag;

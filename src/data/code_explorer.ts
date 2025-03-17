@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, seq, s, $, __, f, fn } from "../expr";
+import { l, seq, s, $, __, f, fn, xfn, x } from "../expr";
 
 export const codeExplorerData = {
   code_explorer: {
@@ -11,7 +11,7 @@ export const codeExplorerData = {
       s.column(
         $.out,
         l(),
-        s.view__input(
+        x.view__input(
           l(
             s.debounce(300),
             s.placeholder("Search..."),
@@ -20,31 +20,32 @@ export const codeExplorerData = {
           $.search,
           fn(s.change($.next))(s.set_state($.state, s.code_explorer($.next))),
         ),
-        s.expr_iter_else(
-          s.limit(
-            20,
-            seq(
-              f.rule__params($.id, $.params),
-              s.none(f.test__group($.id, __)),
-              s.string_substring($.id, $.search),
-              s.box($.box, $.id, $.params),
+        xfn($.out)(
+          s.if_then_else(
+            s.limit(
+              20,
+              seq(
+                f.rule__params($.id, $.params),
+                s.none(f.test__group($.id, __)),
+                s.string_substring($.id, $.search),
+                s.box($.box, $.id, $.params),
+              ),
             ),
-          ),
-          l(
             s.html(
+              $.out,
               "div",
               l(
                 s.style("margin", "0.25rem 0.5rem 0.25rem"),
                 s.style("width", "100%"),
               ),
-              s.view__expr($.box),
-              s.expr_iter(
+              x.view__expr($.box),
+              xfn($.u)(
                 f.file__description($.id, $.desc),
-                s.view__text($.desc),
+                s.view__text($.u, $.desc),
               ),
             ),
+            s.view__string($.out, "no results"),
           ),
-          l(s.view__string("no results")),
         ),
       ),
     ),

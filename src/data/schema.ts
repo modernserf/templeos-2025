@@ -97,7 +97,7 @@ export const schema = pkg("schema", {
       s.column(
         $.out,
         l(),
-        s.table(
+        x.table(
           l(),
           x.table_section(
             x.table_header(l(), x.view__string("Records")),

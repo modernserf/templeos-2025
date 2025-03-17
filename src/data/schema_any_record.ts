@@ -1,4 +1,4 @@
-import { l, seq, s, $, __, u, fn, x, xfn } from "../expr";
+import { l, seq, s, $, __, u, fn, x, xfn, alt } from "../expr";
 import { pkg } from "../pkg";
 
 export const viewAnyRecord = pkg("any_record", {
@@ -33,9 +33,9 @@ export const viewAnyRecord = pkg("any_record", {
       $.out,
       "span",
       l(),
-      s.view__string('"'),
-      s.view__string($.value),
-      s.view__string('"'),
+      x.view__string('"'),
+      x.view__string($.value),
+      x.view__string('"'),
     ),
   },
   _view_box: {
@@ -45,14 +45,21 @@ export const viewAnyRecord = pkg("any_record", {
       s.wrap(
         $.out,
         l(),
-        s.html("span", l(), s.view__file_link($.tag), s.view__string("(")),
-        s.view__spacer("0.25rem"),
-        s.expr_iter(
+        x.html("span", l(), x.view__file_link($.tag), x.view__string("(")),
+        x.view__spacer("0.25rem"),
+        xfn($.out)(
           s($.arg).in($.list),
-          s.html("span", l(s.style("flex", "1 1 auto")), s.view__expr($.arg)),
-          s.view__spacer("0.25rem"),
+          alt(
+            s.html(
+              $.out,
+              "span",
+              l(s.style("flex", "1 1 auto")),
+              x.view__expr($.arg),
+            ),
+            s.view__spacer($.out, "0.25rem"),
+          ),
         ),
-        s.html("span", l(), s.view__string(")")),
+        x.html("span", l(), x.view__string(")")),
       ),
     ),
   },
@@ -60,7 +67,7 @@ export const viewAnyRecord = pkg("any_record", {
     rule__params: l($.out, $.field, $.id),
     rule__body: seq(
       s.value_record_field($.value, $.id, $.field),
-      s.html($.out, "div", l(), s.view__expr($.value)),
+      s.html($.out, "div", l(), x.view__expr($.value)),
     ),
   },
   _clickable: {
@@ -145,7 +152,7 @@ export const viewAnyRecord = pkg("any_record", {
       s.column(
         $.out,
         l(),
-        s.table(
+        x.table(
           l(),
           x.table_section(
             x.table_header(

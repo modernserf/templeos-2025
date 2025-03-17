@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, seq, u, __, alt, f, fn, x } from "../expr";
+import { l, s, $, seq, u, __, alt, f, fn, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 
 export const browserData = pkg("browser", {
@@ -314,13 +314,12 @@ export const browserData = pkg("browser", {
       $.out,
       "div",
       l(),
-      s.view__subscribe_render(s.record("browser"), s._app_menu()),
-      s.expr_iter(
-        seq(
-          s.record_field_value($.window, "db__schema", "window"),
-          f._current_history($.window, $.history),
-        ),
+      x.view__subscribe_render(s.record("browser"), s._app_menu()),
+      xfn($.u)(
+        s.record_field_value($.window, "db__schema", "window"),
+        f._current_history($.window, $.history),
         s.view__subscribe_render(
+          $.u,
           s.oneof(l(s.record($.window), s.record($.history))),
           s._view_window($.window),
         ),
@@ -360,13 +359,12 @@ export const browserData = pkg("browser", {
           l(s.back(), s.on__back($.window)),
           l(s.forward(), s.on__forward($.window)),
         ),
-        $.rendered_children,
+        $.children,
       ),
       $.window,
       $.current_window,
       $.children,
     ),
-    rule__body: s.expr_children($.rendered_children, $.children),
   },
 
   _window_content: {
@@ -400,12 +398,12 @@ export const browserData = pkg("browser", {
             $.out,
             $.window,
             $.current_window,
-            l(
-              s._window_bar($.window, $.id, $.view, $.name),
-              s.html(
+            x.list(
+              x._window_bar($.window, $.id, $.view, $.name),
+              x.html(
                 "div",
                 l(s.class("AppWindow__content")),
-                s.view__subscribe_render(
+                x.view__subscribe_render(
                   s.oneof(
                     l(s.record($.history), s.record($.id), s.record($.view)),
                   ),
@@ -423,12 +421,12 @@ export const browserData = pkg("browser", {
             $.out,
             $.window,
             $.current_window,
-            l(
-              s._window_bar($.window, $.id, $.view, "Home"),
-              s.html(
+            x.list(
+              x._window_bar($.window, $.id, $.view, "Home"),
+              x.html(
                 "div",
                 l(s.class("AppWindow__content")),
-                s.view__string("Error, see console for details"),
+                x.view__string("Error, see console for details"),
               ),
             ),
           ),
@@ -453,25 +451,25 @@ export const browserData = pkg("browser", {
       s.row(
         $.out,
         l(s.class("AppWindow__header")),
-        s.view__button(
+        x.view__button(
           l(s.class("AppWindow__closeButton")),
           "",
           s.on_click(s.on__close_window($.window)),
         ),
-        s.html("h1", l(s.class("AppWindow__title")), s.view__string($.name)),
+        x.html("h1", l(s.class("AppWindow__title")), x.view__string($.name)),
 
-        s.html("div", l(s.style("flex", "1 0 auto"))),
-        s.view__button(
+        x.html("div", l(s.style("flex", "1 0 auto"))),
+        x.view__button(
           l(s.class($.back_class)),
           "←",
           s.on_click(s.on__back($.window)),
         ),
-        s.view__button(
+        x.view__button(
           l(s.class($.forward_class)),
           "→",
           s.on_click(s.on__forward($.window)),
         ),
-        s._view_menu($.window, $.id, $.view),
+        x._view_menu($.window, $.id, $.view),
       ),
     ),
   },
@@ -540,16 +538,15 @@ export const browserData = pkg("browser", {
           s.style("backgroundColor", "white"),
           s.style("borderBottom", "1px solid black"),
         ),
-        s.expr_iter(
-          seq(
-            s(s.menu($.title, $.menu)).in($.menu_bar),
-            s.collect_item_in(
-              $.options,
-              s.option($.opt_id, $.label),
-              s(s.menu_option($.opt_id, $.label, __)).in($.menu),
-            ),
+        xfn($.out)(
+          s(s.menu($.title, $.menu)).in($.menu_bar),
+          s.collect_item_in(
+            $.options,
+            s.option($.opt_id, $.label),
+            s(s.menu_option($.opt_id, $.label, __)).in($.menu),
           ),
           s.view__menu(
+            $.out,
             l(s.class("AppMenu")),
             $.title,
             $.options,

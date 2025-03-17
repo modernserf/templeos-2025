@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, f, __, seq, x, xfn } from "../expr";
+import { l, s, $, f, __, seq, x, xfn, alt } from "../expr";
 import { pkg } from "../pkg";
 
 export const collectionData = pkg("file", {
@@ -96,8 +96,8 @@ export const collectionData = pkg("file", {
     rule__body: s.column(
       $.out,
       l(),
-      s.dot(s._file_desc($.id), s.view__text()),
-      s._view_table($.collection),
+      x.view__text(x._file_desc($.id)),
+      x._view_table($.collection),
     ),
   },
   _view_icons: {
@@ -105,12 +105,12 @@ export const collectionData = pkg("file", {
     rule__body: s.column(
       $.out,
       l(),
-      s.dot(s._file_desc($.id), s.view__text()),
-      s.row(
+      x.view__text(x._file_desc($.id)),
+      x.row(
         l(),
-        s.expr_iter(
+        xfn($.u)(
           s($.item).in($.collection),
-          s.column(l(), s.view__icon(), s.view__file_link($.item)),
+          s.column($.u, l(), x.view__icon(), x.view__file_link($.item)),
         ),
       ),
     ),
@@ -120,25 +120,25 @@ export const collectionData = pkg("file", {
     file__name: "Folder - List",
     view__subject: s.schema("folder"),
     rule__params: l($.out, $.id, $.state),
-    rule__body: s.dot($.out, s._folder_items($.id), s._view_list($.id)),
+    rule__body: s._view_list($.out, x._folder_items($.id), $.id),
   },
   _folder_icon: {
     file__name: "Folder - Icon",
     view__subject: s.schema("folder"),
     rule__params: l($.out, $.id, $.state),
-    rule__body: s.dot($.out, s._folder_items($.id), s._view_icons($.id)),
+    rule__body: s._view_icons($.out, x._folder_items($.id), $.id),
   },
   _tag_list: {
     file__name: "Tag - List",
     view__subject: s.schema("tag"),
     rule__params: l($.out, $.id, $.state),
-    rule__body: s.dot($.out, s._tag_files($.id), s._view_list($.id)),
+    rule__body: s._view_list($.out, x._tag_files($.id), $.id),
   },
   _tag_icon: {
     file__name: "Tag - Icon",
     view__subject: s.schema("tag"),
     rule__params: l($.out, $.id, $.state),
-    rule__body: s.dot($.out, s._tag_files($.id), s._view_icons($.id)),
+    rule__body: s._view_icons($.out, x._tag_files($.id), $.id),
   },
 
   view__file_link: {
@@ -154,17 +154,22 @@ export const collectionData = pkg("file", {
       s.column(
         $.out,
         l(),
-        s.row(
+        x.row(
           l(),
-          s.expr_iter(
+          xfn($.u)(
             f.db__schema($.id, $.schema),
-            s.view__file_link($.schema),
-            s.view__string(":"),
-            s.view__spacer("0.5rem"),
+            alt(
+              s.view__file_link($.u, $.schema),
+              s.view__string($.u, ":"),
+              s.view__spacer($.u, "0.5rem"),
+            ),
           ),
-          s.view__file_link($.id),
+          x.view__file_link($.id),
         ),
-        s.expr_iter(f.file__description($.id, $.desc), s.view__text($.desc)),
+        xfn($.out)(
+          f.file__description($.id, $.desc),
+          s.view__text($.out, $.desc),
+        ),
       ),
     ),
   },

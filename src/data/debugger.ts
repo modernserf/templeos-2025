@@ -1,4 +1,4 @@
-import { l, s, $, __, seq } from "../expr";
+import { l, s, $, __, seq, x } from "../expr";
 import { pkg } from "../pkg";
 
 export const debug = pkg("debug", {
@@ -50,7 +50,7 @@ export const debug = pkg("debug", {
       s.column(
         $.out,
         l(s.style("padding", "1rem")),
-        s.view__button(
+        x.view__button(
           l(),
           "Resume",
           s.on_click(

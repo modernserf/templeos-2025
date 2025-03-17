@@ -1,6 +1,6 @@
 import { TransactDB } from "../db";
 import { ProcessManager } from "../process";
-import { Expr, Box, Id, List, l, $, s, seq, f, __ } from "../expr";
+import { Expr, Box, Id, List, l, $, s, seq, f, __, x, xfn } from "../expr";
 import { core } from "./core";
 import { viewCore } from "./view_core";
 import { rules as rulePrimitiveRecs, rulePrimitives } from "./primitives";
@@ -165,30 +165,31 @@ export const data = mergeAndCheck(
         rule__body: s.column(
           $.out,
           l(s.style("padding", "1rem")),
-          s.view__text(
+          x.view__text(
             l(s.section(l("Welcome!"), l("this is the home card etc"))),
           ),
-          s.row(
+          x.row(
             l(),
-            s.column(
+            x.column(
               l(s.style("flex", "0 0 50%")),
-              s.view__text(l("helpful links")),
-              s.expr_iter(
-                seq(f._left_links($.id, $.links), s($.link).in($.links)),
-                s.view__file_info($.link),
+              x.view__text(l("helpful links")),
+              xfn($.u)(
+                f._left_links($.id, $.links),
+                s($.link).in($.links),
+                s.view__file_info($.u, $.link),
               ),
             ),
-            s.column(
+            x.column(
               l(s.style("flex", "0 0 50%")),
-              s.view__text(l("right column list")),
-              s.view__button(
+              x.view__text(l("right column list")),
+              x.view__button(
                 l(),
                 "throw an error",
                 s.on_click(
                   seq(s.log("clicked"), s.throw(s.error("clicked a button"))),
                 ),
               ),
-              s.view__button(
+              x.view__button(
                 l(),
                 "test debugger",
                 s.on_click(

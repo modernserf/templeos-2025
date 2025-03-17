@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { $, __, f, l, s, seq } from "../expr";
+import { $, __, f, l, s, seq, xfn } from "../expr";
 import { pkg } from "../pkg";
 
 export const clipboardRules = pkg("clipboard", {
@@ -18,16 +18,16 @@ export const clipboardRules = pkg("clipboard", {
   // views
   view__clipboard: {
     view__subject: s.schema("clipboard"),
-    view__name: "Clipboard",
+    file__name: "Clipboard",
     rule__params: l($.out, $.id, $.state),
-    rule__body: seq(
-      s.wrap(
-        $.out,
-        l(),
-        s.expr_iter_else(
+    rule__body: s.wrap(
+      $.out,
+      l(),
+      xfn($.out)(
+        s.if_then_else(
           seq(f._data($.id, $.data), s($.value).in($.data)),
-          l(s.view__expr($.value)),
-          l(s.view__string("clipboard is empty")),
+          s.view__expr($.out, $.value),
+          s.view__string($.out, "clipboard is empty"),
         ),
       ),
     ),

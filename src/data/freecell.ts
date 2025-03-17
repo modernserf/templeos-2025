@@ -1,4 +1,4 @@
-import { l, s, $, __, u, seq, alt, f, x } from "../expr";
+import { l, s, $, __, u, seq, alt, f, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
@@ -195,21 +195,22 @@ export const freeCell = pkg("free_cell", {
       s.row(
         $.out,
         l(),
-        s.expr_iter(
+        xfn($.o)(
           s.value_box_index($.col, $.columns, $.x),
           s.column(
+            $.o,
             l(),
-            s.expr_iter_else(
-              s.value_box_index($.card, $.col, $.y),
-              l(
+            xfn($.out)(
+              s.if_then_else(
+                s.value_box_index($.card, $.col, $.y),
                 s._view_card(
+                  $.out,
                   $.card,
                   u($.selected, s.columns($.x, $.y)),
                   s.call($.handler, s.columns($.x, $.y)),
                 ),
-              ),
-              l(
                 s._view_card(
+                  $.out,
                   s.empty(""),
                   u($.selected, s.columns($.x, $.y)),
                   s.call($.handler, s.columns($.x, $.y)),
@@ -227,9 +228,10 @@ export const freeCell = pkg("free_cell", {
       s.row(
         $.out,
         l(),
-        s.expr_iter(
+        xfn($.u)(
           s.value_box_index($.card, $.stacks, $.i),
           s._view_card(
+            $.u,
             $.card,
             u($.selected, s.stacks($.i)),
             s.call($.handler, s.stacks($.i)),
@@ -244,9 +246,10 @@ export const freeCell = pkg("free_cell", {
       s.row(
         $.out,
         l(),
-        s.expr_iter(
+        xfn($.u)(
           s.value_box_index($.card, $.cells, $.i),
           s._view_card(
+            $.u,
             $.card,
             u($.selected, s.cells($.i)),
             s.call($.handler, s.cells($.i)),
@@ -266,21 +269,21 @@ export const freeCell = pkg("free_cell", {
       s.column(
         $.out,
         l(s.style("padding", "0.5rem"), s.style("gap", "0.5rem")),
-        s.row(
+        x.row(
           l(),
-          s._view_stacks($.stacks, $.selected, $.handler),
-          s._view_cells($.cells, $.selected, $.handler),
+          x._view_stacks($.stacks, $.selected, $.handler),
+          x._view_cells($.cells, $.selected, $.handler),
         ),
-        s._view_columns($.columns, $.selected, $.handler),
-        s.row(
+        x._view_columns($.columns, $.selected, $.handler),
+        x.row(
           l(s.style("gap", "0.5rem")),
-          s.view__button(l(), "Undo", s.on_click(s.call($.handler, s.undo()))),
-          s.view__button(
+          x.view__button(l(), "Undo", s.on_click(s.call($.handler, s.undo()))),
+          x.view__button(
             l(),
             "Reset",
             s.on_click(s.call($.handler, s.reset())),
           ),
-          s.view__button(l(), "Auto", s.on_click(s.call($.handler, s.auto()))),
+          x.view__button(l(), "Auto", s.on_click(s.call($.handler, s.auto()))),
         ),
       ),
     ),
