@@ -1,7 +1,7 @@
 import { Rec } from "./data";
 import { TransactDB } from "./db";
 import { EventSource } from "./event_source";
-import { Expr, s } from "./expr";
+import { $, Expr, l, s } from "./expr";
 import { Value, Fact, box, k, fresh, printValue } from "./value";
 
 type Proc =
@@ -281,6 +281,15 @@ export class State {
 
     const rule = this.pm.db.get(id);
     if (!rule) throw new Exception(box("unknown_rule", [value]));
+
+    if (rule.db__schema === "field" && !rule.rule__params) {
+      return {
+        id,
+        args,
+        params: l($.value, $.id),
+        body: s.record_field_value($.id, id, $.value),
+      };
+    }
 
     if (!rule.rule__params) throw new Exception(box("invalid_rule", [value]));
 

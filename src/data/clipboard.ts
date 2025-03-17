@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { $, __, f, l, s, seq, xfn } from "../expr";
+import { $, __, l, s, seq, xfn } from "../expr";
 import { pkg } from "../pkg";
 
 export const clipboardRules = pkg("clipboard", {
@@ -25,7 +25,7 @@ export const clipboardRules = pkg("clipboard", {
       l(),
       xfn($.out)(
         s.if_then_else(
-          seq(f._data($.id, $.data), s($.value).in($.data)),
+          seq(s._data($.data, $.id), s($.value).in($.data)),
           s.view__expr($.out, $.value),
           s.view__string($.out, "clipboard is empty"),
         ),
@@ -50,7 +50,7 @@ export const clipboardRules = pkg("clipboard", {
   _handle_copy: {
     rule__params: l($.id, $.value),
     rule__body: seq(
-      f._data($.id, $.prev),
+      s._data($.prev, $.id),
       s.append_left_right($.next, $.prev, l($.value)),
       s.db__update(l(s.update($.id, "_data", $.next))),
     ),
@@ -58,14 +58,14 @@ export const clipboardRules = pkg("clipboard", {
   _handle_paste: {
     rule__params: l($.id, $.value),
     rule__body: seq(
-      f._data($.id, $.data),
+      s._data($.data, $.id),
       s.append_left_right($.data, __, l($.value)),
     ),
   },
   _handle_drop: {
     rule__params: l($.id),
     rule__body: seq(
-      f._data($.id, $.prev),
+      s._data($.prev, $.id),
       s.append_left_right($.prev, $.rest, l(__)),
       s.db__update(l(s.update($.id, "_data", $.rest))),
     ),

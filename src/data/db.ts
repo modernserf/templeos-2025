@@ -1,4 +1,4 @@
-import { s, __, seq, $, l, u, alt, f, fn } from "../expr";
+import { s, __, seq, $, l, u, alt, fn } from "../expr";
 import { pkg } from "../pkg";
 
 export const dbRules = pkg("db", {
@@ -29,8 +29,8 @@ export const dbRules = pkg("db", {
     rule__params: l($.ref, $.field, $.record),
     rule__body: seq(
       alt(
-        f.field__index($.field, s.ref()),
-        f.field__index($.field, s.multi_ref()),
+        s.field__index(s.ref(), $.field),
+        s.field__index(s.multi_ref(), $.field),
       ),
       s.record_field_value($.ref, $.field, $.record),
     ),

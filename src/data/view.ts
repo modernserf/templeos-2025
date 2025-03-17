@@ -1,4 +1,4 @@
-import { $, __, alt, f, l, s, seq, u } from "../expr";
+import { $, __, alt, l, s, seq, u } from "../expr";
 import { pkg } from "../pkg";
 
 export const view = pkg("view", {
@@ -26,13 +26,13 @@ export const view = pkg("view", {
     rule__params: l($.view, $.record),
     rule__body: alt(
       // new
-      seq(f._subject($.record, s.self()), u($.view, $.record)),
-      f._subject($.view, s.record($.record)),
+      seq(s._subject(s.self(), $.record), u($.view, $.record)),
+      s._subject(s.record($.record), $.view),
       seq(
-        f.db__schema($.record, $.schema),
-        f._subject($.view, s.schema($.schema)),
+        s.db__schema($.schema, $.record),
+        s._subject(s.schema($.schema), $.view),
       ),
-      f._subject($.view, s.any()),
+      s._subject(s.any(), $.view),
     ),
   },
 });

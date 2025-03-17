@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, seq, u, __, alt, f, fn, x, xfn } from "../expr";
+import { l, s, $, seq, u, __, alt, fn, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 
 export const browserData = pkg("browser", {
@@ -129,14 +129,14 @@ export const browserData = pkg("browser", {
 
   current_window: {
     rule__params: l($.window),
-    rule__body: f._current_window("browser", $.window),
+    rule__body: s._current_window($.window, "browser"),
   },
   current_focus: {
     rule__params: l($.focus),
     rule__body: seq(
-      f._current_window("browser", $.window),
-      f._current_history($.window, $.history),
-      f._focus($.history, $.focus),
+      s.current_window($.window),
+      s._current_history($.history, $.window),
+      s._focus($.focus, $.history),
     ),
   },
   _render_root: {
@@ -187,7 +187,7 @@ export const browserData = pkg("browser", {
   on__set_view_menu: {
     rule__params: l($.window, $.next_view),
     rule__body: seq(
-      f._current_history($.window, $.history),
+      s._current_history($.history, $.window),
       s.db__update(l(s.update($.history, "_view", $.next_view))),
     ),
   },
@@ -212,7 +212,7 @@ export const browserData = pkg("browser", {
   on__push: {
     rule__params: l($.window, $.location),
     rule__body: seq(
-      f._current_history($.window, $.prev),
+      s._current_history($.prev, $.window),
       s._new_history($.h, $.next, $.window, $.location),
       s.append_left_right(
         $.batch,
@@ -230,8 +230,8 @@ export const browserData = pkg("browser", {
   on__back: {
     rule__params: l($.window),
     rule__body: seq(
-      f._current_history($.window, $.forward),
-      f._back($.forward, $.back),
+      s._current_history($.forward, $.window),
+      s._back($.back, $.forward),
       s.db__update(
         l(
           s.update($.window, "_current_history", $.back),
@@ -244,8 +244,8 @@ export const browserData = pkg("browser", {
   on__forward: {
     rule__params: l($.window),
     rule__body: seq(
-      f._current_history($.window, $.back),
-      f._forward($.back, $.forward),
+      s._current_history($.back, $.window),
+      s._forward($.forward, $.back),
       s.db__update(
         l(
           s.update($.window, "_current_history", $.forward),
@@ -316,8 +316,8 @@ export const browserData = pkg("browser", {
       l(),
       x.view__subscribe_render(s.record("browser"), s._app_menu()),
       xfn($.u)(
-        s.record_field_value($.window, "db__schema", "window"),
-        f._current_history($.window, $.history),
+        s.db__schema("window", $.window),
+        s._current_history($.history, $.window),
         s.view__subscribe_render(
           $.u,
           s.oneof(l(s.record($.window), s.record($.history))),
@@ -339,7 +339,7 @@ export const browserData = pkg("browser", {
           s.option($.view, $.name),
           seq(
             s.view__for_record($.view, $.id),
-            s.cond(f.file__name($.view, $.name), u($.view, $.name)),
+            s.cond(s.file__name($.name, $.view), u($.view, $.name)),
           ),
         ),
         fn(s.change($.next_view))(s.on__set_view_menu($.window, $.next_view)),
@@ -373,10 +373,10 @@ export const browserData = pkg("browser", {
   _window_params: {
     rule__params: l($.id, $.view, $.history, $.window),
     rule__body: seq(
-      f._current_history($.window, $.history),
-      f._id($.history, $.id),
+      s._current_history($.history, $.window),
+      s._id($.id, $.history),
       s.cond(
-        f._view($.history, $.view),
+        s._view($.view, $.history),
         s.limit(1, s.view__for_record($.view, $.id)),
       ),
     ),
@@ -387,8 +387,8 @@ export const browserData = pkg("browser", {
     rule__params: l($.out, $.window),
     rule__body: seq(
       s._window_params($.id, $.view, $.history, $.window),
-      f._current_window("browser", $.current_window),
-      s.cond(f.file__name($.id, $.name), u($.name, $.id)),
+      s.current_window($.current_window),
+      s.cond(s.file__name($.name, $.id), u($.name, $.id)),
 
       s.try_error_trace_catch(
         seq(
@@ -435,14 +435,14 @@ export const browserData = pkg("browser", {
   _window_bar: {
     rule__params: l($.out, $.window, $.id, $.view, $.name),
     rule__body: seq(
-      f._current_history($.window, $.history),
+      s._current_history($.history, $.window),
       s.if_then_else(
-        f._back($.history, __),
+        s._back(__, $.history),
         u($.back_class, "AppWindow__nav"),
         u($.back_class, "AppWindow__nav AppWindow__nav--disabled"),
       ),
       s.if_then_else(
-        f._forward($.history, __),
+        s._forward(__, $.history),
         u($.forward_class, "AppWindow__nav"),
         u($.forward_class, "AppWindow__nav AppWindow__nav--disabled"),
       ),
@@ -517,7 +517,7 @@ export const browserData = pkg("browser", {
       s.cond(
         seq(
           s._window_params($.id, $.view, $.history, $.window),
-          f.view__menu_items($.view, $.window_menu_base),
+          s.view__menu_items($.window_menu_base, $.view),
           s._bind_window_menu(
             $.window_menu,
             $.window_menu_base,

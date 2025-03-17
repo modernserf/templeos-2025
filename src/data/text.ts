@@ -1,4 +1,4 @@
-import { l, seq, s, $, __, f, x } from "../expr";
+import { l, seq, s, $, __, x } from "../expr";
 import { pkg } from "../pkg";
 
 export const text = pkg("text", {
@@ -80,9 +80,10 @@ export const text = pkg("text", {
     file__name: "Text viewer",
     view__subject: s.schema("text_document"),
     rule__params: l($.out, $.id, $.state),
-    rule__body: seq(
-      f.text__content($.id, $.text),
-      s.column($.out, l(s.style("margin", "1rem")), x.view__text($.text)),
+    rule__body: s.column(
+      $.out,
+      l(s.style("margin", "1rem")),
+      x.view__text(x.text__content($.id)),
     ),
   },
 });

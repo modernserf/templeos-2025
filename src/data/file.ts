@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, f, __, seq, x, xfn, alt } from "../expr";
+import { l, s, $, __, seq, x, xfn, alt } from "../expr";
 import { pkg } from "../pkg";
 
 export const collectionData = pkg("file", {
@@ -38,7 +38,6 @@ export const collectionData = pkg("file", {
     field__type: s.list_of(s.ref(__)),
     field__index: s.multi_ref(),
     rule__params: l($.items, $.id),
-    rule__body: f._folder_items($.id, $.items),
   },
   _tags: {
     db__schema: "field",
@@ -49,11 +48,7 @@ export const collectionData = pkg("file", {
   },
   _tag_files: {
     rule__params: l($.files, $.tag),
-    rule__body: s.collect_item_in($.files, $.file, f._tags($.file, $.tag)),
-  },
-  _file_desc: {
-    rule__params: l($.desc, $.id),
-    rule__body: f.file__description($.id, $.desc),
+    rule__body: s.collect_item_in($.files, $.file, s._tags($.tag, $.file)),
   },
 
   _view_table: {
@@ -76,12 +71,12 @@ export const collectionData = pkg("file", {
             l(),
             x.view__file_link($.item),
             x.result_if(
-              f.db__schema($.item, $.schema),
+              s.db__schema($.schema, $.item),
               s.view__file_link($.schema),
               s.view__string(""),
             ),
             x.result_if(
-              f.file__description($.item, $.desc),
+              s.file__description($.desc, $.item),
               s.view__text($.desc),
               s.view__string(""),
             ),
@@ -96,7 +91,7 @@ export const collectionData = pkg("file", {
     rule__body: s.column(
       $.out,
       l(),
-      x.view__text(x._file_desc($.id)),
+      x.view__text(x._file_description($.id)),
       x._view_table($.collection),
     ),
   },
@@ -105,7 +100,7 @@ export const collectionData = pkg("file", {
     rule__body: s.column(
       $.out,
       l(),
-      x.view__text(x._file_desc($.id)),
+      x.view__text(x._file_description($.id)),
       x.row(
         l(),
         xfn($.u)(
@@ -157,7 +152,7 @@ export const collectionData = pkg("file", {
         x.row(
           l(),
           xfn($.u)(
-            f.db__schema($.id, $.schema),
+            s.db__schema($.schema, $.id),
             alt(
               s.view__file_link($.u, $.schema),
               s.view__string($.u, ":"),
@@ -167,7 +162,7 @@ export const collectionData = pkg("file", {
           x.view__file_link($.id),
         ),
         xfn($.out)(
-          f.file__description($.id, $.desc),
+          s.file__description($.desc, $.id),
           s.view__text($.out, $.desc),
         ),
       ),

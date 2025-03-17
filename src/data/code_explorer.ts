@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, seq, s, $, __, f, fn, xfn, x } from "../expr";
+import { l, seq, s, $, __, fn, xfn, x } from "../expr";
 
 export const codeExplorerData = {
   code_explorer: {
@@ -25,8 +25,8 @@ export const codeExplorerData = {
             s.limit(
               20,
               seq(
-                f.rule__params($.id, $.params),
-                s.none(f.test__group($.id, __)),
+                s.rule__params($.params, $.id),
+                s.none(s.test__group(__, $.id)),
                 s.string_substring($.id, $.search),
                 s.box($.box, $.id, $.params),
               ),
@@ -40,7 +40,7 @@ export const codeExplorerData = {
               ),
               x.view__expr($.box),
               xfn($.u)(
-                f.file__description($.id, $.desc),
+                s.file__description($.desc, $.id),
                 s.view__text($.u, $.desc),
               ),
             ),

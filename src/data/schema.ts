@@ -1,4 +1,4 @@
-import { $, __, f, l, s, seq, x, xfn } from "../expr";
+import { $, __, l, s, seq, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 
 export const schema = pkg("schema", {
@@ -49,8 +49,8 @@ export const schema = pkg("schema", {
   schema_check: {
     rule__params: l($.schema, $.record),
     rule__body: seq(
-      f.db__schema($.record, $.schema),
-      f._fields($.schema, $.fields),
+      s.db__schema($.schema, $.record),
+      s._fields($.fields, $.schema),
       s.list__every($.fields, s._check_field($.record)),
     ),
   },
@@ -82,8 +82,8 @@ export const schema = pkg("schema", {
     rule__body: s.block(
       __,
       seq(
-        f.db__schema($.id, $.schema),
-        s.none(f._ignore_schema_check_all($.id, __)),
+        s.db__schema($.schema, $.id),
+        s.none(s.value_record_field(__, $.id, "_ignore_schema_check_all")),
         s.expect_ok(s.schema_check($.schema, $.id)),
       ),
     ),
@@ -103,7 +103,7 @@ export const schema = pkg("schema", {
             x.table_header(l(), x.view__string("Records")),
             xfn($.out)(
               s.if_then_else(
-                f.db__schema($.rec, $.id),
+                s.db__schema($.id, $.rec),
                 s.table_row($.out, l(), x.view__file_link($.rec)),
                 s.table_row($.out, l(), x.view__string("none")),
               ),
@@ -113,7 +113,7 @@ export const schema = pkg("schema", {
             x.table_header(l(), x.view__string("Constructors")),
             xfn($.out)(
               s.if_then_else(
-                f._constructor($.ctor, $.id),
+                s._constructor($.id, $.ctor),
                 s.table_row($.out, l(), x._view_constructor($.ctor)),
                 s.table_row($.out, l(), x.view__string("none")),
               ),
@@ -125,18 +125,15 @@ export const schema = pkg("schema", {
   },
   _view_constructor: {
     rule__params: l($.out, $.ctor),
-    rule__body: seq(
-      f.file__name($.ctor, $.name),
-      s.view__button(
-        $.out,
-        l(),
-        $.name,
-        s.on_click(
-          seq(
-            s.call($.ctor, $.id),
-            s.current_window($.window),
-            s.on__push($.window, s.location($.id)),
-          ),
+    rule__body: s.view__button(
+      $.out,
+      l(),
+      x.file__name($.ctor),
+      s.on_click(
+        seq(
+          s.call($.ctor, $.id),
+          s.current_window($.window),
+          s.on__push($.window, s.location($.id)),
         ),
       ),
     ),

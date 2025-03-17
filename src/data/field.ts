@@ -1,4 +1,4 @@
-import { l, s, $, seq, f } from "../expr";
+import { l, s, $, seq } from "../expr";
 import { pkg } from "../pkg";
 
 export const field = pkg("field", {
@@ -40,7 +40,7 @@ export const field = pkg("field", {
   _check_type: {
     rule__params: l($.field, $.value),
     rule__body: s.if_then_else(
-      f._type($.field, $.type),
+      s._type($.type, $.field),
       s.type__check($.value, $.type),
       s.ok(),
     ),

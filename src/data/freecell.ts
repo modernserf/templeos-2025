@@ -1,4 +1,4 @@
-import { l, s, $, __, u, seq, alt, f, x, xfn } from "../expr";
+import { l, s, $, __, u, seq, alt, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
@@ -263,7 +263,7 @@ export const freeCell = pkg("free_cell", {
     view__subject: s.schema("_game"),
     rule__params: l($.out, $.id, $.p),
     rule__body: seq(
-      f._game_state($.id, s.state($.stacks, $.cells, $.columns)),
+      s._game_state(s.state($.stacks, $.cells, $.columns), $.id),
       s._selected_param($.selected, $.p),
       u($.handler, s._dispatch($.id, $.p)),
       s.column(
@@ -479,7 +479,6 @@ export const freeCell = pkg("free_cell", {
     rule__body: s.spawn_link(
       __,
       seq(
-        f._game_state($.id, $.state),
         s.limit(
           1,
           seq(s._auto_moves($.move), s._on_update_state($.id, $.move)),
@@ -492,10 +491,12 @@ export const freeCell = pkg("free_cell", {
   _on_update_state: {
     rule__params: l($.id, s.move($.to, $.from)),
     rule__body: seq(
-      f._undo_state($.id, $.prev_undo),
-      s.append_left_right($.next_undo, $.prev_undo, l(s.move($.to, $.from))),
-      f._game_state($.id, $.state),
-      s._move($.state, $.state2, $.card, $.from),
+      s.append_left_right(
+        $.next_undo,
+        x._undo_state($.id),
+        l(s.move($.to, $.from)),
+      ),
+      s._move(x._game_state($.id), $.state2, $.card, $.from),
       s._move($.state3, $.state2, $.card, $.to),
       s.db__update(
         l(
@@ -508,10 +509,12 @@ export const freeCell = pkg("free_cell", {
   _on_undo: {
     rule__params: l($.id),
     rule__body: seq(
-      f._undo_state($.id, $.prev_undo),
-      s.append_left_right($.prev_undo, $.next_undo, l(s.move($.to, $.from))),
-      f._game_state($.id, $.state),
-      s._move($.state, $.state2, $.card, $.to),
+      s.append_left_right(
+        x._undo_state($.prev_undo),
+        $.next_undo,
+        l(s.move($.to, $.from)),
+      ),
+      s._move(x._game_state($.id), $.state2, $.card, $.to),
       s._move_undo($.state3, $.state2, $.card, $.from),
       s.db__update(
         l(

@@ -1,6 +1,6 @@
 import { TransactDB } from "../db";
 import { ProcessManager } from "../process";
-import { Expr, Box, Id, List, l, $, s, seq, f, __, x, xfn } from "../expr";
+import { Expr, Box, Id, List, l, $, s, seq, __, x, xfn } from "../expr";
 import { core } from "./core";
 import { viewCore } from "./view_core";
 import { rules as rulePrimitiveRecs, rulePrimitives } from "./primitives";
@@ -174,7 +174,7 @@ export const data = mergeAndCheck(
               l(s.style("flex", "0 0 50%")),
               x.view__text(l("helpful links")),
               xfn($.u)(
-                f._left_links($.id, $.links),
+                s.value_record_field($.links, $.id, "_left_links"),
                 s($.link).in($.links),
                 s.view__file_info($.u, $.link),
               ),

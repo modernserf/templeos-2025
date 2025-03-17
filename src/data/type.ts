@@ -1,4 +1,4 @@
-import { l, s, $, __, u, seq, fn, f, alt, x } from "../expr";
+import { l, s, $, __, u, seq, fn, alt, x } from "../expr";
 import { pkg } from "../pkg";
 
 export const typeRecs = pkg("type", {
@@ -203,7 +203,7 @@ export const typeRecs = pkg("type", {
     rule__params: l($.value),
     rule__body: seq(
       s.box($.value, $.tag, $.args),
-      f.rule__params($.tag, $.params),
+      s.rule__params(__, $.tag),
       // TODO: typecheck args
     ),
     _hierarchy: l(
@@ -214,7 +214,7 @@ export const typeRecs = pkg("type", {
   ref: {
     db__schema: "type",
     rule__params: l($.record, $.schema),
-    rule__body: s.cond(s.var($.schema), f.db__schema($.record, $.schema)),
+    rule__body: s.cond(s.var($.schema), s.db__schema($.schema, $.record)),
     _hierarchy: l(
       l(s.ref(__), s.string(), s.ok()),
       l(s._const($.id), s.ref($.schema), s.ref($.id, $.schema)),
@@ -252,7 +252,7 @@ export const typeRecs = pkg("type", {
     rule__body: seq(
       s.box($.expr, $.id, __),
       s.if_then_else(
-        f.db__schema($.id, "type"),
+        s.db__schema("type", $.id),
         u($.type, $.expr),
         s.call($.expr, $.type),
       ),
@@ -320,13 +320,13 @@ export const typeRecs = pkg("type", {
         u($.sub, $.super),
         seq(
           s.box($.sub, $.sub_id, __),
-          f._hierarchy($.sub_id, $.rows),
+          s._hierarchy($.rows, $.sub_id),
           s(l($.sub, $.super, $.goal)).in($.rows),
           $.goal,
         ),
         seq(
           s.box($.super, $.super_id, __),
-          f._hierarchy($.super_id, $.rows),
+          s._hierarchy($.rows, $.super_id),
           s(l($.sub, $.super, $.goal)).in($.rows),
           $.goal,
         ),

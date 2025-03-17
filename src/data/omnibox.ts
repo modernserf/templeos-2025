@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, seq, s, $, f, fn, x, xfn, alt } from "../expr";
+import { l, seq, s, $, fn, x, xfn, alt } from "../expr";
 
 export const omnibox = {
   omnibox: {
@@ -27,7 +27,7 @@ export const omnibox = {
               s.limit(
                 10,
                 seq(
-                  f.file__name($.result, $.result_name),
+                  s.file__name($.result_name, $.result),
                   s.string_substring($.result_name, $.search),
                 ),
               ),
