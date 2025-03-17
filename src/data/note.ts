@@ -102,7 +102,11 @@ export const note = pkg("note", {
     rule__params: l($.out, __, __),
     rule__body: s.view__subscribe_render(
       $.out,
-      s.record("note"),
+      s.match_cond(
+        l(s.update($.rec, __, __), s.db__schema("note", $.rec)),
+        l(s.delete($.rec), s.db__schema("note", $.rec)),
+        l(__, s.fail()),
+      ),
       s._view_list(),
     ),
   },

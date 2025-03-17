@@ -139,10 +139,6 @@ export const browserData = pkg("browser", {
       s._focus($.focus, $.history),
     ),
   },
-  _render_root: {
-    rule__params: l(),
-    rule__body: s.send("root_view_manager", s.render()),
-  },
 
   boot: {
     rule__params: l($.pid),
@@ -152,7 +148,12 @@ export const browserData = pkg("browser", {
       s.spawn_link(
         $.pid,
         // loop because we want this process to stay mounted
-        s.loop(s._subscribe_render(s.record("browser"), s._desktop())),
+        s.loop(
+          s._subscribe_render(
+            s.match(s.update("browser", __, __)),
+            seq(s._desktop()),
+          ),
+        ),
       ),
     ),
   },
@@ -199,15 +200,11 @@ export const browserData = pkg("browser", {
   },
   on__new_window: {
     rule__params: l($.location),
-    rule__body: seq(
-      s._new_window($.out, __, $.location),
-      s.db__update($.out),
-      s._render_root(),
-    ),
+    rule__body: seq(s._new_window($.out, __, $.location), s.db__update($.out)),
   },
   on__close_window: {
     rule__params: l($.window),
-    rule__body: seq(s.db__update(l(s.delete($.window))), s._render_root()),
+    rule__body: seq(s.db__update(l(s.delete($.window)))),
   },
   on__push: {
     rule__params: l($.window, $.location),
@@ -256,22 +253,28 @@ export const browserData = pkg("browser", {
     ),
   },
   view__subscribe_render: {
-    rule__params: l($.out, $.subscriptions, $.render),
-    rule__body: seq(
-      u($.out, s.Receiver(s._subscribe_render($.subscriptions, $.render))),
-    ),
+    rule__params: l($.out, $.fn, $.render),
+    rule__body: u($.out, s.Receiver(s._subscribe_render($.fn, $.render))),
   },
   _subscribe_render: {
-    rule__params: l($.subscriptions, $.render),
+    rule__params: l($.fn, $.render),
     rule__body: seq(
       s.trap_exit(),
       s.self($.self),
       s.receive(s.mount($.view)),
       s.send($.self, s.render()),
-      s.db__subscribe_callback(
+      s.db__subscribe(
         $.sub,
-        $.subscriptions,
-        s.send($.self, s.render()),
+        fn($.batch)(
+          s.limit(
+            1,
+            seq(
+              s($.row).in($.batch),
+              s.call($.fn, $.row),
+              s.send($.self, s.render()),
+            ),
+          ),
+        ),
       ),
       s.loop(
         seq(
@@ -314,13 +317,21 @@ export const browserData = pkg("browser", {
       $.out,
       "div",
       l(),
-      x.view__subscribe_render(s.record("browser"), s._app_menu()),
+      x.view__subscribe_render(
+        s.match(s.update("browser", "_current_window", __)),
+        s._app_menu(),
+      ),
       xfn($.u)(
         s.db__schema("window", $.window),
         s._current_history($.history, $.window),
         s.view__subscribe_render(
           $.u,
-          s.oneof(l(s.record($.window), s.record($.history))),
+          s.match(
+            s.update($.window, __, __),
+            s.update($.history, "browser__view", __),
+            s.delete($.window),
+            s.update("browser", "_current_window", __),
+          ),
           s._view_window($.window),
         ),
       ),
@@ -366,7 +377,7 @@ export const browserData = pkg("browser", {
   },
 
   _window_content: {
-    rule__params: l($.out, $.view, $.id, $.window, $.history),
+    rule__params: l($.out, $.view, $.id, $.history),
     rule__body: s.call($.view, $.out, $.id, $.history),
   },
 
@@ -402,10 +413,12 @@ export const browserData = pkg("browser", {
                 "div",
                 l(s.class("AppWindow__content")),
                 x.view__subscribe_render(
-                  s.oneof(
-                    l(s.record($.history), s.record($.id), s.record($.view)),
+                  s.match(
+                    s.update($.history, __, __),
+                    s.update($.id, __, __),
+                    s.update(__, __, $.id),
                   ),
-                  s._window_content($.view, $.id, $.window, $.history),
+                  s._window_content($.view, $.id, $.history),
                 ),
               ),
             ),

@@ -445,6 +445,13 @@ export const { rules, rulePrimitives } = compilePrimitives({
       test.collect($.res, s.agent_get($.res, $.agent), l(123, 456, 789)),
     ),
   },
+  active_process: {
+    rule__params: l($.pid),
+    rule__primitive: function* (it, pid) {
+      ensurePid(pid);
+      if (it.pm.processes.has(pid.value)) yield it.result();
+    },
+  },
 
   type_value: {
     rule__params: l($.type, $.value),

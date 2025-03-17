@@ -62,85 +62,87 @@ export const dbRules = pkg("db", {
 
   init__db_server: {
     rule__params: l(),
-    rule__body: s.spawn_link("db_server", s._db_server("local_storage")),
+    rule__body: s._db_server("db_server", "local_storage"),
   },
 
-  db__update: {
-    rule__params: l($.batch),
-    rule__body: s.send("db_server", s.update($.batch)),
-  },
-  db__reset: {
-    rule__params: l(),
-    rule__body: s.send("db_server", s.reset()),
-  },
-  db__subscribe_callback: {
-    rule__params: l($.pid, $.pattern, $.callback),
+  // TODO: typedef for update patterns
+  _db_server: {
+    rule__params: l($.in, $.local_storage),
     rule__body: seq(
-      s.spawn_link(
-        $.pid,
-        s.loop(
-          seq(
-            s.receive($.e),
-            s.match_cond(
-              $.e,
-              l(s.change(), $.callback),
-              l(s.close(), s.fail()),
+      s.event_bus($.in),
+      s.event_bus($.subs),
+      s.event_subscribe(
+        $.sub,
+        $.in,
+        s.match_cond(
+          l(
+            s.update($.batch),
+            seq(
+              s._apply_update($.batch),
+              s.send($.local_storage, s.update()),
+              s.event_send($.subs, $.batch),
             ),
           ),
+          l(s.reset(), s.send($.local_storage, s.clear())),
+          l(s.get_subs($.pid), s.send($.pid, s.subs($.subs))),
         ),
       ),
-      s.send("db_server", s.subscribe($.pid, $.pattern)),
+    ),
+  },
+  db__subscribe: {
+    rule__params: l($.h, $.fn),
+    rule__body: seq(
+      s.self($.self),
+      s.event_send("db_server", s.get_subs($.self)),
+      s.receive(s.subs($.subs)),
+      s.event_subscribe($.h, $.subs, $.fn),
     ),
   },
   db__unsubscribe: {
-    rule__params: l($.pid),
-    rule__body: s.send("db_server", s.unsubscribe($.pid)),
-  },
-  _db_server: {
-    rule__params: l($.local_storage),
+    rule__params: l($.h),
     rule__body: seq(
-      s.loop_iter(
-        $.next,
-        $.prev,
-        l(),
-        seq(
-          s.receive($.message),
-          s.match_cond(
-            $.message,
-            l(
-              s.update($.batch),
-              seq(
-                s._apply_update($.batch),
-                s.send($.local_storage, s.update()),
-                s._notify_subscribers($.batch, $.prev),
-              ),
-            ),
-            l(s.reset(), s.send($.local_storage, s.clear())),
-            l(
-              s.subscribe($.pid, $.pattern),
-              s.append_left_right(
-                $.next,
-                $.prev,
-                l(s.subscribe($.pid, $.pattern)),
-              ),
-            ),
-            l(
-              s.unsubscribe($.pid),
-              seq(
-                s.filter_list(
-                  $.next,
-                  $.prev,
-                  fn(s.subscribe($.p, __))(s.not_equal($.p, $.pid)),
-                ),
-                s.send($.pid, s.close()),
-              ),
+      s.self($.self),
+      s.event_send("db_server", s.get_subs($.self)),
+      s.receive(s.subs($.subs)),
+      s.event_unsubscribe($.h, $.subs),
+    ),
+  },
+  db__update: {
+    rule__params: l($.batch),
+    rule__body: seq(
+      s._normalize_update($.normalized, $.batch),
+      s.event_send("db_server", s.update($.normalized)),
+    ),
+  },
+  db__reset: {
+    rule__params: l(),
+    rule__body: s.event_send("db_server", s.reset()),
+  },
+
+  _normalize_update: {
+    rule__params: l($.normalized, $.batch),
+    rule__body: s.map_list(
+      $.normalized,
+      $.batch,
+      fn(
+        $.out,
+        $.in,
+      )(
+        s.match_cond(
+          $.in,
+          l(
+            s.update($.field_expr),
+            seq(
+              s.box($.field_expr, $.field, l($.value, $.id)),
+              u($.out, s.update($.id, $.field, $.value)),
             ),
           ),
-          s.cond(s.nonvar($.next), u($.next, $.prev)),
+          l(__, u($.out, $.in)),
         ),
       ),
     ),
   },
+
   _apply_update: {
     rule__params: l($.batch),
     rule__body: s.with_tx(
@@ -155,58 +157,10 @@ export const dbRules = pkg("db", {
             s.tx_update_field_value__primitive($.tx, $.id, $.field, $.value),
           ),
           l(
-            s.update($.field_expr),
-            seq(
-              s.box($.field_expr, $.field, l($.value, $.id)),
-              s.tx_update_field_value__primitive($.tx, $.id, $.field, $.value),
-            ),
-          ),
-          l(
             s.delete($.id, $.field),
             s.tx_delete_field__primitive($.tx, $.id, $.field),
           ),
           l(s.delete($.id), s.tx_delete_record__primitive($.tx, $.id)),
-        ),
-      ),
-    ),
-  },
-  _notify_subscribers: {
-    rule__params: l($.batch, $.subscribers),
-    rule__body: s.each_item_do(
-      $.subscribers,
-      s.subscribe($.pid, $.pattern),
-      seq(
-        s._check_batch_pattern($.batch, $.pattern),
-        s.send($.pid, s.change()),
-      ),
-    ),
-  },
-  _check_batch_pattern: {
-    rule__params: l($.batch, $.pattern),
-    rule__body: seq(
-      s.limit(
-        1,
-        seq(
-          s.match_cond(
-            $.pattern,
-            l(
-              s.oneof($.patterns),
-              seq(s($.p).in($.patterns), s._check_batch_pattern($.batch, $.p)),
-            ),
-            l(
-              s.record($.id),
-              seq(
-                s($.change).in($.batch),
-                s.match(
-                  $.change,
-                  s.update($.id, __, __),
-                  s.update(__, __, $.id),
-                  s.delete($.id, __),
-                  s.delete($.id),
-                ),
-              ),
-            ),
-          ),
         ),
       ),
     ),
