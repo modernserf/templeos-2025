@@ -157,7 +157,7 @@ export const dbRules = pkg("db", {
           l(
             s.update($.field_expr),
             seq(
-              s.box_tag_list($.field_expr, $.field, l($.value, $.id)),
+              s.box($.field_expr, $.field, l($.value, $.id)),
               s.tx_update_field_value__primitive($.tx, $.id, $.field, $.value),
             ),
           ),

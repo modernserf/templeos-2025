@@ -27,7 +27,7 @@ export const codeExplorerData = {
               f.rule__params($.id, $.params),
               s.none(f.test__group($.id, __)),
               s.string_substring($.id, $.search),
-              s.box_tag_list($.box, $.id, $.params),
+              s.box($.box, $.id, $.params),
             ),
           ),
           l(

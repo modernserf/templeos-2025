@@ -678,7 +678,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       test.collect($.len, s.length_box($.len, s.bar(1, 2, 3)), 3),
     ),
   },
-  box_tag_list: {
+  box: {
     rule__params: l($.box, $.tag, $.list),
     rule__primitive: function* (it, aBox, tag, list) {
       if (aBox.tag === "box") {
@@ -693,16 +693,16 @@ export const { rules, rulePrimitives } = compilePrimitives({
       }
     },
   },
-  test__box_tag_list: {
+  test__box: {
     test__group: "primitives",
     rule__params: l(),
     rule__body: seq(
       test.collect(
         l($.tag, $.list),
-        s.box_tag_list(s.foo(123, 456), $.tag, $.list),
+        s.box(s.foo(123, 456), $.tag, $.list),
         l("foo", l(123, 456)),
       ),
-      test.collect($.box, s.box_tag_list($.box, "bar", l(789)), s.bar(789)),
+      test.collect($.box, s.box($.box, "bar", l(789)), s.bar(789)),
     ),
   },
   // Why this order?

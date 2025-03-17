@@ -110,7 +110,7 @@ export const testUtils = {
         __,
         seq(
           f.test__group($.test, $.group),
-          s.box_tag_list($.call, $.test, l()),
+          s.box($.call, $.test, l()),
           s.log($.group, $.test),
           s.try_error_catch($.call, $.e, seq(s.log($.e), s.throw($.e))),
         ),

@@ -187,8 +187,8 @@ export const ord = pkg("ord", {
   _ord_box: {
     rule__params: l($.ord, $.left, $.right),
     rule__body: seq(
-      s.box_tag_list($.left, $.ltag, $.ls),
-      s.box_tag_list($.right, $.rtag, $.rs),
+      s.box($.left, $.ltag, $.ls),
+      s.box($.right, $.rtag, $.rs),
       s.ord_seq($.ord, s.ord__string($.ltag, $.rtag), s._ord_list($.ls, $.rs)),
     ),
   },

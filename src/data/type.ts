@@ -55,7 +55,7 @@ export const typeRecs = pkg("type", {
     db__schema: "type",
     rule__params: l($.value, $.tag_type, $.tuple_types, $.rest_type),
     rule__body: seq(
-      s.box_tag_list($.value, $.tag, $.vals),
+      s.box($.value, $.tag, $.vals),
       s.call($.tag_type, $.tag),
 
       s.length_box($.tuple_len, $.tuple_types),
@@ -182,7 +182,7 @@ export const typeRecs = pkg("type", {
         fn(
           s._box(s.const($.tag), $.tuple, s.no_type()),
           $.box,
-        )(s.box_tag_list($.box, $.tag, $.tuple)),
+        )(s.box($.box, $.tag, $.tuple)),
       ),
       s.fold_op($.t, $.mapped, fn(s._union($.l, $.r), $.l, $.r)()),
     ),
@@ -206,7 +206,7 @@ export const typeRecs = pkg("type", {
     db__schema: "type",
     rule__params: l($.value),
     rule__body: seq(
-      s.box_tag_list($.value, $.tag, $.args),
+      s.box($.value, $.tag, $.args),
       f.rule__params($.tag, $.params),
       // TODO: typecheck args
     ),
@@ -312,13 +312,13 @@ export const typeRecs = pkg("type", {
       alt(
         u($.sub, $.super),
         seq(
-          s.box_tag_list($.sub, $.sub_id, __),
+          s.box($.sub, $.sub_id, __),
           f._hierarchy($.sub_id, $.rows),
           s(l($.sub, $.super, $.goal)).in($.rows),
           $.goal,
         ),
         seq(
-          s.box_tag_list($.super, $.super_id, __),
+          s.box($.super, $.super_id, __),
           f._hierarchy($.super_id, $.rows),
           s(l($.sub, $.super, $.goal)).in($.rows),
           $.goal,

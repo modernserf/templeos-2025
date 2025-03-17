@@ -43,7 +43,7 @@ export const viewAnyRecord = pkg("any_record", {
   _view_box: {
     rule__params: l($.out, $.value),
     rule__body: seq(
-      s.box_tag_list($.value, $.tag, $.list),
+      s.box($.value, $.tag, $.list),
       s.wrap(
         $.out,
         l(),

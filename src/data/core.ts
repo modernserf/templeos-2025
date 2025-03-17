@@ -45,6 +45,20 @@ export const core = pkg("core", {
     rule__params: l($.goal),
     rule__body: s.do(s.block(__, s.loop_iter(__, __, __, $.goal))),
   },
+  list: {
+    rule__params: $.params,
+    rule__body: seq(
+      s.params_rest($.params, l($.out), $.items),
+      s.box($.out, "", $.items),
+    ),
+  },
+  _test_list: {
+    test__group: "core",
+    rule__params: l(),
+    rule__body: seq(
+      s.expect_eq(l(1, 2, 3), x.list(1, x.in(l()), x.in(l(2, 3)))),
+    ),
+  },
   bool_goal: {
     rule__params: l($.bool, $.goal),
     rule__body: s.if_then_else(
@@ -79,18 +93,18 @@ export const core = pkg("core", {
     ),
     rule__params: l($.updated, $.target, $.left),
     rule__body: seq(
-      s.box_tag_list($.target, $.tag, $.right),
+      s.box($.target, $.tag, $.right),
       s.append_left_right($.next, $.left, $.right),
-      s.box_tag_list($.updated, $.tag, $.next),
+      s.box($.updated, $.tag, $.next),
     ),
   },
   append_box_suffix: {
     file__description: l("append elements of suffix to box, keeping box's tag"),
     rule__params: l($.updated, $.target, $.right),
     rule__body: seq(
-      s.box_tag_list($.target, $.tag, $.left),
+      s.box($.target, $.tag, $.left),
       s.append_left_right($.next, $.left, $.right),
-      s.box_tag_list($.updated, $.tag, $.next),
+      s.box($.updated, $.tag, $.next),
     ),
   },
   params_rest: {
@@ -119,7 +133,7 @@ export const core = pkg("core", {
   },
   _apply_id: {
     rule__params: l($.args, $.id),
-    rule__body: seq(s.box_tag_list($.callable, $.id, $.args), $.callable),
+    rule__body: seq(s.box($.callable, $.id, $.args), $.callable),
   },
   _apply_fn: {
     rule__params: l($.args, $.fn),
@@ -139,11 +153,11 @@ export const core = pkg("core", {
   },
   empty: {
     rule__params: l($.box),
-    rule__body: s.box_tag_list($.box, __, l()),
+    rule__body: s.box($.box, __, l()),
   },
   nonempty: {
     rule__params: l($.box),
-    rule__body: s.none(s.box_tag_list($.box, __, l())),
+    rule__body: s.none(s.box($.box, __, l())),
   },
   cond: {
     rule__params: $.options,
@@ -324,7 +338,7 @@ export const core = pkg("core", {
         l(
           s.box(),
           seq(
-            s.box_tag_list($.value, $.tag, $.list_2),
+            s.box($.value, $.tag, $.list_2),
             u($.expr, s.box($.tag, $.list_2)),
           ),
         ),
