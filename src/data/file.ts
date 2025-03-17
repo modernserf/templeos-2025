@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, f, __, seq, x } from "../expr";
+import { l, s, $, f, __, seq } from "../expr";
 import { pkg } from "../pkg";
 
 export const collectionData = pkg("file", {
@@ -29,13 +29,13 @@ export const collectionData = pkg("file", {
     db__schema: "field",
     file__name: "File description",
     file__description: l("describes the content of the record"),
-    field__type: x.text(),
+    field__type: s.text(),
   },
   _folder_items: {
     db__schema: "field",
     file__name: "File folder items",
     file__description: l("ids of files in folder"),
-    field__type: x.list_of(s.ref(__)),
+    field__type: s.list_of(s.ref(__)),
     field__index: s.multi_ref(),
     rule__params: l($.items, $.id),
     rule__body: f._folder_items($.id, $.items),
@@ -44,7 +44,7 @@ export const collectionData = pkg("file", {
     db__schema: "field",
     file__name: "File tags",
     file__description: l("The list of tags associated with a record."),
-    field__type: x.list_of(s.ref(__)),
+    field__type: s.list_of(s.ref(__)),
     field__index: s.multi_ref(),
   },
   _tag_files: {

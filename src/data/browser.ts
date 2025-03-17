@@ -51,7 +51,7 @@ export const browserData = pkg("browser", {
   view__menu_items: {
     db__schema: "field",
     file__name: "View menu items",
-    field__type: x._t_menu_items(),
+    field__type: s._t_menu_items(),
   },
   _id: {
     db__schema: "field",

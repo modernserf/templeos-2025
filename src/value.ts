@@ -38,7 +38,7 @@ export function printValue(value: Value, indent = ""): string {
         .map((f) => printValue(f, indent + "  "))
         .join("\n" + indent + "  ")}\n${indent})`;
     case "expand":
-      return `{ ${printValue(value, indent)} }`;
+      return `{ ${printValue(value.value, indent)} }`;
   }
 }
 

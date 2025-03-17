@@ -1,4 +1,4 @@
-import { l, s, $, seq, f, x } from "../expr";
+import { l, s, $, seq, f } from "../expr";
 import { pkg } from "../pkg";
 
 export const field = pkg("field", {
@@ -14,13 +14,13 @@ export const field = pkg("field", {
     file__description: l(
       "If set, the field is indexed using an index of this type.",
     ),
-    field__type: x.enum(s.ref(), s.multi_ref(), s.sorted()),
+    field__type: s.enum(s.ref(), s.multi_ref(), s.sorted()),
     field_index: s.sorted(),
   },
   _type: {
     db__schema: "field",
     file__name: "Field type",
-    field__type: x.type__fn(x.type__type()),
+    field__type: s.type__fn(s.type__type()),
   },
   field_check: {
     rule__params: l($.field, $.record),

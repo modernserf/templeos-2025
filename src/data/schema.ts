@@ -26,16 +26,16 @@ export const schema = pkg("schema", {
         s.type__union(s.type__box(__, __, __), s.type__box(__, __, __)),
       ),
 
-      s.expect_ok(s.type__check(s.field("_fields"), x._t_field_def())),
+      s.expect_ok(s.type__check(s.field("_fields"), s._t_field_def())),
       s.expect_ok(
-        s.type__check(s.field_optional("_constructor"), x._t_field_def()),
+        s.type__check(s.field_optional("_constructor"), s._t_field_def()),
       ),
     ),
   },
   _fields: {
     db__schema: "field",
     file__name: "Fields",
-    field__type: x.list_of(x._t_field_def()),
+    field__type: s.list_of(s._t_field_def()),
   },
   // fields that ref schema but don't belong to other package
   _constructor: {
@@ -84,7 +84,7 @@ export const schema = pkg("schema", {
       seq(
         f.db__schema($.id, $.schema),
         s.none(f._ignore_schema_check_all($.id, __)),
-        s.log("check", $.id),
+        // s.log("check", $.id),
         s.expect_ok(s.schema_check($.schema, $.id)),
       ),
     ),

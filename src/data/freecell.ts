@@ -70,12 +70,12 @@ export const freeCell = pkg("free_cell", {
   _game_state: {
     db__schema: "field",
     file__name: "FreeCell game state",
-    field__type: x._t_state(),
+    field__type: s._t_state(),
   },
   _undo_state: {
     db__schema: "field",
     file__name: "FreeCell undo history",
-    field__type: x.list_of(x.enum(s.move(x._t_location(), x._t_location()))),
+    field__type: s.list_of(s.enum(s.move(s._t_location(), s._t_location()))),
   },
   _new_game: {
     file__name: "New Game",

@@ -15,13 +15,13 @@ export const core = pkg("core", {
   time__created: {
     db__schema: "field",
     file__name: "Time created",
-    field__type: x.t_timestamp(),
+    field__type: s.t_timestamp(),
     field__index: s.sorted(),
   },
   rule__params: {
     db__schema: "field",
     file__name: "Rule params",
-    field__type: x.list_of(s.any_type()),
+    field__type: s.list_of(s.any_type()),
   },
   rule__body: {
     db__schema: "field",

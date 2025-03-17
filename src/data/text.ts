@@ -29,7 +29,7 @@ export const text = pkg("text", {
     db__schema: "field",
     file__name: "Text content",
     file__description: l("a list of text nodes used in text schema"),
-    field__type: x.text(),
+    field__type: s.text(),
   },
   // views
   view__text: {

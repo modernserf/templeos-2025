@@ -8,8 +8,10 @@ export const typeRecs = pkg("type", {
   },
   _hierarchy: {
     db__schema: "field",
-    file__name: "Hierarchy",
-    field__type: x.list_of(x.tuple(s.any_type(), s.any_type(), s.goal())),
+    file__name: "Type Hierarchy",
+    field__type: s.list_of(
+      s.tuple(s._option(s._type()), s._option(s._type()), s.goal()),
+    ),
   },
   any_type: {
     db__schema: "type",
@@ -42,6 +44,7 @@ export const typeRecs = pkg("type", {
     rule__params: l($.value),
     rule__body: s.type_value(s.number(), $.value),
   },
+  // where does this fit into type hierarchy?
   var: {
     db__schema: "type",
     rule__params: l($.value),
@@ -56,7 +59,7 @@ export const typeRecs = pkg("type", {
     rule__params: l($.value, $.tag_type, $.tuple_types, $.rest_type),
     rule__body: seq(
       s.box($.value, $.tag, $.vals),
-      s.call($.tag_type, $.tag),
+      s._check($.tag, $.tag_type),
 
       s.length_box($.tuple_len, $.tuple_types),
       s.length_box($.val_len, $.vals),
@@ -68,7 +71,7 @@ export const typeRecs = pkg("type", {
           s.value_box_index($.v, $.vals, $.i),
           seq(
             s.value_box_index_default($.t, $.tuple_types, $.i, $.rest_type),
-            s.call($.t, $.v),
+            s._check($.v, $.t),
           ),
         ),
       ),
@@ -119,7 +122,7 @@ export const typeRecs = pkg("type", {
       s.expect_ok(
         s._check(
           l("foo", "bar", 123),
-          x.tuple(s.string(), s.any_type(), s.number()),
+          s.tuple(s.string(), s.any_type(), s.number()),
         ),
       ),
     ),
@@ -127,7 +130,7 @@ export const typeRecs = pkg("type", {
   _intersection: {
     db__schema: "type",
     rule__params: l($.value, $.left, $.right),
-    rule__body: seq(s.call($.left, $.value), s.call($.right, $.value)),
+    rule__body: seq(s._check($.value, $.left), s._check($.value, $.right)),
     _hierarchy: l(
       l(
         s._intersection($.l, $.r),
@@ -144,7 +147,7 @@ export const typeRecs = pkg("type", {
   _union: {
     db__schema: "type",
     rule__params: l($.value, $.left, $.right),
-    rule__body: s.cond(s.call($.left, $.value), s.call($.right, $.value)),
+    rule__body: s.cond(s._check($.value, $.left), s._check($.value, $.right)),
     _hierarchy: l(
       l(s._union($.l, $.r), $.t, seq(s.subtype($.l, $.t), s.subtype($.r, $.t))),
       l(
@@ -155,20 +158,13 @@ export const typeRecs = pkg("type", {
     ),
   },
   _option: {
-    rule__params: l($.out, $.t),
-    rule__body:
-      // s.log("_option before", $.t), //
-      u($.out, s._union(s.var(), $.t)),
-    // s.log("_option after", $.out), //
+    rule__params: l(s._union(s.var(), $.t), $.t),
   },
   _test_option: {
     test__group: "type",
     rule__params: l(),
     rule__body: seq(
-      // s.log("_option", x._option(x._type())),
       s.expect_eq(x._option(x._type()), s._union(s.var(), s._box(__, __, __))),
-
-      // s.expect_eq(x._option(x._type()), s._union(s.var(), x.any_box())),
     ),
   },
 
@@ -240,7 +236,7 @@ export const typeRecs = pkg("type", {
             // TODO: check fn / goal args
             s._box(
               s.const("fn"),
-              l(x.list_of(s.any_type()), s.goal()),
+              l(s.list_of(s.any_type()), s.goal()),
               s.no_type(),
             ),
             s.goal(),
@@ -251,9 +247,20 @@ export const typeRecs = pkg("type", {
     ),
   },
 
+  _expr: {
+    rule__params: l($.type, $.expr),
+    rule__body: seq(
+      s.box($.expr, $.id, __),
+      s.if_then_else(
+        f.db__schema($.id, "type"),
+        u($.type, $.expr),
+        s.call($.expr, $.type),
+      ),
+    ),
+  },
   _check: {
-    rule__params: l($.value, $.type),
-    rule__body: s.call($.type, $.value),
+    rule__params: l($.value, $.expr),
+    rule__body: seq(s._expr($.type, $.expr), s.call($.type, $.value)),
   },
   _test_check: {
     test__group: "type",
@@ -268,29 +275,29 @@ export const typeRecs = pkg("type", {
       s.expect_fail(s._check("foo", s.const("bar"))),
 
       s.expect_ok(s._check(s.foo(), s._box(s.const("foo"), l(), s.none()))),
-      s.expect_ok(s._check(s.foo(), x.enum(s.foo()))),
+      s.expect_ok(s._check(s.foo(), s.enum(s.foo()))),
       s.expect_ok(s._check(s.foo(), x.any_box())),
-      s.expect_fail(s._check(s.foo(), x.enum(s.bar()))),
-      s.expect_fail(s._check(s.foo(), x.enum(s.foo(s.any_type())))),
-      s.expect_fail(s._check(s.foo(1), x.enum(s.foo()))),
+      s.expect_fail(s._check(s.foo(), s.enum(s.bar()))),
+      s.expect_fail(s._check(s.foo(), s.enum(s.foo(s.any_type())))),
+      s.expect_fail(s._check(s.foo(1), s.enum(s.foo()))),
 
-      s.expect_ok(s._check(l(1, 2, 3), x.list_of(s.number()))),
+      s.expect_ok(s._check(l(1, 2, 3), s.list_of(s.number()))),
 
       s.expect_ok(
-        s._check(l("foo", 1), x.list_of(s._union(s.string(), s.number()))),
+        s._check(l("foo", 1), s.list_of(s._union(s.string(), s.number()))),
       ),
       s.expect_fail(
         s._check(
           l(s.foo(), s.bar()),
-          x.list_of(s._union(s.string(), s.number())),
+          s.list_of(s._union(s.string(), s.number())),
         ),
       ),
       s.expect_ok(
         s._check(
           l("foo", 1),
           s._intersection(
-            x.tuple(s.string(), s.any_type()),
-            x.tuple(s.any_type(), s.number()),
+            s.tuple(s.string(), s.any_type()),
+            s.tuple(s.any_type(), s.number()),
           ),
         ),
       ),
@@ -298,8 +305,8 @@ export const typeRecs = pkg("type", {
         s._check(
           l("foo", "bar"),
           s._intersection(
-            x.tuple(s.string(), s.any_type()),
-            x.tuple(s.any_type(), s.number()),
+            s.tuple(s.string(), s.any_type()),
+            s.tuple(s.any_type(), s.number()),
           ),
         ),
       ),

@@ -1018,9 +1018,8 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (!rec) return;
       const val = rec[field.value];
       if (val == null) return;
-      const [val_] = yield* it.expandArgs([it.exprValue(val, {})]);
 
-      if (it.unify(val_, value)) yield it.result();
+      if (it.unify(it.exprValue(val, {}), value)) yield it.result();
     },
   },
   record_index_field: {
