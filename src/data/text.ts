@@ -9,7 +9,7 @@ export const text = pkg("text", {
       $.t,
       s.type__union(
         s.string(),
-        x.enum(
+        s.enum(
           s.link(s.string(), s.location()),
           s.code(s.type__any()),
           s.section(s.text(), s.text()),

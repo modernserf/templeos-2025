@@ -29,12 +29,12 @@ export const browserData = pkg("browser", {
     rule__params: l($.t),
     rule__body: s.list_of(
       $.t,
-      x.enum(
+      s.enum(
         s.menu(
           s.string(),
-          x.list_of(
-            x.enum(
-              x.menu_option(
+          s.list_of(
+            s.enum(
+              s.menu_option(
                 s.string(),
                 s.string(),
                 s.type__fn(s.ref(__), s.ref("history")),

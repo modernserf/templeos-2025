@@ -1,10 +1,9 @@
-import { l, s, $, __, seq, u, fn, alt } from "../expr";
+import { l, s, $, __, seq, u, fn, alt, x } from "../expr";
 import { pkg } from "../pkg";
 
 export const iter = pkg("iter", {
   _iter: {
-    rule__params: l($.iter, $.state, $.fn_next),
-    rule__body: u($.iter, s._iter($.state, $.fn_next)),
+    rule__params: l(s._iter($.state, $.fn_next), $.state, $.fn_next),
   },
   _next: {
     rule__params: l($.value, $.next_iter, s._iter($.state, $.fn_next)),
@@ -60,29 +59,17 @@ export const iter = pkg("iter", {
     test__group: "iter",
     rule__params: l(),
     rule__body: seq(
+      s.expect_eq(x._next(__, x._list(l(1, 2, 3))), 1),
       s.expect_collect(
         $.value,
         seq(
-          s._list($.iter, l(1, 2, 3)), //
-          s._next($.value, __, $.iter),
-        ),
-        1,
-      ),
-      s.expect_collect(
-        $.value,
-        seq(
-          s._list($.iter, l(1, 2, 3)), //
-          s._next(__, $.next, $.iter),
+          s._next(__, $.next, x._list(l(1, 2, 3))),
           s._next($.value, __, $.next),
         ),
         2,
       ),
 
-      s.expect_collect(
-        $.list,
-        seq(s._list($.iter, l(1, 2, 3)), s._collect($.list, $.iter)),
-        l(1, 2, 3),
-      ),
+      s.expect_eq(x._collect(x._list(l(1, 2, 3))), l(1, 2, 3)),
     ),
   },
 
