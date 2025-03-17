@@ -44,6 +44,10 @@ export const typeRecs = pkg("type", {
     rule__params: l($.value),
     rule__body: s.type_value(s.number(), $.value),
   },
+  pid: {
+    rule__params: l($.t),
+    rule__body: s._union($.t, s.string(), s.number()),
+  },
   // where does this fit into type hierarchy?
   var: {
     db__schema: "type",

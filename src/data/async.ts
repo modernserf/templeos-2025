@@ -1,4 +1,4 @@
-import { l, s, $, __, seq, u, fn } from "../expr";
+import { l, s, $, __, seq, u, fn, x } from "../expr";
 import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
@@ -126,7 +126,8 @@ export const asyncRules = pkg("async", {
     rule__params: l($.agent, $.value),
     rule__body: seq(
       s.agent_get($.stack, $.agent),
-      s.append_left_right($.stack, $.popped, l($.value)),
+
+      ($.stack, $.popped, l($.value)),
       // TODO: sync update that provides access to prev & next
       s.agent_set($.agent, $.popped),
     ),
@@ -145,6 +146,185 @@ export const asyncRules = pkg("async", {
         ),
         l(123, 456),
       ),
+    ),
+  },
+
+  _t_event_bus_state: {
+    rule__params: l($.t),
+    rule__body: s.tuple(s.list_of(s.pid())),
+  },
+  _t_event_bus_message: {
+    rule__params: l($.t, $.t_event),
+    rule__body: s.enum(
+      $.t,
+      s.event($.t_event),
+      s.subscribe(s.pid(), s.pid(), s.string()),
+      s.unsubscribe(s.pid(), s.pid(), s.string()),
+      s.close(),
+    ),
+  },
+
+  event_bus: {
+    rule__params: l($.pid),
+    rule__body: s.spawn_link(
+      $.pid,
+      s.loop_iter(
+        $.next,
+        l($.subscribers),
+        l(l()),
+        seq(
+          s.receive($.message),
+          s.match_cond(
+            $.message,
+            l(
+              s.event($.e),
+              seq(s._publish($.e, $.subscribers), u($.next, l($.subscribers))),
+            ),
+            l(
+              s.subscribe($.sub, $.parent, $.ref),
+              seq(
+                s._subscribe($.next_subscribers, $.subscribers, $.sub),
+                s.send($.parent, s.ok($.ref)),
+                u($.next, l($.next_subscribers)),
+              ),
+            ),
+            l(
+              s.unsubscribe($.sub, $.parent, $.ref),
+              seq(
+                s._unsubscribe($.next_subscribers, $.subscribers, $.sub),
+                s.send($.parent, s.ok($.ref)),
+                u($.next, l($.next_subscribers)),
+              ),
+            ),
+            l(s.close(), seq(s._unsubscribe_all($.subscribers), s.fail())),
+          ),
+        ),
+      ),
+    ),
+  },
+
+  event_send: {
+    rule__params: l($.pid, $.event),
+    rule__body: s.send($.pid, s.event($.event)),
+  },
+  event_subscribe: {
+    rule__params: l($.sub, $.bus, $.fn),
+    rule__body: seq(
+      s.spawn_link(
+        $.sub,
+        s.loop(
+          seq(
+            s.receive($.message),
+            s.match_cond(
+              $.message,
+              l(
+                s.event($.e),
+                s.if_then_else(s.call($.fn, $.e), s.ok(), s.ok()),
+              ),
+              l(s.unsubscribe(), s.fail()),
+            ),
+          ),
+        ),
+      ),
+      s.id($.ref),
+      s.self($.self),
+      s.send($.bus, s.subscribe($.sub, $.self, $.ref)),
+      s.receive(s.ok($.ref)),
+    ),
+  },
+  event_unsubscribe: {
+    rule__params: l($.sub, $.bus),
+    rule__body: seq(
+      s.id($.ref),
+      s.self($.self),
+      s.send($.bus, s.unsubscribe($.sub, $.self, $.ref)),
+      s.receive(s.ok($.ref)),
+    ),
+  },
+  event_close: {
+    rule__params: l($.bus),
+    rule__body: s.send($.bus, s.close()),
+  },
+
+  _publish: {
+    rule__params: l($.event, $.subscribers),
+    rule__body: seq(
+      s($.sub).in($.subscribers),
+      s.send($.sub, s.event($.event)),
+    ),
+  },
+  _subscribe: {
+    rule__params: l($.next, $.prev, $.sub),
+    rule__body: s.if_then_else(
+      s($.sub).in($.prev),
+      u($.next, $.prev),
+      s.append_left_right($.next, $.prev, l($.sub)),
+    ),
+  },
+  _unsubscribe: {
+    rule__params: l($.next, $.prev, $.sub),
+    rule__body: seq(
+      s.filter_list($.next, $.prev, s.not_equal($.sub)),
+      s.send($.sub, s.unsubscribe()),
+    ),
+  },
+  _unsubscribe_all: {
+    rule__params: l($.subscribers),
+    rule__body: seq(s($.sub).in($.subscribers), s.send($.sub, s.unsubscribe())),
+  },
+
+  _test_event_bus: {
+    test__group: "async",
+    rule__params: l(),
+    rule__body: seq(
+      s.event_bus($.bus),
+      s.agent($.a, l()),
+      s.agent($.b, l()),
+
+      s.event_subscribe(
+        $.a_sub,
+        $.bus,
+        fn($.e)(
+          s.match_cond(
+            $.e,
+            l(s.a($.value), s.agent_push($.a, $.value)),
+            l(s.ab($.value), s.agent_push($.a, $.value)),
+            l(__, s.ok()),
+          ),
+        ),
+      ),
+
+      s.event_subscribe(
+        $.b_sub,
+        $.bus,
+        fn($.e)(
+          s.match_cond(
+            $.e,
+            l(s.b($.value), s.agent_push($.b, $.value)),
+            l(s.ab($.value), s.agent_push($.b, $.value)),
+            l(__, s.ok()),
+          ),
+        ),
+      ),
+
+      s.event_send($.bus, s.a(123)),
+      s.event_send($.bus, s.b(456)),
+      s.event_send($.bus, s.ab(789)),
+      s.sleep(1),
+      s.expect_eq(x.agent_get($.a), l(123, 789)),
+      s.expect_eq(x.agent_get($.b), l(456, 789)),
+
+      s.event_unsubscribe($.b_sub, $.bus),
+      s.event_send($.bus, s.ab(42)),
+      s.sleep(1),
+      s.expect_eq(x.agent_get($.a), l(123, 789, 42)),
+      s.expect_eq(x.agent_get($.b), l(456, 789)),
+
+      s.event_close($.bus),
+      s.event_send($.bus, s.ab(69)),
+      s.sleep(1),
+      s.expect_eq(x.agent_get($.a), l(123, 789, 42)),
+      s.expect_eq(x.agent_get($.b), l(456, 789)),
     ),
   },
 });
