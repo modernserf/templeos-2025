@@ -331,19 +331,17 @@ export const browserData = pkg("browser", {
     file__description: l("the view selection menu on window chrome"),
     rule__params: l($.out, $.window, $.id, $.selected),
     rule__body: seq(
-      s.collect_item_in(
-        $.options,
-        s.option($.view, $.name),
-        seq(
-          s.view__for_record($.view, $.id),
-          s.cond(f.file__name($.view, $.name), u($.view, $.name)),
-        ),
-      ),
       s.view__select(
         $.out,
         l(),
         $.selected,
-        $.options,
+        x.collect_item_in(
+          s.option($.view, $.name),
+          seq(
+            s.view__for_record($.view, $.id),
+            s.cond(f.file__name($.view, $.name), u($.view, $.name)),
+          ),
+        ),
         fn(s.change($.next_view))(s.on__set_view_menu($.window, $.next_view)),
       ),
     ),
@@ -529,8 +527,7 @@ export const browserData = pkg("browser", {
         ),
         u($.window_menu, l()),
       ),
-      s._app_menu_content($.base_menu),
-      s.append_left_right($.menu_bar, $.base_menu, $.window_menu),
+      s.append_left_right($.menu_bar, x._app_menu_content(), $.window_menu),
 
       s.row(
         $.out,
@@ -540,16 +537,14 @@ export const browserData = pkg("browser", {
         ),
         xfn($.out)(
           s(s.menu($.title, $.menu)).in($.menu_bar),
-          s.collect_item_in(
-            $.options,
-            s.option($.opt_id, $.label),
-            s(s.menu_option($.opt_id, $.label, __)).in($.menu),
-          ),
           s.view__menu(
             $.out,
             l(s.class("AppMenu")),
             $.title,
-            $.options,
+            x.collect_item_in(
+              s.option($.opt_id, $.label),
+              s(s.menu_option($.opt_id, $.label, __)).in($.menu),
+            ),
             fn(s.change($.opt_id))(
               s(s.menu_option($.opt_id, __, $.handler)).in($.menu),
               $.handler,
