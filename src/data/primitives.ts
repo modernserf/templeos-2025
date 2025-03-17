@@ -276,8 +276,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
           matches.push(resolveDeep(pattern));
           next = gen.next();
         } else {
-          const result = yield next.value;
-          next = gen.next(result);
+          next = gen.next(yield next.value);
         }
       }
       it.backtrack(s);
@@ -923,6 +922,21 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (it.unify(date, dateBox)) yield it.result();
     },
   },
+  // // TODO: set process flag
+  // begin_trace: {
+  //   rule__params: l(),
+  //   rule__primitive: function* (it) {
+  //     it.__trace = true;
+  //     yield it.result();
+  //   },
+  // },
+  // end_trace: {
+  //   rule__params: l(),
+  //   rule__primitive: function* (it) {
+  //     it.__trace = false;
+  //     yield it.result();
+  //   },
+  // },
   log: {
     rule__params: $.messages,
     rule__primitive: function* (it, ...args) {

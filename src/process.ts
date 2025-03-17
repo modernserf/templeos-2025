@@ -207,13 +207,12 @@ export class State {
     for (const arg of args) {
       if (arg.tag === "expand") {
         const result = { tag: "var", fact: this.fresh("result") } as const;
-        const call = box("call", [arg.value, result]);
-
+        const call = box("apply", [box("", [result]), arg.value]);
         const gen = this.eval(call);
         let next = gen.next();
         while (!next.done) {
           if (next.value.tag === "result") {
-            args.push(resolveDeep(result));
+            out.push(resolveDeep(result));
             next = gen.next();
           } else {
             next = gen.next(yield next.value);
@@ -223,6 +222,7 @@ export class State {
         out.push(arg);
       }
     }
+
     return out;
   }
 

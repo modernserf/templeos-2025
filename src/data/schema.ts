@@ -1,4 +1,4 @@
-import { $, __, f, l, s, seq, x } from "../expr";
+import { $, __, f, l, s, seq, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 
 export const schema = pkg("schema", {
@@ -84,7 +84,6 @@ export const schema = pkg("schema", {
       seq(
         f.db__schema($.id, $.schema),
         s.none(f._ignore_schema_check_all($.id, __)),
-        // s.log("check", $.id),
         s.expect_ok(s.schema_check($.schema, $.id)),
       ),
     ),
@@ -100,22 +99,24 @@ export const schema = pkg("schema", {
         l(),
         s.table(
           l(),
-          s.table_section(
-            l(),
-            l(s.view__string("Records")),
-            s.expr_iter_else(
-              f.db__schema($.rec, $.id),
-              l(s.table_row(l(), s.view__file_link($.rec))),
-              l(s.table_row(l(), s.view__string("none"))),
+          x.table_section(
+            x.table_header(l(), x.view__string("Records")),
+            xfn($.out)(
+              s.if_then_else(
+                f.db__schema($.rec, $.id),
+                s.table_row($.out, l(), x.view__file_link($.rec)),
+                s.table_row($.out, l(), x.view__string("none")),
+              ),
             ),
           ),
-          s.table_section(
-            l(),
-            l(s.view__string("Constructors")),
-            s.expr_iter_else(
-              f._constructor($.ctor, $.id),
-              l(s.table_row(l(), s._view_constructor($.ctor))),
-              l(s.table_row(l(), s.view__string("none"))),
+          x.table_section(
+            x.table_header(l(), x.view__string("Constructors")),
+            xfn($.out)(
+              s.if_then_else(
+                f._constructor($.ctor, $.id),
+                s.table_row($.out, l(), x._view_constructor($.ctor)),
+                s.table_row($.out, l(), x.view__string("none")),
+              ),
             ),
           ),
         ),

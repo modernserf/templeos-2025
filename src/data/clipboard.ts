@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { $, __, f, l, s, seq, x } from "../expr";
+import { $, __, f, l, s, seq } from "../expr";
 import { pkg } from "../pkg";
 
 export const clipboardRules = pkg("clipboard", {

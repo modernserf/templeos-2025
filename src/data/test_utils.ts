@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, Expr, seq, f, __, u } from "../expr";
+import { l, s, $, Expr, seq, f, __, u, x, xfn } from "../expr";
 
 export const test = {
   ok: (goal: Expr) => s.expect_ok(goal),
@@ -83,20 +83,21 @@ export const testUtils = {
       s.table(
         $.out,
         l(),
-        s.table_section(
-          l(),
-          l(
-            s.view__string("group"),
-            s.view__string("test"),
-            s.view__string("result"),
+        x.table_section(
+          x.table_header(
+            l(),
+            x.view__string("group"),
+            x.view__string("test"),
+            x.view__string("result"),
           ),
-          s.expr_iter(
+          xfn($.out)(
             f.test__group($.id, $.group),
             s.table_row(
+              $.out,
               l(),
-              s.view__string($.group),
-              s.view__file_link($.id),
-              s.view__test_result($.id),
+              x.view__string($.group),
+              x.view__file_link($.id),
+              x.view__test_result($.id),
             ),
           ),
         ),

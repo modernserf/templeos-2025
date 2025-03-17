@@ -1,5 +1,5 @@
 import { Rec } from ".";
-import { l, s, $, f, __, seq } from "../expr";
+import { l, s, $, f, __, seq, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 
 export const collectionData = pkg("file", {
@@ -62,27 +62,28 @@ export const collectionData = pkg("file", {
     rule__body: s.table(
       $.out,
       l(),
-      s.table_section(
-        l(),
-        l(
-          s.view__string("Name"),
-          s.view__string("Schema"),
-          s.view__string("Description"),
+      x.table_section(
+        x.table_header(
+          l(),
+          x.view__string("Name"),
+          x.view__string("Schema"),
+          x.view__string("Description"),
         ),
-        s.expr_iter(
+        xfn($.out)(
           s($.item).in($.collection),
           s.table_row(
+            $.out,
             l(),
-            s.view__file_link($.item),
-            s.expr_iter_else(
+            x.view__file_link($.item),
+            x.result_if(
               f.db__schema($.item, $.schema),
-              l(s.view__file_link($.schema)),
-              l(s.view__string("")),
+              s.view__file_link($.schema),
+              s.view__string(""),
             ),
-            s.expr_iter_else(
+            x.result_if(
               f.file__description($.item, $.desc),
-              l(s.view__text($.desc)),
-              l(s.view__string("")),
+              s.view__text($.desc),
+              s.view__string(""),
             ),
           ),
         ),

@@ -1,4 +1,4 @@
-import { l, seq, s, $, __, u, fn } from "../expr";
+import { l, seq, s, $, __, u, fn, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 
 export const viewAnyRecord = pkg("any_record", {
@@ -25,19 +25,17 @@ export const viewAnyRecord = pkg("any_record", {
   },
   _view_number: {
     rule__params: l($.out, $.value),
-    rule__body: seq(s.view__string($.out, $.value)),
+    rule__body: s.view__string($.out, $.value),
   },
   _view_string: {
     rule__params: l($.out, $.value),
-    rule__body: seq(
-      s.html(
-        $.out,
-        "span",
-        l(),
-        s.view__string('"'),
-        s.view__string($.value),
-        s.view__string('"'),
-      ),
+    rule__body: s.html(
+      $.out,
+      "span",
+      l(),
+      s.view__string('"'),
+      s.view__string($.value),
+      s.view__string('"'),
     ),
   },
   _view_box: {
@@ -69,8 +67,7 @@ export const viewAnyRecord = pkg("any_record", {
     rule__params: $.params,
     rule__body: seq(
       s.params_rest($.params, l($.out, $.props, $.handler), $.children),
-      s.expr_children($.rendered_children, $.children),
-      u($.out, s.Clickable($.props, $.handler, $.rendered_children)),
+      u($.out, s.Clickable($.props, $.handler, $.children)),
     ),
   },
   _focus_cell: {
@@ -150,47 +147,55 @@ export const viewAnyRecord = pkg("any_record", {
         l(),
         s.table(
           l(),
-          s.table_section(
-            l(),
-            l(s.view__string("Field"), s.view__string("Value")),
-            s.table_row(
+          x.table_section(
+            x.table_header(
               l(),
-              s._focus_cell($.state, s.id_key(), s.view__string("id")),
-              s._focus_cell($.state, s.id_value(), s.view__string($.id)),
+              x.view__string("Field"),
+              x.view__string("Value"),
             ),
-            s.expr_iter(
+            x.table_row(
+              l(),
+              x._focus_cell($.state, s.id_key(), x.view__string("id")),
+              x._focus_cell($.state, s.id_value(), x.view__string($.id)),
+            ),
+            xfn($.out)(
               s.field_record($.field, $.id),
               s.table_row(
+                $.out,
                 l(),
-                s._focus_cell(
+                x._focus_cell(
                   $.state,
                   s.field_key($.field),
-                  s.view__file_link($.field),
+                  x.view__file_link($.field),
                 ),
-                s._focus_cell(
+                x._focus_cell(
                   $.state,
                   s.field_value($.field),
-                  s._view_field($.field, $.id),
+                  x._view_field($.field, $.id),
                 ),
               ),
             ),
           ),
-          s.table_section(
-            l(),
-            l(s.view__string("Reference"), s.view__string("Record")),
-            s.expr_iter(
+          x.table_section(
+            x.table_header(
+              l(),
+              s.view__string("Reference"),
+              s.view__string("Record"),
+            ),
+            xfn($.out)(
               s.ref_field_record($.ref, $.field, $.id),
               s.table_row(
+                $.out,
                 l(),
-                s._focus_cell(
+                x._focus_cell(
                   $.state,
                   s.ref_key($.field),
-                  s.view__file_link($.field),
+                  x.view__file_link($.field),
                 ),
-                s._focus_cell(
+                x._focus_cell(
                   $.state,
                   s.ref_key($.field),
-                  s.view__file_link($.ref),
+                  x.view__file_link($.ref),
                 ),
               ),
             ),

@@ -59,6 +59,14 @@ export const core = pkg("core", {
       s.expect_eq(l(1, 2, 3), x.list(1, x.in(l()), x.in(l(2, 3)))),
     ),
   },
+  result_if: {
+    rule__params: l($.result, $.if, $.then_f, $.else_f),
+    rule__body: s.if_then_else(
+      $.if,
+      s.call($.then_f, $.result),
+      s.call($.else_f, $.result),
+    ),
+  },
   bool_goal: {
     rule__params: l($.bool, $.goal),
     rule__body: s.if_then_else(

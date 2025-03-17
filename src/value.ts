@@ -33,10 +33,15 @@ export function printValue(value: Value, indent = ""): string {
     case "string":
     case "number":
       return JSON.stringify(value.value);
-    case "box":
+    case "box": {
+      const inline = `${value.id}(${value.args
+        .map((f) => printValue(f, indent))
+        .join(", ")})`;
+      if (inline.length < 80 - indent.length) return inline;
       return `${value.id}(\n${indent}  ${value.args
         .map((f) => printValue(f, indent + "  "))
-        .join("\n" + indent + "  ")}\n${indent})`;
+        .join(",\n" + indent + "  ")}\n${indent})`;
+    }
     case "expand":
       return `{ ${printValue(value.value, indent)} }`;
   }

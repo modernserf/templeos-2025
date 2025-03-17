@@ -1,72 +1,52 @@
-import { l, seq, s, $, u, __, dot, fn } from "../expr";
-import { test } from "./test_utils";
+import { l, seq, s, $, u, __, fn, alt, x } from "../expr";
+import { pkg } from "../pkg";
 
-export const viewTable = {
+export const viewTable = pkg("table", {
   table: {
     rule__params: $.params,
     rule__body: seq(
       s.params_rest($.params, l($.out, $.props), $.sections),
-      s.expr_children($.rendered_sections, $.sections),
-      s.nonempty($.rendered_sections),
-
-      s.collect_item_in(
-        $.flat,
-        $.item,
-        dot($.item, s.unify($.rendered_sections), s.in(), s.in()),
-      ),
-      u($.out, s.Html("table", $.props, $.flat)),
+      s.nonempty($.sections),
+      u($.out, s.Html("table", $.props, $.sections)),
     ),
   },
   table_section: {
     rule__params: $.params,
     rule__body: seq(
-      s.params_rest($.params, l($.out, $.header_props, $.header), $.rows),
-      s.expr_children($.rendered_header, $.header),
-      s.expr_children($.rendered_rows, $.rows),
-      s.nonempty($.rendered_rows),
+      s.params_rest($.params, l($.out, $.header), $.rows),
+      s.nonempty($.rows),
+      alt(
+        u($.out, s.Html("thead", l(), l($.header))),
+        u($.out, s.Html("tbody", l(), $.rows)),
+      ),
+    ),
+  },
+  table_header: {
+    rule__params: $.params,
+    rule__body: seq(
+      s.params_rest($.params, l($.out, $.header_props), $.values),
       s.map_list(
-        $.header_cells,
-        $.rendered_header,
+        $.cells,
+        $.values,
         fn(s.Html("th", $.header_props, l($.item)), $.item)(),
       ),
-      u(
-        $.out,
-        l(
-          s.Html("thead", l(), l(s.Html("tr", l(), $.header_cells))),
-          s.Html("tbody", l(), $.rendered_rows),
-        ),
-      ),
+      u($.out, s.Html("tr", l(), $.cells)),
     ),
   },
   table_row: {
     rule__params: $.params,
     rule__body: seq(
       s.params_rest($.params, l($.out, $.props), $.items),
-      s.expr_children($.rendered_items, $.items),
-      s.map_list(
-        $.cells,
-        $.rendered_items,
-        fn(s.Html("td", l(), l($.item)), $.item)(),
-      ),
+      s.map_list($.cells, $.items, fn(s.Html("td", l(), l($.item)), $.item)()),
       u($.out, s.Html("tr", $.props, $.cells)),
     ),
   },
-  test__view_table: {
+  _test_table: {
     test__group: "views",
     rule__params: l(),
     rule__body: seq(
-      test.collect(
-        $.out,
-        s.table(
-          $.out,
-          l(),
-          s.table_section(
-            l(),
-            l(s.view__string("Key"), s.view__string("Value")),
-            s.table_row(l(), s.view__string("foo"), s.view__string("123")),
-            s.table_row(l(), s.view__string("bar"), s.view__string("456")),
-          ),
-        ),
+      u(
+        $.expected,
         s.Html(
           "table",
           l(),
@@ -110,6 +90,27 @@ export const viewTable = {
           ),
         ),
       ),
+      u($.items, l(l("foo", "123"), l("bar", "456"))),
+      s.expect_eq(
+        x.table(
+          l(),
+          x.table_section(
+            x.table_header(l(), x.view__string("Key"), x.view__string("Value")),
+            x(
+              fn($.out)(
+                s(l($.key, $.value)).in($.items),
+                s.table_row(
+                  $.out,
+                  l(),
+                  x.view__string($.key),
+                  x.view__string($.value),
+                ),
+              ),
+            ),
+          ),
+        ),
+        $.expected,
+      ),
     ),
   },
-};
+});
