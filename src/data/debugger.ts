@@ -4,36 +4,36 @@ import { pkg } from "../pkg";
 export const debug = pkg("debug", {
   init_debugger: {
     rule__params: l(),
-    rule__body: s.spawn_link("debugger", s._init()),
+    rule__body: seq(
+      s.event_bus("debugger"),
+      s.event_subscribe(__, "debugger", s._handle_event()),
+    ),
+  },
+  _handle_event: {
+    rule__params: l($.e),
+    rule__body: s.match_cond(
+      $.e,
+      l(
+        s.break($.pid, $.ref),
+        seq(
+          s.on__new_window(
+            s.location(
+              "view__debugger",
+              "view__debugger",
+              s.debugger($.pid, $.ref),
+            ),
+          ),
+        ),
+      ),
+    ),
   },
   debugger: {
     rule__params: l(),
     rule__body: seq(
       s.self($.self),
       s.id($.ref),
-      s.send("debugger", s.break($.self, $.ref)),
+      s.event_send("debugger", s.break($.self, $.ref)),
       s.receive(s.resume($.ref)),
-    ),
-  },
-  _init: {
-    rule__params: l(),
-    rule__body: s.loop(
-      seq(
-        s.receive($.e),
-        s.match_cond(
-          $.e,
-          l(
-            s.break($.pid, $.ref),
-            s.on__new_window(
-              s.location(
-                "view__debugger",
-                "view__debugger",
-                s.debugger($.pid, $.ref),
-              ),
-            ),
-          ),
-        ),
-      ),
     ),
   },
   _resume: {

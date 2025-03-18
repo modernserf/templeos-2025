@@ -123,7 +123,6 @@ export const browserData = pkg("browser", {
         s.location($.id, $.view),
         s.location($.id, $.view, $.params),
       ),
-      s.or_default($.params, l()),
     ),
   },
 
