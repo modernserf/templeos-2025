@@ -53,7 +53,7 @@ export const viewForm = {
   },
   on_click: {
     rule__params: l(s.click(__), $.fn),
-    rule__body: $.fn,
+    rule__body: seq($.fn, s.ok()),
   },
   on_change: {
     rule__params: l($.e, $.fn),

@@ -43,7 +43,7 @@ export const debug = pkg("debug", {
   view__debugger: {
     file__name: "Debugger",
     view__subject: s.self(),
-    rule__params: l($.out, $.id, $.state),
+    rule__params: l($.out, $._id, $.state),
     rule__body: seq(
       s.current_window($.window),
       s.get_state(s.debugger($.pid, $.ref), $.state, s.none()),

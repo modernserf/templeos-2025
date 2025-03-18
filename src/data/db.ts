@@ -72,7 +72,7 @@ export const dbRules = pkg("db", {
       s.event_bus($.in),
       s.event_bus($.subs),
       s.event_subscribe(
-        $.sub,
+        $._sub,
         $.in,
         s.match_cond(
           l(

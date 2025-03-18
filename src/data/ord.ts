@@ -40,7 +40,7 @@ export const ord = pkg("ord", {
       s.expect_ok(s.ord(s.lt(), "foo", "foobar")),
 
       // TODO: I think this is not good for stable sorting
-      s.expect_ok(s.ord(s.eq(), $.foo, $.bar)),
+      s.expect_ok(s.ord(s.eq(), $._foo, $._bar)),
 
       s.expect_ok(s.ord(s.lt(), s.foo(), s.zoo())),
       s.expect_ok(s.ord(s.lt(), s.foo(), s.foo(1))),

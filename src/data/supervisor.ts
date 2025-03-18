@@ -11,13 +11,11 @@ export const supervisor = pkg("supervisor", {
     rule__params: l($.sup_config, $.workers),
     rule__body: seq(
       s.trap_exit(),
-      s.self($.supervisor),
       s.map_list(
         $.init,
         $.workers,
         fn(l($.pid, $.cfg), $.cfg)(s._init_worker($.pid, $.cfg)),
       ),
-
       s.loop_iter(
         $.next,
         $.prev,
@@ -82,7 +80,7 @@ export const supervisor = pkg("supervisor", {
   _restart_one: {
     rule__params: l($.next, $.prev, $.i),
     rule__body: seq(
-      s.value_box_index(l($.old_pid, $.worker), $.prev, $.i),
+      s.value_box_index(l($._old_pid, $.worker), $.prev, $.i),
       s._init_worker($.new_pid, $.worker),
       s.updated_box_index_value($.next, $.prev, $.i, l($.new_pid, $.worker)),
     ),

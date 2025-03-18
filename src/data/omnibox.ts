@@ -5,7 +5,7 @@ export const omnibox = {
   omnibox: {
     view__subject: s.self(),
     file__name: "Search",
-    rule__params: l($.out, $.id, $.state),
+    rule__params: l($.out, $._id, $.state),
     rule__body: seq(
       s.get_state(s.omnibox($.search), $.state, s.omnibox("")),
       s.column(

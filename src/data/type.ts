@@ -15,13 +15,13 @@ export const typeRecs = pkg("type", {
   },
   any_type: {
     db__schema: "type",
-    rule__params: l($.value),
+    rule__params: l(__),
     rule__body: s.ok(),
     _hierarchy: l(l(__, s.any_type(), s.ok())),
   },
   no_type: {
     db__schema: "type",
-    rule__params: l($.value),
+    rule__params: l(__),
     rule__body: s.fail(),
     _hierarchy: l(l(s.no_type(), __, s.ok())),
   },
@@ -206,7 +206,7 @@ export const typeRecs = pkg("type", {
     db__schema: "type",
     rule__params: l($.value),
     rule__body: seq(
-      s.box($.value, $.tag, $.args),
+      s.box($.value, $.tag, $._args),
       s.rule__params(__, $.tag),
       // TODO: typecheck args
     ),
@@ -232,7 +232,7 @@ export const typeRecs = pkg("type", {
   _fn: {
     rule__params: $.params,
     rule__body: seq(
-      s.params_rest($.params, l($.t), $.args),
+      s.params_rest($.params, l($.t), $._args),
       u(
         $.t,
         s._union(

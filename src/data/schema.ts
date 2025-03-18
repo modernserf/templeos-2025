@@ -62,9 +62,11 @@ export const schema = pkg("schema", {
       l(s.field_optional($.field), s.field_check_opt($.field, $.record)),
     ),
   },
+
   _test_invalid_schema: {
     // missing schema__fields
     db__schema: "schema",
+    test__flags: l(s.ignore_schema_check_all()),
     _ignore_schema_check_all: s.ok(),
   },
   _test_schema_check: {
@@ -83,7 +85,7 @@ export const schema = pkg("schema", {
       __,
       seq(
         s.db__schema($.schema, $.id),
-        s.none(s.value_record_field(__, $.id, "_ignore_schema_check_all")),
+        s.none(s.test__has_flag(s.ignore_schema_check_all(), $.id)),
         s.expect_ok(s.schema_check($.schema, $.id)),
       ),
     ),
@@ -92,7 +94,7 @@ export const schema = pkg("schema", {
   _view_schema_records: {
     file__name: "Schema records",
     view__subject: s.schema("schema"),
-    rule__params: l($.out, $.id, $.params),
+    rule__params: l($.out, $.id, $._state),
     rule__body: seq(
       s.column(
         $.out,

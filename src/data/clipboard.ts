@@ -19,7 +19,7 @@ export const clipboardRules = pkg("clipboard", {
   view__clipboard: {
     view__subject: s.schema("clipboard"),
     file__name: "Clipboard",
-    rule__params: l($.out, $.id, $.state),
+    rule__params: l($.out, $.id, $._state),
     rule__body: s.wrap(
       $.out,
       l(),

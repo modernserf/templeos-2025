@@ -18,9 +18,10 @@ export const viewAnyRecord = pkg("any_record", {
 
   _view_var: {
     rule__params: l($.out, $.var),
-    rule__body: seq(
+    rule__body: s.if_then_else(
       s.ident_var($.ident, $.var),
       s.view__string($.out, $.ident),
+      s.view__string($.out, "__"),
     ),
   },
   _view_number: {
@@ -148,7 +149,6 @@ export const viewAnyRecord = pkg("any_record", {
     ),
     rule__params: l($.out, $.id, $.state),
     rule__body: seq(
-      s.get_focus($.focus, $.state, s.none()),
       s.column(
         $.out,
         l(),

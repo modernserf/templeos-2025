@@ -98,6 +98,7 @@ export type Rec = Record<string, Expr> & {
   rule__body?: Box<string, Expr[]>;
 
   test__group?: string;
+  test__flags?: List<Expr>;
 
   file__name?: string;
   file__description?: List<FormatText>;
@@ -155,7 +156,7 @@ export const data = mergeAndCheck(
         view__subject: s.self(),
         file__name: "Home",
         file__description: l("This is the home card"),
-        rule__params: l($.out, $.id, $.state),
+        rule__params: l($.out, $.id, $._state),
         _left_links: l(
           "code_explorer",
           "omnibox",

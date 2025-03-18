@@ -5,7 +5,7 @@ export const codeExplorerData = {
   code_explorer: {
     file__name: "Code explorer",
     view__subject: s.self(),
-    rule__params: l($.out, $.self, $.state),
+    rule__params: l($.out, $._id, $.state),
     rule__body: seq(
       s.get_state(s.code_explorer($.search), $.state, s.code_explorer("")),
       s.column(

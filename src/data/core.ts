@@ -133,7 +133,7 @@ export const core = pkg("core", {
   apply: {
     rule__params: l($.args, $.fn),
     rule__body: s.cond(
-      l(u($.fn, s.fn($.params, $.goal)), s._apply_fn($.args, $.fn)),
+      l(u($.fn, s.fn($._params, $._goal)), s._apply_fn($.args, $.fn)),
       l(s.is_box($.fn), s._lapply_partial($.args, $.fn)),
       l(s.string($.fn), s._apply_id($.args, $.fn)),
       s.throw(s.invalid_apply($.args, $.fn)),
@@ -309,13 +309,13 @@ export const core = pkg("core", {
   },
   or_default: {
     rule__params: l($.val, $.default),
-    rule__body: s.cond(s.nonvar($.var), u($.val, $.default)),
+    rule__body: s.cond(s.nonvar($.val), u($.val, $.default)),
   },
   _test_var: {
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
-      test.ok(s.var($.x)),
+      test.ok(s.var($._x)),
       test.ok(s.var(__)),
       test.fail(s.var(123)),
     ),
@@ -341,6 +341,14 @@ export const core = pkg("core", {
       s.slice_box_from_to($.right, $.box, $.split, __),
     ),
   },
+  updated_box_index_fn: {
+    rule__params: l($.next, $.prev, $.index, $.fn),
+    rule__body: seq(
+      s.value_box_index($.prev_value, $.prev, $.index),
+      s.call($.fn, $.next_value, $.prev_value),
+      s.updated_box_index_value($.next, $.prev, $.index, $.next_value),
+    ),
+  },
   updated_box_index_removed: {
     rule__params: l($.updated, $.box, $.index, $.removed),
     rule__body: seq(
@@ -356,7 +364,7 @@ export const core = pkg("core", {
       test.collect(
         l($.updated, $.removed),
         s.updated_box_index_removed(
-          $.res,
+          $.updated,
           l("foo", "bar", "baz"),
           1,
           l($.removed),

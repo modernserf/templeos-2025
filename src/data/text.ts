@@ -79,7 +79,7 @@ export const text = pkg("text", {
   _view_document: {
     file__name: "Text viewer",
     view__subject: s.schema("text_document"),
-    rule__params: l($.out, $.id, $.state),
+    rule__params: l($.out, $.id, $._state),
     rule__body: s.column(
       $.out,
       l(s.style("margin", "1rem")),

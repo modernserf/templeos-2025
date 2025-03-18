@@ -332,6 +332,9 @@ export const parse = pkg("parse", {
   _separated_by: {
     rule__params: l($.items, $.out, $.in, $.p_item, $.p_sep),
     rule__body: s._seq(
+      $.items,
+      $.out,
+      $.in,
       l($.p_item, s._repeat(s._right($.p_sep, $.p_item), s._option($.p_sep))),
       fn(
         $.res,

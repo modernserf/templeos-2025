@@ -126,8 +126,7 @@ export const asyncRules = pkg("async", {
     rule__params: l($.agent, $.value),
     rule__body: seq(
       s.agent_get($.stack, $.agent),
-
-      ($.stack, $.popped, l($.value)),
+      s.append_left_right($.stack, $.popped, l($.value)),
       // TODO: sync update that provides access to prev & next
       s.agent_set($.agent, $.popped),
     ),
@@ -151,7 +150,7 @@ export const asyncRules = pkg("async", {
 
   _t_event_bus_state: {
     rule__params: l($.t),
-    rule__body: s.tuple(s.list_of(s.pid())),
+    rule__body: s.tuple($.t, s.list_of(s.pid())),
   },
   _t_event_bus_message: {
     rule__params: l($.t, $.t_event),
@@ -282,7 +281,7 @@ export const asyncRules = pkg("async", {
       s.agent($.b, l()),
 
       s.event_subscribe(
-        $.a_sub,
+        $._a_sub,
         $.bus,
         fn($.e)(
           s.match_cond(

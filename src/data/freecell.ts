@@ -339,7 +339,7 @@ export const freeCell = pkg("free_cell", {
     ),
   },
   _check_put_column: {
-    rule__params: l($.with, $.without, $.card, $.x),
+    rule__params: l($.without, $.card, $.x),
     rule__body: seq(
       s.value_box_index($.col, $.without, $.x),
       s.cond(
@@ -357,7 +357,7 @@ export const freeCell = pkg("free_cell", {
     rule__body: s.if_then_else(
       s.var($.with),
       seq(
-        s._check_put_column($.with, $.without, $.card, $.x),
+        s._check_put_column($.without, $.card, $.x),
         s._move_column_unchecked($.with, $.without, $.card, $.x),
       ),
       s._move_column_unchecked($.with, $.without, $.card, $.x),
@@ -510,7 +510,7 @@ export const freeCell = pkg("free_cell", {
     rule__params: l($.id),
     rule__body: seq(
       s.append_left_right(
-        x._undo_state($.prev_undo),
+        x._undo_state($.id),
         $.next_undo,
         l(s.move($.to, $.from)),
       ),

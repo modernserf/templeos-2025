@@ -37,7 +37,6 @@ export const collectionData = pkg("file", {
     file__description: l("ids of files in folder"),
     field__type: s.list_of(s.ref(__)),
     field__index: s.multi_ref(),
-    rule__params: l($.items, $.id),
   },
   _tags: {
     db__schema: "field",
@@ -114,25 +113,25 @@ export const collectionData = pkg("file", {
   _folder_list: {
     file__name: "Folder - List",
     view__subject: s.schema("folder"),
-    rule__params: l($.out, $.id, $.state),
+    rule__params: l($.out, $.id, $._state),
     rule__body: s._view_list($.out, x._folder_items($.id), $.id),
   },
   _folder_icon: {
     file__name: "Folder - Icon",
     view__subject: s.schema("folder"),
-    rule__params: l($.out, $.id, $.state),
+    rule__params: l($.out, $.id, $._state),
     rule__body: s._view_icons($.out, x._folder_items($.id), $.id),
   },
   _tag_list: {
     file__name: "Tag - List",
     view__subject: s.schema("tag"),
-    rule__params: l($.out, $.id, $.state),
+    rule__params: l($.out, $.id, $._state),
     rule__body: s._view_list($.out, x._tag_files($.id), $.id),
   },
   _tag_icon: {
     file__name: "Tag - Icon",
     view__subject: s.schema("tag"),
-    rule__params: l($.out, $.id, $.state),
+    rule__params: l($.out, $.id, $._state),
     rule__body: s._view_icons($.out, x._tag_files($.id), $.id),
   },
 

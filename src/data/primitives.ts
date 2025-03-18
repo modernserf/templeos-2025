@@ -1,6 +1,6 @@
 import { Rec } from "../data";
 import { test } from "../data/test_utils";
-import { $, l, s, seq, u, alt, __ } from "../expr";
+import { $, l, s, seq, u, alt, __, x } from "../expr";
 import { Value, box, k, printValue, valueExpr } from "../value";
 import {
   ensure,
@@ -14,7 +14,7 @@ import {
 function compilePrimitives(
   map: Record<
     string,
-    Pick<Rec, "test__group" | "rule__params" | "rule__body"> & {
+    Pick<Rec, "test__group" | "rule__params" | "rule__body" | "test__flags"> & {
       rule__primitive?: RulePrimitive;
     }
   >,
@@ -26,10 +26,11 @@ function compilePrimitives(
 
   for (const key in map) {
     const { rule__primitive, ...rec } = map[key];
+    out.rules[key] = rec;
     if (rule__primitive) {
       out.rulePrimitives[key] = rule__primitive;
+      out.rules[key].test__flags = l(s.ignore_single_vars());
     }
-    out.rules[key] = rec;
   }
 
   return out;
@@ -382,7 +383,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       s.agent($.agent, l(123)),
       s.spawn($.foo, seq(s.receive(__), s.throw(s.fail()))),
       s.spawn(
-        $.bar,
+        $._bar,
         seq(
           s.link($.foo),
           s.agent_push($.agent, 456),
@@ -428,7 +429,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       s.agent($.agent, l(123)),
       s.spawn($.foo, seq(s.receive(__), s.throw(s.fail()))),
       s.spawn(
-        $.bar,
+        $._bar,
         seq(
           s.trap_exit(),
           s.link($.foo),
@@ -465,7 +466,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__params: l(),
     rule__body: seq(
       test.ok(s.type_value(s.var(), __)),
-      test.ok(s.type_value(s.var(), $.x)),
+      test.ok(s.type_value(s.var(), $._x)),
       test.ok(s.type_value(s.number(), 123)),
       test.ok(s.type_value(s.string(), "hello")),
       test.ok(s.type_value(s.box(), s.id(123, "hello"))),
@@ -540,12 +541,30 @@ export const { rules, rulePrimitives } = compilePrimitives({
       }
     },
   },
+  unpack_expand: {
+    rule__params: l($.content, $.expand),
+    rule__primitive: function* (it, content, expand) {
+      if (expand.tag !== "expand") return;
+      if (it.unify(content, expand.value)) yield it.result();
+    },
+  },
   ident_var: {
     rule__params: l($.ident, $.var),
     rule__primitive: function* (it, ident, v) {
+      if (v.tag === "fresh") return;
       ensure(v, "var");
       if (it.unify(ident, k(v.fact.name))) yield it.result();
     },
+  },
+  _test_ident_var: {
+    test__group: "primitives",
+    rule__params: l(),
+    test__flags: l(s.ignore_single_vars()),
+    rule__body: seq(
+      s.expect_eq(x.ident_var($.foo), "foo"),
+      s.expect_fail(s.ident_var(__, __)),
+      s.expect_throw(s.ident_var(__, 123), s.expected_type(s.var(), 123)),
+    ),
   },
   string_number: {
     rule__params: l($.string, $.number),
