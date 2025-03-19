@@ -46,6 +46,7 @@ export type Schema =
   | "text_document"
   | "type"
   | "window"
+  | "view"
   | `_${string}`;
 
 export type Field =
@@ -153,6 +154,7 @@ export const data = mergeAndCheck(
     time,
     {
       home: {
+        db__schema: "view",
         view__subject: s.self(),
         file__name: "Home",
         file__description: l("This is the home card"),

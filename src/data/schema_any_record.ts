@@ -12,7 +12,22 @@ export const viewAnyRecord = pkg("any_record", {
         l(s.number(), s._view_number($.out, $.value)),
         l(s.string(), s._view_string($.out, $.value)),
         l(s.box(), s._view_box($.out, $.value)),
-        l(s.expand(), s.view__string($.out, "todo")),
+        l(s.expand(), s._view_expand($.out, $.value)),
+      ),
+    ),
+  },
+  _view_expand: {
+    rule__params: l($.out, $.value),
+    rule__body: seq(
+      s.unpack_expand($.content, $.value),
+      s.log($.value, $.content),
+      s.html(
+        $.out,
+        "span",
+        l(),
+        x.view__string("{"),
+        x.view__expr($.content),
+        x.view__string("}"),
       ),
     ),
   },
@@ -44,21 +59,16 @@ export const viewAnyRecord = pkg("any_record", {
     rule__params: l($.out, $.value),
     rule__body: seq(
       s.box($.value, $.tag, $.list),
-      s.wrap(
+      s.html(
         $.out,
-        l(),
+        "div",
+        l(s.style("display", "inline-block")),
         x.html("span", l(), x.view__file_link($.tag), x.view__string("(")),
-        x.view__spacer("0.25rem"),
         xfn($.out)(
-          s($.arg).in($.list),
+          s.value_box_index($.arg, $.list, $.i),
           alt(
-            s.html(
-              $.out,
-              "span",
-              l(s.style("flex", "1 1 auto")),
-              x.view__expr($.arg),
-            ),
-            s.view__spacer($.out, "0.25rem"),
+            s.if_then_else(u($.i, 0), s.fail(), s.view__string($.out, ", ")),
+            s.view__expr($.out, $.arg),
           ),
         ),
         x.html("span", l(), x.view__string(")")),
@@ -130,7 +140,17 @@ export const viewAnyRecord = pkg("any_record", {
     ),
   },
   _view: {
+    db__schema: "view",
     file__name: "Default viewer",
+    view__focus_type: s.enum(
+      s.none(),
+      s.id_key(),
+      s.id_value(),
+      s.field_key(s.ref("field")), // TODO: are undeclared fields "wrong" to type system?
+      s.field_value(s.any_type()),
+      s.ref_key(s.ref(__)),
+      s.ref_value(s.ref(__)),
+    ),
     view__subject: s.any(),
     view__menu_items: l(
       s.menu(

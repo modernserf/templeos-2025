@@ -184,6 +184,7 @@ export const testUtils = pkg("test", {
     ),
   },
   test_runner: {
+    db__schema: "view",
     view__subject: s.self(),
     file__name: "Unit tests",
     rule__params: l($.out, $._id, $._state),

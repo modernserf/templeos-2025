@@ -200,6 +200,13 @@ export const typeRecs = pkg("type", {
       ),
     ),
   },
+  union_enum: {
+    rule__params: $.params,
+    rule__body: seq(
+      s.params_rest($.params, l($.t, $.union), $.boxes),
+      s._union($.t, $.union, s.enum($.boxes)),
+    ),
+  },
 
   // types that interact with db
   goal: {

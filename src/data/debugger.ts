@@ -41,6 +41,7 @@ export const debug = pkg("debug", {
     rule__body: s.send($.pid, s.resume($.ref)),
   },
   view__debugger: {
+    db__schema: "view",
     file__name: "Debugger",
     view__subject: s.self(),
     rule__params: l($.out, $._id, $.state),

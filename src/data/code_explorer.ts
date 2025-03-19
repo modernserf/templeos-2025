@@ -3,8 +3,10 @@ import { l, seq, s, $, __, fn, xfn, x } from "../expr";
 
 export const codeExplorerData = {
   code_explorer: {
+    db__schema: "view",
     file__name: "Code explorer",
     view__subject: s.self(),
+    view__params_type: s.enum(s.code_explorer(s.string())),
     rule__params: l($.out, $._id, $.state),
     rule__body: seq(
       s.get_state(s.code_explorer($.search), $.state, s.code_explorer("")),

@@ -7,13 +7,11 @@ export const text = pkg("text", {
     rule__params: l($.t),
     rule__body: s.list_of(
       $.t,
-      s.type__union(
+      s.union_enum(
         s.string(),
-        s.enum(
-          s.link(s.string(), s.location()),
-          s.code(s.type__any()),
-          s.section(s.text(), s.text()),
-        ),
+        s.link(s.string(), s.location()),
+        s.code(s.type__any()),
+        s.section(s.text(), s.text()),
       ),
     ),
   },
@@ -77,6 +75,7 @@ export const text = pkg("text", {
   },
 
   _view_document: {
+    db__schema: "view",
     file__name: "Text viewer",
     view__subject: s.schema("text_document"),
     rule__params: l($.out, $.id, $._state),

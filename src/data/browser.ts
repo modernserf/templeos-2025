@@ -61,7 +61,7 @@ export const browserData = pkg("browser", {
   _view: {
     db__schema: "field",
     file__name: "History view ref",
-    field__type: s.ref(__), // TODO: view schema
+    field__type: s.ref("view"), // TODO: view schema
   },
   _params: {
     db__schema: "field",
@@ -375,11 +375,6 @@ export const browserData = pkg("browser", {
     ),
   },
 
-  _window_content: {
-    rule__params: l($.out, $.view, $.id, $.history),
-    rule__body: s.call($.view, $.out, $.id, $.history),
-  },
-
   _window_params: {
     rule__params: l($.id, $.view, $.history, $.window),
     rule__body: seq(
@@ -417,7 +412,7 @@ export const browserData = pkg("browser", {
                     s.update($.id, __, __),
                     s.update(__, __, $.id),
                   ),
-                  s._window_content($.view, $.id, $.history),
+                  s.view__render($.view, $.id, $.history),
                 ),
               ),
             ),

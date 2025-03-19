@@ -3,8 +3,10 @@ import { l, seq, s, $, fn, x, xfn, alt } from "../expr";
 
 export const omnibox = {
   omnibox: {
+    db__schema: "view",
     view__subject: s.self(),
     file__name: "Search",
+    view__params_type: s.enum(s.code_explorer(s.string())),
     rule__params: l($.out, $._id, $.state),
     rule__body: seq(
       s.get_state(s.omnibox($.search), $.state, s.omnibox("")),

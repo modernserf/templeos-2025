@@ -92,6 +92,7 @@ export const schema = pkg("schema", {
   },
 
   _view_schema_records: {
+    db__schema: "view",
     file__name: "Schema records",
     view__subject: s.schema("schema"),
     rule__params: l($.out, $.id, $._state),

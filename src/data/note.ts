@@ -39,6 +39,7 @@ export const note = pkg("note", {
     ),
   },
   _view: {
+    db__schema: "view",
     view__subject: s.schema("note"),
     file__name: "Note",
     rule__params: l($.out, $.id, $._state),
@@ -97,6 +98,7 @@ export const note = pkg("note", {
     ),
   },
   _view_all: {
+    db__schema: "view",
     view__subject: s.self(),
     file__name: "Notes",
     rule__params: l($.out, __, __),

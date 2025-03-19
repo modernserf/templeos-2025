@@ -28,11 +28,7 @@ export const freeCell = pkg("free_cell", {
   },
   _t_slot: {
     rule__params: l($.out),
-    rule__body: s.enum(
-      $.out,
-      s.card(s._t_suit(), s._t_rank()),
-      s.empty(s.string()),
-    ),
+    rule__body: s.union_enum($.out, s._t_card(), s.empty(s.string())),
   },
 
   _t_state: {
@@ -200,20 +196,23 @@ export const freeCell = pkg("free_cell", {
           s.column(
             $.o,
             l(),
-            xfn($.out)(
+            xfn($.o2)(
               s.if_then_else(
-                s.value_box_index($.card, $.col, $.y),
+                s.empty($.col),
                 s._view_card(
-                  $.out,
-                  $.card,
-                  u($.selected, s.columns($.x, $.y)),
-                  s.call($.handler, s.columns($.x, $.y)),
-                ),
-                s._view_card(
-                  $.out,
+                  $.o2,
                   s.empty(""),
                   u($.selected, s.columns($.x, $.y)),
                   s.call($.handler, s.columns($.x, $.y)),
+                ),
+                seq(
+                  s.value_box_index($.card, $.col, $.y),
+                  s._view_card(
+                    $.o2,
+                    $.card,
+                    u($.selected, s.columns($.x, $.y)),
+                    s.call($.handler, s.columns($.x, $.y)),
+                  ),
                 ),
               ),
             ),
@@ -259,8 +258,12 @@ export const freeCell = pkg("free_cell", {
     ),
   },
   _view_game: {
+    db__schema: "view",
     file__name: "FreeCell",
     view__subject: s.schema("_game"),
+    view__params_type: s.tuple(
+      s.enum(s.selected(s.union_enum(s._t_location(), s.none()))),
+    ),
     rule__params: l($.out, $.id, $.p),
     rule__body: seq(
       s._game_state(s.state($.stacks, $.cells, $.columns), $.id),
