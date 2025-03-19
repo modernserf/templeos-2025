@@ -78,72 +78,45 @@ export const testUtils = pkg("test", {
     ),
   },
 
-  _count_vars: {
-    rule__params: l($.next, $.prev, $.expr),
-    rule__body: seq(
-      s.cond(
-        l(
-          seq(s.var($.expr), s.ident_var($.ident, $.expr)),
-          s.if_then_else(
-            seq(
-              s.value_box_index(l($.name, $.count), $.prev, $.i),
-              s.eq($.name, $.ident),
-            ),
-            seq(
-              s.inc($.next_count, $.count),
-              s.updated_box_index_value(
-                $.n,
-                $.prev,
-                $.i,
-                l($.ident, $.next_count),
-              ),
-              u($.next, $.n),
-            ),
-            s.append_left_right($.next, $.prev, l(l($.ident, 1))),
-          ),
-        ),
-        l(
-          s.unpack_expand($.unpacked, $.expr),
-          s._count_vars($.next, $.prev, $.unpacked),
-        ),
-        l(s.is_box($.expr), s._count_vars_box($.next, $.prev, $.expr, 0)),
-        l(s.ok(), u($.next, $.prev)),
+  _get_idents: {
+    rule__params: l($.ident, $.expr),
+    rule__body: s.cond(
+      l(s.var($.expr), s.ident_var($.ident, $.expr)),
+      l(
+        s.unpack_expand($.unpacked, $.expr),
+        s._get_idents($.ident, $.unpacked),
       ),
-      s.cond(s.is_box($.next), s.throw(s.invalid_next($.expr, $.prev))),
-    ),
-  },
-  // TODO: why didn't fold_list work here
-  _count_vars_box: {
-    rule__params: l($.next, $.prev, $.expr, $.i),
-    rule__body: seq(
-      s.if_then_else(
-        s.value_box_index($._value, $.expr, $.i),
-        seq(
-          s.ensure_det(s._count_vars($.ns, $.prev, $._value)),
-          s.inc($.next_i, $.i),
-          s._count_vars_box($.next, $.ns, $.expr, $.next_i),
-        ),
-        u($.next, $.prev),
+      l(
+        s.is_box($.expr),
+        seq(s($._arg).in($.expr), s._get_idents($.ident, $._arg)),
       ),
     ),
   },
-  _test_count_vars: {
+  _increment_counter: {
+    rule__params: l($.next, $.prev, $.ident),
+    rule__body: s.if_then_else(
+      s.limit(1, s.value_box_index(l($.ident, $.count), $.prev, $.i)),
+      seq(
+        s.inc($.nc, $.count),
+        s.updated_box_index_value($.next, $.prev, $.i, l($.ident, $.nc)),
+      ),
+      s.append_left_right($.next, $.prev, l(l($.ident, 1))),
+    ),
+  },
+
+  _test_count_vars_2: {
     test__group: "core",
     test__flags: l(s.ignore_single_vars()),
     rule__params: l(),
     rule__body: seq(
-      s.expect_eq(x._count_vars(l(), 123), l()),
-      s.expect_eq(x._count_vars(l(), $.foo), l(l("foo", 1))),
-      s.expect_eq(
-        x._count_vars(l(), s.foo($.foo, $.foo, s.bar($.bar))),
-        l(l("foo", 2), l("bar", 1)),
-      ),
-      s.expect_eq(
-        x._count_vars(
-          l(l("duration", 1), l("self", 1), l("id", 1)),
-          s.ms_duration($.time_ms, $.duration),
-        ),
-        l(l("duration", 2), l("self", 1), l("id", 1), l("time_ms", 1)),
+      s.expect_collect($.ident, s._get_idents($.ident, 123)),
+      s.expect_collect($.ident, s._get_idents($.ident, $.foo), "foo"),
+      s.expect_collect(
+        $.ident,
+        s._get_idents($.ident, s.foo($.foo, $.foo, s.bar($.bar))),
+        "foo",
+        "foo",
+        "bar",
       ),
     ),
   },
@@ -169,25 +142,26 @@ export const testUtils = pkg("test", {
     ),
   },
 
-  // TODO: this takes ~5sec to run, can this be made fast enough to unit test?
   _test_single_vars_check: {
-    // test__group: "core",
+    test__group: "core",
     rule__params: l(),
     rule__body: s.block(
       __,
       seq(
         s.rule__params($.params, $.id),
-        // FIXME: handle var params (and var body) properly
-        s.if_then_else(
-          s.var($.params),
-          u($.init, l(l("params", 1))),
-          u($.init, l()),
-        ),
         s.cond(s.rule__body($.body, $.id), u($.body, s.ok())),
         s.none(s._has_flag(s.ignore_single_vars(), $.id)),
 
-        s._count_vars($.count, $.init, l($.params, $.body)),
+        // TODO: do this without making list?
+        s.collect_item_in(
+          $.idents,
+          $.ident,
+          s._get_idents($.ident, l($.params, $.body)),
+        ),
+        // s.list($.idents2, x._get_idents($.expr)), // why doesn't this work?
+        s.fold_list($.count, l(), $.idents, s._increment_counter()),
         s._single_vars($.singles, $.count),
+
         // TODO: check for non-single underscore vars too
         s.cond(s.empty($.singles), s.throw(s.single_vars($.id, $.singles))),
       ),
@@ -243,10 +217,6 @@ export const testUtils = pkg("test", {
           s.try_error_catch($.call, $.e, seq(s.log($.e), s.throw($.e))),
         ),
       ),
-      // run last
-      s.sleep(1),
-      s.log("core", "_test_single_vars_check"),
-      s._test_single_vars_check(),
       s.send($.resolve, s.ok()),
     ),
   },

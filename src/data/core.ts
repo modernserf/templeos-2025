@@ -168,10 +168,10 @@ export const core = pkg("core", {
     rule__body: s.none(s.box($.box, __, l())),
   },
   cond: {
-    rule__params: $.options,
+    rule__params: $.params,
     rule__body: seq(
-      s.nonempty($.options),
-      s.params_rest($.options, l($.cond), $.else),
+      s.nonempty($.params),
+      s.params_rest($.params, l($.cond), $.else),
       s.if_then_else(
         u(l($.if, $.then), $.cond),
         s.if_then_else($.if, $.then, s._lapply_partial($.else, s.cond())),

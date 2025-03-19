@@ -12,6 +12,7 @@ export const viewAnyRecord = pkg("any_record", {
         l(s.number(), s._view_number($.out, $.value)),
         l(s.string(), s._view_string($.out, $.value)),
         l(s.box(), s._view_box($.out, $.value)),
+        l(s.expand(), s.view__string($.out, "todo")),
       ),
     ),
   },

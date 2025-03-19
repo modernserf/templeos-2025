@@ -130,7 +130,6 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (value! && it.unify(out, value)) yield it.result();
     },
   },
-
   loop_iter: {
     rule__params: l($.next, $.state, $.init, $.goal),
     rule__primitive: function* (it, nextState, state, initState, goal) {
