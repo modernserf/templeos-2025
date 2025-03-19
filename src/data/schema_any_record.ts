@@ -20,36 +20,39 @@ export const viewAnyRecord = pkg("any_record", {
     rule__params: l($.out, $.value),
     rule__body: seq(
       s.unpack_expand($.content, $.value),
-      s.log($.value, $.content),
       s.html(
         $.out,
         "span",
-        l(),
-        x.view__string("{"),
+        l(s.class("_view_expand")),
+        // x.view__string("{"),
         x.view__expr($.content),
-        x.view__string("}"),
+        // x.view__string("}"),
       ),
     ),
   },
 
   _view_var: {
     rule__params: l($.out, $.var),
-    rule__body: s.if_then_else(
-      s.ident_var($.ident, $.var),
-      s.view__string($.out, $.ident),
-      s.view__string($.out, "__"),
+    rule__body: seq(
+      s.cond(s.ident_var($.ident, $.var), u($.ident, "__")),
+      s.html($.out, "span", l(s.class("_view_var")), x.view__string($.ident)),
     ),
   },
   _view_number: {
     rule__params: l($.out, $.value),
-    rule__body: s.view__string($.out, $.value),
+    rule__body: s.html(
+      $.out,
+      "span",
+      l(s.class("_view_number")),
+      x.view__string(x.string_number($.value)),
+    ),
   },
   _view_string: {
     rule__params: l($.out, $.value),
     rule__body: s.html(
       $.out,
       "span",
-      l(),
+      l(s.class("_view_string")),
       x.view__string('"'),
       x.view__string($.value),
       x.view__string('"'),
@@ -61,13 +64,18 @@ export const viewAnyRecord = pkg("any_record", {
       s.box($.value, $.tag, $.list),
       s.html(
         $.out,
-        "div",
-        l(s.style("display", "inline-block")),
-        x.html("span", l(), x.view__file_link($.tag), x.view__string("(")),
+        "span",
+        l(s.class("_view_box")),
+        x.html("span", l(), x.view__file_link($.tag)),
+        x.html("span", l(), x.view__string("(")),
         xfn($.out)(
           s.value_box_index($.arg, $.list, $.i),
           alt(
-            s.if_then_else(u($.i, 0), s.fail(), s.view__string($.out, ", ")),
+            s.if_then_else(
+              u($.i, 0),
+              s.fail(),
+              s.html($.out, "span", l(), x.view__string(", ")),
+            ),
             s.view__expr($.out, $.arg),
           ),
         ),
