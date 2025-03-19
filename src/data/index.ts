@@ -94,7 +94,7 @@ export type Rec = Record<string, Expr> & {
   field__index?: IndexType;
   field__type?: Expr;
 
-  rule__params?: List<Expr>;
+  rule__params?: Expr;
   rule__body?: Box<string, Expr[]>;
 
   test__group?: string;

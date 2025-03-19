@@ -142,6 +142,18 @@ export const testUtils = pkg("test", {
     ),
   },
 
+  _test_collect_get_idents: {
+    test__group: "core",
+    rule__params: l(),
+    rule__body: seq(
+      s.collect_item_in($.idents, $.ident, s._get_idents($.ident, l($.a, $.b))),
+      s.list($.idents2, x._get_idents(l($.a, $.b))),
+      s.list($.idents3, xfn($.ident)(s._get_idents($.ident, l($.a, $.b)))),
+      s.expect_eq($.idents, $.idents2),
+      s.expect_eq($.idents2, $.idents3),
+    ),
+  },
+
   _test_single_vars_check: {
     test__group: "core",
     rule__params: l(),
@@ -153,12 +165,7 @@ export const testUtils = pkg("test", {
         s.none(s._has_flag(s.ignore_single_vars(), $.id)),
 
         // TODO: do this without making list?
-        s.collect_item_in(
-          $.idents,
-          $.ident,
-          s._get_idents($.ident, l($.params, $.body)),
-        ),
-        // s.list($.idents2, x._get_idents($.expr)), // why doesn't this work?
+        s.list($.idents, x._get_idents(l($.params, $.body))),
         s.fold_list($.count, l(), $.idents, s._increment_counter()),
         s._single_vars($.singles, $.count),
 

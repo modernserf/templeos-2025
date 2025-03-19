@@ -20,6 +20,7 @@ export const box = (id: string, args: Value[]) =>
   ({ tag: "box", id, args } as const);
 
 export function printValue(value: Value, indent = ""): string {
+  if (indent.length > 20) return `...`;
   switch (value.tag) {
     case "fresh":
       return "__";

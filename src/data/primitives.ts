@@ -947,25 +947,34 @@ export const { rules, rulePrimitives } = compilePrimitives({
       if (it.unify(date, dateBox)) yield it.result();
     },
   },
-  // // TODO: set process flag
-  // begin_trace: {
-  //   rule__params: l(),
-  //   rule__primitive: function* (it) {
-  //     it.__trace = true;
-  //     yield it.result();
-  //   },
-  // },
-  // end_trace: {
-  //   rule__params: l(),
-  //   rule__primitive: function* (it) {
-  //     it.__trace = false;
-  //     yield it.result();
-  //   },
-  // },
+  // TODO: set process flag
+  begin_trace: {
+    rule__params: l(),
+    rule__primitive: function* (it) {
+      it.__trace = true;
+      yield it.result();
+    },
+  },
+  end_trace: {
+    rule__params: l(),
+    rule__primitive: function* (it) {
+      it.__trace = false;
+      yield it.result();
+    },
+  },
   log: {
     rule__params: $.messages,
     rule__primitive: function* (it, ...args) {
       console.log(...args.map((arg) => printValue(arg)));
+      yield it.result();
+    },
+  },
+  log_trace: {
+    rule__params: $.messages,
+    rule__primitive: function* (it, ...args) {
+      if (it.__trace) {
+        console.log(...args.map((arg) => printValue(arg)));
+      }
       yield it.result();
     },
   },
@@ -1203,6 +1212,15 @@ export const { rules, rulePrimitives } = compilePrimitives({
     rule__params: l($.resolved, $.value),
     rule__primitive: function* (it, res, val) {
       if (it.unify(res, resolveDeep(val))) yield it.result();
+    },
+  },
+  apply__primitive: {
+    rule__params: l($.args, $.fn),
+    rule__primitive: function* (it, args, fn) {
+      ensure(args, "box");
+      ensure(fn, "box");
+      const fullFn = box(fn.id, [...args.args, ...fn.args]);
+      yield* it.eval(fullFn);
     },
   },
 });

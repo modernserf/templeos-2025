@@ -1,4 +1,4 @@
-import { l, s, $, __, u, seq, x } from "../expr";
+import { l, s, $, __, u, seq, x, alt } from "../expr";
 import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
@@ -52,11 +52,48 @@ export const core = pkg("core", {
       s.box($.out, "", $.items),
     ),
   },
+  _test_list_recursive: {
+    rule__params: l($.value, $.expr),
+    rule__body: s.match_cond(
+      $.expr,
+      l(s.value($.value), s.ok()),
+      l(
+        s.pair($.left, $.right),
+        alt(
+          s._test_list_recursive($.value, $.left),
+          s._test_list_recursive($.value, $.right),
+        ),
+      ),
+      l(
+        s.list($.list),
+        seq(
+          s.value_box_index($.sub_expr, $.list, __),
+          s._test_list_recursive($.value, $.sub_expr),
+        ),
+      ),
+    ),
+  },
   _test_list: {
     test__group: "core",
     rule__params: l(),
     rule__body: seq(
-      s.expect_eq(l(1, 2, 3), x.list(1, x.in(l()), x.in(l(2, 3)))),
+      s.expect_eq(x.list(1, x.in(l()), x.in(l(2, 3))), l(1, 2, 3)),
+
+      s.expect_eq(
+        x.list(
+          x._test_list_recursive(
+            s.pair(s.value(1), s.pair(s.value(2), s.value(3))),
+          ),
+        ),
+        l(1, 2, 3),
+      ),
+
+      s.expect_eq(
+        x.list(
+          x._test_list_recursive(s.list(l(s.value(1), s.value(2), s.value(3)))),
+        ),
+        l(1, 2, 3),
+      ),
     ),
   },
   result_if: {
@@ -134,7 +171,7 @@ export const core = pkg("core", {
     rule__params: l($.args, $.fn),
     rule__body: s.cond(
       l(u($.fn, s.fn($._params, $._goal)), s._apply_fn($.args, $.fn)),
-      l(s.is_box($.fn), s._lapply_partial($.args, $.fn)),
+      l(s.is_box($.fn), s.apply__primitive($.args, $.fn)),
       l(s.string($.fn), s._apply_id($.args, $.fn)),
       s.throw(s.invalid_apply($.args, $.fn)),
     ),
@@ -150,10 +187,6 @@ export const core = pkg("core", {
       u($.args, $.params),
       $.goal,
     ),
-  },
-  _lapply_partial: {
-    rule__params: l($.args, $.fn),
-    rule__body: seq(s.append_box_prefix($.callable, $.fn, $.args), $.callable),
   },
   _rapply_partial: {
     rule__params: l($.args, $.fn),
@@ -174,8 +207,8 @@ export const core = pkg("core", {
       s.params_rest($.params, l($.cond), $.else),
       s.if_then_else(
         u(l($.if, $.then), $.cond),
-        s.if_then_else($.if, $.then, s._lapply_partial($.else, s.cond())),
-        s.if_then_else($.cond, s.ok(), s._lapply_partial($.else, s.cond())),
+        s.if_then_else($.if, $.then, s.apply__primitive($.else, s.cond())),
+        s.if_then_else($.cond, s.ok(), s.apply__primitive($.else, s.cond())),
       ),
     ),
   },

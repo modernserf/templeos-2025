@@ -82,6 +82,8 @@ export function resolveVar(value: Value): Value {
 }
 
 export class State {
+  // TODO: process flag
+  __trace = false;
   private constructor(
     public pm: ProcessManager,
     public scope: Record<string, Fact>,
@@ -202,33 +204,37 @@ export class State {
     }
   }
 
+  private *expand1(arg: Value & { tag: "expand" }, out: Value[]) {
+    const result = { tag: "var", fact: this.fresh("result") } as const;
+    const call = box("apply", [box("", [result]), arg.value]);
+    const s = this.choice();
+    const gen = this.eval(call);
+    let next = gen.next();
+    while (!next.done) {
+      if (next.value.tag === "result") {
+        out.push(resolveDeep(result));
+        next = gen.next();
+      } else {
+        next = gen.next(yield next.value);
+      }
+    }
+    this.backtrack(s);
+  }
+
   *expandArgs(args: Value[]) {
     const out: Value[] = [];
     for (const arg of args) {
       if (arg.tag === "expand") {
-        const result = { tag: "var", fact: this.fresh("result") } as const;
-        const call = box("apply", [box("", [result]), arg.value]);
-        const gen = this.eval(call);
-        let next = gen.next();
-        while (!next.done) {
-          if (next.value.tag === "result") {
-            out.push(resolveDeep(result));
-            next = gen.next();
-          } else {
-            next = gen.next(yield next.value);
-          }
-        }
+        yield* this.expand1(arg, out);
       } else {
         out.push(arg);
       }
     }
-
     return out;
   }
-
   *eval(value: Value): ProcGen {
     value = resolveVar(value);
-    const { id, args: args_, params, body } = this.getRule(value);
+    const { id, args: args_, params: params_, body } = this.getRule(value);
     const args = yield* this.expandArgs(args_);
     if (this.pm.rulePrimitives[id]) {
       try {
@@ -252,7 +258,7 @@ export class State {
       this.trail,
       this.lastSave,
     );
-    const ps = nextState.exprValue(params);
+    const ps = nextState.exprValue(params_);
     const as = box("", args);
     if (!nextState.unify(ps, as)) {
       throw new Exception(box("invalid_call", [k(id), ps, as]));
