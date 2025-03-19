@@ -34,6 +34,7 @@ import { schema } from "./schema";
 import { field } from "./field";
 import { view } from "./view";
 import { typeRecs } from "./type";
+import { logging } from "./logger";
 
 export type Schema =
   | "clipboard"
@@ -135,6 +136,7 @@ export const data = mergeAndCheck(
     freeCell,
     iter,
     list,
+    logging,
     note,
     number,
     omnibox,
@@ -164,6 +166,7 @@ export const data = mergeAndCheck(
           "omnibox",
           "note__view_all",
           "free_cell__game",
+          "logging__default_log",
         ),
         rule__body: s.column(
           $.out,
@@ -197,9 +200,9 @@ export const data = mergeAndCheck(
                 "test debugger",
                 s.on_click(
                   seq(
-                    s.log("before debugger"),
+                    s.log_debug("before debugger"),
                     s.debugger(),
-                    s.log("after debugger"),
+                    s.log_debug("after debugger"),
                   ),
                 ),
               ),

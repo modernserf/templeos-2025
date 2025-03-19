@@ -198,14 +198,15 @@ section section section header {
   font-weight: bold;
   line-height: 1rem;
   align-self: center;
-  cursor: pointer;
   margin-right: 0.25rem;
   font-size: 1.25rem;
-}
-
-.AppWindow__nav--disabled {
   color: #666;
   cursor: default;
+}
+
+.AppWindow__nav--enabled {
+  cursor: pointer;
+  color: black;
 }
 
 .any_record__view_box {

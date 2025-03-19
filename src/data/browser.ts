@@ -443,16 +443,6 @@ export const browserData = pkg("browser", {
     rule__params: l($.out, $.window, $.id, $.view, $.name),
     rule__body: seq(
       s._current_history($.history, $.window),
-      s.if_then_else(
-        s._back(__, $.history),
-        u($.back_class, "AppWindow__nav"),
-        u($.back_class, "AppWindow__nav AppWindow__nav--disabled"),
-      ),
-      s.if_then_else(
-        s._forward(__, $.history),
-        u($.forward_class, "AppWindow__nav"),
-        u($.forward_class, "AppWindow__nav AppWindow__nav--disabled"),
-      ),
       s.row(
         $.out,
         l(s.class("AppWindow__header")),
@@ -465,12 +455,24 @@ export const browserData = pkg("browser", {
 
         x.html("div", l(s.style("flex", "1 0 auto"))),
         x.view__button(
-          l(s.class($.back_class)),
+          x.list(
+            s.class("AppWindow__nav"),
+            xfn($.o)(
+              s._back(__, $.history),
+              u($.o, s.class("AppWindow__nav--enabled")),
+            ),
+          ),
           "←",
           s.on_click(s.on__back($.window)),
         ),
         x.view__button(
-          l(s.class($.forward_class)),
+          x.list(
+            s.class("AppWindow__nav"),
+            xfn($.o)(
+              s._forward(__, $.history),
+              u($.o, s.class("AppWindow__nav--enabled")),
+            ),
+          ),
           "→",
           s.on_click(s.on__forward($.window)),
         ),
