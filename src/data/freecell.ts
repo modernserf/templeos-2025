@@ -169,7 +169,7 @@ export const freeCell = pkg("free_cell", {
       ),
       s.if_then_else(
         $.is_selected,
-        s.append_left_right(
+        s.append(
           $.props,
           $.base_props,
           l(s.style("border", "2px solid black")),
@@ -329,14 +329,14 @@ export const freeCell = pkg("free_cell", {
           s.empty($.col),
           s.updated_box_index_value($.with, $.without, $.x, l($.card)),
           seq(
-            s.append_left_right($.next_col, $.col, l($.card)),
+            s.append($.next_col, $.col, l($.card)),
             s.updated_box_index_value($.with, $.without, $.x, $.next_col),
           ),
         ),
       ),
       seq(
         s.value_box_index($.col, $.with, $.x),
-        s.append_left_right($.col, $.rest, l($.card)),
+        s.append($.col, $.rest, l($.card)),
         s.updated_box_index_value($.without, $.with, $.x, $.rest),
       ),
     ),
@@ -347,10 +347,7 @@ export const freeCell = pkg("free_cell", {
       s.value_box_index($.col, $.without, $.x),
       s.cond(
         s.empty($.col),
-        seq(
-          s.append_left_right($.col, __, l($.top)),
-          s._col_pair($.card, $.top),
-        ),
+        seq(s.append($.col, __, l($.top)), s._col_pair($.card, $.top)),
       ),
     ),
   },
@@ -494,11 +491,7 @@ export const freeCell = pkg("free_cell", {
   _on_update_state: {
     rule__params: l($.id, s.move($.to, $.from)),
     rule__body: seq(
-      s.append_left_right(
-        $.next_undo,
-        x._undo_state($.id),
-        l(s.move($.to, $.from)),
-      ),
+      s.append($.next_undo, x._undo_state($.id), l(s.move($.to, $.from))),
       s._move(x._game_state($.id), $.state2, $.card, $.from),
       s._move($.state3, $.state2, $.card, $.to),
       s.db__update(
@@ -512,11 +505,7 @@ export const freeCell = pkg("free_cell", {
   _on_undo: {
     rule__params: l($.id),
     rule__body: seq(
-      s.append_left_right(
-        x._undo_state($.id),
-        $.next_undo,
-        l(s.move($.to, $.from)),
-      ),
+      s.append(x._undo_state($.id), $.next_undo, l(s.move($.to, $.from))),
       s._move(x._game_state($.id), $.state2, $.card, $.to),
       s._move_undo($.state3, $.state2, $.card, $.from),
       s.db__update(

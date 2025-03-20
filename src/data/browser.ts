@@ -210,7 +210,7 @@ export const browserData = pkg("browser", {
     rule__body: seq(
       s._current_history($.prev, $.window),
       s._new_history($.h, $.next, $.window, $.location),
-      s.append_left_right(
+      s.append(
         $.batch,
         $.h,
         l(
@@ -536,7 +536,7 @@ export const browserData = pkg("browser", {
         ),
         u($.window_menu, l()),
       ),
-      s.append_left_right($.menu_bar, x._app_menu_content(), $.window_menu),
+      s.append($.menu_bar, x._app_menu_content(), $.window_menu),
 
       s.row(
         $.out,
@@ -569,7 +569,7 @@ export const browserData = pkg("browser", {
     rule__body: seq(
       s.or_default($.window, x.id()),
       s._new_history($.h, $.history, $.window, $.location),
-      s.append_left_right(
+      s.append(
         $.out,
         $.h,
         l(

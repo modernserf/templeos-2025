@@ -120,13 +120,13 @@ export const asyncRules = pkg("async", {
   },
   agent_push: {
     rule__params: l($.agent, $.value),
-    rule__body: s.agent_update($.agent, s.append_left_right(l($.value))),
+    rule__body: s.agent_update($.agent, s.append(l($.value))),
   },
   agent_pop: {
     rule__params: l($.agent, $.value),
     rule__body: seq(
       s.agent_get($.stack, $.agent),
-      s.append_left_right($.stack, $.popped, l($.value)),
+      s.append($.stack, $.popped, l($.value)),
       // TODO: sync update that provides access to prev & next
       s.agent_set($.agent, $.popped),
     ),
@@ -257,7 +257,7 @@ export const asyncRules = pkg("async", {
     rule__body: s.if_then_else(
       s($.sub).in($.prev),
       u($.next, $.prev),
-      s.append_left_right($.next, $.prev, l($.sub)),
+      s.append($.next, $.prev, l($.sub)),
     ),
   },
   _unsubscribe: {

@@ -52,22 +52,19 @@ export const clipboardRules = pkg("clipboard", {
     rule__params: l($.id, $.value),
     rule__body: seq(
       s._data($.prev, $.id),
-      s.append_left_right($.next, $.prev, l($.value)),
+      s.append($.next, $.prev, l($.value)),
       s.db__update(l(s.update($.id, "_data", $.next))),
     ),
   },
   _handle_paste: {
     rule__params: l($.id, $.value),
-    rule__body: seq(
-      s._data($.data, $.id),
-      s.append_left_right($.data, __, l($.value)),
-    ),
+    rule__body: seq(s._data($.data, $.id), s.append($.data, __, l($.value))),
   },
   _handle_drop: {
     rule__params: l($.id),
     rule__body: seq(
       s._data($.prev, $.id),
-      s.append_left_right($.prev, $.rest, l(__)),
+      s.append($.prev, $.rest, l(__)),
       s.db__update(l(s.update($.id, "_data", $.rest))),
     ),
   },

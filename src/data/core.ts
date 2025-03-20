@@ -139,7 +139,7 @@ export const core = pkg("core", {
     rule__params: l($.updated, $.target, $.left),
     rule__body: seq(
       s.box($.target, $.tag, $.right),
-      s.append_left_right($.next, $.left, $.right),
+      s.append($.next, $.left, $.right),
       s.box($.updated, $.tag, $.next),
     ),
   },
@@ -148,14 +148,14 @@ export const core = pkg("core", {
     rule__params: l($.updated, $.target, $.right),
     rule__body: seq(
       s.box($.target, $.tag, $.left),
-      s.append_left_right($.next, $.left, $.right),
+      s.append($.next, $.left, $.right),
       s.box($.updated, $.tag, $.next),
     ),
   },
   params_rest: {
     rule__params: l($.params, $.required, $.rest),
     rule__body: s.if_then_else(
-      s.append_left_right($.params, $.required, $.rest),
+      s.append($.params, $.required, $.rest),
       s.ok(),
       s.throw(s.invalid_params($.params, $.required, $.rest)),
     ),
@@ -386,8 +386,8 @@ export const core = pkg("core", {
     rule__params: l($.updated, $.box, $.index, $.removed),
     rule__body: seq(
       s.left_right_box_split($.pre, $.mid, $.box, $.index),
-      s.append_left_right($.mid, $.removed, $.post),
-      s.append_left_right($.updated, $.pre, $.post),
+      s.append($.mid, $.removed, $.post),
+      s.append($.updated, $.pre, $.post),
     ),
   },
   _test_updated_box_index_removed: {

@@ -1,4 +1,4 @@
-import { l, s, $, __, seq, u } from "../expr";
+import { l, s, $, __, seq, u, x } from "../expr";
 // var < number < string < box
 // a() < z(), a() < a(0)
 
@@ -91,12 +91,11 @@ export const ord = pkg("ord", {
       s.empty($.list),
       u($.sorted, $.list),
       seq(
-        s.append_left_right($.list, l($.head), $.tail),
+        s.append($.list, l($.head), $.tail),
         s._partition($.left, $.right, $.head, $.tail, $.fn),
         s.sort($.ls, $.left, $.fn),
         s.sort($.rs, $.right, $.fn),
-        s.append_left_right($.ls_head, $.ls, l($.head)),
-        s.append_left_right($.sorted, $.ls_head, $.rs),
+        s.list($.sorted, x.in($.ls), $.head, x.in($.rs)),
       ),
     ),
   },
@@ -106,7 +105,7 @@ export const ord = pkg("ord", {
       s.empty($.tail),
       u(l($.left, $.right), l(l(), l())),
       seq(
-        s.append_left_right($.tail, l($.x), $.xs),
+        s.append($.tail, l($.x), $.xs),
         s.apply(l($.ord, $.x, $.head), $.fn),
         s.match_cond(
           $.ord,
@@ -114,14 +113,14 @@ export const ord = pkg("ord", {
             s.gt(),
             seq(
               s._partition($.left, $.r, $.head, $.xs, $.fn),
-              s.append_left_right($.right, l($.x), $.r),
+              s.append($.right, l($.x), $.r),
             ),
           ),
           l(
             __,
             seq(
               s._partition($.l, $.right, $.head, $.xs, $.fn),
-              s.append_left_right($.left, l($.x), $.l),
+              s.append($.left, l($.x), $.l),
             ),
           ),
         ),
@@ -202,8 +201,8 @@ export const ord = pkg("ord", {
       l(
         __,
         seq(
-          s.append_left_right($.left, l($.l), $.ls),
-          s.append_left_right($.right, l($.r), $.rs),
+          s.append($.left, l($.l), $.ls),
+          s.append($.right, l($.r), $.rs),
           s.ord_seq($.ord, s.ord($.l, $.r), s._ord_list($.ls, $.rs)),
         ),
       ),

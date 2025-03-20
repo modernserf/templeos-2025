@@ -47,7 +47,7 @@ export const viewForm = {
   view__menu: {
     rule__params: l($.out, $.params, $.label, $.options, $.handler),
     rule__body: seq(
-      s.append_left_right($.menu_options, l(s.option("", $.label)), $.options),
+      s.append($.menu_options, l(s.option("", $.label)), $.options),
       s.view__select($.out, $.params, $.label, $.menu_options, $.handler),
     ),
   },

@@ -157,9 +157,9 @@ export const parse = pkg("parse", {
       s.empty($.parsers),
       seq(u($.out, $.in), s.apply($.fn_args, $.fn)),
       seq(
-        s.append_left_right($.parsers, l($.parser), $.rest),
+        s.append($.parsers, l($.parser), $.rest),
         s.call($.parser, $.res, $.next, $.in),
-        s.append_left_right($.next_args, $.fn_args, l($.res)),
+        s.append($.next_args, $.fn_args, l($.res)),
         s._seq_state($.result, $.out, $.next, $.rest, $.fn, $.next_args),
       ),
     ),
@@ -205,7 +205,7 @@ export const parse = pkg("parse", {
   _cond: {
     rule__params: l($.result, $.out, $.in, $.cases),
     rule__body: seq(
-      s.append_left_right($.cases, l($.case), $.rest),
+      s.append($.cases, l($.case), $.rest),
       s.if_then_else(
         u(l($.if, $.then), $.case),
         s.if_then_else(
@@ -271,7 +271,7 @@ export const parse = pkg("parse", {
   _alt: {
     rule__params: l($.result, $.out, $.in, $.alts),
     rule__body: seq(
-      s.append_left_right($.alts, l($.alt), $.rest),
+      s.append($.alts, l($.alt), $.rest),
       alt(
         s.call($.alt, $.result, $.out, $.in),
         s._alt($.result, $.out, $.in, $.rest),
@@ -289,7 +289,7 @@ export const parse = pkg("parse", {
         seq(
           s.call($.p, $.res, $.out, $.prev_state),
           s.cond(s.not_eq($.out, $.prev_state), s.throw(s._repeat_loop($.p))),
-          s.append_left_right($.results, $.prev_results, l($.res)),
+          s.append($.results, $.prev_results, l($.res)),
         ),
       ),
     ),
@@ -336,12 +336,7 @@ export const parse = pkg("parse", {
       $.out,
       $.in,
       l($.p_item, s._repeat(s._right($.p_sep, $.p_item), s._option($.p_sep))),
-      fn(
-        $.res,
-        $.head,
-        $.tail,
-        __,
-      )(s.append_left_right($.res, l($.head), $.tail)),
+      fn($.res, $.head, $.tail, __)(s.append($.res, l($.head), $.tail)),
     ),
   },
 

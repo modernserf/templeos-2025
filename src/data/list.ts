@@ -46,7 +46,7 @@ export const list = pkg("list", {
   fold_op: {
     rule__params: l($.result, $.list, $.fn),
     rule__body: seq(
-      s.append_left_right($.list, l($.first), $.rest),
+      s.append($.list, l($.first), $.rest),
       s.fold_list($.result, $.first, $.rest, $.fn),
     ),
   },
@@ -125,7 +125,7 @@ export const list = pkg("list", {
 
         s($.i).number_min_max(0, $.len_),
         s.map_list($.items, $.lists, s.value_box_index($.i)),
-        s.append_left_right($.args, l($.zipped_item), $.items),
+        s.append($.args, l($.zipped_item), $.items),
         s.apply($.args, $.fn),
       ),
     ),

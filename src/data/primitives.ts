@@ -854,7 +854,7 @@ export const { rules, rulePrimitives } = compilePrimitives({
       ),
     ),
   },
-  append_left_right: {
+  append: {
     rule__params: l($.append, $.left, $.right),
     rule__primitive: function* (state, append, left, right) {
       if (left.tag == "box" && right.tag == "box") {
@@ -896,32 +896,32 @@ export const { rules, rulePrimitives } = compilePrimitives({
       }
     },
   },
-  test__append_left_right: {
+  test__append: {
     test__group: "primitives",
     rule__params: l(),
     rule__body: seq(
       // concat
       s.expect_collect(
         $.append,
-        s.append_left_right($.append, l("a"), l("b", "c")),
+        s.append($.append, l("a"), l("b", "c")),
         l("a", "b", "c"),
       ),
       // cons
       test.collect(
         l($.head, $.tail),
-        s.append_left_right(l("a", "b", "c"), l($.head), $.tail),
+        s.append(l("a", "b", "c"), l($.head), $.tail),
         l("a", l("b", "c")),
       ),
       // stack
       test.collect(
         l($.stack, $.pop),
-        s.append_left_right(l("a", "b", "c"), $.stack, l($.pop)),
+        s.append(l("a", "b", "c"), $.stack, l($.pop)),
         l(l("a", "b"), "c"),
       ),
       // scan
       test.collect(
         $.left,
-        s.append_left_right(l("a", "b", "c"), $.left, __),
+        s.append(l("a", "b", "c"), $.left, __),
         l(),
         l("a"),
         l("a", "b"),

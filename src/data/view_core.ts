@@ -20,7 +20,7 @@ export const viewCore = {
     rule__params: $.params,
     rule__body: seq(
       s.params_rest($.params, l($.out, $.props), $.children),
-      s.append_left_right($.node_props, $.props, l(s.class("Row"))),
+      s.append($.node_props, $.props, l(s.class("Row"))),
       u($.out, s.Html("div", $.node_props, $.children)),
     ),
   },
@@ -28,7 +28,7 @@ export const viewCore = {
     rule__params: $.params,
     rule__body: seq(
       s.params_rest($.params, l($.out, $.props), $.children),
-      s.append_left_right($.node_props, $.props, l(s.class("Column"))),
+      s.append($.node_props, $.props, l(s.class("Column"))),
       u($.out, s.Html("div", $.node_props, $.children)),
     ),
   },
@@ -36,7 +36,7 @@ export const viewCore = {
     rule__params: $.params,
     rule__body: seq(
       s.params_rest($.params, l($.out, $.props), $.children),
-      s.append_left_right($.node_props, $.props, l(s.class("Wrap"))),
+      s.append($.node_props, $.props, l(s.class("Wrap"))),
       u($.out, s.Html("div", $.node_props, $.children)),
     ),
   },

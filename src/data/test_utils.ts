@@ -100,7 +100,7 @@ export const testUtils = pkg("test", {
         s.inc($.nc, $.count),
         s.updated_box_index_value($.next, $.prev, $.i, l($.ident, $.nc)),
       ),
-      s.append_left_right($.next, $.prev, l(l($.ident, 1))),
+      s.append($.next, $.prev, l(l($.ident, 1))),
     ),
   },
 

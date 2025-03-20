@@ -103,7 +103,7 @@ export const supervisor = pkg("supervisor", {
     rule__body: seq(
       s.left_right_box_split($.left, $.right, $.prev, $.i),
       s._restart_all($.right_restarted, $.right),
-      s.append_left_right($.next, $.left, $.right_restarted),
+      s.append($.next, $.left, $.right_restarted),
     ),
   },
 
