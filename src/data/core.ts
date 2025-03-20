@@ -1,8 +1,292 @@
 import { l, s, $, __, u, seq, x, alt } from "../expr";
-import { pkg } from "../pkg";
+import { pkg_ } from "../pkg";
+import { ensure, State } from "../process";
+import { box, k } from "../value";
 import { test } from "./test_utils";
 
-export const core = pkg("core", {
+export const { rules: core, rulePrimitives: corePrimitives } = pkg_("core", {
+  type_value: {
+    rule__params: l($.type, $.value),
+    rule__primitive: function* (it, type, value) {
+      const t = value.tag === "fresh" ? "var" : value.tag;
+      if (it.unify(type, box(t, []))) yield it.result();
+    },
+  },
+  test__type_value: {
+    test__group: "core",
+    rule__params: l(),
+    rule__body: seq(
+      test.ok(s.type_value(s.var(), __)),
+      test.ok(s.type_value(s.var(), $._x)),
+      test.ok(s.type_value(s.number(), 123)),
+      test.ok(s.type_value(s.string(), "hello")),
+      test.ok(s.type_value(s.box(), s.id(123, "hello"))),
+      test.ok(s.type_value(s.box(), l(__, __))),
+
+      s.unify($.y, 123),
+      test.ok(s.type_value(s.number(), $.y)),
+    ),
+  },
+
+  unpack_expand: {
+    rule__params: l($.content, $.expand),
+    rule__primitive: function* (it, content, expand) {
+      if (expand.tag !== "expand") return;
+      if (it.unify(content, expand.value)) yield it.result();
+    },
+  },
+  ident_var: {
+    rule__params: l($.ident, $.var),
+    rule__primitive: function* (it, ident, v) {
+      if (v.tag === "fresh") return;
+      ensure(v, "var");
+      if (it.unify(ident, k(v.fact.name))) yield it.result();
+    },
+  },
+  _test_ident_var: {
+    test__group: "primitives",
+    rule__params: l(),
+    test__flags: l(s.ignore_single_vars()),
+    rule__body: seq(
+      s.expect_eq(x.ident_var($.foo), "foo"),
+      s.expect_fail(s.ident_var(__, __)),
+      s.expect_throw(s.ident_var(__, 123), s.expected_type(s.var(), 123)),
+    ),
+  },
+
+  length_box: {
+    rule__params: l($.length, $.box),
+    rule__primitive: function* (it, length, box) {
+      ensure(box, "box");
+      if (!it.unify(length, k(box.args.length))) return;
+      yield it.result();
+    },
+  },
+  test__length_box: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: seq(
+      test.collect($.len, s.length_box($.len, s.foo()), 0),
+      test.collect($.len, s.length_box($.len, s.bar(1, 2, 3)), 3),
+    ),
+  },
+  box: {
+    rule__params: l($.box, $.tag, $.list),
+    rule__primitive: function* (it, aBox, tag, list) {
+      if (aBox.tag === "box") {
+        const { id, args } = aBox;
+        if (it.unify(tag, k(id)) && it.unify(list, box("", args))) {
+          yield it.result();
+        }
+      } else if (tag.tag === "string" && list.tag === "box") {
+        if (it.unify(aBox, box(tag.value, list.args))) {
+          yield it.result();
+        }
+      }
+    },
+  },
+  test__box: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: seq(
+      test.collect(
+        l($.tag, $.list),
+        s.box(s.foo(123, 456), $.tag, $.list),
+        l("foo", l(123, 456)),
+      ),
+      test.collect($.box, s.box($.box, "bar", l(789)), s.bar(789)),
+    ),
+  },
+  // Why this order?
+  // value = box[index]
+  // expr(value, value_box_index(box, index))
+  // pipe(value, box, value_box_index(index))
+  value_box_index: {
+    rule__params: l($.value, $.box, $.index),
+    rule__primitive: function* (it, value, b, index) {
+      ensure(b, "box");
+      if (index.tag === "number") {
+        const i = index.value;
+        if (i < 0 || i >= b.args.length) return;
+        if (it.unify(value, b.args[i])) {
+          yield it.result();
+        }
+      } else {
+        for (let i = 0; i < b.args.length; i++) {
+          yield* it.unifyChoice(
+            box("", [index, value]),
+            box("", [k(i), b.args[i]]),
+          );
+        }
+      }
+    },
+  },
+  test__value_box_index: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: seq(
+      // get
+      test.collect(
+        $.value,
+        s.value_box_index($.value, s.pair(123, 456), 0),
+        123,
+      ),
+      // iter
+      test.collect(
+        l($.index, $.value),
+        s.value_box_index($.value, s.pair(123, 456), $.index),
+        l(0, 123),
+        l(1, 456),
+      ),
+      // find
+      test.collect(
+        $.index,
+        s.value_box_index(456, s.pair(123, 456), $.index),
+        1,
+      ),
+    ),
+  },
+  updated_box_index_value: {
+    rule__params: l($.updated, $.box, $.index, $.value),
+    rule__primitive: function* (it, updated, b, index, value) {
+      ensure(b, "box");
+      ensure(index, "number");
+      const i = index.value;
+
+      if (i < 0 || i >= b.args.length) return;
+      const nextArgs = b.args.slice();
+      nextArgs[i] = value;
+      if (it.unify(updated, box(b.id, nextArgs))) {
+        yield it.result();
+      }
+    },
+  },
+  test__updated_box_index_value: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: seq(
+      test.collect(
+        $.value,
+        s.updated_box_index_value($.value, s.foo("a", "b"), 0, 123),
+        s.foo(123, "b"),
+      ),
+    ),
+  },
+  slice_box_from_to: {
+    rule__params: l($.slice, $.box, $.from, $.to),
+    rule__primitive: function* (it, slice, b, from, to) {
+      ensure(b, "box");
+      const fromVal = from.tag == "number" ? from.value : 0;
+      const toVal = to.tag == "number" ? to.value : b.args.length;
+      if (
+        it.unify(from, k(fromVal)) &&
+        it.unify(to, k(toVal)) &&
+        it.unify(slice, box(b.id, b.args.slice(fromVal, toVal)))
+      ) {
+        yield it.result();
+      }
+    },
+  },
+  test__slice_box_from_to: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: seq(
+      // all outputs
+      test.collect(
+        l($.from, $.to, $.slice),
+        s.slice_box_from_to($.slice, l("a", "b", "c"), $.from, $.to),
+        l(0, 3, l("a", "b", "c")),
+      ),
+      // subset
+      test.collect(
+        $.slice,
+        s.slice_box_from_to($.slice, l("a", "b", "c"), 1, __),
+        l("b", "c"),
+      ),
+    ),
+  },
+  append: {
+    rule__params: l($.append, $.left, $.right),
+    rule__primitive: function* (state, append, left, right) {
+      if (left.tag == "box" && right.tag == "box") {
+        if (left.tag !== right.tag) return;
+        if (left.args.length === 0) {
+          if (state.unify(right, append)) yield state.result();
+        } else {
+          if (state.unify(append, box(left.id, left.args.concat(right.args))))
+            yield state.result();
+        }
+        return;
+      }
+      ensure(append, "box");
+      const unifySplit = (st: State, split: number) =>
+        st.unify(left, {
+          tag: "box",
+          id: append.id,
+          args: append.args.slice(0, split),
+        }) &&
+        st.unify(right, {
+          tag: "box",
+          id: append.id,
+          args: append.args.slice(split),
+        });
+
+      if (left.tag == "box" && unifySplit(state, left.args.length)) {
+        yield state.result();
+      } else if (
+        right.tag == "box" &&
+        unifySplit(state, append.args.length - right.args.length)
+      ) {
+        yield state.result();
+      } else {
+        for (let i = 0; i <= append.args.length; i++) {
+          const s = state.choice();
+          if (unifySplit(state, i)) yield state.result();
+          state.backtrack(s);
+        }
+      }
+    },
+  },
+  test__append: {
+    test__group: "primitives",
+    rule__params: l(),
+    rule__body: seq(
+      // concat
+      s.expect_collect(
+        $.append,
+        s.append($.append, l("a"), l("b", "c")),
+        l("a", "b", "c"),
+      ),
+      // cons
+      test.collect(
+        l($.head, $.tail),
+        s.append(l("a", "b", "c"), l($.head), $.tail),
+        l("a", l("b", "c")),
+      ),
+      // stack
+      test.collect(
+        l($.stack, $.pop),
+        s.append(l("a", "b", "c"), $.stack, l($.pop)),
+        l(l("a", "b"), "c"),
+      ),
+      // scan
+      test.collect(
+        $.left,
+        s.append(l("a", "b", "c"), $.left, __),
+        l(),
+        l("a"),
+        l("a", "b"),
+        l("a", "b", "c"),
+      ),
+    ),
+  },
+
+  id: {
+    rule__params: l($.id),
+    rule__primitive: function* (it, id) {
+      if (it.unify(id, k(crypto.randomUUID()))) yield it.result();
+    },
+  },
   // fields
   // TODO: foo_field($.value, $.id) -> value_record_field($.value, $.id, "foo_field")
   db__schema: {

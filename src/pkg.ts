@@ -1,5 +1,6 @@
-import { Rec } from "./data";
-import { Expr } from "./expr";
+import { CoreRec, Rec } from "./data";
+import { Expr, l, s } from "./expr";
+import { RulePrimitive } from "./process";
 
 function nsId(ns: string, id: string) {
   return id.startsWith("_") ? `${ns}_${id}` : id;
@@ -38,6 +39,35 @@ export function pkg(
     out[key] = {};
     for (const field in data[id]) {
       out[key][nsId(name, field)] = expandNamespace(name, data[id][field]);
+    }
+  }
+  return out;
+}
+
+export function pkg_(
+  ns: string,
+  data: Record<string, Rec | (CoreRec & { rule__primitive: RulePrimitive })>,
+) {
+  const out: {
+    rules: Record<string, Rec>;
+    rulePrimitives: Record<string, RulePrimitive>;
+  } = { rules: {}, rulePrimitives: {} };
+
+  for (const id in data) {
+    const key = nsId(ns, id);
+    // TODO: add package field & visibility flag
+    if (key in out) throw new Error(`duplicate key ${key}`);
+    out.rules[key] = {};
+    for (const field in data[id]) {
+      if (field === "rule__primitive") {
+        out.rulePrimitives[key] = data[id].rule__primitive as RulePrimitive;
+        out.rules[key].test__flags = l(s.ignore_single_vars());
+      } else {
+        out.rules[key][nsId(ns, field)] = expandNamespace(
+          ns,
+          (data[id] as Rec)[field],
+        );
+      }
     }
   }
   return out;

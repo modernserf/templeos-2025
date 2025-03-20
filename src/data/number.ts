@@ -1,7 +1,57 @@
-import { pkg } from "../pkg";
+import { pkg_ } from "../pkg";
 import { l, s, $, __, u, seq, alt, x } from "../expr";
+import { k } from "../value";
+import { ensure } from "../process";
 
-export const number = pkg("number", {
+export const { rules: number, rulePrimitives: numberPrim } = pkg_("number", {
+  random: {
+    rule__params: l($.rand),
+    rule__primitive: function* (it, rand) {
+      if (it.unify(rand, k(Math.random()))) yield it.result();
+    },
+  },
+  number_min_max: {
+    rule__params: l($.number, $.min, $.max),
+    rule__primitive: function* (it, num, min, max) {
+      if (num.tag == "number") {
+        if (min.tag == "number") {
+          if (min.value > num.value) return;
+        } else {
+          if (!it.unify(num, min)) return;
+        }
+        if (max.tag == "number") {
+          if (max.value < num.value) return;
+        } else {
+          if (!it.unify(num, max)) return;
+        }
+        yield it.result();
+      } else {
+        const minVal = min.tag == "number" ? min.value : 0;
+        const maxVal = max.tag == "number" ? max.value : Infinity;
+        if (minVal > maxVal) return;
+        for (let i = minVal; i <= maxVal; i++) {
+          yield* it.unifyChoice(num, k(i));
+        }
+      }
+    },
+  },
+  test__number_min_max: {
+    test__group: "number",
+    rule__params: l(),
+    rule__body: seq(
+      s.expect_fail(s.number_min_max(10, 10, 0)),
+
+      s.expect_ok(s.number_min_max(3, 0, 10)),
+      s.expect_ok(s.number_min_max(0, 0, 10)),
+      s.expect_ok(s.number_min_max(10, 0, 10)),
+
+      s.expect_ok(s.number_min_max(3, __, 10)),
+      s.expect_ok(s.number_min_max(23, 0, __)),
+      s.expect_fail(s.number_min_max(23, 0, 10)),
+
+      s.expect_collect($.val, s.number_min_max($.val, 3, 6), 3, 4, 5, 6),
+    ),
+  },
   sum: {
     rule__params: l($.sum, $.l, $.r),
     rule__body: s.cond(
@@ -80,7 +130,69 @@ export const number = pkg("number", {
       s.expect_collect($.rec, s.reciprocal(1 / 4, $.rec), 4),
     ),
   },
+  add__primitive: {
+    rule__params: l($.sum, $.left, $.right),
+    rule__primitive: function* (it, sum, left, right) {
+      ensure(left, "number");
+      ensure(right, "number");
+      if (it.unify(sum, k(left.value + right.value))) yield it.result();
+    },
+  },
+  sub__primitive: {
+    rule__params: l($.sum, $.left, $.right),
+    rule__primitive: function* (it, sum, left, right) {
+      ensure(left, "number");
+      ensure(right, "number");
+      if (it.unify(sum, k(left.value - right.value))) yield it.result();
+    },
+  },
+  mul__primitive: {
+    rule__params: l($.sum, $.left, $.right),
+    rule__primitive: function* (it, sum, left, right) {
+      ensure(left, "number");
+      ensure(right, "number");
+      if (it.unify(sum, k(left.value * right.value))) yield it.result();
+    },
+  },
+  fdiv__primitive: {
+    rule__params: l($.sum, $.left, $.right),
+    rule__primitive: function* (it, sum, left, right) {
+      ensure(left, "number");
+      ensure(right, "number");
+      if (it.unify(sum, k(left.value / right.value))) yield it.result();
+    },
+  },
+  divrem__primitive: {
+    rule__params: l($.div, $.mod, $.left, $.right),
+    rule__primitive: function* (it, div, rem, left, right) {
+      ensure(left, "number");
+      ensure(right, "number");
+      const q = Math.trunc(left.value / right.value);
+      const r = left.value % right.value;
+      if (it.unify(div, k(q)) && it.unify(rem, k(r))) yield it.result();
+    },
+  },
+  mod__primitive: {
+    rule__params: l($.mod, $.left, $.right),
+    rule__primitive: function* (it, mod, left, right) {
+      ensure(left, "number");
+      ensure(right, "number");
+      const n = left.value;
+      const d = right.value;
+      if (it.unify(mod, k(((n % d) + d) % d))) yield it.result();
+    },
+  },
+  trunc__primitive: {
+    rule__params: l($.trunc, $.frac, $.value),
+    rule__primitive: function* (it, trunc, frac, value) {
+      ensure(value, "number");
+      const t = Math.trunc(value.value);
+      const f = value.value - t;
+      if (it.unify(trunc, k(t)) && it.unify(frac, k(f))) yield it.result();
+    },
+  },
   // TODO: impl these directly as primitives
+
   add: {
     rule__params: l($.out, $.l, $.r),
     rule__body: seq(s.add__primitive($.out, $.l, $.r)),

@@ -1,15 +1,14 @@
 import { TransactDB } from "../db";
 import { ProcessManager } from "../process";
 import { Expr, Box, Id, List, l, $, s, seq, __, x, xfn } from "../expr";
-import { core } from "./core";
+import { core, corePrimitives } from "./core";
 import { viewCore } from "./view_core";
-import { rules as rulePrimitiveRecs, rulePrimitives } from "./primitives";
 import { browserData, browserInitState } from "./browser";
 import { testUtils } from "./test_utils";
 import { viewForm } from "./view_form";
 import { viewTable } from "./view_table";
 import { viewAnyRecord } from "./schema_any_record";
-import { dbRules } from "./db";
+import { dbPrim, dbRules } from "./db";
 import { loadState } from "../storage";
 import { EventSource } from "../event_source";
 import { Value } from "../value";
@@ -22,11 +21,11 @@ import { clipboardInitState, clipboardRules } from "./clipboard";
 import { asyncRules } from "./async";
 import { supervisor } from "./supervisor";
 import { freeCell } from "./freecell";
-import { ord } from "./ord";
-import { debug } from "./debugger";
-import { time } from "./time";
+import { ord, ordPrim } from "./ord";
+import { debug, debugPrim } from "./debugger";
+import { time, timePrim } from "./time";
 import { list } from "./list";
-import { number } from "./number";
+import { number, numberPrim } from "./number";
 import { parse } from "./parse";
 import { iter } from "./iter";
 import { error } from "./error";
@@ -35,6 +34,9 @@ import { field } from "./field";
 import { view } from "./view";
 import { typeRecs } from "./type";
 import { logging } from "./logger";
+import { controlPrimitives, controlRules } from "./control";
+import { procesPrimitives, processRules } from "./process";
+import { stringPrimitives, stringRules } from "./string";
 
 export type Schema =
   | "clipboard"
@@ -90,7 +92,7 @@ type IndexType =
   | Box<"sorted", []>
   | Box<"unique", []>;
 
-export type Rec = Record<string, Expr> & {
+export type CoreRec = {
   db__schema?: Schema;
   schema__fields?: List<SchemaField>;
   field__index?: IndexType;
@@ -105,6 +107,8 @@ export type Rec = Record<string, Expr> & {
   file__name?: string;
   file__description?: List<FormatText>;
 };
+
+export type Rec = Record<string, Expr> & CoreRec;
 
 function mergeAndCheck(
   groups: Record<string, Rec>[],
@@ -127,6 +131,7 @@ export const data = mergeAndCheck(
     browserData,
     codeExplorerData,
     collectionData,
+    controlRules,
     core,
     clipboardRules,
     debug,
@@ -142,8 +147,9 @@ export const data = mergeAndCheck(
     omnibox,
     ord,
     parse,
-    rulePrimitiveRecs,
+    processRules,
     schema,
+    stringRules,
     supervisor,
     testUtils,
     typeRecs,
@@ -223,7 +229,17 @@ export const initState = mergeAndCheck(
 
 export function initProcessManager() {
   const db = new TransactDB<Rec>();
-  const p = ProcessManager.init(db, rulePrimitives);
+  const p = ProcessManager.init(db, {
+    ...controlPrimitives,
+    ...corePrimitives,
+    ...procesPrimitives,
+    ...stringPrimitives,
+    ...numberPrim,
+    ...dbPrim,
+    ...ordPrim,
+    ...timePrim,
+    ...debugPrim,
+  });
   const e = new EventSource<Value>();
 
   p.addExternal(e, "local_storage");

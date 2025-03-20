@@ -1,7 +1,39 @@
 import { l, s, $, __, seq, x } from "../expr";
-import { pkg } from "../pkg";
+import { pkg_ } from "../pkg";
+import { printValue } from "../value";
 
-export const debug = pkg("debug", {
+export const { rules: debug, rulePrimitives: debugPrim } = pkg_("debug", {
+  // TODO: set process flag
+  begin_trace: {
+    rule__params: l(),
+    rule__primitive: function* (it) {
+      it.__trace = true;
+      yield it.result();
+    },
+  },
+  end_trace: {
+    rule__params: l(),
+    rule__primitive: function* (it) {
+      it.__trace = false;
+      yield it.result();
+    },
+  },
+  log: {
+    rule__params: $.messages,
+    rule__primitive: function* (it, ...args) {
+      console.log(...args.map((arg) => printValue(arg)));
+      yield it.result();
+    },
+  },
+  log_trace: {
+    rule__params: $.messages,
+    rule__primitive: function* (it, ...args) {
+      if (it.__trace) {
+        console.log(...args.map((arg) => printValue(arg)));
+      }
+      yield it.result();
+    },
+  },
   init_debugger: {
     rule__params: l(),
     rule__body: seq(

@@ -2,9 +2,44 @@ import { l, s, $, __, seq, u, x } from "../expr";
 // var < number < string < box
 // a() < z(), a() < a(0)
 
-import { pkg } from "../pkg";
+import { pkg_ } from "../pkg";
+import { ensure } from "../process";
+import { box } from "../value";
 
-export const ord = pkg("ord", {
+export const { rules: ord, rulePrimitives: ordPrim } = pkg_("ord", {
+  ord__string: {
+    rule__params: l($.ord, $.left, $.right),
+    rule__primitive: function* (it, ord, left, right) {
+      ensure(left, "string");
+      ensure(right, "string");
+
+      switch (left.value.localeCompare(right.value)) {
+        case -1:
+          if (it.unify(ord, box("lt", []))) yield it.result();
+          break;
+        case 0:
+          if (it.unify(ord, box("eq", []))) yield it.result();
+          break;
+        case 1:
+          if (it.unify(ord, box("gt", []))) yield it.result();
+      }
+    },
+  },
+  ord__number: {
+    rule__params: l($.ord, $.left, $.right),
+    rule__primitive: function* (it, ord, left, right) {
+      ensure(left, "number");
+      ensure(right, "number");
+
+      if (left.value < right.value) {
+        if (it.unify(ord, box("lt", []))) yield it.result();
+      } else if (left.value === right.value) {
+        if (it.unify(ord, box("eq", []))) yield it.result();
+      } else {
+        if (it.unify(ord, box("gt", []))) yield it.result();
+      }
+    },
+  },
   ord: {
     rule__params: l($.ord, $.left, $.right),
     rule__body: seq(
