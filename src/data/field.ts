@@ -1,7 +1,7 @@
 import { l, s, $, seq } from "../expr";
 import { pkg } from "../pkg";
 
-export const field = pkg("field", {
+export const { rules: field } = pkg("field", {
   field: {
     db__schema: "schema",
     file__name: "Field",

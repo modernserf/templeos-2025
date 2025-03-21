@@ -1,8 +1,7 @@
-import { Rec } from ".";
 import { l, s, $, seq, u, __, alt, fn, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 
-export const browserData = pkg("browser", {
+export const { rules: browserData } = pkg("browser", {
   // schemas
   window: {
     db__schema: "schema",
@@ -580,18 +579,18 @@ export const browserData = pkg("browser", {
   },
 });
 
-export const browserInitState = {
+export const { rules: browserInitState } = pkg("browser", {
   root_history: {
     db__schema: "history",
-    browser__window: "root_window",
-    browser__id: "home",
+    _window: "root_window",
+    _id: "home",
   },
   root_window: {
     db__schema: "window",
-    browser__current_history: "root_history",
+    _current_history: "root_history",
   },
   browser: {
     file__name: "Browser state",
-    browser__current_window: "root_window",
+    _current_window: "root_window",
   },
-} satisfies Record<string, Rec>;
+});

@@ -1,8 +1,8 @@
 import { l, s, $, __, seq, x } from "../expr";
-import { pkg_ } from "../pkg";
+import { pkg } from "../pkg";
 import { printValue } from "../value";
 
-export const { rules: debug, rulePrimitives: debugPrim } = pkg_("debug", {
+export const { rules: debug, rulePrimitives: debugPrim } = pkg("debug", {
   // TODO: set process flag
   begin_trace: {
     rule__params: l(),

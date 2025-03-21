@@ -10,7 +10,7 @@ export const test = {
     s.expect_collect(pattern, goal, ...expected),
 };
 
-export const testUtils = pkg("test", {
+export const { rules: testUtils } = pkg("test", {
   _group: {
     db__schema: "field",
     file__name: "Test group",

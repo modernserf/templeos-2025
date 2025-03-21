@@ -1,5 +1,5 @@
-import { Rec } from ".";
 import { l, seq, s, $, Expr, Box, List, __, u } from "../expr";
+import { pkg } from "../pkg";
 
 type ClickParam = Box<"meta_key", []>;
 type ClickEvent = Box<"click", [List<ClickParam>]>;
@@ -10,7 +10,7 @@ export type FocusEvent = Box<"focus", []>;
 export type BlurEvent = Box<"blur", []>;
 export type InputEvent = ChangeEvent | FocusEvent | BlurEvent;
 
-export const viewForm = {
+export const { rules: viewForm } = pkg("view_form", {
   view__button: {
     rule__params: l(
       s.Button($.params, $.label, $.handler),
@@ -59,4 +59,4 @@ export const viewForm = {
     rule__params: l($.e, $.fn),
     rule__body: seq(u($.e, s.change($.value)), s.apply(l($.value), $.fn)),
   },
-} satisfies Record<string, Rec>;
+});

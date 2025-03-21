@@ -1,33 +1,10 @@
 import { l, s, $, __, u, seq, x } from "../expr";
-import { pkg_ } from "../pkg";
+import { pkg } from "../pkg";
 import { ensure } from "../process";
-import { box, k } from "../value";
+import { k } from "../value";
 import { test } from "./test_utils";
 
-export const { rules: core, rulePrimitives: corePrimitives } = pkg_("core", {
-  type_value: {
-    rule__params: l($.type, $.value),
-    rule__primitive: function* (it, type, value) {
-      const t = value.tag === "fresh" ? "var" : value.tag;
-      if (it.unify(type, box(t, []))) yield it.result();
-    },
-  },
-  test__type_value: {
-    test__group: "core",
-    rule__params: l(),
-    rule__body: seq(
-      test.ok(s.type_value(s.var(), __)),
-      test.ok(s.type_value(s.var(), $._x)),
-      test.ok(s.type_value(s.number(), 123)),
-      test.ok(s.type_value(s.string(), "hello")),
-      test.ok(s.type_value(s.box(), s.id(123, "hello"))),
-      test.ok(s.type_value(s.box(), l(__, __))),
-
-      s.unify($.y, 123),
-      test.ok(s.type_value(s.number(), $.y)),
-    ),
-  },
-
+export const { rules: core, rulePrimitives: corePrimitives } = pkg("core", {
   unpack_expand: {
     rule__params: l($.content, $.expand),
     rule__primitive: function* (it, content, expand) {
@@ -68,12 +45,6 @@ export const { rules: core, rulePrimitives: corePrimitives } = pkg_("core", {
     file__description: l("schema used to validate & render this record"),
     field__type: s.ref("schema"),
     field__index: s.ref(),
-  },
-  time__created: {
-    db__schema: "field",
-    file__name: "Time created",
-    field__type: s.t_timestamp(),
-    field__index: s.sorted(),
   },
   rule__params: {
     db__schema: "field",
@@ -347,13 +318,6 @@ export const { rules: core, rulePrimitives: corePrimitives } = pkg_("core", {
     ),
   },
 
-  ensure_det: {
-    rule__params: l($.goal),
-    rule__body: seq(
-      s.cond(s.ensure_limit(1, $.goal), s.throw(s.expected_det($.goal))),
-    ),
-  },
-
   // semidet -> det
   // nondet -> multi
   option: {
@@ -362,14 +326,6 @@ export const { rules: core, rulePrimitives: corePrimitives } = pkg_("core", {
       s.call($.fn, $.value),
       u($.opt, s.some($.value)),
       u($.opt, s.none()),
-    ),
-  },
-  result: {
-    rule__params: l($.res, $.fn),
-    rule__body: s.try_error_catch(
-      seq(s.call($.fn, $.value), u($.res, s.ok($.value))),
-      $.err,
-      u($.res, s.error($.err)),
     ),
   },
 });

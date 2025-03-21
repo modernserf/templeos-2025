@@ -1,7 +1,7 @@
 import { l, seq, s, $, u, __, fn, alt, x } from "../expr";
 import { pkg } from "../pkg";
 
-export const viewTable = pkg("table", {
+export const { rules: viewTable } = pkg("table", {
   table: {
     rule__params: $.params,
     rule__body: seq(

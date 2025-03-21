@@ -1,7 +1,7 @@
-import { Rec } from ".";
 import { l, seq, s, $, fn, x, xfn, alt } from "../expr";
+import { pkg } from "../pkg";
 
-export const omnibox = {
+export const { rules: omnibox } = pkg("search", {
   omnibox: {
     db__schema: "view",
     view__subject: s.self(),
@@ -44,4 +44,4 @@ export const omnibox = {
       ),
     ),
   },
-} satisfies Record<string, Rec>;
+});

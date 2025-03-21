@@ -1,8 +1,7 @@
-import { Rec } from ".";
 import { l, s, $, seq, u, __, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 
-export const note = pkg("note", {
+export const { rules: note } = pkg("note", {
   // public
   note: {
     db__schema: "schema",
@@ -137,11 +136,11 @@ export const note = pkg("note", {
   },
 });
 
-export const noteInitState = {
+export const { rules: noteInitState } = pkg("note", {
   example_note: {
     db__schema: "note",
     file__name: "Example note",
-    note__content: "This is an example note",
+    _content: "This is an example note",
     time__created: 1740219570821,
   },
-} satisfies Record<string, Rec>;
+});

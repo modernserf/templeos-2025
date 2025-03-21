@@ -2,7 +2,7 @@ import { l, s, $, __, u, seq, alt, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
-export const freeCell = pkg("free_cell", {
+export const { rules: freeCell } = pkg("free_cell", {
   _game: {
     db__schema: "schema",
     file__name: "FreeCell game",

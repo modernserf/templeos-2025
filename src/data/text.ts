@@ -1,7 +1,7 @@
 import { l, seq, s, $, __, x } from "../expr";
 import { pkg } from "../pkg";
 
-export const text = pkg("text", {
+export const { rules: text } = pkg("text", {
   // types
   text: {
     rule__params: l($.t),

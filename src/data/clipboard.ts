@@ -1,8 +1,7 @@
-import { Rec } from ".";
 import { $, __, l, s, seq, xfn } from "../expr";
 import { pkg } from "../pkg";
 
-export const clipboardRules = pkg("clipboard", {
+export const { rules: clipboardRules } = pkg("clipboard", {
   // schema
   clipboard: {
     db__schema: "schema",
@@ -70,10 +69,10 @@ export const clipboardRules = pkg("clipboard", {
   },
 });
 
-export const clipboardInitState = {
+export const { rules: clipboardInitState } = pkg("clipboard", {
   root_clipboard: {
     db__schema: "clipboard",
     file__name: "Clipboard",
     clipboard__data: l("init"),
   },
-} satisfies Record<string, Rec>;
+});

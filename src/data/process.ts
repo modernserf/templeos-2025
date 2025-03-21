@@ -2,9 +2,9 @@ import { test } from "../data/test_utils";
 import { $, l, s, seq, __ } from "../expr";
 import { box, k } from "../value";
 import { ensure, ensurePid, resolveDeep } from "../process";
-import { pkg_ } from "../pkg";
+import { pkg } from "../pkg";
 
-export const { rules: processRules, rulePrimitives: procesPrimitives } = pkg_(
+export const { rules: processRules, rulePrimitives: procesPrimitives } = pkg(
   "process",
   {
     self: {

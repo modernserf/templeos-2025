@@ -2,7 +2,7 @@ import { l, s, $, __, seq, u, fn } from "../expr";
 import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
-export const supervisor = pkg("supervisor", {
+export const { rules: supervisor } = pkg("supervisor", {
   supervisor: {
     rule__params: l($.pid, $.config, $.workers),
     rule__body: seq(s.spawn_link($.pid, s._init($.config, $.workers))),
@@ -30,10 +30,8 @@ export const supervisor = pkg("supervisor", {
             ),
             l(
               s.exit($.pid, $.reason),
-              seq(
-                s.ensure_det(
-                  s._worker_exit($.next, $.prev, $.pid, $.reason, $.sup_config),
-                ),
+              s.ensure_det(
+                s._worker_exit($.next, $.prev, $.pid, $.reason, $.sup_config),
               ),
             ),
           ),

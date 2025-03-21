@@ -1,7 +1,7 @@
 import { l, seq, s, $, __, u, fn, x, xfn, alt } from "../expr";
 import { pkg } from "../pkg";
 
-export const viewAnyRecord = pkg("any_record", {
+export const { rules: viewAnyRecord } = pkg("any_record", {
   view__expr: {
     rule__params: l($.out, $.value),
     rule__body: seq(

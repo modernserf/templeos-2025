@@ -1,9 +1,9 @@
-import { pkg_ } from "../pkg";
+import { pkg } from "../pkg";
 import { l, s, $, __, u, seq, alt, x } from "../expr";
 import { k } from "../value";
 import { ensure } from "../process";
 
-export const { rules: number, rulePrimitives: numberPrim } = pkg_("number", {
+export const { rules: number, rulePrimitives: numberPrim } = pkg("number", {
   random: {
     rule__params: l($.rand),
     rule__primitive: function* (it, rand) {
@@ -65,9 +65,9 @@ export const { rules: number, rulePrimitives: numberPrim } = pkg_("number", {
   sum: {
     rule__params: l($.sum, $.l, $.r),
     rule__body: s.cond(
-      l(s.var($.l), s.sub__primitive($.l, $.sum, $.r)),
-      l(s.var($.r), s.sub__primitive($.r, $.sum, $.l)),
-      s.add__primitive($.sum, $.l, $.r),
+      l(s.var($.l), s.sub($.l, $.sum, $.r)),
+      l(s.var($.r), s.sub($.r, $.sum, $.l)),
+      s.add($.sum, $.l, $.r),
     ),
   },
   inc: {
@@ -88,17 +88,17 @@ export const { rules: number, rulePrimitives: numberPrim } = pkg_("number", {
   product: {
     rule__params: l($.product, $.l, $.r),
     rule__body: s.cond(
-      l(s.var($.l), s.fdiv__primitive($.l, $.product, $.r)),
-      l(s.var($.r), s.fdiv__primitive($.r, $.product, $.l)),
-      s.mul__primitive($.product, $.l, $.r),
+      l(s.var($.l), s.fdiv($.l, $.product, $.r)),
+      l(s.var($.r), s.fdiv($.r, $.product, $.l)),
+      s.mul($.product, $.l, $.r),
     ),
   },
   product_rem: {
     rule__params: l($.result, $.l, $.r, $.rem),
     rule__body: s.cond(
-      l(s.var($.l), s.divrem__primitive($.l, $.rem, $.result, $.r)),
-      l(s.var($.r), s.divrem__primitive($.r, $.rem, $.result, $.l)),
-      seq(s.mul__primitive($.mul, $.l, $.r), s.sum($.result, $.mul, $.rem)),
+      l(s.var($.l), s.div_rem($.l, $.rem, $.result, $.r)),
+      l(s.var($.r), s.div_rem($.r, $.rem, $.result, $.l)),
+      seq(s.mul($.mul, $.l, $.r), s.sum($.result, $.mul, $.rem)),
     ),
   },
   _test_product_rem: {
@@ -140,7 +140,7 @@ export const { rules: number, rulePrimitives: numberPrim } = pkg_("number", {
       s.expect_collect($.rec, s.reciprocal(1 / 4, $.rec), 4),
     ),
   },
-  add__primitive: {
+  add: {
     rule__params: l($.sum, $.left, $.right),
     rule__primitive: function* (it, sum, left, right) {
       ensure(left, "number");
@@ -148,7 +148,7 @@ export const { rules: number, rulePrimitives: numberPrim } = pkg_("number", {
       if (it.unify(sum, k(left.value + right.value))) yield it.result();
     },
   },
-  sub__primitive: {
+  sub: {
     rule__params: l($.sum, $.left, $.right),
     rule__primitive: function* (it, sum, left, right) {
       ensure(left, "number");
@@ -156,7 +156,7 @@ export const { rules: number, rulePrimitives: numberPrim } = pkg_("number", {
       if (it.unify(sum, k(left.value - right.value))) yield it.result();
     },
   },
-  mul__primitive: {
+  mul: {
     rule__params: l($.sum, $.left, $.right),
     rule__primitive: function* (it, sum, left, right) {
       ensure(left, "number");
@@ -164,7 +164,7 @@ export const { rules: number, rulePrimitives: numberPrim } = pkg_("number", {
       if (it.unify(sum, k(left.value * right.value))) yield it.result();
     },
   },
-  fdiv__primitive: {
+  fdiv: {
     rule__params: l($.sum, $.left, $.right),
     rule__primitive: function* (it, sum, left, right) {
       ensure(left, "number");
@@ -172,17 +172,7 @@ export const { rules: number, rulePrimitives: numberPrim } = pkg_("number", {
       if (it.unify(sum, k(left.value / right.value))) yield it.result();
     },
   },
-  divrem__primitive: {
-    rule__params: l($.div, $.mod, $.left, $.right),
-    rule__primitive: function* (it, div, rem, left, right) {
-      ensure(left, "number");
-      ensure(right, "number");
-      const q = Math.trunc(left.value / right.value);
-      const r = left.value % right.value;
-      if (it.unify(div, k(q)) && it.unify(rem, k(r))) yield it.result();
-    },
-  },
-  mod__primitive: {
+  mod: {
     rule__params: l($.mod, $.left, $.right),
     rule__primitive: function* (it, mod, left, right) {
       ensure(left, "number");
@@ -192,7 +182,17 @@ export const { rules: number, rulePrimitives: numberPrim } = pkg_("number", {
       if (it.unify(mod, k(((n % d) + d) % d))) yield it.result();
     },
   },
-  trunc__primitive: {
+  div_rem: {
+    rule__params: l($.div, $.rem, $.left, $.right),
+    rule__primitive: function* (it, div, rem, left, right) {
+      ensure(left, "number");
+      ensure(right, "number");
+      const q = Math.trunc(left.value / right.value);
+      const r = left.value % right.value;
+      if (it.unify(div, k(q)) && it.unify(rem, k(r))) yield it.result();
+    },
+  },
+  trunc_frac: {
     rule__params: l($.trunc, $.frac, $.value),
     rule__primitive: function* (it, trunc, frac, value) {
       ensure(value, "number");
@@ -200,28 +200,6 @@ export const { rules: number, rulePrimitives: numberPrim } = pkg_("number", {
       const f = value.value - t;
       if (it.unify(trunc, k(t)) && it.unify(frac, k(f))) yield it.result();
     },
-  },
-  // TODO: impl these directly as primitives
-
-  add: {
-    rule__params: l($.out, $.l, $.r),
-    rule__body: seq(s.add__primitive($.out, $.l, $.r)),
-  },
-  sub: {
-    rule__params: l($.out, $.l, $.r),
-    rule__body: seq(s.sub__primitive($.out, $.l, $.r)),
-  },
-  mul: {
-    rule__params: l($.out, $.l, $.r),
-    rule__body: seq(s.mul__primitive($.out, $.l, $.r)),
-  },
-  fdiv: {
-    rule__params: l($.out, $.l, $.r),
-    rule__body: seq(s.fdiv__primitive($.out, $.l, $.r)),
-  },
-  mod: {
-    rule__params: l($.out, $.l, $.r),
-    rule__body: seq(s.mod__primitive($.out, $.l, $.r)),
   },
   min: {
     rule__params: l($.min, $.l, $.r),
@@ -237,18 +215,17 @@ export const { rules: number, rulePrimitives: numberPrim } = pkg_("number", {
       s.match(l($.max, $.ord), l($.l, s.gt()), l($.r, __)),
     ),
   },
-
   trunc: {
     rule__params: l($.trunc, $.val),
-    rule__body: seq(s.trunc__primitive($.trunc, __, $.val)),
+    rule__body: seq(s.trunc_frac($.trunc, __, $.val)),
   },
   floor: {
     rule__params: l($.floor, $.val),
     rule__body: seq(
-      s.trunc__primitive($.trunc, $.frac, $.val),
+      s.trunc_frac($.trunc, $.frac, $.val),
       s.if_then_else(
         s.lt($.frac, 0),
-        s.sub__primitive($.floor, $.trunc, 1),
+        s.sub($.floor, $.trunc, 1),
         u($.trunc, $.floor),
       ),
     ),
@@ -256,7 +233,7 @@ export const { rules: number, rulePrimitives: numberPrim } = pkg_("number", {
   ceil: {
     rule__params: l($.ceil, $.val),
     rule__body: seq(
-      s.trunc__primitive($.trunc, $.frac, $.val),
+      s.trunc_frac($.trunc, $.frac, $.val),
       s.if_then_else(
         s.gt($.frac, 0),
         s.inc($.ceil, $.trunc),

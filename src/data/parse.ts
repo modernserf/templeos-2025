@@ -1,7 +1,7 @@
 import { l, s, $, __, seq, fn, alt, u } from "../expr";
 import { pkg } from "../pkg";
 
-export const parse = pkg("parse", {
+export const { rules: parse } = pkg("parse", {
   parse: {
     rule__params: l($.result, $.string, $.parser),
     rule__body: seq(

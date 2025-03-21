@@ -1,10 +1,10 @@
 import { test } from "../data/test_utils";
 import { $, l, s, seq, __ } from "../expr";
 import { k } from "../value";
-import { pkg_ } from "../pkg";
+import { pkg } from "../pkg";
 import { ensure } from "../process";
 
-export const { rules: stringRules, rulePrimitives: stringPrimitives } = pkg_(
+export const { rules: stringRules, rulePrimitives: stringPrimitives } = pkg(
   "string",
   {
     string_number: {

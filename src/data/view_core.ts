@@ -1,8 +1,8 @@
-import { Rec } from ".";
 import { l, seq, s, $, u, __, fn } from "../expr";
+import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
-export const viewCore = {
+export const { rules: viewCore } = pkg("view_core", {
   html: {
     rule__params: $.params,
     rule__body: seq(
@@ -72,4 +72,4 @@ export const viewCore = {
   view__icon: {
     rule__params: l(s.Icon()),
   },
-} satisfies Record<string, Rec>;
+});

@@ -1,7 +1,7 @@
-import { Rec } from ".";
 import { l, seq, s, $, __, fn, xfn, x } from "../expr";
+import { pkg } from "../pkg";
 
-export const codeExplorerData = {
+export const { rules: codeExplorerData } = pkg("code_explorer", {
   code_explorer: {
     db__schema: "view",
     file__name: "Code explorer",
@@ -52,4 +52,4 @@ export const codeExplorerData = {
       ),
     ),
   },
-} satisfies Record<string, Rec>;
+});

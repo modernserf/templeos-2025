@@ -1,7 +1,7 @@
 import { $, __, alt, l, s, seq, u } from "../expr";
 import { pkg } from "../pkg";
 
-export const view = pkg("view", {
+export const { rules: view } = pkg("view", {
   view: {
     db__schema: "schema",
     schema__fields: l(

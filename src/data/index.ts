@@ -28,11 +28,11 @@ import { list } from "./list";
 import { number, numberPrim } from "./number";
 import { parse } from "./parse";
 import { iter } from "./iter";
-import { error } from "./error";
+import { error, errorPrimitives } from "./error";
 import { schema } from "./schema";
 import { field } from "./field";
 import { view } from "./view";
-import { typeRecs } from "./type";
+import { typePrim, typeRecs } from "./type";
 import { logging } from "./logger";
 import { controlPrimitives, controlRules } from "./control";
 import { procesPrimitives, processRules } from "./process";
@@ -237,11 +237,13 @@ export function initProcessManager() {
     ...corePrimitives,
     ...dbPrim,
     ...debugPrim,
+    ...errorPrimitives,
     ...numberPrim,
     ...ordPrim,
     ...procesPrimitives,
     ...stringPrimitives,
     ...timePrim,
+    ...typePrim,
   });
   const e = new EventSource<Value>();
 

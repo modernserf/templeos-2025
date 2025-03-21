@@ -1,8 +1,7 @@
-import { Rec } from ".";
 import { l, s, $, __, seq, x, xfn, alt } from "../expr";
 import { pkg } from "../pkg";
 
-export const collectionData = pkg("file", {
+export const { rules: collectionData } = pkg("file", {
   // schemas
   folder: {
     db__schema: "schema",
@@ -173,18 +172,18 @@ export const collectionData = pkg("file", {
   },
 });
 
-export const collectionInitState = {
+export const { rules: collectionInitState } = pkg("file", {
   // items
   example_tag: {
     db__schema: "tag",
-    file__name: "Example Tag",
-    file__description: l("A tag with some items"),
+    _name: "Example Tag",
+    _description: l("A tag with some items"),
   },
   example__folder: {
     db__schema: "folder",
-    file__name: "Example Folder",
-    file__description: l("A folder with some items"),
-    file__tags: l("example_tag"),
-    file__folder_items: l("home"),
+    _name: "Example Folder",
+    _description: l("A folder with some items"),
+    _tags: l("example_tag"),
+    _folder_items: l("home"),
   },
-} satisfies Record<string, Rec>;
+});

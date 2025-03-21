@@ -1,7 +1,7 @@
 import { $, __, l, s, seq, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 
-export const schema = pkg("schema", {
+export const { rules: schema } = pkg("schema", {
   schema: {
     db__schema: "schema",
     file__name: "Schema",

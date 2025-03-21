@@ -1,8 +1,8 @@
 import { test } from "./test_utils";
 import { $, l, s, seq, u, alt, __ } from "../expr";
 import { Value, box } from "../value";
-import { ensure, Exception, resolveDeep } from "../process";
-import { pkg_ } from "../pkg";
+import { ensure, resolveDeep } from "../process";
+import { pkg } from "../pkg";
 
 function dif(left: Value, right: Value) {
   if (left.tag === "fresh") return false;
@@ -29,7 +29,7 @@ function dif(left: Value, right: Value) {
   return true;
 }
 
-export const { rules: controlRules, rulePrimitives: controlPrimitives } = pkg_(
+export const { rules: controlRules, rulePrimitives: controlPrimitives } = pkg(
   "control",
   {
     ok: {
@@ -188,51 +188,7 @@ export const { rules: controlRules, rulePrimitives: controlPrimitives } = pkg_(
         ),
       ),
     },
-    throw: {
-      rule__params: l($.error),
-      rule__primitive: function* (_, error) {
-        throw new Exception(resolveDeep(error));
-      },
-    },
-    try_error_catch: {
-      rule__params: l($.try, $.error, $.catch),
-      rule__primitive: function* (it, try_, error_, catch_) {
-        const s = it.choice();
-        try {
-          yield* it.eval(try_);
-        } catch (e) {
-          if (e instanceof Exception) {
-            it.backtrack(s);
-            if (it.unify(e.error, error_)) {
-              yield* it.eval(catch_);
-              return;
-            }
-          }
-          throw e;
-        }
-      },
-    },
-    try_error_trace_catch: {
-      rule__params: l($.try, $.error, $.trace, $.catch),
-      rule__primitive: function* (it, try_, error_, trace_, catch_) {
-        const s = it.choice();
-        try {
-          yield* it.eval(try_);
-        } catch (e) {
-          if (e instanceof Exception) {
-            it.backtrack(s);
-            if (
-              it.unify(e.error, error_) &&
-              it.unify(box("", e.trace), trace_)
-            ) {
-              yield* it.eval(catch_);
-              return;
-            }
-          }
-          throw e;
-        }
-      },
-    },
+
     collect_item_in: {
       rule__params: l($.out, $.pattern, $.goal),
       rule__primitive: function* (it, out, pattern, goal) {
@@ -295,29 +251,7 @@ export const { rules: controlRules, rulePrimitives: controlPrimitives } = pkg_(
         3,
       ),
     },
-    ensure_limit: {
-      rule__params: l($.limit, $.goal),
-      rule__primitive: function* (it, limit, goal) {
-        ensure(limit, "number");
-        let count = 0;
 
-        const gen = it.eval(goal);
-        let next = gen.next();
-        while (!next.done) {
-          if (next.value.tag === "result") {
-            yield next.value;
-            count += 1;
-            if (count > limit.value) {
-              throw new Exception(box("ensure_limit", [limit, goal]));
-            }
-            next = gen.next();
-          } else {
-            const result = yield next.value;
-            next = gen.next(result);
-          }
-        }
-      },
-    },
     resolve_deep: {
       rule__params: l($.resolved, $.value),
       rule__primitive: function* (it, res, val) {

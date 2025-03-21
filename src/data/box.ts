@@ -1,9 +1,9 @@
 import { l, s, $, __, u, seq, x } from "../expr";
-import { pkg_ } from "../pkg";
+import { pkg } from "../pkg";
 import { ensure } from "../process";
 import { box, k } from "../value";
 
-export const { rules: boxRules, rulePrimitives: boxPrim } = pkg_("box", {
+export const { rules: boxRules, rulePrimitives: boxPrim } = pkg("box", {
   box: {
     rule__params: l($.box, $.tag, $.list),
     rule__primitive: function* (it, aBox, tag, list) {

@@ -1,7 +1,8 @@
 import { l, s, $, __, u, seq, fn, alt, x } from "../expr";
 import { pkg } from "../pkg";
+import { box } from "../value";
 
-export const typeRecs = pkg("type", {
+export const { rules: typeRecs, rulePrimitives: typePrim } = pkg("type", {
   type: {
     db__schema: "schema",
     schema__fields: l(s.field("rule__params"), s.field_optional("_hierarchy")),
@@ -34,6 +35,29 @@ export const typeRecs = pkg("type", {
       l(s.const($.val), s.number(), s.number($.val)),
     ),
   },
+  type_value: {
+    rule__params: l($.type, $.value),
+    rule__primitive: function* (it, type, value) {
+      const t = value.tag === "fresh" ? "var" : value.tag;
+      if (it.unify(type, box(t, []))) yield it.result();
+    },
+  },
+  test__type_value: {
+    test__group: "core",
+    rule__params: l(),
+    rule__body: seq(
+      s.expect_ok(s.type_value(s.var(), __)),
+      s.expect_ok(s.type_value(s.var(), $._x)),
+      s.expect_ok(s.type_value(s.number(), 123)),
+      s.expect_ok(s.type_value(s.string(), "hello")),
+      s.expect_ok(s.type_value(s.box(), s.id(123, "hello"))),
+      s.expect_ok(s.type_value(s.box(), l(__, __))),
+
+      s.unify($.y, 123),
+      s.expect_ok(s.type_value(s.number(), $.y)),
+    ),
+  },
+
   string: {
     db__schema: "type",
     rule__params: l($.value),

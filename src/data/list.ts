@@ -1,7 +1,7 @@
 import { pkg } from "../pkg";
 import { l, s, $, __, u, seq, alt, x } from "../expr";
 
-export const list = pkg("list", {
+export const { rules: list } = pkg("list", {
   list: {
     rule__params: $.params,
     rule__body: seq(
@@ -172,7 +172,7 @@ export const list = pkg("list", {
         s.nonempty($.lists),
         s.map_list($.lens, $.lists, s.length()),
         s.fold_op($.len, $.lens, s.min()),
-        s.sub__primitive($.len_, $.len, 1),
+        s.sub($.len_, $.len, 1),
 
         s($.i).number_min_max(0, $.len_),
         s.map_list($.items, $.lists, s.at($.i)),

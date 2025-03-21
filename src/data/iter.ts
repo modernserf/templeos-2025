@@ -1,7 +1,7 @@
 import { l, s, $, __, seq, u, fn, alt, x } from "../expr";
 import { pkg } from "../pkg";
 
-export const iter = pkg("iter", {
+export const { rules: iter } = pkg("iter", {
   _iter: {
     rule__params: l(s._iter($.state, $.fn_next), $.state, $.fn_next),
   },

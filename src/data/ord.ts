@@ -1,12 +1,12 @@
 import { l, s, $, __, seq, u, x } from "../expr";
-// var < number < string < box
-// a() < z(), a() < a(0)
-
-import { pkg_ } from "../pkg";
+import { pkg } from "../pkg";
 import { ensure } from "../process";
 import { box } from "../value";
 
-export const { rules: ord, rulePrimitives: ordPrim } = pkg_("ord", {
+// var < number < string < box
+// a() < z(), a() < a(0)
+
+export const { rules: ord, rulePrimitives: ordPrim } = pkg("ord", {
   ord__string: {
     rule__params: l($.ord, $.left, $.right),
     rule__primitive: function* (it, ord, left, right) {

@@ -1,9 +1,9 @@
 import { s, __, seq, $, l, u, alt, fn } from "../expr";
-import { pkg_ } from "../pkg";
+import { pkg } from "../pkg";
 import { ensure, resolveDeep } from "../process";
 import { k, valueExpr } from "../value";
 
-export const { rules: dbRules, rulePrimitives: dbPrim } = pkg_("db", {
+export const { rules: dbRules, rulePrimitives: dbPrim } = pkg("db", {
   tx: {
     rule__params: l($.tx),
     rule__primitive: function* (it, tx) {

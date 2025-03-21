@@ -2,7 +2,7 @@ import { l, s, $, __, seq, u, fn, x } from "../expr";
 import { pkg } from "../pkg";
 import { test } from "./test_utils";
 
-export const asyncRules = pkg("async", {
+export const { rules: asyncRules } = pkg("async", {
   sleep: {
     rule__params: l($.duration),
     rule__body: seq(
