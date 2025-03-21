@@ -110,15 +110,15 @@ export const freeCell = pkg("free_cell", {
       ),
       s._shuffled_list($.shuffled, $.cards),
       // 7 card
-      s.slice_box_from_to($.a, $.shuffled, 0, 7),
-      s.slice_box_from_to($.b, $.shuffled, 7, 14),
-      s.slice_box_from_to($.c, $.shuffled, 14, 21),
-      s.slice_box_from_to($.d, $.shuffled, 21, 28),
+      s.slice($.a, $.shuffled, 0, 7),
+      s.slice($.b, $.shuffled, 7, 14),
+      s.slice($.c, $.shuffled, 14, 21),
+      s.slice($.d, $.shuffled, 21, 28),
       // 6 card
-      s.slice_box_from_to($.e, $.shuffled, 28, 34),
-      s.slice_box_from_to($.f, $.shuffled, 34, 40),
-      s.slice_box_from_to($.g, $.shuffled, 40, 46),
-      s.slice_box_from_to($.h, $.shuffled, 46, 52),
+      s.slice($.e, $.shuffled, 28, 34),
+      s.slice($.f, $.shuffled, 34, 40),
+      s.slice($.g, $.shuffled, 40, 46),
+      s.slice($.h, $.shuffled, 46, 52),
     ),
   },
   // TODO: random seed
@@ -192,7 +192,7 @@ export const freeCell = pkg("free_cell", {
         $.out,
         l(),
         xfn($.o)(
-          s.value_box_index($.col, $.columns, $.x),
+          s.index_value_box($.x, $.col, $.columns),
           s.column(
             $.o,
             l(),
@@ -206,7 +206,7 @@ export const freeCell = pkg("free_cell", {
                   s.call($.handler, s.columns($.x, $.y)),
                 ),
                 seq(
-                  s.value_box_index($.card, $.col, $.y),
+                  s.index_value_box($.y, $.card, $.col),
                   s._view_card(
                     $.o2,
                     $.card,
@@ -228,7 +228,7 @@ export const freeCell = pkg("free_cell", {
         $.out,
         l(),
         xfn($.u)(
-          s.value_box_index($.card, $.stacks, $.i),
+          s.index_value_box($.i, $.card, $.stacks),
           s._view_card(
             $.u,
             $.card,
@@ -246,7 +246,7 @@ export const freeCell = pkg("free_cell", {
         $.out,
         l(),
         xfn($.u)(
-          s.value_box_index($.card, $.cells, $.i),
+          s.index_value_box($.i, $.card, $.cells),
           s._view_card(
             $.u,
             $.card,
@@ -324,7 +324,7 @@ export const freeCell = pkg("free_cell", {
     rule__body: s.if_then_else(
       s.var($.with),
       seq(
-        s.value_box_index($.col, $.without, $.x),
+        s.at($.col, $.without, $.x),
         s.if_then_else(
           s.empty($.col),
           s.updated_box_index_value($.with, $.without, $.x, l($.card)),
@@ -335,7 +335,7 @@ export const freeCell = pkg("free_cell", {
         ),
       ),
       seq(
-        s.value_box_index($.col, $.with, $.x),
+        s.at($.col, $.with, $.x),
         s.append($.col, $.rest, l($.card)),
         s.updated_box_index_value($.without, $.with, $.x, $.rest),
       ),
@@ -344,7 +344,7 @@ export const freeCell = pkg("free_cell", {
   _check_put_column: {
     rule__params: l($.without, $.card, $.x),
     rule__body: seq(
-      s.value_box_index($.col, $.without, $.x),
+      s.at($.col, $.without, $.x),
       s.cond(
         s.empty($.col),
         seq(s.append($.col, __, l($.top)), s._col_pair($.card, $.top)),
@@ -368,11 +368,11 @@ export const freeCell = pkg("free_cell", {
     rule__body: s.if_then_else(
       s.var($.with),
       seq(
-        s.value_box_index(s.empty(__), $.without, $.i),
+        s.at(s.empty(__), $.without, $.i),
         s.updated_box_index_value($.with, $.without, $.i, $.card),
       ),
       seq(
-        s.value_box_index($.card, $.with, $.i),
+        s.at($.card, $.with, $.i),
         s.not_equal($.card, s.empty(__)),
         s.updated_box_index_value($.without, $.with, $.i, s.empty("")),
       ),
@@ -397,12 +397,12 @@ export const freeCell = pkg("free_cell", {
     rule__body: s.if_then_else(
       s.var($.with),
       seq(
-        s.value_box_index($.stack, $.without, $.i),
+        s.at($.stack, $.without, $.i),
         s._inc_stack($.stack, $.card),
         s.updated_box_index_value($.with, $.without, $.i, $.card),
       ),
       seq(
-        s.value_box_index($.card, $.with, $.i),
+        s.at($.card, $.with, $.i),
         s._inc_stack($.stack, $.card),
         s.updated_box_index_value($.without, $.with, $.i, $.stack),
       ),

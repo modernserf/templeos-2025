@@ -24,7 +24,7 @@ export const list = pkg("list", {
       l(
         s.list($.list),
         seq(
-          s.value_box_index($.sub_expr, $.list, __),
+          s.in($.sub_expr, $.list),
           s._test_list_recursive($.value, $.sub_expr),
         ),
       ),
@@ -60,10 +60,10 @@ export const list = pkg("list", {
       l($.state, $.index),
       l($.init, 0),
       s.if_then_else(
-        s.length_box($.index, $.list),
+        s.length($.index, $.list),
         s.fail(),
         seq(
-          s.value_box_index($.item, $.list, $.index),
+          s.at($.item, $.list, $.index),
           s.inc($.next_index, $.index),
           s.ensure_det(s.apply(l($.next_state, $.state, $.item), $.fn)),
           // s.apply(l($.next_state, $.state, $.item), $.fn),
@@ -170,12 +170,12 @@ export const list = pkg("list", {
       $.zipped_item,
       seq(
         s.nonempty($.lists),
-        s.map_list($.lens, $.lists, s.length_box()),
+        s.map_list($.lens, $.lists, s.length()),
         s.fold_op($.len, $.lens, s.min()),
         s.sub__primitive($.len_, $.len, 1),
 
         s($.i).number_min_max(0, $.len_),
-        s.map_list($.items, $.lists, s.value_box_index($.i)),
+        s.map_list($.items, $.lists, s.at($.i)),
         s.append($.args, l($.zipped_item), $.items),
         s.apply($.args, $.fn),
       ),

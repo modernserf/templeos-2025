@@ -65,16 +65,16 @@ export const typeRecs = pkg("type", {
       s.box($.value, $.tag, $.vals),
       s._check($.tag, $.tag_type),
 
-      s.length_box($.tuple_len, $.tuple_types),
-      s.length_box($.val_len, $.vals),
+      s.length($.tuple_len, $.tuple_types),
+      s.length($.val_len, $.vals),
       s.gt_eq($.val_len, $.tuple_len),
 
       s.cond(
         s.empty($.vals),
         s.every(
-          s.value_box_index($.v, $.vals, $.i),
+          s.index_value_box($.i, $.v, $.vals),
           seq(
-            s.value_box_index_default($.t, $.tuple_types, $.i, $.rest_type),
+            s.at_default($.t, $.tuple_types, $.i, $.rest_type),
             s._check($.v, $.t),
           ),
         ),
@@ -86,14 +86,14 @@ export const typeRecs = pkg("type", {
         s._box($.rtag, $.rargs, $.rrest),
         seq(
           s.subtype($.ltag, $.rtag),
-          s.length_box($.llen, $.largs),
-          s.length_box($.rlen, $.rargs),
+          s.length($.llen, $.largs),
+          s.length($.rlen, $.rargs),
           s.max($.len, $.llen, $.rlen),
           s.every(
             s.number_min_max($.i, 0, $.len),
             seq(
-              s.value_box_index_default($.l, $.largs, $.i, $.lrest),
-              s.value_box_index_default($.r, $.rargs, $.i, $.rrest),
+              s.at_default($.l, $.largs, $.i, $.lrest),
+              s.at_default($.r, $.rargs, $.i, $.rrest),
               s.subtype($.l, $.r),
             ),
           ),

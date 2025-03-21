@@ -51,10 +51,7 @@ export const viewCore = {
       $.label,
       fn(s.click($.params))(
         s.cond(
-          l(
-            s.value_box_index(s.meta_key(), $.params, 0),
-            s.on__new_window($.location),
-          ),
+          l(s.at(s.meta_key(), $.params, 0), s.on__new_window($.location)),
           l(s(s.target("new")).in($.props), s.on__new_window($.location)),
           seq(s.current_window($.window), s.on__push($.window, $.location)),
         ),

@@ -69,7 +69,7 @@ export const viewAnyRecord = pkg("any_record", {
         x.html("span", l(), x.view__file_link($.tag)),
         x.html("span", l(), x.view__string("(")),
         xfn($.out)(
-          s.value_box_index($.arg, $.list, $.i),
+          s.index_value_box($.i, $.arg, $.list),
           alt(
             s.if_then_else(
               u($.i, 0),

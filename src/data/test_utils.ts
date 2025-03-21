@@ -95,7 +95,7 @@ export const testUtils = pkg("test", {
   _increment_counter: {
     rule__params: l($.next, $.prev, $.ident),
     rule__body: s.if_then_else(
-      s.limit(1, s.value_box_index(l($.ident, $.count), $.prev, $.i)),
+      s.limit(1, s.index_value_box($.i, l($.ident, $.count), $.prev)),
       seq(
         s.inc($.nc, $.count),
         s.updated_box_index_value($.next, $.prev, $.i, l($.ident, $.nc)),

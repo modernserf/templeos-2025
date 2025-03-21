@@ -34,7 +34,8 @@ export const s = new Proxy(
       return (...args: Expr[]) => ({ tag: "box", id, args } as const);
     },
   },
-) as { [Tag in Id]: S<Tag> } & Ss<"call"> &
+) as { [Tag in Id]: S<Tag> } & Ss<"length"> &
+  Ss<"call"> &
   Ss<"apply"> &
   Ss<"section"> &
   Ss<"link"> &
@@ -148,7 +149,9 @@ export const x = new Proxy((expr: Expr) => ({ tag: "expand", expr } as const), {
     return (...args: Expr[]) =>
       ({ tag: "expand", expr: { tag: "box", id, args } } as const);
   },
-}) as ((expr: Expr) => Expr) & Record<string, (...args: Expr[]) => Expr>;
+}) as ((expr: Expr) => Expr) &
+  Record<string, (...args: Expr[]) => Expr> &
+  Ss<"length">;
 
 export const xfn =
   (...params: Expr[]) =>

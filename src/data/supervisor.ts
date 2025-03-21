@@ -58,17 +58,14 @@ export const supervisor = pkg("supervisor", {
   _worker_exit: {
     rule__params: l($.next, $.prev, $.pid, $.reason, s.supervisor($.strategy)),
     rule__body: seq(
-      s.value_box_index(l($.pid, s.worker($.restart, __)), $.prev, $.i),
+      s.index_value_box($.i, l($.pid, s.worker($.restart, __)), $.prev),
       s.match_cond(
         l($.restart, $.reason, $.strategy),
         // no restart
-        l(
-          l(s.temporary(), __, __),
-          s.updated_box_index_removed($.next, $.prev, $.i, l(__)),
-        ),
+        l(l(s.temporary(), __, __), s.splice($.prev, $.next, $.i, l(__))),
         l(
           l(s.transient(), s.normal(), __),
-          s.updated_box_index_removed($.next, $.prev, $.i, l(__)),
+          s.splice($.prev, $.next, $.i, l(__)),
         ),
         // restart
         l(l(__, __, s.one_for_one()), s._restart_one($.next, $.prev, $.i)),
@@ -80,7 +77,7 @@ export const supervisor = pkg("supervisor", {
   _restart_one: {
     rule__params: l($.next, $.prev, $.i),
     rule__body: seq(
-      s.value_box_index(l($._old_pid, $.worker), $.prev, $.i),
+      s.at(l($._old_pid, $.worker), $.prev, $.i),
       s._init_worker($.new_pid, $.worker),
       s.updated_box_index_value($.next, $.prev, $.i, l($.new_pid, $.worker)),
     ),
@@ -91,7 +88,7 @@ export const supervisor = pkg("supervisor", {
       $.next,
       l($.pid, $.worker),
       seq(
-        s.value_box_index(l($.old_pid, $.worker), $.prev, __),
+        s.in(l($.old_pid, $.worker), $.prev),
         s.exit($.old_pid, s.restart_all()),
         s.receive(s.exit($.old_pid, s.restart_all())),
         s._init_worker($.pid, $.worker),

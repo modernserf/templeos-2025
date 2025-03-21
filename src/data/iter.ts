@@ -50,7 +50,7 @@ export const iter = pkg("iter", {
   _list_next: {
     rule__params: l($.value, $.next, l($.list, $.index)),
     rule__body: seq(
-      s.value_box_index($.value, $.list, $.index),
+      s.at($.value, $.list, $.index),
       s.inc($.next_index, $.index),
       s._list_at($.next, $.list, $.next_index),
     ),
@@ -172,11 +172,11 @@ export const iter = pkg("iter", {
         )(s._next($.value, $.next_iter, $.iter)),
       ),
       // check that all yielded
-      s.length_box($.len, $.iters),
-      s.length_box($.len, $.results),
+      s.length($.len, $.iters),
+      s.length($.len, $.results),
 
-      s.map_list($.value, $.results, s.value_box_index(0)),
-      s.map_list($.next_iters, $.results, s.value_box_index(1)),
+      s.map_list($.value, $.results, s.at(0)),
+      s.map_list($.next_iters, $.results, s.at(1)),
       s._zip($.next, $.next_iters),
     ),
   },

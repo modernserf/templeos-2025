@@ -90,10 +90,6 @@ export const { rules: core, rulePrimitives: corePrimitives } = pkg_("core", {
     rule__params: l($.expr),
     rule__body: s.if_then_else($.expr, s.fail(), s.ok()),
   },
-  in: {
-    rule__params: l($.value, $.box),
-    rule__body: s.value_box_index($.value, $.box, __),
-  },
   do: {
     rule__params: l($.goal),
     rule__body: s.if_then_else($.goal, s.ok(), s.ok()),
@@ -136,7 +132,7 @@ export const { rules: core, rulePrimitives: corePrimitives } = pkg_("core", {
     rule__params: l($.params, $.required, $.rest),
     rule__body: s.if_then_else(
       seq(
-        s.length_box($.len, $.required),
+        s.length($.len, $.required),
         s.left_right_box_split($.required, $.rest, $.params, $.len),
       ),
       s.ok(),

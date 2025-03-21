@@ -35,6 +35,16 @@ export const { rules: number, rulePrimitives: numberPrim } = pkg_("number", {
       }
     },
   },
+  number_min_to: {
+    rule__params: l($.number, $.min, $.to),
+    rule__primitive: function* (it, num, min, to) {
+      ensure(min, "number");
+      ensure(to, "number");
+      for (let i = min.value; i < to.value; i++) {
+        yield* it.unifyChoice(num, k(i));
+      }
+    },
+  },
   test__number_min_max: {
     test__group: "number",
     rule__params: l(),
