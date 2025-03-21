@@ -37,6 +37,7 @@ import { logging } from "./logger";
 import { controlPrimitives, controlRules } from "./control";
 import { procesPrimitives, processRules } from "./process";
 import { stringPrimitives, stringRules } from "./string";
+import { boxPrim, boxRules } from "./box";
 
 export type Schema =
   | "clipboard"
@@ -128,14 +129,15 @@ function mergeAndCheck(
 export const data = mergeAndCheck(
   [
     asyncRules,
+    boxRules,
     browserData,
+    clipboardRules,
     codeExplorerData,
     collectionData,
     controlRules,
     core,
-    clipboardRules,
-    debug,
     dbRules,
+    debug,
     error,
     field,
     freeCell,
@@ -152,14 +154,14 @@ export const data = mergeAndCheck(
     stringRules,
     supervisor,
     testUtils,
+    text,
+    time,
     typeRecs,
     view,
     viewAnyRecord,
     viewCore,
     viewForm,
     viewTable,
-    text,
-    time,
     {
       home: {
         db__schema: "view",
@@ -230,15 +232,16 @@ export const initState = mergeAndCheck(
 export function initProcessManager() {
   const db = new TransactDB<Rec>();
   const p = ProcessManager.init(db, {
+    ...boxPrim,
     ...controlPrimitives,
     ...corePrimitives,
+    ...dbPrim,
+    ...debugPrim,
+    ...numberPrim,
+    ...ordPrim,
     ...procesPrimitives,
     ...stringPrimitives,
-    ...numberPrim,
-    ...dbPrim,
-    ...ordPrim,
     ...timePrim,
-    ...debugPrim,
   });
   const e = new EventSource<Value>();
 

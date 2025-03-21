@@ -1,7 +1,58 @@
 import { pkg } from "../pkg";
-import { l, s, $, __, u, seq, alt } from "../expr";
+import { l, s, $, __, u, seq, alt, x } from "../expr";
 
 export const list = pkg("list", {
+  list: {
+    rule__params: $.params,
+    rule__body: seq(
+      s.params_rest($.params, l($.out), $.items),
+      s.box($.out, "", $.items),
+    ),
+  },
+  _test_list_recursive: {
+    rule__params: l($.value, $.expr),
+    rule__body: s.match_cond(
+      $.expr,
+      l(s.value($.value), s.ok()),
+      l(
+        s.pair($.left, $.right),
+        alt(
+          s._test_list_recursive($.value, $.left),
+          s._test_list_recursive($.value, $.right),
+        ),
+      ),
+      l(
+        s.list($.list),
+        seq(
+          s.value_box_index($.sub_expr, $.list, __),
+          s._test_list_recursive($.value, $.sub_expr),
+        ),
+      ),
+    ),
+  },
+  _test_list: {
+    test__group: "core",
+    rule__params: l(),
+    rule__body: seq(
+      s.expect_eq(x.list(1, x.in(l()), x.in(l(2, 3))), l(1, 2, 3)),
+
+      s.expect_eq(
+        x.list(
+          x._test_list_recursive(
+            s.pair(s.value(1), s.pair(s.value(2), s.value(3))),
+          ),
+        ),
+        l(1, 2, 3),
+      ),
+
+      s.expect_eq(
+        x.list(
+          x._test_list_recursive(s.list(l(s.value(1), s.value(2), s.value(3)))),
+        ),
+        l(1, 2, 3),
+      ),
+    ),
+  },
   _scan: {
     rule__params: l($.next_state, $.init, $.list, $.fn),
     rule__body: s.loop_iter(
