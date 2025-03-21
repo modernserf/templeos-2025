@@ -273,17 +273,14 @@ export const { rules: dbRules, rulePrimitives: dbPrim } = pkg("db", {
       s.each_item_do(
         $.batch,
         $.item,
-        seq(
-          s.log("_apply_update", $.item),
-          s.match_cond(
-            $.item,
-            l(
-              s.update($.id, $.field, $.value),
-              s._tx_update_field_value($.tx, $.id, $.field, $.value),
-            ),
-            l(s.delete($.id, $.field), s._tx_delete_field($.tx, $.id, $.field)),
-            l(s.delete($.id), s._tx_delete_record($.tx, $.id)),
+        s.match_cond(
+          $.item,
+          l(
+            s.update($.id, $.field, $.value),
+            s._tx_update_field_value($.tx, $.id, $.field, $.value),
           ),
+          l(s.delete($.id, $.field), s._tx_delete_field($.tx, $.id, $.field)),
+          l(s.delete($.id), s._tx_delete_record($.tx, $.id)),
         ),
       ),
     ),

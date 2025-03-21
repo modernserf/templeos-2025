@@ -174,17 +174,29 @@ const Button: VC = ({ pm, values: [props, label, handler], pid }) => {
 };
 
 const Input: VC = ({ pm, values: [props, value, handler], pid }) => {
-  if (value.tag !== "string" && value.tag !== "number") return null;
+  ensure(value, "string");
+  const [localValue, setLocalValue] = useState(value.value);
+  const localSource = useRef(false);
+  const timeout = useRef(0);
 
   const { debounce: db = 0, ...jsProps } = getProps(props);
 
   return (
     <input
       {...jsProps}
-      defaultValue={value.value}
-      onChange={debounce(db, (e) => {
-        handle(pm, pid, handler, box("change", [k(e.target.value)]));
-      })}
+      value={localSource.current ? localValue : value.value}
+      onChange={(e) => {
+        setLocalValue(e.target.value);
+        if (timeout.current) {
+          clearTimeout(timeout.current);
+        }
+        localSource.current = true;
+        timeout.current = setTimeout(() => {
+          localSource.current = false;
+          handle(pm, pid, handler, box("change", [k(e.target.value)]));
+          timeout.current = 0;
+        }, db);
+      }}
       onFocus={() => {
         handle(pm, pid, handler, s.focus());
       }}
@@ -197,16 +209,27 @@ const Input: VC = ({ pm, values: [props, value, handler], pid }) => {
 
 const Textarea: VC = ({ pm, values: [props, value, handler], pid }) => {
   ensure(value, "string");
+  const [localValue, setLocalValue] = useState(value.value);
+  const localSource = useRef(false);
+  const timeout = useRef(0);
   const { debounce: db = 0, ...jsProps } = getProps(props);
 
   return (
     <textarea
       {...jsProps}
-      key={Date.now()}
-      defaultValue={value.value}
-      onChange={debounce(db, (e) => {
-        handle(pm, pid, handler, box("change", [k(e.target.value)]));
-      })}
+      value={localSource.current ? localValue : value.value}
+      onChange={(e) => {
+        setLocalValue(e.target.value);
+        if (timeout.current) {
+          clearTimeout(timeout.current);
+        }
+        localSource.current = true;
+        timeout.current = setTimeout(() => {
+          localSource.current = false;
+          handle(pm, pid, handler, box("change", [k(e.target.value)]));
+          timeout.current = 0;
+        }, db);
+      }}
       onFocus={() => {
         handle(pm, pid, handler, s.focus());
       }}
