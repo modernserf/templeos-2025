@@ -37,15 +37,7 @@ export const { rules: core, rulePrimitives: corePrimitives } = pkg("core", {
       if (it.unify(id, k(crypto.randomUUID()))) yield it.result();
     },
   },
-  // fields
-  // TODO: foo_field($.value, $.id) -> value_record_field($.value, $.id, "foo_field")
-  db__schema: {
-    db__schema: "field",
-    file__name: "DB Schema",
-    file__description: l("schema used to validate & render this record"),
-    field__type: s.ref("schema"),
-    field__index: s.ref(),
-  },
+
   rule__params: {
     db__schema: "field",
     file__name: "Rule params",

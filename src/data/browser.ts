@@ -115,7 +115,7 @@ export const { rules: browserData } = pkg("browser", {
   boot: {
     rule__params: l($.pid),
     rule__body: seq(
-      s.init__db_server(),
+      s.init_db_server(),
       s.init_debugger(),
       s.spawn_link(
         $.pid,
@@ -292,18 +292,19 @@ export const { rules: browserData } = pkg("browser", {
       x.view__subscribe_render(
         s.match(
           s.update("browser", "_current_window", __),
+          s.update(__, "_current_history", __),
           s.update(__, "_view", __),
         ),
         s._app_menu(),
       ),
       xfn($.u)(
         s.db__schema("window", $.window),
-        s._current_history($.history, $.window),
         s.view__subscribe_render(
           $.u,
           s.match(
             s.update($.window, __, __),
-            s.update($.history, "_view", __),
+            s.update(__, "_view", __),
+            s.update($.window, "_current_history", __),
             s.delete($.window),
             s.update("browser", "_current_window", __),
           ),

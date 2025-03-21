@@ -8,8 +8,6 @@ export const { rules: note } = pkg("note", {
     file__name: "Note",
     file__description: l("A plain text note"),
     schema__fields: l(s.field("_content")),
-    rule__params: l($.id),
-    rule__body: s.record_field_value($.id, "db__schema", "note"),
   },
 
   // private
@@ -17,8 +15,6 @@ export const { rules: note } = pkg("note", {
     db__schema: "field",
     file__name: "Note content",
     field__type: s.string(),
-    rule__params: l($.value, $.record),
-    rule__body: s.record_field_value($.record, "_content", $.value),
   },
 
   _view_detail: {
@@ -92,7 +88,7 @@ export const { rules: note } = pkg("note", {
         $.out,
         l(),
         x.view__button(l(), "New note", s.on_click(s._on_new())),
-        xfn($.out)(s.note($.id), s._view_detail($.out, $.id)),
+        xfn($.out)(s.db__schema("note", $.id), s._view_detail($.out, $.id)),
       ),
     ),
   },

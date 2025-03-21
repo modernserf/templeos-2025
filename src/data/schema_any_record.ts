@@ -134,14 +134,8 @@ export const { rules: viewAnyRecord } = pkg("any_record", {
             s.clipboard__copy($.value),
           ),
         ),
-        l(s.ref_key($.field), s.clipboard__copy($.field)),
-        l(
-          s.ref_value($.field),
-          seq(
-            s.ref_field_record($.ref, $.field, $.id),
-            s.clipboard__copy($.ref),
-          ),
-        ),
+        l(s.ref_key(__, $.field), s.clipboard__copy($.field)),
+        l(s.ref_value($.ref, __), s.clipboard__copy($.ref)),
       ),
     ),
   },
@@ -207,21 +201,20 @@ export const { rules: viewAnyRecord } = pkg("any_record", {
             ),
           ),
           x.table_section(
-            x.table_header(l(), "Reference", "Record"),
+            x.table_header(l(), "Field", "Referenced by"),
             xfn($.out)(
-              s.log("ref section", $.ref, $.field, $.id),
               s.ref_field_record($.ref, $.field, $.id),
               s.table_row(
                 $.out,
                 l(),
                 x._focus_cell(
                   $.state,
-                  s.ref_key($.field),
+                  s.ref_key($.ref, $.field),
                   x.view__file_link($.field),
                 ),
                 x._focus_cell(
                   $.state,
-                  s.ref_value($.ref),
+                  s.ref_value($.ref, $.field),
                   x.view__file_link($.ref),
                 ),
               ),

@@ -84,7 +84,7 @@ export const { rules: collectionData } = pkg("file", {
     rule__body: s.column(
       $.out,
       l(),
-      x.view__text(x._file_description($.id)),
+      x.view__text(x._description($.id)),
       x._view_table($.collection),
     ),
   },
@@ -93,7 +93,7 @@ export const { rules: collectionData } = pkg("file", {
     rule__body: s.column(
       $.out,
       l(),
-      x.view__text(x._file_description($.id)),
+      x.view__text(x._description($.id)),
       x.row(
         l(),
         xfn($.u)(
