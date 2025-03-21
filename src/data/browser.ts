@@ -24,35 +24,9 @@ export const browserData = pkg("browser", {
       s.field_optional("_back"),
     ),
   },
-  // types
-  _t_menu_items: {
-    rule__params: l($.t),
-    rule__body: s.list_of(
-      $.t,
-      s.enum(
-        s.menu(
-          s.string(),
-          s.list_of(
-            s.enum(
-              s.menu_option(
-                s.string(),
-                s.string(),
-                s.type__fn(s.ref(__), s.ref("history")),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  },
 
   // fields
 
-  view__menu_items: {
-    db__schema: "field",
-    file__name: "View menu items",
-    field__type: s._t_menu_items(),
-  },
   _id: {
     db__schema: "field",
     file__name: "History id ref",
@@ -317,7 +291,10 @@ export const browserData = pkg("browser", {
       "div",
       l(),
       x.view__subscribe_render(
-        s.match(s.update("browser", "_current_window", __)),
+        s.match(
+          s.update("browser", "_current_window", __),
+          s.update(__, "_view", __),
+        ),
         s._app_menu(),
       ),
       xfn($.u)(
@@ -327,7 +304,7 @@ export const browserData = pkg("browser", {
           $.u,
           s.match(
             s.update($.window, __, __),
-            s.update($.history, "browser__view", __),
+            s.update($.history, "_view", __),
             s.delete($.window),
             s.update("browser", "_current_window", __),
           ),

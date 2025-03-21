@@ -11,6 +11,7 @@ export const view = pkg("view", {
       s.field_optional("rule__body"),
       s.field_optional("_params_type"),
       s.field_optional("_focus_type"),
+      s.field_optional("_menu_items"),
     ),
   },
   _subject: {
@@ -33,6 +34,32 @@ export const view = pkg("view", {
     db__schema: "field",
     file__name: "Focused element type",
     field__type: s.type__type(),
+  },
+  // types
+  _t_menu_items: {
+    rule__params: l($.t),
+    rule__body: s.list_of(
+      $.t,
+      s.enum(
+        s.menu(
+          s.string(),
+          s.list_of(
+            s.enum(
+              s.menu_option(
+                s.string(),
+                s.string(),
+                s.type__fn(s.ref(__), s.ref("history")),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  },
+  _menu_items: {
+    db__schema: "field",
+    file__name: "View menu items",
+    field__type: s._t_menu_items(),
   },
 
   _for_record: {
