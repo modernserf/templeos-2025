@@ -407,7 +407,7 @@ export const { rules: browserData } = pkg("browser", {
               x.html(
                 "div",
                 l(s.class("AppWindow__content")),
-                x.view__string("Error, see console for details"),
+                "Error, see console for details",
               ),
             ),
           ),
@@ -427,7 +427,7 @@ export const { rules: browserData } = pkg("browser", {
           "",
           s.on_click(s.on__close_window($.window)),
         ),
-        x.html("h1", l(s.class("AppWindow__title")), x.view__string($.name)),
+        x.html("h1", l(s.class("AppWindow__title")), $.name),
 
         x.html("div", l(s.style("flex", "1 0 auto"))),
         x.view__button(

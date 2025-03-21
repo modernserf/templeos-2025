@@ -1,4 +1,4 @@
-import { l, s, $, __, seq, x, xfn, alt } from "../expr";
+import { l, s, $, __, seq, x, xfn, alt, u } from "../expr";
 import { pkg } from "../pkg";
 
 export const { rules: collectionData } = pkg("file", {
@@ -56,12 +56,7 @@ export const { rules: collectionData } = pkg("file", {
       $.out,
       l(),
       x.table_section(
-        x.table_header(
-          l(),
-          x.view__string("Name"),
-          x.view__string("Schema"),
-          x.view__string("Description"),
-        ),
+        x.table_header(l(), "Name", "Schema", "Description"),
         xfn($.out)(
           s($.item).in($.collection),
           s.table_row(
@@ -71,12 +66,12 @@ export const { rules: collectionData } = pkg("file", {
             x.result_if(
               s.db__schema($.schema, $.item),
               s.view__file_link($.schema),
-              s.view__string(""),
+              "",
             ),
             x.result_if(
               s.file__description($.desc, $.item),
               s.view__text($.desc),
-              s.view__string(""),
+              "",
             ),
           ),
         ),
@@ -157,7 +152,7 @@ export const { rules: collectionData } = pkg("file", {
             s.db__schema($.schema, $.id),
             alt(
               s.view__file_link($.u, $.schema),
-              s.view__string($.u, ":"),
+              u($.u, ":"),
               s.view__spacer($.u, "0.5rem"),
             ),
           ),

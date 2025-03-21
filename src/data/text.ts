@@ -1,4 +1,4 @@
-import { l, seq, s, $, __, x } from "../expr";
+import { l, seq, s, $, __, x, u } from "../expr";
 import { pkg } from "../pkg";
 
 export const { rules: text } = pkg("text", {
@@ -70,7 +70,7 @@ export const { rules: text } = pkg("text", {
         s.code($.expr),
         s.html($.out, "span", l(s.class("InlineBlock")), x.view__expr($.expr)),
       ),
-      l(__, seq(s.string($.node), s.view__string($.out, $.node))),
+      l(__, seq(s.string($.node), u($.out, $.node))),
     ),
   },
 

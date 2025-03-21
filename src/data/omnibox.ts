@@ -1,4 +1,4 @@
-import { l, seq, s, $, fn, x, xfn, alt } from "../expr";
+import { l, seq, s, $, fn, x, xfn, alt, u } from "../expr";
 import { pkg } from "../pkg";
 
 export const { rules: omnibox } = pkg("search", {
@@ -37,7 +37,7 @@ export const { rules: omnibox } = pkg("search", {
                 s.view__file_info($.out, $.result),
                 s.view__spacer($.out, "0.5rem"),
               ),
-              s.view__string($.out, "no results"),
+              u($.out, "no results"),
             ),
           ),
         ),

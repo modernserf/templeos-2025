@@ -24,9 +24,7 @@ export const { rules: viewAnyRecord } = pkg("any_record", {
         $.out,
         "span",
         l(s.class("_view_expand")),
-        // x.view__string("{"),
         x.view__expr($.content),
-        // x.view__string("}"),
       ),
     ),
   },
@@ -35,7 +33,7 @@ export const { rules: viewAnyRecord } = pkg("any_record", {
     rule__params: l($.out, $.var),
     rule__body: seq(
       s.cond(s.ident_var($.ident, $.var), u($.ident, "__")),
-      s.html($.out, "span", l(s.class("_view_var")), x.view__string($.ident)),
+      s.html($.out, "span", l(s.class("_view_var")), $.ident),
     ),
   },
   _view_number: {
@@ -44,7 +42,7 @@ export const { rules: viewAnyRecord } = pkg("any_record", {
       $.out,
       "span",
       l(s.class("_view_number")),
-      x.view__string(x.string_number($.value)),
+      x.string_number($.value),
     ),
   },
   _view_string: {
@@ -53,9 +51,9 @@ export const { rules: viewAnyRecord } = pkg("any_record", {
       $.out,
       "span",
       l(s.class("_view_string")),
-      x.view__string('"'),
-      x.view__string($.value),
-      x.view__string('"'),
+      '"',
+      $.value,
+      '"',
     ),
   },
   _view_box: {
@@ -67,19 +65,19 @@ export const { rules: viewAnyRecord } = pkg("any_record", {
         "span",
         l(s.class("_view_box")),
         x.html("span", l(), x.view__file_link($.tag)),
-        x.html("span", l(), x.view__string("(")),
+        x.html("span", l(), "("),
         xfn($.out)(
           s.index_value_box($.i, $.arg, $.list),
           alt(
             s.if_then_else(
               u($.i, 0),
               s.fail(),
-              s.html($.out, "span", l(), x.view__string(", ")),
+              s.html($.out, "span", l(), ", "),
             ),
             s.view__expr($.out, $.arg),
           ),
         ),
-        x.html("span", l(), x.view__string(")")),
+        x.html("span", l(), ")"),
       ),
     ),
   },
@@ -184,15 +182,11 @@ export const { rules: viewAnyRecord } = pkg("any_record", {
         x.table(
           l(),
           x.table_section(
-            x.table_header(
-              l(),
-              x.view__string("Field"),
-              x.view__string("Value"),
-            ),
+            x.table_header(l(), "Field", "Value"),
             x.table_row(
               l(),
-              x._focus_cell($.state, s.id_key(), x.view__string("id")),
-              x._focus_cell($.state, s.id_value(), x.view__string($.id)),
+              x._focus_cell($.state, s.id_key(), "id"),
+              x._focus_cell($.state, s.id_value(), $.id),
             ),
             xfn($.out)(
               s.field_record($.field, $.id),
@@ -213,12 +207,9 @@ export const { rules: viewAnyRecord } = pkg("any_record", {
             ),
           ),
           x.table_section(
-            x.table_header(
-              l(),
-              s.view__string("Reference"),
-              s.view__string("Record"),
-            ),
+            x.table_header(l(), "Reference", "Record"),
             xfn($.out)(
+              s.log("ref section", $.ref, $.field, $.id),
               s.ref_field_record($.ref, $.field, $.id),
               s.table_row(
                 $.out,
@@ -230,7 +221,7 @@ export const { rules: viewAnyRecord } = pkg("any_record", {
                 ),
                 x._focus_cell(
                   $.state,
-                  s.ref_key($.field),
+                  s.ref_value($.ref),
                   x.view__file_link($.ref),
                 ),
               ),

@@ -141,12 +141,6 @@ const Receiver: VC = ({ pm, values: [proc], pid }) => {
   );
 };
 
-const String: VC = ({ values: [value] }) => {
-  if (value.tag !== "string" && value.tag !== "number") return null;
-
-  return value.value;
-};
-
 const Clickable: VC = ({ pm, values: [props, handler, children], pid }) => {
   return (
     <div
@@ -174,11 +168,7 @@ const Button: VC = ({ pm, values: [props, label, handler], pid }) => {
         );
       }}
     >
-      {label.tag === "box" ? (
-        <Primitive pid={pid} pm={pm} id={label.id} values={label.args} />
-      ) : (
-        <Primitive pid={pid} pm={pm} id="String" values={[label]} />
-      )}
+      <Children pid={pid} pm={pm} children={box("", [label])} />
     </button>
   );
 };
@@ -303,7 +293,6 @@ const Null: VC = () => {
 
 const viewPrimitives: Record<string, VC> = {
   Html,
-  String,
   Clickable,
   Button,
   Select,
@@ -365,9 +354,13 @@ function Children({
   }
   return (
     <>
-      {(children.args as (Value & { tag: "box" })[]).map((arg, i) => (
-        <Primitive pid={pid} key={i} pm={pm} id={arg.id} values={arg.args} />
-      ))}
+      {(children.args as Value[]).map((arg, i) =>
+        arg.tag === "box" ? (
+          <Primitive pid={pid} key={i} pm={pm} id={arg.id} values={arg.args} />
+        ) : (
+          (arg as Value & { tag: "string" }).value
+        ),
+      )}
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { l, seq, s, $, __, fn, xfn, x } from "../expr";
+import { l, seq, s, $, __, fn, xfn, x, u } from "../expr";
 import { pkg } from "../pkg";
 
 export const { rules: codeExplorerData } = pkg("code_explorer", {
@@ -46,7 +46,7 @@ export const { rules: codeExplorerData } = pkg("code_explorer", {
                 s.view__text($.u, $.desc),
               ),
             ),
-            s.view__string($.out, "no results"),
+            u($.out, "no results"),
           ),
         ),
       ),

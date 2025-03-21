@@ -178,7 +178,7 @@ export const { rules: testUtils } = pkg("test", {
   view__test_result: {
     rule__params: l($.out, $.test_id),
     rule__body: s.try_error_catch(
-      seq(s.call($.test_id), s.view__string($.out, "ok")),
+      seq(s.call($.test_id), u($.out, "ok")),
       $.error,
       s.view__expr($.out, $.error),
     ),
@@ -193,18 +193,13 @@ export const { rules: testUtils } = pkg("test", {
         $.out,
         l(),
         x.table_section(
-          x.table_header(
-            l(),
-            x.view__string("group"),
-            x.view__string("test"),
-            x.view__string("result"),
-          ),
+          x.table_header(l(), "group", "test", "result"),
           xfn($.out)(
             s.test__group($.group, $.id),
             s.table_row(
               $.out,
               l(),
-              x.view__string($.group),
+              $.group,
               x.view__file_link($.id),
               x.view__test_result($.id),
             ),

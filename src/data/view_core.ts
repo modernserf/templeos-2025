@@ -40,9 +40,6 @@ export const { rules: viewCore } = pkg("view_core", {
       u($.out, s.Html("div", $.node_props, $.children)),
     ),
   },
-  view__string: {
-    rule__params: l(s.String($.string), $.string),
-  },
   view__link: {
     rule__params: l($.out, $.props, $.label, $.location),
     rule__body: s.view__button(

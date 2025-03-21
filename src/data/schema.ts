@@ -103,22 +103,22 @@ export const { rules: schema } = pkg("schema", {
         x.table(
           l(),
           x.table_section(
-            x.table_header(l(), x.view__string("Records")),
+            x.table_header(l(), "Records"),
             xfn($.out)(
               s.if_then_else(
                 s.db__schema($.id, $.rec),
                 s.table_row($.out, l(), x.view__file_link($.rec)),
-                s.table_row($.out, l(), x.view__string("none")),
+                s.table_row($.out, l(), "none"),
               ),
             ),
           ),
           x.table_section(
-            x.table_header(l(), x.view__string("Constructors")),
+            x.table_header(l(), "Constructors"),
             xfn($.out)(
               s.if_then_else(
                 s._constructor($.id, $.ctor),
                 s.table_row($.out, l(), x._view_constructor($.ctor)),
-                s.table_row($.out, l(), x.view__string("none")),
+                s.table_row($.out, l(), "none"),
               ),
             ),
           ),

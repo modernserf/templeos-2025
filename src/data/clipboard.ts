@@ -1,4 +1,4 @@
-import { $, __, l, s, seq, xfn } from "../expr";
+import { $, __, l, s, seq, u, xfn } from "../expr";
 import { pkg } from "../pkg";
 
 export const { rules: clipboardRules } = pkg("clipboard", {
@@ -27,7 +27,7 @@ export const { rules: clipboardRules } = pkg("clipboard", {
         s.if_then_else(
           seq(s._data($.data, $.id), s($.value).in($.data)),
           s.view__expr($.out, $.value),
-          s.view__string($.out, "clipboard is empty"),
+          u($.out, "clipboard is empty"),
         ),
       ),
     ),

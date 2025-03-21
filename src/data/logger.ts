@@ -1,4 +1,4 @@
-import { l, s, $, __, seq, x, xfn } from "../expr";
+import { l, s, $, __, seq, x, xfn, u } from "../expr";
 import { pkg } from "../pkg";
 
 export const { rules: logging } = pkg("logging", {
@@ -77,12 +77,7 @@ export const { rules: logging } = pkg("logging", {
         $.out,
         l(),
         x.table_section(
-          x.table_header(
-            l(),
-            x.view__string("time"),
-            x.view__string("level"),
-            x.view__string("message"),
-          ),
+          x.table_header(l(), "time", "level", "message"),
           xfn($.o)(
             s._entry_log($.log_id, $.entry),
             s.table_row(
@@ -95,7 +90,7 @@ export const { rules: logging } = pkg("logging", {
           ),
         ),
       ),
-      s.view__string($.out, "Log is empty"),
+      u($.out, "Log is empty"),
     ),
   },
 });

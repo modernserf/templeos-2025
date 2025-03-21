@@ -131,16 +131,7 @@ export const { rules: time, rulePrimitives: timePrim } = pkg("time", {
         s.date(__, __, __, $.hour, $.minute, $.second, __),
         $.ts,
       ),
-      s.html(
-        $.out,
-        "span",
-        l(),
-        x.view__string($.hour),
-        x.view__string(":"),
-        x.view__string($.minute),
-        x.view__string(":"),
-        x.view__string($.second),
-      ),
+      s.html($.out, "span", l(), $.hour, ":", $.minute, ":", $.second),
     ),
   },
 });

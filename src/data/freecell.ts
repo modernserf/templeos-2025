@@ -153,7 +153,7 @@ export const { rules: freeCell } = pkg("free_cell", {
         l(13, u($.label, "K")),
         l(__, s.string_number($.label, $.rank)),
       ),
-      u($.out, s.Html("span", l(), l(s.String($.icon), s.String($.label)))),
+      s.html($.out, "span", l(), $.icon, $.label),
     ),
   },
   _view_card: {

@@ -58,10 +58,7 @@ export const { rules: viewTable } = pkg("table", {
                 s.Html(
                   "tr",
                   l(),
-                  l(
-                    s.Html("th", l(), l(s.String("Key"))),
-                    s.Html("th", l(), l(s.String("Value"))),
-                  ),
+                  l(s.Html("th", l(), l("Key")), s.Html("th", l(), l("Value"))),
                 ),
               ),
             ),
@@ -72,18 +69,12 @@ export const { rules: viewTable } = pkg("table", {
                 s.Html(
                   "tr",
                   l(),
-                  l(
-                    s.Html("td", l(), l(s.String("foo"))),
-                    s.Html("td", l(), l(s.String("123"))),
-                  ),
+                  l(s.Html("td", l(), l("foo")), s.Html("td", l(), l("123"))),
                 ),
                 s.Html(
                   "tr",
                   l(),
-                  l(
-                    s.Html("td", l(), l(s.String("bar"))),
-                    s.Html("td", l(), l(s.String("456"))),
-                  ),
+                  l(s.Html("td", l(), l("bar")), s.Html("td", l(), l("456"))),
                 ),
               ),
             ),
@@ -95,16 +86,11 @@ export const { rules: viewTable } = pkg("table", {
         x.table(
           l(),
           x.table_section(
-            x.table_header(l(), x.view__string("Key"), x.view__string("Value")),
+            x.table_header(l(), "Key", "Value"),
             x(
               fn($.out)(
                 s(l($.key, $.value)).in($.items),
-                s.table_row(
-                  $.out,
-                  l(),
-                  x.view__string($.key),
-                  x.view__string($.value),
-                ),
+                s.table_row($.out, l(), $.key, $.value),
               ),
             ),
           ),
