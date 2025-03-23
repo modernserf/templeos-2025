@@ -2,7 +2,6 @@ import { Component, FC, ReactNode, useEffect, useRef, useState } from "react";
 import { __, l, s } from "./expr";
 import { Exception, ProcessManager, ensure, ensurePid } from "./process";
 import { box, k, printValue, Value } from "./value";
-import { debounce } from "./util";
 
 import "./view_primitive.css";
 import { EventSource } from "./event_source";
@@ -200,8 +199,12 @@ const Input: VC = ({ pm, values: [props, value, handler], pid }) => {
       onFocus={() => {
         handle(pm, pid, handler, s.focus());
       }}
-      onBlur={() => {
-        handle(pm, pid, handler, s.blur());
+      onBlur={(e) => {
+        if (e.relatedTarget instanceof HTMLSelectElement) {
+          e.target.focus();
+        } else {
+          handle(pm, pid, handler, s.blur());
+        }
       }}
     />
   );
@@ -233,8 +236,12 @@ const Textarea: VC = ({ pm, values: [props, value, handler], pid }) => {
       onFocus={() => {
         handle(pm, pid, handler, s.focus());
       }}
-      onBlur={() => {
-        handle(pm, pid, handler, s.blur());
+      onBlur={(e) => {
+        if (e.relatedTarget instanceof HTMLSelectElement) {
+          e.target.focus();
+        } else {
+          handle(pm, pid, handler, s.blur());
+        }
       }}
       onSelect={(e) => {
         handle(
