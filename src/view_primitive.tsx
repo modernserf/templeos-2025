@@ -236,6 +236,14 @@ const Textarea: VC = ({ pm, values: [props, value, handler], pid }) => {
       onBlur={() => {
         handle(pm, pid, handler, s.blur());
       }}
+      onSelect={(e) => {
+        handle(
+          pm,
+          pid,
+          handler,
+          box("select", [k(e.target.selectionStart), k(e.target.selectionEnd)]),
+        );
+      }}
     />
   );
 };

@@ -86,5 +86,15 @@ export const { rules: stringRules, rulePrimitives: stringPrimitives } = pkg(
         }
       },
     },
+    _concat: {
+      rule__params: l($.append, $.left, $.right),
+      rule__primitive: function* (it, append, left, right) {
+        ensure(left, "string");
+        ensure(right, "string");
+        if (it.unify(append, k(`${left.value}${right.value}`))) {
+          yield it.result();
+        }
+      },
+    },
   },
 );

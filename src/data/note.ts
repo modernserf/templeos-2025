@@ -36,14 +36,18 @@ export const { rules: note } = pkg("note", {
   _view: {
     db__schema: "view",
     view__subject: s.schema("note"),
+    view__focus_type: s.enum(
+      s.none(),
+      s.id_select(s.ref("note"), s.number(), s.number()),
+    ),
     view__menu_items: l(
       s.menu(
         "Edit",
         l(
-          s.menu_option("cut", "Cut", s._with_id(s._on_cut())),
-          s.menu_option("copy", "Copy", s._with_id(s._on_copy())),
-          s.menu_option("paste", "Paste", s._with_id(s._on_paste())),
-          s.menu_option("clear", "Clear", s._with_id(s._on_clear())),
+          s.menu_option("cut", "Cut", s._with_selection(s._on_cut())),
+          s.menu_option("copy", "Copy", s._with_selection(s._on_copy())),
+          s.menu_option("paste", "Paste", s._with_selection(s._on_paste())),
+          s.menu_option("clear", "Clear", s._with_selection(s._on_clear())),
           s.menu_option(
             "clipboard",
             "Show Clipboard",
@@ -53,12 +57,16 @@ export const { rules: note } = pkg("note", {
       ),
     ),
     file__name: "Note",
-    rule__params: l($.out, $.id, $._state),
+    rule__params: l($.out, $.id, $.state),
     rule__body: s._view_detail(
       $.out,
       $.id,
       s.match_cond(
         l(s.change($.value), s._on_update($.value, $.id)),
+        l(
+          s.select($.start, $.end),
+          s.set_focus($.state, s.id_select($.id, $.start, $.end)),
+        ),
         l(__, s.ok()),
       ),
     ),
@@ -77,7 +85,10 @@ export const { rules: note } = pkg("note", {
             $.id,
             s.match_cond(
               l(s.change($.value), s._on_update($.value, $.id)),
-              l(s.focus(), s.set_focus($.state, s.id($.id))),
+              l(
+                s.select($.start, $.end),
+                s.set_focus($.state, s.id_select($.id, $.start, $.end)),
+              ),
               l(__, s.ok()),
             ),
           ),
@@ -88,15 +99,18 @@ export const { rules: note } = pkg("note", {
   _view_all: {
     db__schema: "view",
     view__subject: s.self(),
-    view__focus_type: s.enum(s.none(), s.id(s.ref("note"))),
+    view__focus_type: s.enum(
+      s.none(),
+      s.id_select(s.ref("note"), s.number(), s.number()),
+    ),
     view__menu_items: l(
       s.menu(
         "Edit",
         l(
-          s.menu_option("cut", "Cut", s._with_focus(s._on_cut())),
-          s.menu_option("copy", "Copy", s._with_focus(s._on_copy())),
-          s.menu_option("paste", "Paste", s._with_focus(s._on_paste())),
-          s.menu_option("clear", "Clear", s._with_focus(s._on_clear())),
+          s.menu_option("cut", "Cut", s._with_selection(s._on_cut())),
+          s.menu_option("copy", "Copy", s._with_selection(s._on_copy())),
+          s.menu_option("paste", "Paste", s._with_selection(s._on_paste())),
+          s.menu_option("clear", "Clear", s._with_selection(s._on_clear())),
           s.menu_option(
             "clipboard",
             "Show Clipboard",
@@ -140,40 +154,54 @@ export const { rules: note } = pkg("note", {
     rule__params: l(),
     rule__body: seq(s._new($.batch, __, __), s.db__update($.batch)),
   },
-  // TODO: selection
-  _with_focus: {
+  _with_selection: {
     rule__params: l(__, $.state, $.fn),
     rule__body: seq(
-      s.get_focus(s.id($.id), $.state, s.none()),
-      s.call($.fn, $.id),
+      s.get_focus(s.id_select($.id, $.from, $.to), $.state, s.none()),
+      s.call($.fn, $.id, $.from, $.to),
     ),
   },
-  _with_id: {
-    rule_params: l($.id, $.fn),
-    rule__body: s.call($.fn, $.id),
-  },
   _on_cut: {
-    rule__params: l($.id),
+    rule__params: l($.id, $.from, $.to),
     rule__body: seq(
       s._content($.content, $.id),
-      s.clipboard__copy($.content),
-      s._on_update("", $.id),
+      s.string_slice($.selection, $.content, $.from, $.to),
+      s.string__concat(
+        $.updated,
+        x.string_slice($.content, 0, $.from),
+        x.string_slice($.content, $.to, x.string_length($.content)),
+      ),
+      s.clipboard__copy($.selection),
+      s._on_update($.updated, $.id),
     ),
   },
   _on_copy: {
-    rule__params: l($.id),
-    rule__body: seq(s._content($.content, $.id), s.clipboard__copy($.content)),
+    rule__params: l($.id, $.from, $.to),
+    rule__body: seq(
+      s._content($.content, $.id),
+      s.string_slice($.selection, $.content, $.from, $.to),
+      s.clipboard__copy($.selection),
+    ),
   },
   _on_paste: {
-    rule__params: l($.id),
+    rule__params: l($.id, $.from, $.to),
     rule__body: seq(
-      s.clipboard__paste($.content),
-      s.string($.content),
-      s._on_update($.content, $.id),
+      s.clipboard__paste($.paste),
+      s.string($.paste),
+      s._content($.content, $.id),
+      s.string__concat(
+        $.updated,
+        x.string_slice($.content, 0, $.from),
+        x.string__concat(
+          $.paste,
+          x.string_slice($.content, $.to, x.string_length($.content)),
+        ),
+      ),
+      s._on_update($.updated, $.id),
     ),
   },
   _on_clear: {
-    rule__params: l($.id),
+    rule__params: l($.id, __, __),
     rule__body: seq(s._on_update("", $.id)),
   },
 });
