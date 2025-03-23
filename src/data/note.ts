@@ -1,4 +1,4 @@
-import { l, s, $, seq, u, __, x, xfn } from "../expr";
+import { l, s, $, seq, u, __, x, xfn, fn } from "../expr";
 import { pkg } from "../pkg";
 
 export const { rules: note } = pkg("note", {
@@ -36,50 +36,25 @@ export const { rules: note } = pkg("note", {
   _view: {
     db__schema: "view",
     view__subject: s.schema("note"),
-    file__name: "Note",
-    rule__params: l($.out, $.id, $._state),
-    rule__body: seq(
-      s.column(
-        $.out,
-        l(),
-        x.view__menu(
-          l(),
-          "Edit",
-          l(
-            s.option("cut", "Cut"),
-            s.option("copy", "Copy"),
-            s.option("paste", "Paste"),
-            s.option("clear", "Clear"),
-          ),
-          s.on_change(
-            s.match_cond(
-              l(
-                "cut",
-                seq(
-                  s._content($.content, $.id),
-                  s.clipboard__copy($.content),
-                  s._on_update("", $.id),
-                ),
-              ),
-              l(
-                "copy",
-                seq(s._content($.content, $.id), s.clipboard__copy($.content)),
-              ),
-              l(
-                "paste",
-                seq(
-                  s.clipboard__paste($.content),
-                  s.string($.content),
-                  s._on_update($.content, $.id),
-                ),
-              ),
-              l("clear", seq(s._on_update("", $.id))),
-            ),
+    view__menu_items: l(
+      s.menu(
+        "Edit",
+        l(
+          s.menu_option("cut", "Cut", s._on_cut_1()),
+          s.menu_option("copy", "Copy", s._on_copy_1()),
+          s.menu_option("paste", "Paste", s._on_paste_1()),
+          s.menu_option("clear", "Clear", s._on_clear_1()),
+          s.menu_option(
+            "clipboard",
+            "Show Clipboard",
+            fn(__, __)(s.show_clipboard()),
           ),
         ),
-        x._view_detail($.id),
       ),
     ),
+    file__name: "Note",
+    rule__params: l($.out, $.id, $._state),
+    rule__body: s._view_detail($.out, $.id),
   },
   _view_list: {
     rule__params: l($.out),
@@ -129,6 +104,31 @@ export const { rules: note } = pkg("note", {
   _on_new: {
     rule__params: l(),
     rule__body: seq(s._new($.batch, __, __), s.db__update($.batch)),
+  },
+  // TODO: selection
+  _on_cut_1: {
+    rule__params: l($.id, $._state),
+    rule__body: seq(
+      s._content($.content, $.id),
+      s.clipboard__copy($.content),
+      s._on_update("", $.id),
+    ),
+  },
+  _on_copy_1: {
+    rule__params: l($.id, $._state),
+    rule__body: seq(s._content($.content, $.id), s.clipboard__copy($.content)),
+  },
+  _on_paste_1: {
+    rule__params: l($.id, $._state),
+    rule__body: seq(
+      s.clipboard__paste($.content),
+      s.string($.content),
+      s._on_update($.content, $.id),
+    ),
+  },
+  _on_clear_1: {
+    rule__params: l($.id, $._state),
+    rule__body: seq(s._on_update("", $.id)),
   },
 });
 

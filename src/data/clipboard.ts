@@ -45,6 +45,13 @@ export const { rules: clipboardRules } = pkg("clipboard", {
   current_clipboard: {
     rule__params: l("root_clipboard"),
   },
+  show_clipboard: {
+    rule__params: l(),
+    rule__body: seq(
+      s.current_clipboard($.clipboard),
+      s.on__new_window(s.location($.clipboard)),
+    ),
+  },
 
   // private
   _handle_copy: {
