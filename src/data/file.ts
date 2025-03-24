@@ -28,7 +28,7 @@ export const { rules: collectionData } = pkg("file", {
     db__schema: "field",
     file__name: "File tags",
     file__description: l("The list of tags associated with a record."),
-    field__type: s.list_of(s.ref(__)),
+    field__type: s.list_of(s.t_ref(__)),
     field__index: s.multi_ref(),
   },
   _tag_files: {

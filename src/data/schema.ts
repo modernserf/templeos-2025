@@ -13,8 +13,8 @@ export const { rules: schema } = pkg("schema", {
     rule__params: l($.out),
     rule__body: s.enum(
       $.out,
-      s.field(s.ref("field")),
-      s.field_optional(s.ref("field")),
+      s.field(s.t_ref("field")),
+      s.field_optional(s.t_ref("field")),
     ),
   },
   _test_t_field_def: {
@@ -43,7 +43,7 @@ export const { rules: schema } = pkg("schema", {
     file__description: l(
       "renders an inline preview of a record with this schema",
     ),
-    field__type: s.type__fn(/* out */ s.any_box(), /* id */ s.ref(__)),
+    field__type: s.type__fn(/* out */ s.any_box(), /* id */ s.t_ref(__)),
   },
   _preview_for: {
     rule__params: l($.preview, $.id),
@@ -58,7 +58,7 @@ export const { rules: schema } = pkg("schema", {
     db__schema: "field",
     file__name: "Constructor",
     file__description: l("rule creates records of this schema"),
-    field__type: s.ref("schema"),
+    field__type: s.t_ref("schema"),
     field__index: s.ref(),
   },
 

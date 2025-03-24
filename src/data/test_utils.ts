@@ -214,6 +214,7 @@ export const { rules: testUtils } = pkg("test", {
       s.block(
         __,
         seq(
+          s.index__init(),
           s.test__group($.group, $.test),
           s.box($.call, $.test, l()),
           s.log($.group, $.test),

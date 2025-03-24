@@ -246,13 +246,13 @@ export const { rules: typeRecs, rulePrimitives: typePrim } = pkg("type", {
       l(s._box(__, __, __), s.goal(), s.ok()),
     ),
   },
-  ref: {
+  t_ref: {
     db__schema: "type",
     rule__params: l($.record, $.schema),
     rule__body: s.cond(s.var($.schema), s.db__schema($.schema, $.record)),
     _hierarchy: l(
-      l(s.ref(__), s.string(), s.ok()),
-      l(s._const($.id), s.ref($.schema), s.ref($.id, $.schema)),
+      l(s.t_ref(__), s.string(), s.ok()),
+      l(s._const($.id), s.t_ref($.schema), s.t_ref($.id, $.schema)),
     ),
   },
   _type: {
@@ -276,7 +276,7 @@ export const { rules: typeRecs, rulePrimitives: typePrim } = pkg("type", {
             ),
             s.goal(),
           ),
-          s.ref(__),
+          s.t_ref(__),
         ),
       ),
     ),

@@ -24,7 +24,7 @@ export const { rules: logging } = pkg("logging", {
   _entry_log: {
     db__schema: "field",
     file__name: "Log entry parent",
-    field__type: s.ref("_log"),
+    field__type: s.t_ref("_log"),
     field__index: s.ref(),
   },
   _data: {

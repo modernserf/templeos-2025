@@ -29,12 +29,12 @@ export const { rules: browserData } = pkg("browser", {
   _id: {
     db__schema: "field",
     file__name: "History id ref",
-    field__type: s.ref(__), // the type here unifies with view
+    field__type: s.t_ref(__), // the type here unifies with view
   },
   _view: {
     db__schema: "field",
     file__name: "History view ref",
-    field__type: s.ref("view"), // TODO: view schema
+    field__type: s.t_ref("view"), // TODO: view schema
   },
   _params: {
     db__schema: "field",
@@ -49,27 +49,27 @@ export const { rules: browserData } = pkg("browser", {
   _back: {
     db__schema: "field",
     file__name: "History back ref",
-    field__type: s.ref("history"),
+    field__type: s.t_ref("history"),
   },
   _forward: {
     db__schema: "field",
     file__name: "History forward ref",
-    field__type: s.ref("history"),
+    field__type: s.t_ref("history"),
   },
   _window: {
     db__schema: "field",
     file__name: "History window ref",
-    field__type: s.ref("window"),
+    field__type: s.t_ref("window"),
   },
   _current_history: {
     db__schema: "field",
     file__name: "Window current history ref",
-    field__type: s.ref("history"),
+    field__type: s.t_ref("history"),
   },
   _current_window: {
     db__schema: "field",
     file__name: "Focused window in browser",
-    field__type: s.ref("window"),
+    field__type: s.t_ref("window"),
   },
 
   location: {
@@ -80,9 +80,9 @@ export const { rules: browserData } = pkg("browser", {
     rule__params: l($.t),
     rule__body: s.enum(
       $.t,
-      s.location(s.ref(__)),
-      s.location(s.ref(__), s.ref(__)),
-      s.location(s.ref(__), s.ref(__), s.type__any()),
+      s.location(s.t_ref(__)),
+      s.location(s.t_ref(__), s.t_ref(__)),
+      s.location(s.t_ref(__), s.t_ref(__), s.type__any()),
     ),
   },
   location_id_view_params: {
@@ -115,6 +115,7 @@ export const { rules: browserData } = pkg("browser", {
   boot: {
     rule__params: l($.pid),
     rule__body: seq(
+      s.index__init(),
       s.init_db_server(),
       s.init_debugger(),
       s.spawn_link(

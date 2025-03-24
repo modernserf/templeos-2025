@@ -19,8 +19,8 @@ export const { rules: view } = pkg("view", {
     file__name: "View subject",
     field__type: s.enum(
       s.self(),
-      s.record(s.ref(__)),
-      s.schema(s.ref("schema")),
+      s.record(s.t_ref(__)),
+      s.schema(s.t_ref("schema")),
       s.any(),
     ),
     field__index: s.ref(),
@@ -48,7 +48,7 @@ export const { rules: view } = pkg("view", {
               s.menu_option(
                 s.string(),
                 s.string(),
-                s.type__fn(s.ref(__), s.ref("history")),
+                s.type__fn(s.t_ref(__), s.t_ref("history")),
               ),
             ),
           ),

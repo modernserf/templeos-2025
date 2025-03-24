@@ -15,7 +15,7 @@ export const { rules: field } = pkg("field", {
       "If set, the field is indexed using an index of this type.",
     ),
     field__type: s.enum(s.ref(), s.multi_ref(), s.sorted()),
-    field_index: s.sorted(),
+    field_index: s.ref(),
   },
   _type: {
     db__schema: "field",

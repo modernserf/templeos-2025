@@ -38,6 +38,7 @@ import { controlPrimitives, controlRules } from "./control";
 import { procesPrimitives, processRules } from "./process";
 import { stringPrimitives, stringRules } from "./string";
 import { boxPrim, boxRules } from "./box";
+import { indexPrime, indexRules } from "./db_index";
 
 export type Schema =
   | "clipboard"
@@ -45,6 +46,7 @@ export type Schema =
   | "history"
   | "note"
   | "schema"
+  | "index"
   | "tag"
   | "text_document"
   | "type"
@@ -141,6 +143,7 @@ export const data = mergeAndCheck(
     field,
     freeCell,
     iter,
+    indexRules,
     list,
     logging,
     note,
@@ -238,6 +241,7 @@ export function initProcessManager() {
     ...dbPrim,
     ...debugPrim,
     ...errorPrimitives,
+    ...indexPrime,
     ...numberPrim,
     ...ordPrim,
     ...procesPrimitives,

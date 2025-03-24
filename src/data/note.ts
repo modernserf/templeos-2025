@@ -39,7 +39,7 @@ export const { rules: note } = pkg("note", {
     view__subject: s.schema("note"),
     view__focus_type: s.enum(
       s.none(),
-      s.id_select(s.ref("note"), s.number(), s.number()),
+      s.id_select(s.t_ref("note"), s.number(), s.number()),
     ),
     view__menu_items: l(
       s.menu(
@@ -102,7 +102,7 @@ export const { rules: note } = pkg("note", {
     view__subject: s.self(),
     view__focus_type: s.enum(
       s.none(),
-      s.id_select(s.ref("note"), s.number(), s.number()),
+      s.id_select(s.t_ref("note"), s.number(), s.number()),
     ),
     view__menu_items: l(
       s.menu(

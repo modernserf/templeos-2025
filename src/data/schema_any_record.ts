@@ -146,10 +146,10 @@ export const { rules: viewAnyRecord } = pkg("any_record", {
       s.none(),
       s.id_key(),
       s.id_value(),
-      s.field_key(s.ref("field")), // TODO: are undeclared fields "wrong" to type system?
+      s.field_key(s.t_ref("field")), // TODO: are undeclared fields "wrong" to type system?
       s.field_value(s.any_type()),
-      s.ref_key(s.ref(__)),
-      s.ref_value(s.ref(__)),
+      s.ref_key(s.t_ref(__)),
+      s.ref_value(s.t_ref(__)),
     ),
     view__subject: s.any(),
     view__menu_items: l(

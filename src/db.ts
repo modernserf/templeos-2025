@@ -1,39 +1,19 @@
-import { Expr, List, exprOrd } from "./expr";
 import BTree from "sorted-btree";
-import { defaultOrd, Ord } from "./ord";
+import { Value } from "./value";
 
 type Id = string;
 type Field = string;
 
 type BaseRec = Record<Field, unknown>;
-type IndexType = "ref" | "multi_ref" | "sorted";
-
-type Index = {
-  tree: BTree<ExprIndex, null>;
-  indexType: IndexType;
-};
-
-type ExprIndex = { entityId: Id; value: Expr };
-
-const indexOrd: Ord<ExprIndex> = {
-  cmp(l: ExprIndex, r: ExprIndex) {
-    return (
-      exprOrd.cmp(l.value, r.value) || defaultOrd.cmp(l.entityId, r.entityId)
-    );
-  },
-};
 
 export class DB<Rec extends BaseRec> {
   private data = new Map<Id, Rec>();
-  private index = new Map<Field, Index>();
+  public index2 = new Map<Id, BTree<Value, Value>>();
   dump() {
     return Object.fromEntries(this.data);
   }
   get(id: Id): Rec | null {
     return this.data.get(id) ?? null;
-  }
-  getIndex(field: Field) {
-    return this.index.get(field);
   }
   *keys() {
     yield* this.data.keys();
@@ -43,24 +23,11 @@ export class DB<Rec extends BaseRec> {
       this.insert(id, rec);
     }
   }
-  insert(id: Id, rec: Rec | null) {
-    const prev = this.data.get(id);
-    if (prev) {
-      for (const [field, value] of Object.entries(prev)) {
-        this.removeFromIndex(id, field, value as Id);
-      }
-    }
-    if (!rec) {
-      this.data.delete(id);
-      return;
-    }
+  insert(id: Id, rec: Rec) {
     this.data.set(id, rec);
-    for (const [field, value] of Object.entries(rec)) {
-      this.addToIndex(id, field, value as Id);
-    }
-    if (rec.db__schema === "field" && rec.field__index) {
-      this.createIndex(id as Field, rec.field__index.id as IndexType);
-    }
+  }
+  delete(id: Id) {
+    this.data.delete(id);
   }
   update(id: Id, field: Field, value: unknown) {
     let record = this.data.get(id);
@@ -70,49 +37,7 @@ export class DB<Rec extends BaseRec> {
     }
     const prevValue = record[field];
     (record as BaseRec)[field] = value;
-    if (prevValue) this.removeFromIndex(id, field, prevValue as Id);
-    if (value) this.addToIndex(id, field, value as Id);
-  }
-  private createIndex(field: Field, indexType: IndexType) {
-    this.index.set(field, {
-      indexType,
-      tree: new BTree<ExprIndex, null>(undefined, indexOrd.cmp),
-    });
-    for (const [id, rec] of this.data) {
-      if (field in rec) {
-        this.addToIndex(id, field, rec[field] as Id);
-      }
-    }
-  }
-  private addToIndex(entityId: Id, field: Field, value: Expr) {
-    const idx = this.index.get(field);
-    if (!idx) return;
-    switch (idx.indexType) {
-      case "ref":
-      case "sorted":
-        idx.tree.set({ entityId, value: value as Expr }, null);
-        return;
-      case "multi_ref":
-        for (const v of (value as List<Expr>).args) {
-          idx.tree.set({ entityId, value: v }, null);
-        }
-        return;
-    }
-  }
-  private removeFromIndex(entityId: Id, field: Field, value: Expr) {
-    const idx = this.index.get(field);
-    if (!idx) return;
-    switch (idx.indexType) {
-      case "ref":
-      case "sorted":
-        idx.tree.delete({ entityId, value: value as Expr });
-        return;
-      case "multi_ref":
-        for (const v of (value as List<Expr>).args) {
-          idx.tree.delete({ entityId, value: v });
-        }
-        return;
-    }
+    return prevValue;
   }
 }
 
@@ -152,14 +77,22 @@ export class TransactDB<Rec extends BaseRec> extends DB<Rec> {
       const prev = this.get(id) ?? null;
       changes.set(id, { ...prev });
     }
-    this.update(id, field, value);
+    return this.update(id, field, value);
   }
-  insertTx(tx: Tx, id: Id, rec: Rec | null) {
+  insertTx(tx: Tx, id: Id, rec: Rec) {
     const changes = this.getTx(tx);
     if (!changes.has(id)) {
       const prev = this.get(id) ?? null;
       changes.set(id, { ...prev });
     }
     this.insert(id, rec);
+  }
+  deleteTx(tx: Tx, id: Id) {
+    const changes = this.getTx(tx);
+    if (!changes.has(id)) {
+      const prev = this.get(id) ?? null;
+      changes.set(id, { ...prev });
+    }
+    this.delete(id);
   }
 }

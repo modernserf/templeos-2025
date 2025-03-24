@@ -1,4 +1,4 @@
-import { s, __, seq, $, l, u, fn } from "../expr";
+import { s, __, seq, $, l, u, fn, Expr } from "../expr";
 import { pkg } from "../pkg";
 import { ensure, resolveDeep } from "../process";
 import { k, valueExpr } from "../value";
@@ -8,7 +8,7 @@ export const { rules: dbRules, rulePrimitives: dbPrim } = pkg("db", {
     db__schema: "field",
     file__name: "DB Schema",
     file__description: l("schema used to validate & render this record"),
-    field__type: s.ref("schema"),
+    field__type: s.t_ref("schema"),
     field__index: s.ref(),
   },
   value_record_field: {
@@ -34,29 +34,12 @@ export const { rules: dbRules, rulePrimitives: dbPrim } = pkg("db", {
       ),
     ),
   },
-  record_index_field: {
-    rule__params: l($.id, $.index, $.field),
-    rule__primitive: function* (it, id, index, field) {
-      ensure(field, "string");
-
-      const idx = it.pm.db.getIndex(field.value);
-      if (!idx) return;
-
-      const indexExpr = valueExpr(resolveDeep(index));
-      for (const [{ entityId }] of idx.tree.getRange(
-        { value: indexExpr, entityId: "" },
-        { value: indexExpr, entityId: "~" },
-      )) {
-        yield* it.unifyChoice(id, k(entityId));
-      }
-    },
-  },
   ref_field_record: {
     file__description: l("enumerate all indexed references to this record."),
     rule__params: l($.ref, $.field, $.record),
     rule__body: seq(
       s.field__index(__, $.field),
-      s.record_index_field($.ref, $.record, $.field),
+      s.get_indexed($.ref, $.field, $.record),
     ),
   },
   field_record: {
@@ -98,7 +81,7 @@ export const { rules: dbRules, rulePrimitives: dbPrim } = pkg("db", {
         s.value_record_field($.value, $.id, $.field),
         s.if_then_else(
           s.nonvar($.value),
-          s.record_index_field($.id, $.value, $.field),
+          s.get_indexed($.id, $.field, $.value),
           seq(s.record($.id), s.value_record_field($.value, $.id, $.field)),
         ),
       ),
@@ -155,6 +138,25 @@ export const { rules: dbRules, rulePrimitives: dbPrim } = pkg("db", {
       yield it.result();
     },
   },
+  _tx_update_field_value_prev: {
+    rule__params: l($.tx, $.id, $.field, $.value, $.prev),
+    rule__primitive: function* (it, tx, id, field, value, prev) {
+      ensure(tx, "number");
+      ensure(id, "string");
+      ensure(field, "string");
+      const prevRes = it.pm.db.updateTx(
+        tx.value,
+        id.value,
+        field.value,
+        valueExpr(resolveDeep(value)),
+      ) as Expr | null;
+      if (prevRes != null) {
+        if (it.unify(it.exprValue(prevRes, {}), prev)) yield it.result();
+      } else {
+        yield it.result();
+      }
+    },
+  },
   // only single field, does not handle high cardinality fields
   _tx_delete_field: {
     rule__params: l($.tx, $.id, $.field),
@@ -173,7 +175,7 @@ export const { rules: dbRules, rulePrimitives: dbPrim } = pkg("db", {
       ensure(tx, "number");
       ensure(id, "string");
 
-      it.pm.db.insertTx(tx.value, id.value, null);
+      it.pm.db.deleteTx(tx.value, id.value);
       yield it.result();
     },
   },
@@ -277,10 +279,32 @@ export const { rules: dbRules, rulePrimitives: dbPrim } = pkg("db", {
           $.item,
           l(
             s.update($.id, $.field, $.value),
-            s._tx_update_field_value($.tx, $.id, $.field, $.value),
+            seq(
+              s._tx_update_field_value_prev(
+                $.tx,
+                $.id,
+                $.field,
+                $.value,
+                $.prev,
+              ),
+              // TODO: handle rollback for index
+              s.index__on_update($.id, $.field, $.value, $.prev),
+            ),
           ),
-          l(s.delete($.id, $.field), s._tx_delete_field($.tx, $.id, $.field)),
-          l(s.delete($.id), s._tx_delete_record($.tx, $.id)),
+          l(
+            s.delete($.id, $.field),
+            seq(
+              s._tx_delete_field($.tx, $.id, $.field),
+              s.index__on_delete_field($.id, $.field),
+            ),
+          ),
+          l(
+            s.delete($.id),
+            seq(
+              s.index__on_delete_record($.id),
+              s._tx_delete_record($.tx, $.id),
+            ),
+          ),
         ),
       ),
     ),
