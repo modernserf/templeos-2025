@@ -68,14 +68,18 @@ export const { rules: collectionData } = pkg("file", {
               s.view__file_link($.schema),
               "",
             ),
-            x.result_if(
-              s.file__description($.desc, $.item),
-              s.view__text($.desc),
-              "",
-            ),
+            x._view_description($.item),
           ),
         ),
       ),
+    ),
+  },
+  _view_description: {
+    rule__params: l($.out, $.id),
+    rule__body: s.if_then_else(
+      s._description($.desc, $.id),
+      s.view__text($.out, $.desc),
+      s.view__text($.out, l()),
     ),
   },
 
@@ -84,7 +88,7 @@ export const { rules: collectionData } = pkg("file", {
     rule__body: s.column(
       $.out,
       l(),
-      x.view__text(x._description($.id)),
+      x._view_description($.id),
       x._view_table($.collection),
     ),
   },
@@ -93,7 +97,7 @@ export const { rules: collectionData } = pkg("file", {
     rule__body: s.column(
       $.out,
       l(),
-      x.view__text(x._description($.id)),
+      x._view_description($.id),
       x.row(
         l(),
         xfn($.u)(
@@ -132,6 +136,83 @@ export const { rules: collectionData } = pkg("file", {
     rule__params: l($.out, $.id, $._state),
     rule__body: s._view_icons($.out, x._tag_files($.id), $.id),
   },
+  _tag_edit: {
+    rule__params: l($.out, $.id),
+    rule__body: seq(
+      s.row(
+        $.out,
+        l(),
+        xfn($.r)(
+          s._tags($.tags, $.id),
+          s.in($.tag, $.tags),
+          s.html(
+            $.r,
+            "span",
+            l(),
+            x.view__file_link($.tag),
+            x.view__button(
+              l(s.class("DeleteExpr")),
+              "⨉",
+              s.on_click(s._delete_tag($.tag, $.id)),
+            ),
+          ),
+        ),
+        x._add_tag_menu($.id),
+      ),
+    ),
+  },
+  _add_tag_menu: {
+    rule__params: l($.out, $.id),
+    rule__body: s.view__menu(
+      $.out,
+      l(),
+      "Add Tag",
+      x.list(
+        s.option("_new_tag_for", "New tag…"),
+        xfn($.opt)(
+          s.db__schema("tag", $.tag),
+          s._name($.name, $.tag),
+          u($.opt, s.option($.tag, $.name)),
+        ),
+      ),
+      s.on_change(
+        s.match_cond(
+          l("_new_tag_for", s._new_tag_for($.id)),
+          l($.tag, s._add_tag($.tag, $.id)),
+        ),
+      ),
+    ),
+  },
+  _new_tag_for: {
+    rule__params: l($.id),
+    rule__body: seq(
+      s.id($.tag),
+      s.db__update(
+        l(s.update(s.db__schema("tag", $.tag)), s.update(s._name("", $.tag))),
+      ),
+      s._add_tag($.tag, $.id),
+      s.current_window($.window),
+      s.on__push($.window, s.location($.tag, "_view")),
+    ),
+  },
+  _add_tag: {
+    rule__params: l($.tag, $.id),
+    rule__body: seq(
+      s.value_record_field_default($.tags, $.id, "_tags", l()),
+      s.none(s.in($.tag, $.tags)),
+      s.append($.next, $.tags, l($.tag)),
+      s.db__update(l(s.update(s._tags($.next, $.id)))),
+    ),
+  },
+  _delete_tag: {
+    rule__params: l($.tag, $.id),
+    rule__body: seq(
+      s._tags($.tags, $.id),
+      s.filter_list($.next, $.tags, s.not_equal($.tag)),
+      s.db__update(l(s.update(s._tags($.next, $.id)))),
+    ),
+  },
+
   _view: {
     db__schema: "view",
     file__name: "File",
@@ -210,7 +291,7 @@ export const { rules: collectionData } = pkg("file", {
       ),
       x.table_section(
         x.table_header(l(), "Tags"),
-        x.table_row(l(), "TODO: tags"),
+        x.table_row(l(), x._tag_edit($.id)),
       ),
       x.table_section(
         x.table_header(l(), "Preview"),

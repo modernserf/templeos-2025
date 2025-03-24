@@ -370,7 +370,6 @@ export const { rules: browserData } = pkg("browser", {
     rule__body: seq(
       s._window_params($.id, $.view, $.history, $.window),
       s.current_window($.current_window),
-      s.cond(s.file__name($.name, $.id), u($.name, $.id)),
 
       s.try_error_trace_catch(
         seq(
@@ -379,7 +378,10 @@ export const { rules: browserData } = pkg("browser", {
             $.window,
             $.current_window,
             x.list(
-              x._window_bar($.window, $.id, $.view, $.name),
+              x.view__subscribe_render(
+                s.match(s.update($.id, "file__name", __)),
+                s._window_bar($.window, $.id, $.view),
+              ),
               x.html(
                 "div",
                 l(s.class("AppWindow__content")),
@@ -417,8 +419,9 @@ export const { rules: browserData } = pkg("browser", {
     ),
   },
   _window_bar: {
-    rule__params: l($.out, $.window, $.id, $.view, $.name),
+    rule__params: l($.out, $.window, $.id, $.view),
     rule__body: seq(
+      s.cond(s.file__name($.name, $.id), u($.name, $.id)),
       s._current_history($.history, $.window),
       s.row(
         $.out,
