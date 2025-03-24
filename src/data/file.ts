@@ -3,19 +3,13 @@ import { pkg } from "../pkg";
 
 export const { rules: collectionData } = pkg("file", {
   // schemas
-  folder: {
-    db__schema: "schema",
-    file__name: "Folder",
-    file__description: l("A collection of records"),
-    schema__fields: l(s.field("_folder_items")),
-  },
   tag: {
     db__schema: "schema",
     file__name: "Tag",
     file__description: l(
       "Tags are used to organize records. A record can have and belongs to many tags.",
     ),
-    schema__fields: l(s.field("file__name")),
+    schema__fields: l(s.field("_name")),
   },
   // fields
   file__name: {
@@ -29,13 +23,6 @@ export const { rules: collectionData } = pkg("file", {
     file__name: "File description",
     file__description: l("describes the content of the record"),
     field__type: s.text(),
-  },
-  _folder_items: {
-    db__schema: "field",
-    file__name: "File folder items",
-    file__description: l("ids of files in folder"),
-    field__type: s.list_of(s.ref(__)),
-    field__index: s.multi_ref(),
   },
   _tags: {
     db__schema: "field",
@@ -106,21 +93,6 @@ export const { rules: collectionData } = pkg("file", {
         ),
       ),
     ),
-  },
-
-  _folder_list: {
-    db__schema: "view",
-    file__name: "Folder - List",
-    view__subject: s.schema("folder"),
-    rule__params: l($.out, $.id, $._state),
-    rule__body: s._view_list($.out, x._folder_items($.id), $.id),
-  },
-  _folder_icon: {
-    db__schema: "view",
-    file__name: "Folder - Icon",
-    view__subject: s.schema("folder"),
-    rule__params: l($.out, $.id, $._state),
-    rule__body: s._view_icons($.out, x._folder_items($.id), $.id),
   },
   _tag_list: {
     db__schema: "view",
@@ -360,12 +332,5 @@ export const { rules: collectionInitState } = pkg("file", {
     db__schema: "tag",
     _name: "Example Tag",
     _description: l("A tag with some items"),
-  },
-  example__folder: {
-    db__schema: "folder",
-    _name: "Example Folder",
-    _description: l("A folder with some items"),
-    _tags: l("example_tag"),
-    _folder_items: l("home"),
   },
 });

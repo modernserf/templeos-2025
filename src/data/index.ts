@@ -42,7 +42,6 @@ import { boxPrim, boxRules } from "./box";
 export type Schema =
   | "clipboard"
   | "field"
-  | "folder"
   | "history"
   | "note"
   | "schema"
@@ -168,6 +167,7 @@ export const data = mergeAndCheck(
         view__subject: s.self(),
         file__name: "Home",
         file__description: l("This is the home card"),
+        file__tags: l("example_tag"),
         rule__params: l($.out, $.id, $._state),
         _left_links: l(
           "code_explorer",
