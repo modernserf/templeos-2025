@@ -1,4 +1,4 @@
-import { $, __, l, s, seq, u, xfn } from "../expr";
+import { $, __, l, s, seq, u, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 
 export const { rules: clipboardRules } = pkg("clipboard", {
@@ -50,6 +50,40 @@ export const { rules: clipboardRules } = pkg("clipboard", {
     rule__body: seq(
       s.current_clipboard($.clipboard),
       s.on__new_window(s.location($.clipboard)),
+    ),
+  },
+  _cut_selected_string: {
+    rule__params: l($.out, $.in, $.from, $.to),
+    rule__body: seq(
+      s.string_slice($.selection, $.in, $.from, $.to),
+      s.string__concat(
+        $.out,
+        x.string_slice($.in, 0, $.from),
+        x.string_slice($.in, $.to, x.string_length($.in)),
+      ),
+      s._copy($.selection),
+    ),
+  },
+  _copy_selected_string: {
+    rule__params: l($.in, $.from, $.to),
+    rule__body: seq(
+      s.string_slice($.selection, $.in, $.from, $.to),
+      s._copy($.selection),
+    ),
+  },
+  _paste_into_selected_string: {
+    rule__params: l($.out, $.in, $.from, $.to),
+    rule__body: seq(
+      s.clipboard__paste($.paste),
+      s.string($.paste),
+      s.string__concat(
+        $.out,
+        x.string_slice($.in, 0, $.from),
+        x.string__concat(
+          $.paste,
+          x.string_slice($.in, $.to, x.string_length($.in)),
+        ),
+      ),
     ),
   },
 

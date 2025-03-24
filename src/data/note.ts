@@ -164,38 +164,29 @@ export const { rules: note } = pkg("note", {
   _on_cut: {
     rule__params: l($.id, $.from, $.to),
     rule__body: seq(
-      s._content($.content, $.id),
-      s.string_slice($.selection, $.content, $.from, $.to),
-      s.string__concat(
+      s.clipboard__cut_selected_string(
         $.updated,
-        x.string_slice($.content, 0, $.from),
-        x.string_slice($.content, $.to, x.string_length($.content)),
+        x._content($.id),
+        $.from,
+        $.to,
       ),
-      s.clipboard__copy($.selection),
       s._on_update($.updated, $.id),
     ),
   },
   _on_copy: {
     rule__params: l($.id, $.from, $.to),
     rule__body: seq(
-      s._content($.content, $.id),
-      s.string_slice($.selection, $.content, $.from, $.to),
-      s.clipboard__copy($.selection),
+      s.clipboard__copy_selected_string(x._content($.id), $.from, $.to),
     ),
   },
   _on_paste: {
     rule__params: l($.id, $.from, $.to),
     rule__body: seq(
-      s.clipboard__paste($.paste),
-      s.string($.paste),
-      s._content($.content, $.id),
-      s.string__concat(
+      s.clipboard__paste_into_selected_string(
         $.updated,
-        x.string_slice($.content, 0, $.from),
-        x.string__concat(
-          $.paste,
-          x.string_slice($.content, $.to, x.string_length($.content)),
-        ),
+        x._content($.id),
+        $.from,
+        $.to,
       ),
       s._on_update($.updated, $.id),
     ),

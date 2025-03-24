@@ -1,4 +1,4 @@
-import { l, s, $, __, seq, x, xfn, alt, u } from "../expr";
+import { l, s, $, __, seq, x, xfn, alt, u, fn } from "../expr";
 import { pkg } from "../pkg";
 
 export const { rules: collectionData } = pkg("file", {
@@ -131,6 +131,109 @@ export const { rules: collectionData } = pkg("file", {
     view__subject: s.schema("tag"),
     rule__params: l($.out, $.id, $._state),
     rule__body: s._view_icons($.out, x._tag_files($.id), $.id),
+  },
+  _view: {
+    db__schema: "view",
+    file__name: "File",
+    view__subject: s.any(),
+    view__focus_type: s.enum(s.none(), s._name(s.number(), s.number())),
+    view__menu_items: l(
+      s.menu(
+        "Edit",
+        l(
+          s.menu_option(
+            "copy",
+            "Copy",
+            fn(
+              $.id,
+              $.state,
+            )(
+              s.match_cond(
+                x.get_focus($.state, s.none()),
+                l(s.none(), s.ok()),
+                l(
+                  s._name($.from, $.to),
+                  s.clipboard__copy_selected_string(
+                    x._name($.id),
+                    $.from,
+                    $.to,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // s.menu_option("cut", "Cut", s._with_selection(s._on_cut())),
+          // s.menu_option("copy", "Copy", s._with_selection(s._on_copy())),
+          // s.menu_option("paste", "Paste", s._with_selection(s._on_paste())),
+          // s.menu_option("clear", "Clear", s._with_selection(s._on_clear())),
+          s.menu_option(
+            "clipboard",
+            "Show Clipboard",
+            fn(__, __)(s.show_clipboard()),
+          ),
+        ),
+      ),
+    ),
+    rule__params: l($.out, $.id, $.state),
+    rule__body: s.table(
+      $.out,
+      l(),
+      x.table_section(
+        x.table_header(l(), "Name"),
+        x.table_row(
+          l(),
+          x.view__input(
+            l(),
+            x.value_record_field_default($.id, "_name", ""),
+            s.match_cond(
+              l(
+                s.change($.value),
+                s.db__update(l(s.update(s._name($.value, $.id)))),
+              ),
+              l(
+                s.select($.from, $.to),
+                s.set_focus($.state, s._name($.from, $.to)),
+              ),
+              l(__, s.ok()),
+            ),
+          ),
+        ),
+      ),
+      x.table_section(
+        x.table_header(l(), "Description"),
+        x.table_row(
+          l(),
+          x.view__text(
+            x.value_record_field_default($.id, "_description", l("")),
+          ),
+        ),
+      ),
+      x.table_section(
+        x.table_header(l(), "Tags"),
+        x.table_row(l(), "TODO: tags"),
+      ),
+      x.table_section(
+        x.table_header(l(), "Preview"),
+        x.table_row(l(), "TODO: preview"),
+      ),
+      x.table_section(
+        x.table_header(l(), "Actions"),
+        x.table_row(
+          l(),
+          x.view__button(
+            l(),
+            "Delete Record",
+            s.on_click(
+              seq(
+                s.current_window($.window),
+                s.db__update(l(s.delete($.id))),
+                s.on__close_window($.window),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
   },
 
   view__file_link: {
