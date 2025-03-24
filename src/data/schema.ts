@@ -6,7 +6,7 @@ export const { rules: schema } = pkg("schema", {
     db__schema: "schema",
     file__name: "Schema",
     file__description: l("Schema for schema definitions"),
-    _fields: l(s.field("_fields")),
+    _fields: l(s.field("_fields"), s.field_optional("_preview")),
   },
   // fields that go on schema
   _t_field_def: {
@@ -36,6 +36,22 @@ export const { rules: schema } = pkg("schema", {
     db__schema: "field",
     file__name: "Fields",
     field__type: s.list_of(s._t_field_def()),
+  },
+  _preview: {
+    db__schema: "field",
+    file__name: "Preview",
+    file__description: l(
+      "renders an inline preview of a record with this schema",
+    ),
+    field__type: s.type__fn(/* out */ s.any_box(), /* id */ s.ref(__)),
+  },
+  _preview_for: {
+    rule__params: l($.preview, $.id),
+    rule__body: seq(
+      s.db__schema($.schema, $.id),
+      s._preview($.fn, $.schema),
+      s.call($.fn, $.preview, $.id),
+    ),
   },
   // fields that ref schema but don't belong to other package
   _constructor: {

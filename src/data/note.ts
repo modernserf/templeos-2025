@@ -8,6 +8,7 @@ export const { rules: note } = pkg("note", {
     file__name: "Note",
     file__description: l("A plain text note"),
     schema__fields: l(s.field("_content")),
+    schema__preview: s._content(),
   },
 
   // private

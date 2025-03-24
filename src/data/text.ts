@@ -1,4 +1,4 @@
-import { l, seq, s, $, __, x, u } from "../expr";
+import { l, seq, s, $, __, x, u, fn } from "../expr";
 import { pkg } from "../pkg";
 
 export const { rules: text } = pkg("text", {
@@ -21,6 +21,7 @@ export const { rules: text } = pkg("text", {
     file__name: "Text",
     file__description: l("A text document"),
     schema__fields: l(s.field("_content")),
+    schema__preview: fn($.out, $.id)(s.view__text($.out, x._content($.id))),
   },
   // fields
   _content: {

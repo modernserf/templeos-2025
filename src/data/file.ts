@@ -214,7 +214,10 @@ export const { rules: collectionData } = pkg("file", {
       ),
       x.table_section(
         x.table_header(l(), "Preview"),
-        x.table_row(l(), "TODO: preview"),
+        xfn($.out)(
+          s.schema__preview_for($.preview, $.id),
+          s.table_row($.out, l(), $.preview),
+        ),
       ),
       x.table_section(
         x.table_header(l(), "Actions"),
