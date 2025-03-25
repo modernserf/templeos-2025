@@ -177,7 +177,7 @@ export const { rules: browserData } = pkg("browser", {
   },
   on__close_window: {
     rule__params: l($.window),
-    rule__body: seq(s.db__update(l(s.delete($.window)))),
+    rule__body: s.db__update(l(s.delete($.window))),
   },
   on__push: {
     rule__params: l($.window, $.location),
@@ -371,6 +371,7 @@ export const { rules: browserData } = pkg("browser", {
     rule__body: seq(
       s._window_params($.id, $.view, $.history, $.window),
       s.current_window($.current_window),
+      s.log("_view_window", $.window),
 
       s.try_error_trace_catch(
         seq(

@@ -286,8 +286,8 @@ export const { rules: dbRules, rulePrimitives: dbPrim } = pkg("db", {
           l(
             s.delete($.id, $.field),
             seq(
-              s._tx_delete_field($.tx, $.id, $.field),
               s.index__on_delete_field($.id, $.field),
+              s._tx_delete_field($.tx, $.id, $.field),
             ),
           ),
           l(

@@ -248,7 +248,7 @@ export const { rules: indexRules, rulePrimitives: indexPrime } = pkg("index", {
     rule__body: s.if_then_else(
       s.field__index($.idx, $.field),
       seq(
-        s.call($.idx, s.get($.id, $.field, $.value)),
+        s.value_record_field($.value, $.id, $.field),
         s.call($.idx, s.delete($.id, $.field, $.value)),
       ),
       s.ok(),
