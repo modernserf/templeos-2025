@@ -22,7 +22,13 @@ export const { rules: time, rulePrimitives: timePrim } = pkg("time", {
   t_timestamp: {
     rule__params: l(s.number()),
   },
-  time__created: {
+  _created: {
+    db__schema: "field",
+    file__name: "Time created",
+    field__type: s.t_timestamp(),
+    // field__index: s.sorted(),
+  },
+  _updated: {
     db__schema: "field",
     file__name: "Time created",
     field__type: s.t_timestamp(),

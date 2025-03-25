@@ -7,7 +7,12 @@ export const { rules: note } = pkg("note", {
     db__schema: "schema",
     file__name: "Note",
     file__description: l("A plain text note"),
-    schema__fields: l(s.field("_content")),
+    schema__fields: l(
+      s.field("_content"),
+      s.field("file__name"),
+      s.field("time__created"),
+      s.field("time__updated"),
+    ),
     schema__preview: s._content(),
   },
 
@@ -72,6 +77,18 @@ export const { rules: note } = pkg("note", {
       ),
     ),
   },
+  _notes_by_time_created: {
+    rule__params: l($.id, $.sort_by),
+    rule__body: seq(
+      s.collect_item_in(
+        $.notes,
+        l($.ts, $.note_id),
+        seq(s.db__schema("note", $.note_id), s.time__created($.ts, $.note_id)),
+      ),
+      s.sort($.sorted, $.notes, $.sort_by),
+      s.in(l(__, $.id), $.sorted),
+    ),
+  },
   _view_list: {
     rule__params: l($.out, $.state),
     rule__body: seq(
@@ -80,7 +97,7 @@ export const { rules: note } = pkg("note", {
         l(),
         x.view__button(l(), "New note", s.on_click(s._on_new())),
         xfn($.out)(
-          s.db__schema("note", $.id),
+          s._notes_by_time_created($.id, s.ord_desc()),
           s._view_detail(
             $.out,
             $.id,
@@ -138,18 +155,30 @@ export const { rules: note } = pkg("note", {
     rule__body: seq(
       s.or_default($.id, x.id()),
       s.or_default($.content, ""),
+      s.timestamp($.ts),
       u(
         $.out,
         l(
           s.update(s.db__schema("note", $.id)),
+          s.update(s.file__name("", $.id)),
           s.update(s._content($.content, $.id)),
+          s.update(s.time__created($.ts, $.id)),
+          s.update(s.time__updated($.ts, $.id)),
         ),
       ),
     ),
   },
   _on_update: {
-    rule__params: l($.value, $.id),
-    rule__body: s.db__update(l(s.update(s._content($.value, $.id)))),
+    rule__params: l($.content, $.id),
+    rule__body: seq(
+      s.timestamp($.ts),
+      s.db__update(
+        l(
+          s.update(s._content($.content, $.id)),
+          s.update(s.time__updated($.ts, $.id)),
+        ),
+      ),
+    ),
   },
   _on_new: {
     rule__params: l(),
@@ -204,5 +233,6 @@ export const { rules: noteInitState } = pkg("note", {
     file__name: "Example note",
     _content: "This is an example note",
     time__created: 1740219570821,
+    time__updated: 1740219570821,
   },
 });
