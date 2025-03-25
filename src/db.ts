@@ -8,7 +8,7 @@ type BaseRec = Record<Field, unknown>;
 
 export class DB<Rec extends BaseRec> {
   private data = new Map<Id, Rec>();
-  public index2 = new Map<Id, BTree<Value, Value>>();
+  public index2 = new Map<Id, BTree<Value, null>>();
   dump() {
     return Object.fromEntries(this.data);
   }

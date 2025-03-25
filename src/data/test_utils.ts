@@ -15,7 +15,7 @@ export const { rules: testUtils } = pkg("test", {
     db__schema: "field",
     file__name: "Test group",
     field__type: s.string(),
-    field__index: s.ref(),
+    field__index: s.index__group(),
   },
   _flags: {
     db__schema: "field",

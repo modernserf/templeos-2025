@@ -34,14 +34,6 @@ export const { rules: dbRules, rulePrimitives: dbPrim } = pkg("db", {
       ),
     ),
   },
-  ref_field_record: {
-    file__description: l("enumerate all indexed references to this record."),
-    rule__params: l($.ref, $.field, $.record),
-    rule__body: seq(
-      s.field__index(__, $.field),
-      s.get_indexed($.ref, $.field, $.record),
-    ),
-  },
   field_record: {
     file__description: l("enumerate the fields associated with a record."),
     rule__params: l($.field, $.id),
@@ -81,7 +73,7 @@ export const { rules: dbRules, rulePrimitives: dbPrim } = pkg("db", {
         s.value_record_field($.value, $.id, $.field),
         s.if_then_else(
           s.nonvar($.value),
-          s.get_indexed($.id, $.field, $.value),
+          s.index__get_grouped($.id, $.field, $.value),
           seq(s.record($.id), s.value_record_field($.value, $.id, $.field)),
         ),
       ),

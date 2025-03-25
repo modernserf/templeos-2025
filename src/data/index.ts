@@ -88,16 +88,10 @@ type SchemaField =
   | Box<"field_optional", [Expr]>
   | Box<"field_default", [Expr, Expr]>;
 
-type IndexType =
-  | Box<"ref", []> // TODO: what does this mean now?
-  | Box<"multi_ref", []>
-  | Box<"sorted", []>
-  | Box<"unique", []>;
-
 export type CoreRec = {
   db__schema?: Schema;
   schema__fields?: List<SchemaField>;
-  field__index?: IndexType;
+  field__index?: Expr;
   field__type?: Expr;
 
   rule__params?: Expr;

@@ -203,7 +203,7 @@ export const { rules: viewAnyRecord } = pkg("any_record", {
           x.table_section(
             x.table_header(l(), "Field", "Referenced by"),
             xfn($.out)(
-              s.ref_field_record($.ref, $.field, $.id),
+              s.index__get_refs($.ref, $.field, $.id),
               s.table_row(
                 $.out,
                 l(),

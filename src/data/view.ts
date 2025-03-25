@@ -23,7 +23,7 @@ export const { rules: view } = pkg("view", {
       s.schema(s.t_ref("schema")),
       s.any(),
     ),
-    field__index: s.ref(),
+    field__index: s.index__group(),
   },
   _params_type: {
     db__schema: "field",
