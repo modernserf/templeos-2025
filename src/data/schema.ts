@@ -129,6 +129,16 @@ export const { rules: schema } = pkg("schema", {
             ),
           ),
           x.table_section(
+            x.table_header(l(), "Views"),
+            xfn($.out)(
+              s.if_then_else(
+                s.view__subject(s.schema($.id), $.view),
+                s.table_row($.out, l(), x.view__file_link($.view)),
+                s.table_row($.out, l(), "none"),
+              ),
+            ),
+          ),
+          x.table_section(
             x.table_header(l(), "Constructors"),
             xfn($.out)(
               s.if_then_else(
