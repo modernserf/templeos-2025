@@ -160,7 +160,8 @@ export const { rules: collectionData } = pkg("file", {
     rule__body: seq(
       s.id($.tag),
       s.db__update(
-        l(s.update(s.db__schema("tag", $.tag)), s.update(s._name("", $.tag))),
+        s.update(s.db__schema("tag", $.tag)),
+        s.update(s._name("", $.tag)),
       ),
       s._add_tag($.tag, $.id),
       s.current_window($.window),
@@ -173,7 +174,7 @@ export const { rules: collectionData } = pkg("file", {
       s.value_record_field_default($.tags, $.id, "_tags", l()),
       s.none(s.in($.tag, $.tags)),
       s.append($.next, $.tags, l($.tag)),
-      s.db__update(l(s.update(s._tags($.next, $.id)))),
+      s.db__update(s.update(s._tags($.next, $.id))),
     ),
   },
   _delete_tag: {
@@ -181,7 +182,7 @@ export const { rules: collectionData } = pkg("file", {
     rule__body: seq(
       s._tags($.tags, $.id),
       s.filter_list($.next, $.tags, s.not_equal($.tag)),
-      s.db__update(l(s.update(s._tags($.next, $.id)))),
+      s.db__update(s.update(s._tags($.next, $.id))),
     ),
   },
 
@@ -241,7 +242,7 @@ export const { rules: collectionData } = pkg("file", {
             s.match_cond(
               l(
                 s.change($.value),
-                s.db__update(l(s.update(s._name($.value, $.id)))),
+                s.db__update(s.update(s._name($.value, $.id))),
               ),
               l(
                 s.select($.from, $.to),
@@ -282,7 +283,7 @@ export const { rules: collectionData } = pkg("file", {
             s.on_click(
               seq(
                 s.current_window($.window),
-                s.db__update(l(s.delete($.id))),
+                s.db__update(s.delete($.id)),
                 s.on__close_window($.window),
               ),
             ),

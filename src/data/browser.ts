@@ -141,7 +141,7 @@ export const { rules: browserData } = pkg("browser", {
   },
   set_state: {
     rule__params: l($.state, $.value),
-    rule__body: s.db__update(l(s.update($.state, "_params", $.value))),
+    rule__body: s.db__update(s.update($.state, "_params", $.value)),
   },
   get_focus: {
     rule__params: l($.value, $.state, $.default),
@@ -154,7 +154,7 @@ export const { rules: browserData } = pkg("browser", {
   },
   set_focus: {
     rule__params: l($.state, $.value),
-    rule__body: s.db__update(l(s.update($.state, "_focus", $.value))),
+    rule__body: s.db__update(s.update($.state, "_focus", $.value)),
   },
 
   // event handlers
@@ -162,38 +162,38 @@ export const { rules: browserData } = pkg("browser", {
     rule__params: l($.window, $.next_view),
     rule__body: seq(
       s._current_history($.history, $.window),
-      s.db__update(l(s.update($.history, "_view", $.next_view))),
+      s.db__update(s.update($.history, "_view", $.next_view)),
     ),
   },
   on__select_window: {
     rule__params: l($.window),
     rule__body: seq(
-      s.db__update(l(s.update("browser", "_current_window", $.window))),
+      s.db__update(s.update("browser", "_current_window", $.window)),
     ),
   },
   on__new_window: {
     rule__params: l($.location),
-    rule__body: seq(s._new_window($.out, __, $.location), s.db__update($.out)),
+    rule__body: seq(
+      s._new_window($.out, __, $.location),
+      s.apply($.out, s.db__update()),
+    ),
   },
   on__close_window: {
     rule__params: l($.window),
-    rule__body: s.db__update(l(s.delete($.window))),
+    rule__body: s.db__update(s.delete($.window)),
   },
   on__push: {
     rule__params: l($.window, $.location),
     rule__body: seq(
       s._current_history($.prev, $.window),
       s._new_history($.h, $.next, $.window, $.location),
-      s.append(
-        $.batch,
-        $.h,
-        l(
-          s.update($.next, "_back", $.prev),
-          s.update($.prev, "_forward", $.next),
-          s.update($.window, "_current_history", $.next),
-        ),
+
+      s.db__update(
+        x.in($.h),
+        s.update($.next, "_back", $.prev),
+        s.update($.prev, "_forward", $.next),
+        s.update($.window, "_current_history", $.next),
       ),
-      s.db__update($.batch),
     ),
   },
 
@@ -203,11 +203,9 @@ export const { rules: browserData } = pkg("browser", {
       s._current_history($.forward, $.window),
       s._back($.back, $.forward),
       s.db__update(
-        l(
-          s.update($.window, "_current_history", $.back),
-          s.update($.back, "_forward", $.forward),
-          s.delete($.forward, "_back"),
-        ),
+        s.update($.window, "_current_history", $.back),
+        s.update($.back, "_forward", $.forward),
+        s.delete($.forward, "_back"),
       ),
     ),
   },
@@ -217,11 +215,9 @@ export const { rules: browserData } = pkg("browser", {
       s._current_history($.back, $.window),
       s._forward($.forward, $.back),
       s.db__update(
-        l(
-          s.update($.window, "_current_history", $.forward),
-          s.update($.forward, "_back", $.back),
-          s.delete($.back, "_forward"),
-        ),
+        s.update($.window, "_current_history", $.forward),
+        s.update($.forward, "_back", $.back),
+        s.delete($.back, "_forward"),
       ),
     ),
   },
@@ -371,8 +367,6 @@ export const { rules: browserData } = pkg("browser", {
     rule__body: seq(
       s._window_params($.id, $.view, $.history, $.window),
       s.current_window($.current_window),
-      s.log("_view_window", $.window),
-
       s.try_error_trace_catch(
         seq(
           s._window_container(

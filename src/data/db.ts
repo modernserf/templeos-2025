@@ -218,7 +218,7 @@ export const { rules: dbRules, rulePrimitives: dbPrim } = pkg("db", {
     ),
   },
   _update: {
-    rule__params: l($.batch),
+    rule__params: $.batch,
     rule__body: seq(
       s._normalize_update($.normalized, $.batch),
       s.event_send("db_server", s.update($.normalized)),

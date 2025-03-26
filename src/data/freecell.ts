@@ -82,12 +82,10 @@ export const { rules: freeCell } = pkg("free_cell", {
       s.timestamp($.ts),
       s._init($.value),
       s.db__update(
-        l(
-          s.update($.id, "_game_state", $.value),
-          s.update($.id, "_undo_state", l()),
-          s.update($.id, "time__created", $.ts),
-          s.update($.id, "db__schema", "_game"),
-        ),
+        s.update($.id, "_game_state", $.value),
+        s.update($.id, "_undo_state", l()),
+        s.update($.id, "time__created", $.ts),
+        s.update($.id, "db__schema", "_game"),
       ),
     ),
   },
@@ -495,10 +493,8 @@ export const { rules: freeCell } = pkg("free_cell", {
       s._move(x._game_state($.id), $.state2, $.card, $.from),
       s._move($.state3, $.state2, $.card, $.to),
       s.db__update(
-        l(
-          s.update($.id, "_game_state", $.state3),
-          s.update($.id, "_undo_state", $.next_undo),
-        ),
+        s.update($.id, "_game_state", $.state3),
+        s.update($.id, "_undo_state", $.next_undo),
       ),
     ),
   },
@@ -509,10 +505,8 @@ export const { rules: freeCell } = pkg("free_cell", {
       s._move(x._game_state($.id), $.state2, $.card, $.to),
       s._move_undo($.state3, $.state2, $.card, $.from),
       s.db__update(
-        l(
-          s.update($.id, "_game_state", $.state3),
-          s.update($.id, "_undo_state", $.next_undo),
-        ),
+        s.update($.id, "_game_state", $.state3),
+        s.update($.id, "_undo_state", $.next_undo),
       ),
     ),
   },

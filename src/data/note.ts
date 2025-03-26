@@ -158,7 +158,8 @@ export const { rules: note } = pkg("note", {
       s.timestamp($.ts),
       s.box($.field_update, __, l(__, $.id)),
       s.db__update(
-        l(s.update($.field_update), s.update(s.time__updated($.ts, $.id))),
+        s.update($.field_update),
+        s.update(s.time__updated($.ts, $.id)),
       ),
     ),
   },
@@ -166,7 +167,7 @@ export const { rules: note } = pkg("note", {
     rule__params: l(),
     rule__body: seq(
       s._new($.batch, $.id, __),
-      s.db__update($.batch),
+      s.apply($.batch, s.db__update()),
       s.current_window($.window),
       s.on__push($.window, s.location($.id, "_view")),
     ),

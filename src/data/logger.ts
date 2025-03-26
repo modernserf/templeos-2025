@@ -52,13 +52,11 @@ export const { rules: logging } = pkg("logging", {
       s.timestamp($.ts),
       s.id($.id),
       s.db__update(
-        l(
-          s.update($.id, "db__schema", "_entry"),
-          s.update($.id, "_entry_log", $.log),
-          s.update($.id, "_level", $.level),
-          s.update($.id, "_data", $.data),
-          s.update($.id, "time__created", $.ts),
-        ),
+        s.update($.id, "db__schema", "_entry"),
+        s.update($.id, "_entry_log", $.log),
+        s.update($.id, "_level", $.level),
+        s.update($.id, "_data", $.data),
+        s.update($.id, "time__created", $.ts),
       ),
     ),
   },
