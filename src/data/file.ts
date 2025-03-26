@@ -159,10 +159,7 @@ export const { rules: collectionData } = pkg("file", {
     rule__params: l($.id),
     rule__body: seq(
       s.id($.tag),
-      s.db__update(
-        s.update(s.db__schema("tag", $.tag)),
-        s.update(s._name("", $.tag)),
-      ),
+      s.db__update(s.insert(s.tag($.tag, ""))),
       s._add_tag($.tag, $.id),
       s.current_window($.window),
       s.on__push($.window, s.location($.tag, "_view")),

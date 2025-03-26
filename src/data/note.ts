@@ -1,4 +1,4 @@
-import { l, s, $, seq, u, __, x, fn, alt } from "../expr";
+import { l, s, $, seq, __, x, fn, alt } from "../expr";
 import { pkg } from "../pkg";
 
 export const { rules: note } = pkg("note", {
@@ -134,24 +134,7 @@ export const { rules: note } = pkg("note", {
       s.__view_all($.state),
     ),
   },
-  _new: {
-    rule__params: l($.out, $.id, $.content),
-    rule__body: seq(
-      s.or_default($.id, x.id()),
-      s.or_default($.content, ""),
-      s.timestamp($.ts),
-      u(
-        $.out,
-        l(
-          s.update(s.db__schema("note", $.id)),
-          s.update(s.file__name("New Note", $.id)),
-          s.update(s._content($.content, $.id)),
-          s.update(s.time__created($.ts, $.id)),
-          s.update(s.time__updated($.ts, $.id)),
-        ),
-      ),
-    ),
-  },
+
   _on_update: {
     rule__params: l($.field_update),
     rule__body: seq(
@@ -166,8 +149,9 @@ export const { rules: note } = pkg("note", {
   _on_new: {
     rule__params: l(),
     rule__body: seq(
-      s._new($.batch, $.id, __),
-      s.apply($.batch, s.db__update()),
+      s.id($.id),
+      s.timestamp($.ts),
+      s.db__update(s.insert(s.note($.id, "", "New Note", $.ts, $.ts))),
       s.current_window($.window),
       s.on__push($.window, s.location($.id, "_view")),
     ),

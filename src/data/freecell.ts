@@ -81,12 +81,7 @@ export const { rules: freeCell } = pkg("free_cell", {
       s.or_default($.id, x.id()),
       s.timestamp($.ts),
       s._init($.value),
-      s.db__update(
-        s.update($.id, "_game_state", $.value),
-        s.update($.id, "_undo_state", l()),
-        s.update($.id, "time__created", $.ts),
-        s.update($.id, "db__schema", "_game"),
-      ),
+      s.db__update(s.insert(s._game($.id, $.value, l(), $.ts))),
     ),
   },
   _init: {

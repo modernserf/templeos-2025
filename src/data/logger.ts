@@ -16,8 +16,8 @@ export const { rules: logging } = pkg("logging", {
     file__name: "Log entry",
     schema__fields: l(
       s.field("_entry_log"),
-      s.field("_data"),
       s.field("_level"),
+      s.field("_data"),
       s.field("time__created"),
     ),
   },
@@ -51,13 +51,7 @@ export const { rules: logging } = pkg("logging", {
     rule__body: seq(
       s.timestamp($.ts),
       s.id($.id),
-      s.db__update(
-        s.update($.id, "db__schema", "_entry"),
-        s.update($.id, "_entry_log", $.log),
-        s.update($.id, "_level", $.level),
-        s.update($.id, "_data", $.data),
-        s.update($.id, "time__created", $.ts),
-      ),
+      s.db__update(s.insert(s._entry($.id, $.log, $.level, $.data, $.ts))),
     ),
   },
   log_debug: {

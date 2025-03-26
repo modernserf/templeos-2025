@@ -1,4 +1,4 @@
-import { l, s, $, seq, u, __, alt, fn, x, xfn } from "../expr";
+import { l, s, $, seq, u, __, fn, x, xfn } from "../expr";
 import { pkg } from "../pkg";
 
 export const { rules: browserData } = pkg("browser", {
@@ -8,6 +8,21 @@ export const { rules: browserData } = pkg("browser", {
     file__name: "Window",
     file__description: l("A window"),
     schema__fields: l(s.field("_current_history")),
+  },
+  _new_window: {
+    rule__params: l($.out, $.window, $.location),
+    rule__body: seq(
+      s.or_default($.window, x.id()),
+      s._new_history($.h, $.history, $.window, $.location),
+      s.append(
+        $.out,
+        $.h,
+        l(
+          s.insert(s.window($.window, $.history)),
+          s.update("browser", "_current_window", $.window),
+        ),
+      ),
+    ),
   },
   history: {
     db__schema: "schema",
@@ -21,6 +36,22 @@ export const { rules: browserData } = pkg("browser", {
       s.field_optional("_focus"),
       s.field_optional("_forward"),
       s.field_optional("_back"),
+    ),
+  },
+  _new_history: {
+    rule__params: l($.out, $.history, $.window, $.location),
+    rule__body: seq(
+      s.or_default($.history, x.id()),
+      s.timestamp($.ts),
+      s.location_id_view_params($.location, $.id, $.view, $.params),
+
+      s.list(
+        $.out,
+        s.insert(
+          s.history($.history, $.window, $.id, $.view, $.params, __, __, __),
+        ),
+        s.update(s.time__created($.ts, $.history)),
+      ),
     ),
   },
 
@@ -535,44 +566,6 @@ export const { rules: browserData } = pkg("browser", {
               $.handler,
             ),
           ),
-        ),
-      ),
-    ),
-  },
-
-  _new_window: {
-    rule__params: l($.out, $.window, $.location),
-    rule__body: seq(
-      s.or_default($.window, x.id()),
-      s._new_history($.h, $.history, $.window, $.location),
-      s.append(
-        $.out,
-        $.h,
-        l(
-          s.update($.window, "db__schema", "window"),
-          s.update($.window, "_current_history", $.history),
-          s.update("browser", "_current_window", $.window),
-        ),
-      ),
-    ),
-  },
-  _new_history: {
-    rule__params: l($.out, $.history, $.window, $.location),
-    rule__body: seq(
-      s.or_default($.history, x.id()),
-      s.timestamp($.ts),
-      s.location_id_view_params($.location, $.id, $.view, $.params),
-
-      s.collect_item_in(
-        $.out,
-        s.update($.history, $.f, $.v),
-        alt(
-          u(l($.f, $.v), l("db__schema", "history")),
-          u(l($.f, $.v), l("time__created", $.ts)),
-          u(l($.f, $.v), l("_window", $.window)),
-          u(l($.f, $.v), l("_id", $.id)),
-          seq(s.nonvar($.view), u(l($.f, $.v), l("_view", $.view))),
-          seq(s.nonvar($.params), u(l($.f, $.v), l("_params", $.params))),
         ),
       ),
     ),

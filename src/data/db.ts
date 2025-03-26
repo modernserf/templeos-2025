@@ -1,4 +1,4 @@
-import { s, __, seq, $, l, u, fn, Expr } from "../expr";
+import { s, __, seq, $, l, u, fn, Expr, alt } from "../expr";
 import { pkg } from "../pkg";
 import { ensure, resolveDeep } from "../process";
 import { k, valueExpr } from "../value";
@@ -218,6 +218,7 @@ export const { rules: dbRules, rulePrimitives: dbPrim } = pkg("db", {
     ),
   },
   _update: {
+    test__flags: l(s.ignore_single_vars()),
     rule__params: $.batch,
     rule__body: seq(
       s._normalize_update($.normalized, $.batch),
@@ -247,7 +248,39 @@ export const { rules: dbRules, rulePrimitives: dbPrim } = pkg("db", {
               u($.out, s.update($.id, $.field, $.value)),
             ),
           ),
+          l(s.insert($.schema_expr), s._schema_insert($.out, $.schema_expr)),
           l(__, u($.out, $.in)),
+        ),
+      ),
+    ),
+  },
+  _schema_insert: {
+    rule__params: l($.out, $.schema_expr),
+    rule__body: seq(
+      s.box($.schema_expr, $.schema, $.id_values),
+      s.schema__fields($.fields, $.schema),
+      s.append($.id_values, l($.id), $.values),
+      s.zip_lists(
+        $.zipped,
+        l($.fields, $.values),
+        fn(
+          s.update($.id, $.field, $.value),
+          $.field_def,
+          $.value,
+        )(
+          s.match_cond(
+            $.field_def,
+            l(s.field($.field), s.nonvar($.value)),
+            l(s.field_optional($.field), s.ok()),
+          ),
+        ),
+      ),
+      alt(
+        u($.out, s.update($.id, "db__schema", $.schema)),
+        seq(
+          s.in(s.update(__, $.f, $.v), $.zipped),
+          s.nonvar($.v),
+          u($.out, s.update($.id, $.f, $.v)),
         ),
       ),
     ),
