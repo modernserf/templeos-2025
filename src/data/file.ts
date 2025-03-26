@@ -230,11 +230,19 @@ export const { rules: collectionData } = pkg("file", {
       $.out,
       l(),
       x.table_section(
+        x.table_header(l(), "Schema"),
+        x.table_row(
+          l(),
+          xfn($.o)(
+            s.db__schema($.schema, $.id),
+            s.view__file_link($.o, $.schema),
+          ),
+        ),
         x.table_header(l(), "Name"),
         x.table_row(
           l(),
           x.view__input(
-            l(),
+            l(s.style("width", "100%")),
             x.value_record_field_default($.id, "_name", ""),
             s.match_cond(
               l(
