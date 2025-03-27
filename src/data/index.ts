@@ -39,6 +39,7 @@ import { procesPrimitives, processRules } from "./process";
 import { stringPrimitives, stringRules } from "./string";
 import { boxPrim, boxRules } from "./box";
 import { indexPrime, indexRules } from "./db_index";
+import { match3Rules } from "./match_3";
 
 export type Schema =
   | "clipboard"
@@ -140,6 +141,7 @@ export const data = mergeAndCheck(
     indexRules,
     list,
     logging,
+    match3Rules,
     note,
     number,
     omnibox,
@@ -171,6 +173,7 @@ export const data = mergeAndCheck(
           "omnibox",
           "note__view_all",
           "free_cell__game",
+          "match_3__game",
           "logging__default_log",
         ),
         rule__body: s.column(

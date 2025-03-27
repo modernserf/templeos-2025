@@ -74,6 +74,10 @@ export const { rules: number, rulePrimitives: numberPrim } = pkg("number", {
     rule__params: l($.inc, $.value),
     rule__body: s.sum($.inc, $.value, 1),
   },
+  dec: {
+    rule__params: l($.dec, $.value),
+    rule__body: s.sum($.value, $.dec, 1),
+  },
   negate: {
     rule__params: l($.neg, $.value),
     rule__body: s.sum(0, $.neg, $.value),
