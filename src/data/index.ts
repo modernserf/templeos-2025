@@ -40,6 +40,7 @@ import { stringPrimitives, stringRules } from "./string";
 import { boxPrim, boxRules } from "./box";
 import { indexPrime, indexRules } from "./db_index";
 import { match3Rules } from "./match_3";
+import { minesweeper } from "./minesweeper";
 
 export type Schema =
   | "clipboard"
@@ -142,6 +143,7 @@ export const data = mergeAndCheck(
     list,
     logging,
     match3Rules,
+    minesweeper,
     note,
     number,
     omnibox,
@@ -172,6 +174,7 @@ export const data = mergeAndCheck(
           "code_explorer",
           "omnibox",
           "note__view_all",
+          "minesweeper__game",
           "free_cell__game",
           "match_3__game",
           "logging__default_log",

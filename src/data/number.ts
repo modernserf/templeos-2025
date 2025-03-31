@@ -10,6 +10,10 @@ export const { rules: number, rulePrimitives: numberPrim } = pkg("number", {
       if (it.unify(rand, k(Math.random()))) yield it.result();
     },
   },
+  random_int: {
+    rule__params: l($.rand, $.max),
+    rule__body: s.floor($.rand, x.mul(x.add(1, $.max), x.random())),
+  },
   number_min_max: {
     rule__params: l($.number, $.min, $.max),
     rule__primitive: function* (it, num, min, max) {

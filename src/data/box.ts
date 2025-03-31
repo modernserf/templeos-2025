@@ -94,6 +94,10 @@ export const { rules: boxRules, rulePrimitives: boxPrim } = pkg("box", {
       s.expect_fail(s.in("c", s.bar("a", "b"))),
     ),
   },
+  has: {
+    rule__params: l($.value, $.box),
+    rule__body: s.limit(1, s.in($.value, $.box)),
+  },
   index_value_box: {
     rule__params: l($.index, $.value, $.box),
     rule__body: seq(
